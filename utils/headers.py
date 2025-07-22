@@ -1,0 +1,113 @@
+from __future__ import annotations
+from typing import Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+
+CHROME_VERSION = 138
+
+
+def make_headers(
+        authority: str = str(),
+        accept: str = "*/*",
+        encoding: str = "gzip, deflate, br",
+        language: Literal["ko","en"] | str = "ko",
+        connection: str = "keep-alive",
+        contents: Literal["form", "javascript", "json", "text", "multipart"] | str | Dict = str(),
+        cookies: str = str(),
+        host: str = str(),
+        origin: str = str(),
+        priority: str = "u=0, i",
+        referer: str = str(),
+        client: str = str(),
+        mobile: bool = False,
+        platform: str = str(),
+        metadata: Literal["cors", "navigate"] | Dict[str,str] = "cors",
+        https: bool = False,
+        user_agent: str = str(),
+        ajax: bool = False,
+        version: int = CHROME_VERSION
+    ) -> Dict[str,str]:
+    from urllib.parse import urlparse
+    return {
+        **({"authority": authority} if authority else dict()),
+        **({"accept": accept} if accept else dict()),
+        **({"accept-encoding": encoding} if encoding else dict()),
+        **({"accept-language": _get_default_language(language)} if language else dict()),
+        **({"connection": connection} if connection else dict()),
+        **({"content-type": _get_content_type(contents)} if contents else dict()),
+        **({"cookie": cookies} if cookies else dict()),
+        **({"host": urlparse(host).hostname} if host else dict()),
+        **({"origin": origin} if origin else dict()),
+        **({"priority": priority} if priority else dict()),
+        **({"referer": referer} if referer else dict()),
+        "sec-ch-ua": (client or _get_default_client(version)),
+        "sec-ch-ua-mobile": f"?{int(mobile)}",
+        "sec-ch-ua-platform": (platform or _get_current_platform()),
+        **_get_fetch_metadata(metadata),
+        **({"upgrade-insecure-requests": "1"} if https else dict()),
+        "user-agent": (user_agent or _get_user_agent(version)),
+        **({"X-Requested-With": "XMLHttpRequest"} if ajax else dict())
+    }
+
+
+def _get_default_language(value: Literal["ko","en"] | str = "ko") -> str:
+    if value == "ko":
+        return "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
+    elif value == "en":
+        return "en-US,en;q=0.9"
+    else:
+        return value
+
+
+def _get_content_type(contents: Literal["form", "javascript", "json", "text", "multipart"] | str | Dict):
+    if isinstance(contents, str):
+        if contents == "form":
+            return "application/x-www-form-urlencoded"
+        elif contents == "javascript":
+            return "javascript"
+        elif contents == "json":
+            return "application/json"
+        elif contents == "text":
+            return "text/plain"
+        elif contents == "multipart":
+            return "multipart/form-data"
+        else:
+            return contents
+    elif isinstance(contents, Dict):
+        content_type = _get_content_type(contents["type"])
+        for key, value in contents.items(): # boundary, charset, ...
+            if key != "type":
+                content_type += f"; {key}={value}"
+        return content_type
+    else:
+        raise TypeError("Invalid type for contents. A string or dictionary type is allowed.")
+
+
+def _get_default_client(version: int = CHROME_VERSION) -> str:
+    return f'"Not)A;Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
+
+
+def _get_current_platform() -> str:
+    import platform
+    os_name = platform.system()
+    return "macOS" if os_name == "Darwin" else os_name
+
+
+def _get_fetch_metadata(metadata: Literal["cors", "navigate"] | Dict[str,str] = "navigate") -> Dict[str,str]:
+    if isinstance(metadata, str):
+        if metadata == "cors":
+            return {"sec-fetch-dest": "empty", "sec-fetch-mode": "cors", "sec-fetch-site": "same-origin", "sec-fetch-user": "?1"}
+        elif metadata == "navigate":
+            return {"sec-fetch-dest": "document", "sec-fetch-mode": "navigate", "sec-fetch-site": "none", "sec-fetch-user": "?1"}
+        else:
+            return dict()
+    elif isinstance(metadata, Dict):
+        return metadata
+    else:
+        return dict()
+
+
+def _get_user_agent(version: int = CHROME_VERSION) -> str:
+    return f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36"

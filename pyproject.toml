@@ -4,4 +4,13 @@ version = "0.1.0"
 description = "E-commerce API integration management"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "aiohttp>=3.12.14",
+    "asyncio>=3.4.3",
+    "bs4>=0.0.2",
+    "lxml>=6.0.0",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.1",
+    "requests>=2.32.4",
+    "xlrd>=2.0.2",
+]
