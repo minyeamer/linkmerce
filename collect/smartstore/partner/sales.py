@@ -1,5 +1,6 @@
 from __future__ import annotations
-from collect import Collector, JsonObject, POST
+from collect import Collector, JsonObject, Parser, POST
+from parse.smartstore.partner.sales import ProductSalesList
 
 from typing import TYPE_CHECKING
 
@@ -48,9 +49,6 @@ class StoreSales(Collector):
         message = self.build_request(startDate, endDate, mallSeq, dateType, page, pageSize)
         response = await self.request_async_json(**message)
         return self.parse(response)
-
-    def parse(self, response: Dict) -> JsonObject:
-        return response
 
     def build_request(self,
             startDate: dt.date | str,
@@ -145,11 +143,12 @@ class ProductSales(StoreSales):
             mallSeq: int | str,
             dateType: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
-            pageSize: int = 1000
+            pageSize: int = 1000,
+            parser: Literal["sales"] | Parser | None = "sales"
         ) -> JsonObject:
         message = self.build_request(startDate, endDate, mallSeq, dateType, page, pageSize)
         response = self.request_json(**message)
-        return self.parse(response)
+        return self.parse(response, parser)
 
     @Collector.with_client_session
     async def collect_async(self,
@@ -158,8 +157,15 @@ class ProductSales(StoreSales):
             mallSeq: int | str,
             dateType: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
-            pageSize: int = 1000
+            pageSize: int = 1000,
+            parser: Literal["sales"] | Parser | None = "sales"
         ) -> JsonObject:
         message = self.build_request(startDate, endDate, mallSeq, dateType, page, pageSize)
         response = await self.request_async_json(**message)
-        return self.parse(response)
+        return self.parse(response, parser)
+
+    def select_parser(self, parser: Literal["sales"] | Parser | None = "sales") -> Parser:
+        if parser == "sales":
+            return ProductSalesList
+        else:
+            return parser

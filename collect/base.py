@@ -1,9 +1,11 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
+from parse import Map, Array
 import functools
 
 from typing import Dict, List, Union, TYPE_CHECKING
 JsonObject = Union[Dict, List]
+Parser = Union[Map, Array]
 
 if TYPE_CHECKING:
     from typing import Any, Callable, IO, Literal, Sequence, Tuple
@@ -348,5 +350,9 @@ class Collector(RequestSessionClient, AiohttpSessionClient, metaclass=ABCMeta):
     def build_request(self, *args, **kwargs) -> Dict:
         return dict(method=self.method, url=self.url)
 
-    def parse(self, response: Any, *args, **kwargs) -> Any:
-        raise NotImplementedError("The parse method is not implemented.")
+    def parse(self, response: Any, parser: Parser | None = None, *args, **kwargs) -> Any:
+        parser = self.select_parser(parser)
+        return parser(response, *args, **kwargs) if parser is not None else response
+
+    def select_parser(self, parser: Parser | None = None) -> Parser:
+        return parser
