@@ -5,36 +5,34 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Dict, List, Literal
+    from requests import Session
+    from aiohttp import ClientSession
     import datetime as dt
 
 
-class _SalesViewer(Collector):
+class StoreSales(Collector):
     method = POST
     url = "https://hcenter.shopping.naver.com/brand/content"
 
-    def init_constant(self, **kwargs):
-        self.set_request_headers(**kwargs)
-        self.fields = dict()
-        self.fields["store"] = self._get_store_fields()
-        self.fields["category"] = self._get_category_fields()
-        self.fields["product"] = self._get_product_fields()
-
-    def set_request_headers(self, **kwargs) -> Dict[str,str]:
-        referer = "https://hcenter.shopping.naver.com/iframe/brand-analytics/store/productSales"
-        origin = "https://hcenter.shopping.naver.com"
-        super().set_request_headers(contents=dict(type="text", charset="UTF-8"), origin=origin, referer=referer, **kwargs)
+    def __init__(self,
+            session: Session | ClientSession | None = None,
+            headers: Dict = dict(),
+            salesType: Literal["store","category","product"] = "store"
+        ):
+        self.set_session(session)
+        self.set_request_headers(**headers)
+        self.set_request_body(salesType)
 
     @Collector.with_session
     def collect(self,
             startDate: dt.date | str,
             endDate: dt.date | str,
             mallSeq: int | str,
-            dateType: Literal["daily","weekly","monthly"],
-            salesType: Literal["store","category","product"],
+            dateType: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
-            pageSize: int = 1000,
-        **kwargs) -> JsonObject:
-        message = self.get_request_message(startDate, endDate, mallSeq, dateType, salesType, page, pageSize)
+            pageSize: int = 1000
+        ) -> JsonObject:
+        message = self.build_request(startDate, endDate, mallSeq, dateType, page, pageSize)
         response = self.request_json(**message)
         return self.parse(response)
 
@@ -43,48 +41,73 @@ class _SalesViewer(Collector):
             startDate: dt.date | str,
             endDate: dt.date | str,
             mallSeq: int | str,
-            dateType: Literal["daily","weekly","monthly"],
-            salesType: Literal["store","category","product"],
+            dateType: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
             pageSize: int = 1000,
-        **kwargs) -> JsonObject:
-        message = self.get_request_message(startDate, endDate, mallSeq, dateType, salesType, page, pageSize)
+        ) -> JsonObject:
+        message = self.build_request(startDate, endDate, mallSeq, dateType, page, pageSize)
         response = await self.request_async_json(**message)
         return self.parse(response)
 
     def parse(self, response: Dict) -> JsonObject:
         return response
 
-    def get_request_message(self, startDate, endDate, mallSeq, dateType: str, salesType: str, page=1, pageSize=1000) -> Dict:
-        body = self._get_request_body(startDate, endDate, mallSeq, dateType, salesType, page, pageSize)
+    def build_request(self,
+            startDate: dt.date | str,
+            endDate: dt.date | str,
+            mallSeq: int | str,
+            dateType: Literal["daily","weekly","monthly"] = "daily",
+            page: int = 1,
+            pageSize: int = 1000
+        ) -> Dict:
+        body = self.get_request_body(startDate, endDate, mallSeq, dateType, page, pageSize)
         headers = self.get_request_headers()
         return dict(method=self.method, url=self.url, json=body, headers=headers)
 
-    def _get_request_body(self, startDate, endDate, mallSeq, dateType: str, salesType: str, page=1, pageSize=1000):
-        from utils.graphql import GraphQLOperation, GraphQLSelection
-        return GraphQLOperation(
-            operation=f"get{salesType.capitalize()}Sale",
-            variables={
+    def get_request_body(self,
+            startDate: dt.date | str,
+            endDate: dt.date | str,
+            mallSeq: int | str,
+            dateType: Literal["daily","weekly","monthly"] = "daily",
+            page: int = 1,
+            pageSize: int = 1000
+        ) -> Dict:
+        return dict(self.__body, variables={
                 "queryRequest": {
                     "mallSequence": str(mallSeq),
                     "dateType": dateType.capitalize(),
                     "startDate": str(startDate),
                     "endDate": str(endDate),
-                    **({"sortBy": "PaymentAmount"} if salesType != "store" else dict()),
-                    **({"pageable": {"page":int(page), "size":int(pageSize)}} if salesType != "store" else dict()),
+                    **({"sortBy": "PaymentAmount"} if self.salesType != "store" else dict()),
+                    **({"pageable": {"page":int(page), "size":int(pageSize)}} if self.salesType != "store" else dict()),
                 }
-            },
-            types={"queryRequest":"StoreTrafficRequest"},
+            })
+
+    def set_request_body(self, salesType: Literal["store","category","product"] = "store"):
+        from utils.graphql import GraphQLOperation, GraphQLSelection
+        self.__body = GraphQLOperation(
+            operation=f"get{salesType.capitalize()}Sale",
+            variables={"queryRequest": dict()},
+            types={"queryRequest": "StoreTrafficRequest"},
             selection=GraphQLSelection(
                 name=f"{salesType}Sales",
                 variables=["queryRequest"],
-                fields=self.fields[salesType],
+                fields=getattr(self, f"_{salesType}_fields"),
             )
         ).generate_data(query_options=dict(
             selection=dict(variables=dict(linebreak=False), fields=dict(linebreak=True)),
             suffix='\n'))
+        self.salesType = salesType
 
-    def _get_store_fields(self) -> List[Dict]:
+    @Collector.cookies_required
+    def set_request_headers(self, **kwargs) -> Dict[str,str]:
+        contents = dict(type="text", charset="UTF-8")
+        referer = "https://hcenter.shopping.naver.com/iframe/brand-analytics/store/productSales"
+        origin = "https://hcenter.shopping.naver.com"
+        super().set_request_headers(contents=contents, origin=origin, referer=referer, **kwargs)
+
+    @property
+    def _store_fields(self) -> List[Dict]:
         return [
             {"period": ["date"]},
             {"sales": [
@@ -92,7 +115,8 @@ class _SalesViewer(Collector):
                 "paymentAmountPerPaying", "paymentAmountPerUser", "refundRate"]}
         ]
 
-    def _get_category_fields(self) -> List[Dict]:
+    @property
+    def _category_fields(self) -> List[Dict]:
         return [
             {"product": [{"category": ["identifier", "fullName"]}]},
             {"sales": ["paymentAmount", "paymentCount", "purchaseConversionRate", "paymentAmountPerPaying"]},
@@ -100,7 +124,8 @@ class _SalesViewer(Collector):
             {"measuredThrough": ["type"]},
         ]
 
-    def _get_product_fields(self) -> List[Dict]:
+    @property
+    def _product_fields(self) -> List[Dict]:
         return [
             {"product": ["identifier", "name", {"category": ["identifier", "name", "fullName"]}]},
             {"sales": ["paymentAmount", "paymentCount", "purchaseConversionRate"]},
@@ -109,20 +134,20 @@ class _SalesViewer(Collector):
         ]
 
 
-class ProductSales(_SalesViewer):
-    def init_constant(self, **kwargs):
-        self.set_request_headers(**kwargs)
-        self.fields = dict(product=self._get_product_fields())
+class ProductSales(StoreSales):
+    def __init__(self, session: Session | ClientSession | None = None, headers: Dict = dict()):
+        super().__init__(session, headers, salesType="product")
 
     @Collector.with_session
     def collect(self,
             startDate: dt.date | str,
             endDate: dt.date | str,
             mallSeq: int | str,
+            dateType: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
-            pageSize: int = 1000,
-        **kwargs) -> JsonObject:
-        message = self.get_request_message(startDate, endDate, mallSeq, "daily", "product", page, pageSize)
+            pageSize: int = 1000
+        ) -> JsonObject:
+        message = self.build_request(startDate, endDate, mallSeq, dateType, page, pageSize)
         response = self.request_json(**message)
         return self.parse(response)
 
@@ -131,9 +156,10 @@ class ProductSales(_SalesViewer):
             startDate: dt.date | str,
             endDate: dt.date | str,
             mallSeq: int | str,
+            dateType: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
-            pageSize: int = 1000,
-        **kwargs) -> JsonObject:
-        message = self.get_request_message(startDate, endDate, mallSeq, "daily", "product", page, pageSize)
+            pageSize: int = 1000
+        ) -> JsonObject:
+        message = self.build_request(startDate, endDate, mallSeq, dateType, page, pageSize)
         response = await self.request_async_json(**message)
         return self.parse(response)

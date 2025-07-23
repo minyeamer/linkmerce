@@ -6,7 +6,7 @@ from typing import Dict, List, Union, TYPE_CHECKING
 JsonObject = Union[Dict, List]
 
 if TYPE_CHECKING:
-    from typing import Any, IO, Literal, Sequence, Tuple
+    from typing import Any, Callable, IO, Literal, Sequence, Tuple
     from requests import Session, Response
     from requests.cookies import RequestsCookieJar
     from aiohttp.client import ClientSession, ClientResponse
@@ -29,19 +29,31 @@ class BaseSessionClient(metaclass=ABCMeta):
     method = GET
     url = str()
 
-    def __init__(self, session: Session | ClientSession | None = None, **kwargs):
-        self.init_session(session)
-        self.init_constant(**kwargs)
-
-    def init_session(self, session: Session | ClientSession | None = None):
-        self.session = session
-
-    def init_constant(self, **kwargs):
-        self.set_request_headers(**kwargs)
+    def __init__(self, session: Session | ClientSession | None = None, headers: Dict = dict()):
+        self.set_session(session)
+        self.set_request_headers(**headers)
 
     @abstractmethod
     def request(self, **kwargs):
-        raise NotImplementedError("The request method must be implemented.")
+        raise NotImplementedError("The 'request' method must be implemented.")
+
+    def get_session(self) -> Session | ClientSession:
+        return self.__session
+
+    def set_session(self, session: Session | ClientSession | None = None):
+        self.__session = session
+
+    def get_request_params(self, **kwargs) -> Dict | List[Tuple] | bytes:
+        raise NotImplementedError("The 'get_request_params' method is not implemented.")
+
+    def set_request_params(self, **kwargs):
+        raise NotImplementedError("The 'set_request_params' method is not implemented.")
+
+    def get_request_body(self, **kwargs) -> Dict | List[Tuple] | bytes | IO | JsonSerialize:
+        raise NotImplementedError("The 'get_request_body' method is not implemented.")
+
+    def set_request_body(self, **kwargs):
+        raise NotImplementedError("The 'set_request_body' method is not implemented.")
 
     def set_request_headers(self,
             authority: str = str(),
@@ -62,16 +74,27 @@ class BaseSessionClient(metaclass=ABCMeta):
             https: bool = False,
             user_agent: str = str(),
             ajax: bool = False,
-        **kwargs):
+            **kwargs
+        ):
         from utils.headers import make_headers
-        kwargs = {key: value for key, value in locals().items() if key not in ("self","kwargs","make_headers")}
-        self.headers = make_headers(**kwargs)
+        self.__headers = make_headers(
+            authority, accept, encoding, language, connection, contents, cookies, host, origin, priority,
+            referer, client, mobile, platform, metadata, https, user_agent, ajax, **kwargs)
 
     def get_request_headers(self, **kwargs) -> Dict[str,str]:
-        return dict(self.headers, **kwargs) if kwargs else self.headers
+        return dict(self.__headers, **kwargs) if kwargs else self.__headers
+
+    def cookies_required(func):
+        @functools.wraps(func)
+        def wrapper(self: Collector, *args, **kwargs):
+            if "cookies" not in kwargs:
+                import warnings
+                warnings.warn("Cookies will be required for upcoming requests.")
+            return func(self, *args, **kwargs)
+        return wrapper
 
 
-class RequestsSessionClient(BaseSessionClient):
+class RequestSessionClient(BaseSessionClient):
     def request(self,
             method: str,
             url: str,
@@ -81,7 +104,7 @@ class RequestsSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | RequestsCookieJar = None,
         **kwargs) -> Response:
-        return self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
+        return self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
 
     def request_status(self,
             method: str,
@@ -92,7 +115,7 @@ class RequestsSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | RequestsCookieJar = None,
         **kwargs) -> int:
-        with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.status_code
 
     def request_content(self,
@@ -104,7 +127,7 @@ class RequestsSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | RequestsCookieJar = None,
         **kwargs) -> bytes:
-        with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.content
 
     def request_text(self,
@@ -116,7 +139,7 @@ class RequestsSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | RequestsCookieJar = None,
         **kwargs) -> str:
-        with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.text
 
     def request_json(self,
@@ -128,7 +151,7 @@ class RequestsSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | RequestsCookieJar = None,
         **kwargs) -> JsonObject:
-        with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.json()
 
     def request_headers(self,
@@ -140,7 +163,7 @@ class RequestsSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | RequestsCookieJar = None,
         **kwargs) -> Dict[str,str]:
-        with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.headers
 
     def request_html(self,
@@ -172,6 +195,24 @@ class RequestsSessionClient(BaseSessionClient):
         response = self.request_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return read_table(response, table_format=content_type, **table_options)
 
+    def with_session(func):
+        @functools.wraps(func)
+        def wrapper(self: Collector, *args, init_session=False, **kwargs):
+            if init_session and (self.get_session() is None):
+                return self._run_with_session(func, *args, **kwargs)
+            else:
+                return func(self, *args, **kwargs)
+        return wrapper
+
+    def _run_with_session(self, func: Callable, *args, **kwargs) -> Any:
+        import requests
+        try:
+            with requests.Session() as session:
+                self.set_session(session)
+                return func(self, *args, **kwargs)
+        finally:
+            self.set_session(None)
+
 
 class AiohttpSessionClient(BaseSessionClient):
     def request(self, *args, **kwargs):
@@ -186,7 +227,7 @@ class AiohttpSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | LooseCookies = None,
         **kwargs) -> ClientResponse:
-        return await self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
+        return await self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
 
     async def request_async_status(self,
             method: str,
@@ -197,7 +238,7 @@ class AiohttpSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | LooseCookies = None,
         **kwargs) -> int:
-        async with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.status
 
     async def request_async_content(self,
@@ -209,7 +250,7 @@ class AiohttpSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | LooseCookies = None,
         **kwargs) -> bytes:
-        async with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.content
 
     async def request_async_text(self,
@@ -221,7 +262,7 @@ class AiohttpSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | LooseCookies = None,
         **kwargs) -> str:
-        async with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return await response.text()
 
     async def request_async_json(self,
@@ -233,7 +274,7 @@ class AiohttpSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | LooseCookies = None,
         **kwargs) -> JsonObject:
-        async with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return await response.json()
 
     async def request_async_headers(self,
@@ -245,7 +286,7 @@ class AiohttpSessionClient(BaseSessionClient):
             headers: Dict[str,str] = None,
             cookies: Dict | LooseCookies = None,
         **kwargs) -> Dict[str,str]:
-        async with self.session.request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
+        async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.headers
 
     async def request_async_html(self,
@@ -277,41 +318,35 @@ class AiohttpSessionClient(BaseSessionClient):
         response = await self.request_async_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return read_table(response, table_format=content_type, **table_options)
 
+    def with_client_session(func):
+        @functools.wraps(func)
+        async def wrapper(self: Collector, *args, init_session=False, **kwargs):
+            if init_session and (self.get_session() is None):
+                return await self._run_with_client_session(func, *args, **kwargs)
+            else:
+                return await func(self, *args, **kwargs)
+        return wrapper
 
-class Collector(RequestsSessionClient, AiohttpSessionClient, metaclass=ABCMeta):
+    async def _run_with_client_session(self, func: Callable, *args, **kwargs) -> Any:
+        import aiohttp
+        try:
+            async with aiohttp.ClientSession() as session:
+                self.set_session(session)
+                return await func(self, *args, **kwargs)
+        finally:
+            self.set_session(None)
+
+
+class Collector(RequestSessionClient, AiohttpSessionClient, metaclass=ABCMeta):
     @abstractmethod
     def collect(self, *args, **kwargs) -> Any:
         raise NotImplementedError("This feature does not support synchronous requests. Please use the collect_async method instead.")
 
-    def with_session(func):
-        @functools.wraps(func)
-        def wrapper(self: Collector, *args, init_session=False, **context):
-            if init_session and (self.session is None):
-                import requests
-                with requests.Session() as session:
-                    self.init_session(session)
-                    return func(self, *args, **context)
-            else:
-                return func(self, *args, **context)
-        return wrapper
-
     async def collect_async(self, *args, **kwargs):
         raise NotImplementedError("This feature does not support asynchronous requests. Please use the collect method instead.")
 
-    def with_client_session(func):
-        @functools.wraps(func)
-        async def wrapper(self: Collector, *args, init_session=False, **context):
-            if init_session and (self.session is None):
-                import aiohttp
-                async with aiohttp.ClientSession() as session:
-                    self.init_session(session)
-                    return await func(self, *args, **context)
-            else:
-                return await func(self, *args, **context)
-        return wrapper
-
-    def get_request_message(self, *args, **kwargs) -> Dict:
-        raise NotImplementedError("The get_request_message is not implemented.")
+    def build_request(self, *args, **kwargs) -> Dict:
+        return dict(method=self.method, url=self.url)
 
     def parse(self, response: Any, *args, **kwargs) -> Any:
         raise NotImplementedError("The parse method is not implemented.")
