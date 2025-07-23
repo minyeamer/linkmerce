@@ -1,7 +1,8 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from parse import Map, Array
 import functools
+
+from linkmerce.parse import Map, Array
 
 from typing import Dict, List, Union, TYPE_CHECKING
 JsonObject = Union[Dict, List]
@@ -78,7 +79,7 @@ class BaseSessionClient(metaclass=ABCMeta):
             ajax: bool = False,
             **kwargs
         ):
-        from utils.headers import make_headers
+        from linkmerce.utils.headers import make_headers
         self.__headers = make_headers(
             authority, accept, encoding, language, connection, contents, cookies, host, origin, priority,
             referer, client, mobile, platform, metadata, https, user_agent, ajax, **kwargs)
@@ -193,7 +194,7 @@ class RequestSessionClient(BaseSessionClient):
             content_type: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
             table_options: Dict = dict(),
         **kwargs) -> DataFrame:
-        from utils.pandas import read_table
+        from linkmerce.utils.pandas import read_table
         response = self.request_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return read_table(response, table_format=content_type, **table_options)
 
@@ -316,7 +317,7 @@ class AiohttpSessionClient(BaseSessionClient):
             content_type: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
             table_options: Dict = dict(),
         **kwargs) -> DataFrame:
-        from utils.pandas import read_table
+        from linkmerce.utils.pandas import read_table
         response = await self.request_async_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return read_table(response, table_format=content_type, **table_options)
 

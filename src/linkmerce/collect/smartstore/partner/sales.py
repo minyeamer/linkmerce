@@ -1,6 +1,6 @@
 from __future__ import annotations
-from collect import Collector, JsonObject, Parser, POST
-from parse.smartstore.partner.sales import ProductSalesList
+from linkmerce.collect import Collector, JsonObject, Parser, POST
+from linkmerce.parse.smartstore.partner.sales import ProductSalesList
 
 from typing import TYPE_CHECKING
 
@@ -82,7 +82,7 @@ class StoreSales(Collector):
             })
 
     def set_request_body(self, salesType: Literal["store","category","product"] = "store"):
-        from utils.graphql import GraphQLOperation, GraphQLSelection
+        from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
         self.__body = GraphQLOperation(
             operation=f"get{salesType.capitalize()}Sale",
             variables={"queryRequest": dict()},

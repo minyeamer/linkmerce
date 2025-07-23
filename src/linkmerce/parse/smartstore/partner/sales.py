@@ -1,5 +1,5 @@
 from __future__ import annotations
-from parse import Map, Array
+from linkmerce.parse import Map, Array
 
 from typing import TYPE_CHECKING
 

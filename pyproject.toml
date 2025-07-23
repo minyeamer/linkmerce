@@ -1,6 +1,6 @@
 [project]
 name = "linkmerce"
-version = "0.1.0"
+version = "0.1.1"
 description = "E-commerce API integration management"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,5 +20,5 @@ requires = ["uv_build>=0.8.0,<0.9.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-module-name = ["auth", "collect", "object", "utils"]
-module-root = ""
+module-name = "linkmerce"
+module-root = "src"
