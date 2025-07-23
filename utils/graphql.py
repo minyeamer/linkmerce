@@ -9,16 +9,16 @@ if TYPE_CHECKING:
 
 
 class GraphQLObject:
-    def format(self, __object: Dict | List | str, indent: int=0, step: int=2, linebreak: bool=True, colons: bool=False) -> str:
+    def format(self, object_: Dict | List | str, indent: int=0, step: int=2, linebreak: bool=True, colons: bool=False) -> str:
         indent, seq = (indent if linebreak else 0), ('\n' if linebreak else ', ')
-        if isinstance(__object, Dict):
-            return seq.join([self._format_kv(key, value, indent, step, linebreak, colons) for key, value in __object.items()])
-        elif isinstance(__object, List):
-            return seq.join([self.format(value, indent, step, linebreak, colons) for value in __object])
-        elif isinstance(__object, str):
-            return (' '*indent) + __object
+        if isinstance(object_, Dict):
+            return seq.join([self._format_kv(key, value, indent, step, linebreak, colons) for key, value in object_.items()])
+        elif isinstance(object_, List):
+            return seq.join([self.format(value, indent, step, linebreak, colons) for value in object_])
+        elif isinstance(object_, str):
+            return (' '*indent) + object_
         else:
-            self.raise_type_error(__object)
+            self.raise_type_error(object_)
 
     def _format_kv(self, key: _KT, value: _VT, indent: int=0, step: int=2, linebreak: bool=True, colons: bool=False) -> str:
         indent, seq = (indent if linebreak else 0), ('\n' if linebreak else '')
@@ -26,8 +26,8 @@ class GraphQLObject:
         body = _add_brackets(f"{seq}{formatted}{seq}{(' '*indent)}", shape="curly")
         return f"{(' '*indent)}{key}{(':' if colons else '')} {body}"
 
-    def raise_type_error(self, __object: Any):
-        raise TypeError(f"'{type(__object)}' is not valid {self.__class__.__name__} type.")
+    def raise_type_error(self, object_: Any):
+        raise TypeError(f"'{type(object_)}' is not valid {self.__class__.__name__} type.")
 
 
 class GraphQLVariables(GraphQLObject):
@@ -112,9 +112,9 @@ class GraphQLFields(GraphQLObject):
         lspace, rspace = '\n', (' '*max(indent-step,0))
         return prefix + _replace(_add_brackets(f"{lspace}{formatted}{rspace}", shape="curly"), replace) + suffix
 
-    def format(self, __object: Dict | List | str, indent: int=0, step: int=2, linebreak: bool=True, colons: bool=False) -> str:
-        __object = f"...{__object.name}" if isinstance(__object, GraphQLFragment) else __object
-        return super().format(__object, indent, step, linebreak, colons)
+    def format(self, object_: Dict | List | str, indent: int=0, step: int=2, linebreak: bool=True, colons: bool=False) -> str:
+        object_ = f"...{object_.name}" if isinstance(object_, GraphQLFragment) else object_
+        return super().format(object_, indent, step, linebreak, colons)
 
 
 class GraphQLSelection(GraphQLObject):

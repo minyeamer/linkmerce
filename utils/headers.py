@@ -27,7 +27,8 @@ def make_headers(
         https: bool = False,
         user_agent: str = str(),
         ajax: bool = False,
-        version: int = CHROME_VERSION
+        version: int = CHROME_VERSION,
+        **kwargs
     ) -> Dict[str,str]:
     from urllib.parse import urlparse
     return {
@@ -48,7 +49,8 @@ def make_headers(
         **_get_fetch_metadata(metadata),
         **({"upgrade-insecure-requests": "1"} if https else dict()),
         "user-agent": (user_agent or _get_user_agent(version)),
-        **({"X-Requested-With": "XMLHttpRequest"} if ajax else dict())
+        **({"X-Requested-With": "XMLHttpRequest"} if ajax else dict()),
+        **kwargs
     }
 
 

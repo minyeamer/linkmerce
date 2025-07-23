@@ -106,10 +106,10 @@ def _to_sequence(cols: IndexLabel) -> Iterable[Hashable]:
 
 def _try_sequence(func: Callable, kwargs: Dict[str,Sequence]=dict(), persist: Dict=dict()) -> Any:
     from itertools import product
-    args = list(map(lambda values: dict(zip(kwargs.keys(), values)),list(product(*kwargs.values()))))
-    for __m in args[:-1]:
+    params = list(map(lambda values: dict(zip(kwargs.keys(), values)),list(product(*kwargs.values()))))
+    for param in params[:-1]:
         try:
-            return func(**__m, **persist)
+            return func(**param, **persist)
         except:
             pass
-    return func(**args[-1], **persist)
+    return func(**params[-1], **persist)
