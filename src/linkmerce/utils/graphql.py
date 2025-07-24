@@ -43,7 +43,8 @@ class GraphQLVariables(GraphQLObject):
         else:
             self.raise_type_error(variables)
 
-    def generate_variables(self,
+    def generate_variables(
+            self,
             indent: int = 4,
             step: int = 2,
             linebreak: bool = True,
@@ -51,7 +52,8 @@ class GraphQLVariables(GraphQLObject):
             prefix: str = str(),
             suffix: str = str(),
             replace: Dict = dict(),
-        **kwargs) -> str:
+            **kwargs
+        ) -> str:
         if isinstance(self.variables, Dict):
             formatted = self.format_variables_dict(self.variables, indent, step, linebreak, colons)
         else:
@@ -99,7 +101,8 @@ class GraphQLFields(GraphQLObject):
         else:
             self.raise_type_error(fields)
 
-    def generate_fields(self,
+    def generate_fields(
+            self,
             indent: int = 4,
             step: int = 2,
             linebreak: bool = True,
@@ -107,7 +110,8 @@ class GraphQLFields(GraphQLObject):
             prefix: str = str(),
             suffix: str = str(),
             replace: Dict = dict(),
-        **kwargs) -> str:
+            **kwargs
+        ) -> str:
         formatted = self.format(self.fields, indent, step, linebreak, colons)
         lspace, rspace = '\n', (' '*max(indent-step,0))
         return prefix + _replace(_add_brackets(f"{lspace}{formatted}{rspace}", shape="curly"), replace) + suffix
@@ -141,12 +145,14 @@ class GraphQLSelection(GraphQLObject):
         else:
             self.fields = GraphQLFields(fields, typename)
 
-    def generate_selection(self,
+    def generate_selection(
+            self,
             indent: int = 2,
             step: int = 2,
             variables: Dict = dict(),
             fields: Dict = dict(),
-        **kwargs) -> str:
+            **kwargs
+        ) -> str:
         name = f"{self.name}: {self.alias}" if self.alias else self.name
         variables = self.variables.generate_variables(indent+step, step, **variables)
         fields = (' '+self.fields.generate_fields(indent+step, step, **fields)) if self.fields is not None else str()
@@ -166,7 +172,8 @@ class GraphQLFragment(GraphQLObject):
     def set_fields(self, fields: Dict | List, typename: bool=True):
         self.fields = fields if isinstance(fields, GraphQLFields) else GraphQLFields(fields, typename)
 
-    def generate_fragment(self,
+    def generate_fragment(
+            self,
             indent: int = 0,
             step: int = 2,
             linebreak: bool = True,
@@ -174,7 +181,8 @@ class GraphQLFragment(GraphQLObject):
             prefix: str = str(),
             suffix: str = str(),
             replace: Dict = dict(),
-        **kwargs) -> str:
+            **kwargs
+        ) -> str:
         fields = self.fields.get_fields()
         formatted = self.format({f"fragment {self.name} on {self.type}": fields}, indent, step, linebreak, colons)
         return prefix + _replace(formatted, replace) + suffix
@@ -216,13 +224,15 @@ class GraphQLOperation(GraphQLObject):
         data["query"] = self.generate_query(**query_options)
         return data
 
-    def generate_query(self,
+    def generate_query(
+            self,
             command: str = "query",
             selection: Dict = dict(),
             fragment: Dict = dict(),
             prefix: str = str(),
             suffix: str = str(),
-        **kwargs) -> str:
+            **kwargs
+        ) -> str:
         signature = self.generate_signature()
         selection = self.selection.generate_selection(**selection)
         fragments = self.generate_fragments(**fragment)
