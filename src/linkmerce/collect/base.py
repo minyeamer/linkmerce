@@ -199,7 +199,7 @@ class RequestSessionClient(BaseSessionClient):
             table_options: Dict = dict(),
             **kwargs
         ) -> DataFrame:
-        from linkmerce.utils.pandas import read_table
+        from linkmerce.src.linkmerce.extensions.pandas import read_table
         response = self.request_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return read_table(response, table_format=content_type, **table_options)
 
@@ -338,7 +338,7 @@ class AiohttpSessionClient(BaseSessionClient):
             table_options: Dict = dict(),
             **kwargs
         ) -> DataFrame:
-        from linkmerce.utils.pandas import read_table
+        from linkmerce.src.linkmerce.extensions.pandas import read_table
         response = await self.request_async_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return read_table(response, table_format=content_type, **table_options)
 
