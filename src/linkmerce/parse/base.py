@@ -58,19 +58,24 @@ class RecordsParser(ListParser):
 class QueryParser(RecordsParser):
     table_alias: str = "data"
 
-    def __init__(self, obj: Any, *args, format: Literal["csv","json"] | None = None, **kwargs):
+    def __init__(self, obj: Any, *args, format: Literal["csv","json"] = "json", **kwargs):
         super().__init__(obj, *args, format=format, **kwargs)
 
-    def parse(self, obj: Any, *args, format: Literal["csv","json"] | None = None, **kwargs) -> Iterable:
+    def parse(self, obj: Any, *args, format: Literal["csv","json"] = "json", **kwargs) -> Iterable:
         if isinstance(obj, Sequence if self.sequential else Iterable):
-            return self.execute_query(obj, *args, format=format, **kwargs)
+            return self.select(obj, *args, format=format, **kwargs)
         else:
             self.raise_parse_error()
 
-    def execute_query(self, obj: Sequence[Any], *args, format: Literal["csv","json"] | None = None, **kwargs) -> List[Any]:
-        from linkmerce.utils.duckdb import execute_query
+    def select(self, obj: Sequence[Any], *args, format: Literal["csv","json"] = "json", **kwargs) -> List[Any]:
         query = self.make_query(*args, **kwargs)
-        return execute_query(query, params={self.table_alias: obj}, format=format)
+        if format == "csv":
+            from linkmerce.utils.duckdb import select_to_csv as select
+        elif format == "json":
+            from linkmerce.utils.duckdb import select_to_json as select
+        else:
+            raise ValueError("Invalid format. Supported formats are: csv, json.")
+        return select(query, params={self.table_alias: obj})
 
     def make_query(self, *args, **kwargs) -> str:
         return self.expr_table(enclose=False)

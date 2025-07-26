@@ -50,7 +50,7 @@ class SalesCollector(Collector):
             date_type: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
             page_size: int = 1000,
-            parser: Literal["Sales"] | Callable | None = None,
+            parser: Literal["Sales"] | Callable | None = "Sales",
         ) -> JsonObject:
         message = self.build_request(mall_seq, start_date, end_date, date_type, page, page_size)
         response = await self.request_async_json(**message)
@@ -59,7 +59,7 @@ class SalesCollector(Collector):
     def parse(
             self,
             response: JsonObject,
-            parser: Literal["Sales"] | Callable | None = None,
+            parser: Literal["Sales"] | Callable | None = "Sales",
             mall_seq: int | str | None = None,
             start_date: dt.date | str | None = None,
             end_date: dt.date | str | None = None,

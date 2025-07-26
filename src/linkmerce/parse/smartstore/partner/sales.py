@@ -56,7 +56,7 @@ class SalesParser(QueryParser):
                     self.expr_date(end_date, alias="endDate", safe=True)])
             return params
         data = response["data"][f"{self.sales_type}Sales"]
-        return self.execute_query(data, **build_query_params(), format="json") if data else list()
+        return self.select(data, **build_query_params(), format="json") if data else list()
 
 
 class StoreSales(SalesParser):
@@ -82,7 +82,7 @@ class CategorySales(StoreSales):
         query = """
         SELECT
             {{ mall_seq }} AS mallSeq,
-            TRY_CAST(product.category.identifier AS INT64) AS categoryId,
+            TRY_CAST(product.category.identifier AS INT64) AS categoryId3,
             product.category.fullName AS wholeCategoryName,
             visit.click AS clickCount,
             sales.paymentCount AS paymentCount,
@@ -102,7 +102,7 @@ class ProductSales(StoreSales):
             {{ mall_seq }} AS mallSeq,
             TRY_CAST(product.identifier AS INT64) AS mallPid,
             product.name AS productName,
-            TRY_CAST(product.category.identifier AS INT64) AS categoryId,
+            TRY_CAST(product.category.identifier AS INT64) AS categoryId3,
             product.category.name AS categoryName,
             product.category.fullName AS wholeCategoryName,
             visit.click AS clickCount,
