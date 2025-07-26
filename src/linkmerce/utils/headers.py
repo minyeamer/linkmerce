@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -30,7 +31,6 @@ def make_headers(
         version: int = CHROME_VERSION,
         **kwargs
     ) -> Dict[str,str]:
-    from urllib.parse import urlparse
     return {
         **({"authority": authority} if authority else dict()),
         **({"accept": accept} if accept else dict()),
@@ -39,7 +39,7 @@ def make_headers(
         **({"connection": connection} if connection else dict()),
         **({"content-type": _get_content_type(contents)} if contents else dict()),
         **({"cookie": cookies} if cookies else dict()),
-        **({"host": urlparse(host).hostname} if host else dict()),
+        **({"host": _get_hostname(host)} if host else dict()),
         **({"origin": origin} if origin else dict()),
         **({"priority": priority} if priority else dict()),
         **({"referer": referer} if referer else dict()),
@@ -85,6 +85,16 @@ def _get_content_type(contents: Literal["form", "javascript", "json", "text", "m
         return content_type
     else:
         raise TypeError("Invalid type for contents. A string or dictionary type is allowed.")
+
+
+def _get_hostname(url: str) -> str:
+    for prefix in ["://"]:
+        if prefix in url:
+            url = url.split(prefix, maxsplit=1)[1]
+    for suffix in ['/','?','#']:
+        if suffix in url:
+            url = url.split(suffix, maxsplit=1)[0]
+    return url
 
 
 def _get_default_client(version: int = CHROME_VERSION) -> str:

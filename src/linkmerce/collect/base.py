@@ -372,37 +372,18 @@ class Collector(RequestSessionClient, AiohttpSessionClient, metaclass=ABCMeta):
     def build_request(self, *args, **kwargs) -> Dict:
         return dict(method=self.method, url=self.url)
 
-    def parse(self, response: Any, parser: str | Callable | None = None, *args, **kwargs) -> Any:
+    def parse(self, response: Any, parser: Callable | None = None, *args, **kwargs) -> Any:
         if parser is None:
             return response
-        elif isinstance(parser, str):
-            parser = self._import_parser(parser)
-            return parser(response, *args, **kwargs)
         elif isinstance(parser, Callable):
-            var_positional, var_keyword = self._inspect_parser(parser)
-            return parser(response, *(args if var_positional else tuple()), **(kwargs if var_keyword else dict()))
+            return parser(response, *args, **kwargs)
         else:
             raise ValueError("Unable to recognize the parser.")
 
-    def _import_parser(self, parser: str, module_name: Literal["relative"] | str = "relative") -> Callable:
-        import inspect, importlib
-        try:
-            if module_name == "relative":
-                module_name = inspect.getmodule(self.collect).__name__.replace("collect", "parse", 1)
-            module = importlib.import_module(module_name, __name__)
-            return getattr(module, parser)
-        except AttributeError:
-            raise AttributeError(f"Unable to recognize the parser named '{parser}'")
-
-    def _inspect_parser(self, parser: Callable) -> Tuple[bool,bool]:
-        import inspect
-        args, kwargs = False, False
-        signature = inspect.signature(parser)
-        for param in signature.parameters.values():
-            if (not args) and (param.kind == inspect.Parameter.VAR_POSITIONAL):
-                args = True
-            elif (not kwargs) and (param.kind == inspect.Parameter.VAR_KEYWORD):
-                kwargs = True
-            else:
-                continue
-        return args, kwargs
+    def import_parser(self, name: str, module_name: Literal["parse"] | str = "parse") -> Callable:
+        from importlib import import_module
+        if module_name == "parse":
+            from inspect import getmodule
+            module_name = getmodule(self.collect).__name__.replace("collect", "parse", 1)
+        module = import_module(module_name, __name__)
+        return getattr(module, name)

@@ -1,5 +1,7 @@
 from __future__ import annotations
-from linkmerce.parse import Map, Array
+
+from linkmerce.parse import QueryParser
+import functools
 
 from typing import Dict, TYPE_CHECKING
 
@@ -9,129 +11,104 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def parse_product(product: Dict) -> Dict:
-    from linkmerce.utils.cast import safe_int
-    return dict(
-        mallPid = safe_int(product.get("identifier")),
-        productName = product.get("name"),
-        **parse_category(product.get("category", dict()), sales_type="product"),
-    )
+class SalesParser(QueryParser):
+    sales_type: str
 
-
-def parse_category(category: Dict, sales_type: Literal["category","product"]) -> Dict:
-    from linkmerce.utils.cast import safe_int
-    return dict(
-        categoryId = safe_int(category.get("identifier")),
-        **(dict(categoryName = category.get("name")) if sales_type == "product" else dict()),
-        wholeCategoryName = category.get("fullName"),
-    )
-
-
-def parse_visit(visit: Dict) -> Dict:
-    return dict(
-        clickCount = visit.get("click"),
-    )
-
-
-def parse_sales(sales: Dict, sales_type: Literal["store","category","product"]) -> Dict:
-    return dict(
-        paymentCount = sales.get("paymentCount"),
-        paymentAmount = sales.get("paymentAmount"),
-        **(dict(refundAmount = sales.get("refundAmount")) if sales_type == "store" else dict()),
-    )
-
-
-class StoreSalesItem(Map):
-    notnull = []
-
-    @Map.ensure_dict(timing="both")
-    def parse(
-            self,
-            object_: Dict,
-            mall_seq: int | None = None,
-            period: Dict[str,dt.date] = dict(),
-            **context
-        ) -> Dict:
-
-        return self.map(
-            mallSeq = mall_seq,
-            **parse_sales(object_.get("sales", dict()), sales_type="store"),
-            **period,
-        )
-
-
-class CategorySalesItem(Map):
-    notnull = ["categoryId"]
-
-    @Map.ensure_dict(timing="both")
-    def parse(
-            self,
-            object_: Dict,
-            mall_seq: int | None = None,
-            period: Dict[str,dt.date] = dict(),
-            **context
-        ) -> Dict:
-        from linkmerce.utils.map import hier_get
-
-        return self.map(
-            mallSeq = mall_seq,
-            **parse_category(hier_get(object_, ["product","category"], default=dict()), sales_type="category"),
-            **parse_visit(object_.get("visit", dict())),
-            **parse_sales(object_.get("sales", dict()), sales_type="category"),
-            **period,
-        )
-
-
-class ProductSalesItem(Map):
-    notnull = ["mallPid"]
-
-    @Map.ensure_dict(timing="both")
-    def parse(
-            self,
-            object_: Dict,
-            mall_seq: int | None = None,
-            period: Dict[str,dt.date] = dict(),
-            **context
-        ) -> Dict:
-
-        return self.map(
-            mallSeq = mall_seq,
-            **parse_product(object_.get("product", dict())),
-            **parse_visit(object_.get("visit", dict())),
-            **parse_sales(object_.get("sales", dict()), sales_type="product"),
-            **period,
-        )
-
-
-class StoreSales(Array):
-    dtype = StoreSalesItem
-    sales_type = "store"
-
-    @Array.ensure_sequence(timing="after")
-    def parse(self, object_: JsonObject, **kwargs) -> List[Dict]:
-        if isinstance(object_, Dict):
-            if "error" not in object_:
-                return object_["data"][f"{self.sales_type}Sales"]
+    def check_errors(func):
+        @functools.wraps(func)
+        def wrapper(self: SalesParser, response: JsonObject, *args, **kwargs):
+            if isinstance(response, Dict):
+                if "error" not in response:
+                    return func(self, response, *args, **kwargs)
+                else:
+                    self.raise_request_error(response)
             else:
-                self._raise_request_error(object_)
-        else:
-            raise ValueError("Unable to parse the object.")
+                self.raise_parse_error("The HTTP response is not of dictionary type.")
+        return wrapper
 
-    def _raise_request_error(object_: Dict):
+    def raise_request_error(self, response: Dict):
         from linkmerce.utils.map import hier_get
-        msg = hier_get(object_, ["error","error"]) or "null"
+        msg = hier_get(response, ["error","error"]) or "null"
         if msg == "Unauthorized":
             from linkmerce.exceptions import UnauthorizedError
             raise UnauthorizedError("Unauthorized request")
         else:
-            raise ValueError(f"An error occurred during the request: {msg}")
+            from linkmerce.exceptions import RequestError
+            raise RequestError(f"An error occurred during the request: {msg}")
+
+    @check_errors
+    def parse(
+            self,
+            response: JsonObject, 
+            mall_seq: int | str | None = None,
+            start_date: dt.date | str | None = None,
+            end_date: dt.date | str | None = None,
+            date_type: Literal["daily","weekly","monthly"] = "daily",
+            **kwargs
+        ) -> List[Dict]:
+        def build_query_params(params: Dict = dict()) -> Dict:
+            params["mall_seq"] = s if (s := str(mall_seq)).isdigit() else "NULL"
+            if date_type == "daily":
+                params["date_part"] = self.expr_date(end_date, alias="paymentDate", safe=True)
+            else:
+                params["date_part"] = ', '.join([
+                    self.expr_date(start_date, alias="startDate", safe=True),
+                    self.expr_date(end_date, alias="endDate", safe=True)])
+            return params
+        data = response["data"][f"{self.sales_type}Sales"]
+        return self.execute_query(data, **build_query_params(), format="json") if data else list()
+
+
+class StoreSales(SalesParser):
+    sales_type = "store"
+
+    def make_query(self, mall_seq: str, date_part: str, **kwargs) -> str:
+        query = """
+        SELECT
+            {{ mall_seq }} AS mallSeq,
+            sales.paymentCount AS paymentCount,
+            sales.paymentAmount AS paymentAmount,
+            sales.refundAmount AS refundAmount,
+            {{ date_part }}
+        FROM {{ table }}
+        """
+        return self.render_query(query, mall_seq=mall_seq, date_part=date_part)
 
 
 class CategorySales(StoreSales):
-    dtype = CategorySalesItem
     sales_type = "category"
+
+    def make_query(self, mall_seq: str, date_part: str, **kwargs) -> str:
+        query = """
+        SELECT
+            {{ mall_seq }} AS mallSeq,
+            TRY_CAST(product.category.identifier AS INT64) AS categoryId,
+            product.category.fullName AS wholeCategoryName,
+            visit.click AS clickCount,
+            sales.paymentCount AS paymentCount,
+            sales.paymentAmount AS paymentAmount,
+            {{ date_part }}
+        FROM {{ table }};
+        """
+        return self.render_query(query, mall_seq=mall_seq, date_part=date_part)
 
 
 class ProductSales(StoreSales):
-    dtype = ProductSalesItem
     sales_type = "product"
+
+    def make_query(self, mall_seq: str, date_part: str, **kwargs) -> str:
+        query = """
+        SELECT
+            {{ mall_seq }} AS mallSeq,
+            TRY_CAST(product.identifier AS INT64) AS mallPid,
+            product.name AS productName,
+            TRY_CAST(product.category.identifier AS INT64) AS categoryId,
+            product.category.name AS categoryName,
+            product.category.fullName AS wholeCategoryName,
+            visit.click AS clickCount,
+            sales.paymentCount AS paymentCount,
+            sales.paymentAmount AS paymentAmount,
+            {{ date_part }}
+        FROM {{ table }};
+        """
+        return self.render_query(query, mall_seq=mall_seq, date_part=date_part)

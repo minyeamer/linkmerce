@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class StoreSales(Collector):
+class SalesCollector(Collector):
     method = "POST"
     url = "https://hcenter.shopping.naver.com/brand/content"
     date_format = "%Y-%m-%d"
@@ -29,65 +29,64 @@ class StoreSales(Collector):
     @Collector.with_session
     def collect(
             self,
+            mall_seq: int | str,
             start_date: dt.date | str,
             end_date: dt.date | str,
-            mall_seq: int | str,
             date_type: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
             page_size: int = 1000,
-            parser: Literal["sales"] | Callable | None = "sales",
+            parser: Literal["Sales"] | Callable | None = "Sales",
         ) -> JsonObject:
-        message = self.build_request(start_date, end_date, mall_seq, date_type, page, page_size)
+        message = self.build_request(mall_seq, start_date, end_date, date_type, page, page_size)
         response = self.request_json(**message)
-        return self.parse(response, parser, start_date, end_date, mall_seq, date_type)
+        return self.parse(response, parser, mall_seq, start_date, end_date, date_type)
 
     @Collector.with_client_session
     async def collect_async(
             self,
+            mall_seq: int | str,
             start_date: dt.date | str,
             end_date: dt.date | str,
-            mall_seq: int | str,
             date_type: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
             page_size: int = 1000,
-            parser: Literal["sales"] | Callable | None = None,
+            parser: Literal["Sales"] | Callable | None = None,
         ) -> JsonObject:
-        message = self.build_request(start_date, end_date, mall_seq, date_type, page, page_size)
+        message = self.build_request(mall_seq, start_date, end_date, date_type, page, page_size)
         response = await self.request_async_json(**message)
-        return self.parse(response, parser, start_date, end_date, mall_seq, date_type)
+        return self.parse(response, parser, mall_seq, start_date, end_date, date_type)
 
     def parse(
             self,
             response: JsonObject,
-            parser: Literal["sales"] | Callable | None = None,
+            parser: Literal["Sales"] | Callable | None = None,
+            mall_seq: int | str | None = None,
             start_date: dt.date | str | None = None,
             end_date: dt.date | str | None = None,
-            mall_seq: int | str | None = None,
             date_type: Literal["daily","weekly","monthly"] = "daily",
         ) -> JsonObject:
-        if isinstance(parser, str) and (parser == "sales"):
-            parser = self.sales_type.capitalize() + parser.capitalize()
-        context = self.build_parse_context(start_date, end_date, mall_seq, date_type)
-        return super().parse(response, parser, context=context)
+        if isinstance(parser, str) and (parser == "Sales"):
+            parser = self.import_parser(self.sales_type.capitalize() + parser)
+        return super().parse(response, parser, mall_seq, start_date, end_date, date_type)
 
     def build_request(
             self,
+            mall_seq: int | str,
             start_date: dt.date | str,
             end_date: dt.date | str,
-            mall_seq: int | str,
             date_type: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
             page_size: int = 1000,
         ) -> Dict:
-        body = self.get_request_body(start_date, end_date, mall_seq, date_type, page, page_size)
+        body = self.get_request_body(mall_seq, start_date, end_date, date_type, page, page_size)
         headers = self.get_request_headers()
         return dict(method=self.method, url=self.url, json=body, headers=headers)
 
     def get_request_body(
             self,
+            mall_seq: int | str,
             start_date: dt.date | str,
             end_date: dt.date | str,
-            mall_seq: int | str,
             date_type: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
             page_size: int = 1000,
@@ -112,7 +111,7 @@ class StoreSales(Collector):
             selection=GraphQLSelection(
                 name=f"{sales_type}Sales",
                 variables=["queryRequest"],
-                fields=getattr(self, f"_{sales_type}_fields"),
+                fields=getattr(self, f"{sales_type}_fields"),
             )
         ).generate_data(query_options=dict(
             selection=dict(variables=dict(linebreak=False), fields=dict(linebreak=True)),
@@ -126,23 +125,8 @@ class StoreSales(Collector):
         origin = "https://hcenter.shopping.naver.com"
         super().set_request_headers(contents=contents, origin=origin, referer=referer, **kwargs)
 
-    def build_parse_context(
-            self,
-            start_date: dt.date | str | None = None,
-            end_date: dt.date | str | None = None,
-            mall_seq: int | str | None = None,
-            date_type: Literal["daily","weekly","monthly"] = "daily",
-        ) -> Dict:
-            import datetime as dt
-            def parse_date(date: dt.date | str) -> dt.date:
-                return date if isinstance(date, dt.date) else dt.datetime.strptime(str(date), self.date_format).date()
-            if date_type == "daily":
-                return dict(mall_seq=int(mall_seq), period=dict(paymentDate=parse_date(end_date)))
-            else:
-                return dict(mall_seq=int(mall_seq), period=dict(startDate=parse_date(start_date), endDate=parse_date(end_date)))
-
     @property
-    def _store_fields(self) -> List[Dict]:
+    def store_fields(self) -> List[Dict]:
         return [
             {"period": ["date"]},
             {"sales": [
@@ -151,7 +135,7 @@ class StoreSales(Collector):
         ]
 
     @property
-    def _category_fields(self) -> List[Dict]:
+    def category_fields(self) -> List[Dict]:
         return [
             {"product": [{"category": ["identifier", "fullName"]}]},
             {"sales": ["paymentAmount", "paymentCount", "purchaseConversionRate", "paymentAmountPerPaying"]},
@@ -160,7 +144,7 @@ class StoreSales(Collector):
         ]
 
     @property
-    def _product_fields(self) -> List[Dict]:
+    def product_fields(self) -> List[Dict]:
         return [
             {"product": ["identifier", "name", {"category": ["identifier", "name", "fullName"]}]},
             {"sales": ["paymentAmount", "paymentCount", "purchaseConversionRate"]},
@@ -169,11 +153,16 @@ class StoreSales(Collector):
         ]
 
 
-class CategorySales(StoreSales):
+class StoreSales(SalesCollector):
+    def __init__(self, session: Session | ClientSession | None = None, headers: Dict = dict()):
+        super().__init__(session, headers, sales_type="store")
+
+
+class CategorySales(SalesCollector):
     def __init__(self, session: Session | ClientSession | None = None, headers: Dict = dict()):
         super().__init__(session, headers, sales_type="category")
 
 
-class ProductSales(StoreSales):
+class ProductSales(SalesCollector):
     def __init__(self, session: Session | ClientSession | None = None, headers: Dict = dict()):
         super().__init__(session, headers, sales_type="product")

@@ -1,1 +1,1 @@
-from linkmerce.parse.base import Map, Array
+from linkmerce.parse.base import ListParser, RecordsParser, QueryParser

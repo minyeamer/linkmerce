@@ -8,8 +8,8 @@ if TYPE_CHECKING:
     _VT = TypeVar("_VT", Any)
 
 
-def hier_get(map_: Dict, path: Sequence[_KT], default: _VT | None = None) -> _VT:
-    cur = map_
+def hier_get(__m: Dict, path: Sequence[_KT], default: _VT | None = None) -> _VT:
+    cur = __m
     for key in path:
         if isinstance(cur, Dict) and (key in cur):
             cur = cur[key]
