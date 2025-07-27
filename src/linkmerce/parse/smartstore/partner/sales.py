@@ -11,12 +11,12 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class SalesParser(QueryParser):
+class _SalesParser(QueryParser):
     sales_type: str
 
     def check_errors(func):
         @functools.wraps(func)
-        def wrapper(self: SalesParser, response: JsonObject, *args, **kwargs):
+        def wrapper(self: _SalesParser, response: JsonObject, *args, **kwargs):
             if isinstance(response, Dict):
                 if "error" not in response:
                     return func(self, response, *args, **kwargs)
@@ -49,17 +49,16 @@ class SalesParser(QueryParser):
         def build_query_params(params: Dict = dict()) -> Dict:
             params["mall_seq"] = s if (s := str(mall_seq)).isdigit() else "NULL"
             if date_type == "daily":
-                params["date_part"] = self.expr_date(end_date, alias="paymentDate", safe=True)
+                date_fields = [("paymentDate", end_date)]
             else:
-                params["date_part"] = ', '.join([
-                    self.expr_date(start_date, alias="startDate", safe=True),
-                    self.expr_date(end_date, alias="endDate", safe=True)])
+                date_fields = [("startDate", start_date), ("endDate", end_date)]
+            params["date_part"] = self.build_date_part(*date_fields, safe=True)
             return params
         data = response["data"][f"{self.sales_type}Sales"]
         return self.select(data, **build_query_params(), format="json") if data else list()
 
 
-class StoreSales(SalesParser):
+class StoreSales(_SalesParser):
     sales_type = "store"
 
     def make_query(self, mall_seq: str, date_part: str, **kwargs) -> str:
@@ -75,7 +74,7 @@ class StoreSales(SalesParser):
         return self.render_query(query, mall_seq=mall_seq, date_part=date_part)
 
 
-class CategorySales(StoreSales):
+class CategorySales(_SalesParser):
     sales_type = "category"
 
     def make_query(self, mall_seq: str, date_part: str, **kwargs) -> str:
@@ -93,7 +92,7 @@ class CategorySales(StoreSales):
         return self.render_query(query, mall_seq=mall_seq, date_part=date_part)
 
 
-class ProductSales(StoreSales):
+class ProductSales(_SalesParser):
     sales_type = "product"
 
     def make_query(self, mall_seq: str, date_part: str, **kwargs) -> str:

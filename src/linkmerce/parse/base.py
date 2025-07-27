@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 
-from typing import List, TYPE_CHECKING
+from typing import Iterable, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Iterable, List, Literal, Sequence, Type
+    from typing import Any, Dict, List, Literal, Sequence, Tuple, Type, TypeVar
+    import datetime as dt
+    _ALIAS = TypeVar("_ALIAS", str)
+    _DATE = TypeVar("_DATE", str, dt.date, None)
 
 
 class Parser(metaclass=ABCMeta):
@@ -55,15 +58,15 @@ class RecordsParser(ListParser):
         return self.dtype(record, *args, **kwargs)
 
 
-class QueryParser(RecordsParser):
+class QueryParser(RecordsParser, metaclass=ABCMeta):
     table_alias: str = "data"
 
-    def __init__(self, obj: Any, *args, format: Literal["csv","json"] = "json", **kwargs):
-        super().__init__(obj, *args, format=format, **kwargs)
+    def __init__(self, obj: Any, *args, **kwargs):
+        super().__init__(obj, *args, **kwargs)
 
-    def parse(self, obj: Any, *args, format: Literal["csv","json"] = "json", **kwargs) -> Iterable:
+    def parse(self, obj: Any, *args, **kwargs) -> Iterable:
         if isinstance(obj, Sequence if self.sequential else Iterable):
-            return self.select(obj, *args, format=format, **kwargs)
+            return self.select(obj, *args, **kwargs)
         else:
             self.raise_parse_error()
 
@@ -77,13 +80,18 @@ class QueryParser(RecordsParser):
             raise ValueError("Invalid format. Supported formats are: csv, json.")
         return select(query, params={self.table_alias: obj})
 
+    @abstractmethod
     def make_query(self, *args, **kwargs) -> str:
-        return self.expr_table(enclose=False)
+        raise NotImplementedError("The 'make_query' method must be implemented.")
 
     def render_query(self, query: str, table: str = str(), **kwargs) -> str:
         from linkmerce.utils.jinja import render_string
         table = table or self.expr_table(enclose=True)
         return render_string(query, table=table, **kwargs)
+
+    def build_date_part(self, *args: Tuple[_ALIAS,_DATE], safe: bool = True, sep: str = ", ") -> str:
+        date_fields = [self.expr_date(value, alias=alias, safe=safe) for alias, value in args]
+        return sep.join(date_fields)
 
     def expr(self, value: Any, type: str, alias: str = str(), safe: bool = False) -> str:
         type = type.upper()
@@ -94,7 +102,7 @@ class QueryParser(RecordsParser):
             alias = f" AS {alias}" if alias else str()
             return f"{func}({value} AS {type})" + alias
 
-    def expr_date(self, value: Any, alias: str = str(), safe: bool = False) -> str:
+    def expr_date(self, value: dt.date | str | None = None, alias: str = str(), safe: bool = False) -> str:
         alias = f" AS {alias}" if alias else str()
         if safe:
             return (f"DATE '{value}'" if value is not None else "NULL") + alias
@@ -104,3 +112,20 @@ class QueryParser(RecordsParser):
     def expr_table(self, enclose: bool = False) -> str:
         query = "SELECT {table}.* FROM (SELECT UNNEST(${table}) AS {table})".format(table=self.table_alias)
         return f"({query})" if enclose else query
+
+    def curret_date(
+            self,
+            type: Literal["DATE","STRING"] = "DATE",
+            format: str | None = "%Y-%m-%d",
+        ) -> str:
+        from linkmerce.utils.duckdb import curret_date
+        return curret_date(type, format)
+
+    def curret_datetime(
+            self,
+            type: Literal["DATETIME","STRING"] = "DATETIME",
+            format: str | None = "%Y-%m-%d %H:%M:%S",
+            tzinfo: str | None = None,
+        ) -> str:
+        from linkmerce.utils.duckdb import curret_datetime
+        return curret_datetime(type, format, tzinfo)

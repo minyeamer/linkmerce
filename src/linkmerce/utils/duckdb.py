@@ -30,7 +30,7 @@ def get_columns(conn: DuckDBPyConnection, table: str) -> List[str]:
 
 
 ###################################################################
-############################## Select #############################
+############################## Create #############################
 ###################################################################
 
 def create_table(
@@ -77,6 +77,35 @@ def select_to_json(
     relation = (conn if conn is not None else duckdb).execute(query, parameters=params)
     columns = [column[NAME] for column in relation.description]
     return [dict(zip(columns, row)) for row in relation.fetchall()]
+
+
+###################################################################
+############################# Datetime ############################
+###################################################################
+
+def curret_date(
+        type: Literal["DATE","STRING"] = "DATE",
+        format: str | None = "%Y-%m-%d",
+    ) -> str:
+    expr = "CURRENT_DATE"
+    if format:
+        expr = f"STRFTIME({expr}, '{format}')"
+        if type.upper() == "DATE":
+            return f"CAST({expr} AS DATE)"
+    return expr
+
+
+def curret_datetime(
+        type: Literal["DATETIME","STRING"] = "DATETIME",
+        format: str | None = "%Y-%m-%d %H:%M:%S",
+        tzinfo: str | None = None,
+    ) -> str:
+    expr = "CURRENT_TIMESTAMP {}".format(f"AT TIME ZONE '{tzinfo}'" if tzinfo else str()).strip()
+    if format:
+        expr = f"STRFTIME({expr}, '{format}')"
+        if type.upper() == "DATETIME":
+            return f"CAST({expr} AS TIMESTAMP)"
+    return expr
 
 
 ###################################################################

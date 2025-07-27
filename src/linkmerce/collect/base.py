@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 import functools
 
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, IO, List, Literal, Sequence, Tuple
+    from typing import Any, IO, List, Literal, Sequence, Tuple
     from linkmerce.types import JsonObject, JsonSerialize
     from requests import Session, Response
     from requests.cookies import RequestsCookieJar
@@ -17,11 +17,15 @@ if TYPE_CHECKING:
 
 
 class BaseSessionClient(metaclass=ABCMeta):
-    method: str = "GET"
-    url: str = str()
-
-    def __init__(self, session: Session | ClientSession | None = None, headers: Dict = dict()):
+    def __init__(self,
+            session: Session | ClientSession | None = None,
+            params: Dict = dict(),
+            body: Dict = dict(),
+            headers: Dict = dict(),
+        ):
         self.set_session(session)
+        self.set_request_params(**params)
+        self.set_request_body(**body)
         self.set_request_headers(**headers)
 
     @abstractmethod
@@ -35,16 +39,16 @@ class BaseSessionClient(metaclass=ABCMeta):
         self.__session = session
 
     def get_request_params(self, **kwargs) -> Dict | List[Tuple] | bytes:
-        raise NotImplementedError("The 'get_request_params' method is not implemented.")
+        return self.__params
 
     def set_request_params(self, **kwargs):
-        raise NotImplementedError("The 'set_request_params' method is not implemented.")
+        self.__params = None
 
     def get_request_body(self, **kwargs) -> Dict | List[Tuple] | bytes | IO | JsonSerialize:
-        raise NotImplementedError("The 'get_request_body' method is not implemented.")
+        return self.__body
 
     def set_request_body(self, **kwargs):
-        raise NotImplementedError("The 'set_request_body' method is not implemented.")
+        self.__body = None
 
     def get_request_headers(self, **kwargs) -> Dict[str,str]:
         return dict(self.__headers, **kwargs) if kwargs else self.__headers
@@ -362,15 +366,30 @@ class AiohttpSessionClient(BaseSessionClient):
 
 
 class Collector(RequestSessionClient, AiohttpSessionClient, metaclass=ABCMeta):
+    method: str
+    url: str
+
     @abstractmethod
-    def collect(self, *args, **kwargs) -> Any:
+    def collect(self, **kwargs) -> Any:
         raise NotImplementedError("This feature does not support synchronous requests. Please use the collect_async method instead.")
 
-    async def collect_async(self, *args, **kwargs):
+    async def collect_async(self, **kwargs):
         raise NotImplementedError("This feature does not support asynchronous requests. Please use the collect method instead.")
 
-    def build_request(self, *args, **kwargs) -> Dict:
-        return dict(method=self.method, url=self.url)
+    def build_request(self,
+            params: Dict | None = None,
+            data: Dict | None = None,
+            json: Dict | None = None,
+            headers: Dict | None = dict(),
+            **kwargs
+        ) -> Dict:
+        message = dict(method=self.method, url=self.url)
+        keys = ["params", "data", "json", "headers"]
+        attrs = ["params", "body", "body", "headers"]
+        for key, attr, param in zip(keys, attrs, [params,data,json,headers]):
+            if isinstance(param, Dict):
+                message[key] = getattr(self, f"get_request_{attr}")(**param)
+        return message
 
     def parse(self, response: Any, parser: Callable | None = None, *args, **kwargs) -> Any:
         if parser is None:
