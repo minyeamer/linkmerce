@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class _SalesParser(QueryParser):
-    sales_type: str
+    sales_type: Literal["store","category","product"]
 
     def check_errors(func):
         @functools.wraps(func)
@@ -81,7 +81,7 @@ class CategorySales(_SalesParser):
         query = """
         SELECT
             {{ mall_seq }} AS mallSeq,
-            TRY_CAST(product.category.identifier AS INT64) AS categoryId3,
+            TRY_CAST(product.category.identifier AS INT32) AS categoryId3,
             product.category.fullName AS wholeCategoryName,
             visit.click AS clickCount,
             sales.paymentCount AS paymentCount,
@@ -101,7 +101,7 @@ class ProductSales(_SalesParser):
             {{ mall_seq }} AS mallSeq,
             TRY_CAST(product.identifier AS INT64) AS mallPid,
             product.name AS productName,
-            TRY_CAST(product.category.identifier AS INT64) AS categoryId3,
+            TRY_CAST(product.category.identifier AS INT32) AS categoryId3,
             product.category.name AS categoryName,
             product.category.fullName AS wholeCategoryName,
             visit.click AS clickCount,

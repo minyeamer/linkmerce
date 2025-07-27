@@ -13,7 +13,8 @@ class _SalesCollector(PartnerCenter):
     method = "POST"
     path = "/brand/content"
     date_format = "%Y-%m-%d"
-    sales_type: str
+    sales_type: Literal["store","category","product"]
+    fields: List[Dict]
 
     @PartnerCenter.with_session
     def collect(
@@ -74,24 +75,23 @@ class _SalesCollector(PartnerCenter):
     def set_request_body(self, **kwargs):
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
         self.__body = GraphQLOperation(
-            operation=f"get{self.sales_type.capitalize()}Sale",
-            variables={"queryRequest": dict()},
-            types={"queryRequest": "StoreTrafficRequest"},
-            selection=GraphQLSelection(
-                name=f"{self.sales_type}Sales",
-                variables=["queryRequest"],
-                fields=getattr(self, f"{self.sales_type}_fields"),
+            operation = f"get{self.sales_type.capitalize()}Sale",
+            variables = {"queryRequest": dict()},
+            types = {"queryRequest": "StoreTrafficRequest"},
+            selection = GraphQLSelection(
+                name = f"{self.sales_type}Sales",
+                variables = ["queryRequest"],
+                fields = self.fields,
             )
-        ).generate_data(query_options=dict(
-            selection=dict(variables=dict(linebreak=False), fields=dict(linebreak=True)),
-            suffix='\n'))
+        ).generate_data(query_options = dict(
+            selection = dict(variables=dict(linebreak=False), fields=dict(linebreak=True)),
+            suffix = '\n'))
 
     @PartnerCenter.cookies_required
     def set_request_headers(self, **kwargs):
         contents = dict(type="text", charset="UTF-8")
-        referer = "https://hcenter.shopping.naver.com/iframe/brand-analytics/store/productSales"
-        origin = "https://hcenter.shopping.naver.com"
-        super().set_request_headers(contents=contents, origin=origin, referer=referer, **kwargs)
+        referer = self.origin + "/iframe/brand-analytics/store/productSales"
+        super().set_request_headers(contents=contents, origin=self.origin, referer=referer, **kwargs)
 
     def select_parser(self, parser: Literal["Sales"] | Callable | None = "Sales") -> Callable:
         if isinstance(parser, str) and (parser == "Sales"):
@@ -99,8 +99,12 @@ class _SalesCollector(PartnerCenter):
         else:
             return parser
 
+
+class StoreSales(_SalesCollector):
+    sales_type = "store"
+
     @property
-    def store_fields(self) -> List[Dict]:
+    def fields(self) -> List[Dict]:
         return [
             {"period": ["date"]},
             {"sales": [
@@ -108,8 +112,12 @@ class _SalesCollector(PartnerCenter):
                 "paymentAmountPerPaying", "paymentAmountPerUser", "refundRate"]}
         ]
 
+
+class CategorySales(_SalesCollector):
+    sales_type = "category"
+
     @property
-    def category_fields(self) -> List[Dict]:
+    def fields(self) -> List[Dict]:
         return [
             {"product": [{"category": ["identifier", "fullName"]}]},
             {"sales": ["paymentAmount", "paymentCount", "purchaseConversionRate", "paymentAmountPerPaying"]},
@@ -117,23 +125,15 @@ class _SalesCollector(PartnerCenter):
             {"measuredThrough": ["type"]},
         ]
 
+
+class ProductSales(_SalesCollector):
+    sales_type = "product"
+
     @property
-    def product_fields(self) -> List[Dict]:
+    def fields(self) -> List[Dict]:
         return [
             {"product": ["identifier", "name", {"category": ["identifier", "name", "fullName"]}]},
             {"sales": ["paymentAmount", "paymentCount", "purchaseConversionRate"]},
             {"visit": ["click"]},
             {"rest": [{"comparePreWeek": ["isNewlyAdded"]}]},
         ]
-
-
-class StoreSales(_SalesCollector):
-    sales_type = "store"
-
-
-class CategorySales(_SalesCollector):
-    sales_type = "category"
-
-
-class ProductSales(_SalesCollector):
-    sales_type = "product"
