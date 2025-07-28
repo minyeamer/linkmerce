@@ -446,6 +446,10 @@ class Collector(SessionClient, ParserClient, metaclass=ABCMeta):
         ):
         SessionClient.__init__(self, session, account, params, body, headers)
         ParserClient.__init__(self, parser)
+        self.__post_init__()
+
+    def __post_init__(self):
+        ...
 
     @abstractmethod
     def collect(self, **kwargs) -> Any:
