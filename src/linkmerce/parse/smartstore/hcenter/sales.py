@@ -46,16 +46,16 @@ class _SalesParser(QueryParser):
             date_type: Literal["daily","weekly","monthly"] = "daily",
             **kwargs
         ) -> List[Dict]:
-        def build_query_params(params: Dict = dict()) -> Dict:
-            params["mall_seq"] = s if (s := str(mall_seq)).isdigit() else "NULL"
-            if date_type == "daily":
-                date_fields = [("paymentDate", end_date)]
-            else:
-                date_fields = [("startDate", start_date), ("endDate", end_date)]
-            params["date_part"] = self.build_date_part(*date_fields, safe=True)
-            return params
         data = response["data"][f"{self.sales_type}Sales"]
-        return self.select(data, **build_query_params(), format="json") if data else list()
+        mall_seq = string if (string := str(mall_seq)).isdigit() else "NULL"
+        date_part = self.build_date_part(start_date, end_date, date_type)
+        return self.select(data, self.make_query(mall_seq, date_part)) if data else list()
+
+    def build_date_part(self, start_date = None, end_date = None, date_type = "daily") -> str:
+        if date_type == "daily":
+            return super().build_date_part(("paymentDate", end_date), safe=True)
+        else:
+            return super().build_date_part(("startDate", start_date), ("endDate", end_date), safe=True)
 
 
 class StoreSales(_SalesParser):

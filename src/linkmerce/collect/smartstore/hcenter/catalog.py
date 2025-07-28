@@ -1,80 +1,45 @@
 from __future__ import annotations
-from linkmerce.collect.smartstore.partner import PartnerCenter
+from linkmerce.collect import PaginationMixin
+from linkmerce.collect.smartstore.hcenter import PartnerCenter
 
-from typing import Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Callable, Dict, List, Literal, Tuple
+    from typing import Dict, List, Literal
     from linkmerce.types import JsonObject
 
 
-MAX_SIZE = 100
-
-
-class _CatalogCollector(PartnerCenter):
+class _CatalogCollector(PartnerCenter, PaginationMixin):
     method = "POST"
     path = "/graphql/product-catalog"
-    date_format = "%Y-%m-%d"
+    max_page_size = 100
+    page_start = 0
     object_type: Literal["catalogs","products"]
     param_types: Dict[str,str]
     fields: List
 
-    def _collect_all(self, parser: Callable | None = None, page=None, **kwargs) -> JsonObject:
-        kwargs = dict(kwargs, page_size=MAX_SIZE)
-        response = self.collect(parser=None, page=0, **kwargs)
-        total = self._parse_total_count(response)
-        data, is_sequence = self._parse_first(response, parser, **kwargs)
-        if isinstance(total, int) and (total > MAX_SIZE):
-            from math import ceil
-            for page in range(1, ceil(total/MAX_SIZE)):
-                if is_sequence:
-                    data += self.collect(parser=parser, page=page, **kwargs)
-                else:
-                    data.append(self.collect(parser=parser, page=page, **kwargs))
-        return data
-
-    async def _collect_async_all(self, parser: Callable | None = None, page=None, **kwargs) -> JsonObject:
-        kwargs = dict(kwargs, page_size=MAX_SIZE)
-        response = await self.collect_async(parser=None, page=0, **kwargs)
-        total = self._parse_total_count(response)
-        data, is_sequence = self._parse_first(response, parser, **kwargs)
-        if isinstance(total, int) and (total > MAX_SIZE):
-            from math import ceil
-            import asyncio
-            results = await asyncio.gather(*[
-                self.collect_async(parser=parser, page=page, **kwargs) for page in range(1, ceil(total/MAX_SIZE))])
-            if is_sequence:
-                from itertools import chain
-                return data + list(chain.from_iterable(results))
-            else:
-                return data + results
-        return data
-
-    def _parse_first(self, response: JsonObject, parser: Callable | None = None, **kwargs) -> Tuple[JsonObject,bool]:
-        data = self.parse(response, parser, **kwargs)
-        return (data, True) if isinstance(data, Sequence) else ([data], False)
-
-    def _parse_total_count(self, response: JsonObject) -> int:
+    def count_total(self, response: JsonObject) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["data",self.object_type,"totalCount"])
 
     def get_request_body(self, variables: Dict, **kwargs) -> Dict:
-        return dict(self.__body, variables=variables)
+        return super().get_request_body(variables=variables)
 
     def set_request_body(self, **kwargs):
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
         param_types = self.param_types
-        self.__body = GraphQLOperation(
-            operation = self.object_type,
-            variables = dict(),
-            types = param_types,
-            selection = GraphQLSelection(
-                name = self.object_type,
-                variables = {"param": list(param_types.keys())},
-                fields = self.fields,
-        )).generate_data(query_options = dict(
-            selection = dict(variables=dict(linebreak=False, replace={"id: $id":"ids: $id"}), fields=dict(linebreak=True)),
-            suffix = '\n'))
+        super().set_request_body(
+            GraphQLOperation(
+                operation = self.object_type,
+                variables = dict(),
+                types = param_types,
+                selection = GraphQLSelection(
+                    name = self.object_type,
+                    variables = {"param": list(param_types.keys())},
+                    fields = self.fields,
+            )).generate_data(query_options = dict(
+                selection = dict(variables=dict(linebreak=False, replace={"id: $id":"ids: $id"}), fields=dict(linebreak=True)),
+                suffix = '\n')))
 
     @PartnerCenter.cookies_required
     def set_request_headers(self, **kwargs):
@@ -91,12 +56,6 @@ class _CatalogCollector(PartnerCenter):
             return dict(sort="MobilePrice", direction="ASC")
         else:
             return dict()
-
-    def select_parser(self, parser: str | Callable | None = None) -> Callable:
-        if isinstance(parser, str) and (parser == f"Brand{self.object_type[:-1].capitalize()}"):
-            return self.import_parser(parser)
-        else:
-            return parser
 
     @property
     def param_types(self) -> Dict[str,str]:
@@ -125,16 +84,15 @@ class BrandCatalog(_CatalogCollector):
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
-            parser: Literal["BrandCatalog"] | Callable | None = "BrandCatalog",
         ) -> JsonObject:
         kwargs = self.build_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
         if page is None:
-            return self._collect_all(self.select_parser(parser), **kwargs)
+            return self.collect_all(**kwargs)
         message = self.build_request(json=kwargs)
         response = self.request_json(**message)
-        return self.parse(response, self.select_parser(parser), **kwargs)
+        return self.count_and_parse(response, **kwargs)
 
-    @PartnerCenter.with_client_session
+    @PartnerCenter.async_with_session
     async def collect_async(
             self,
             brand_ids: List[int | str],
@@ -142,14 +100,13 @@ class BrandCatalog(_CatalogCollector):
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
-            parser: Literal["BrandCatalog"] | Callable | None = "BrandCatalog",
         ) -> JsonObject:
         kwargs = self.build_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
         if page is None:
-            return await self._collect_async_all(self.select_parser(parser), **kwargs)
+            return await self.collect_async_all(**kwargs)
         message = self.build_request(json=kwargs)
         response = await self.request_async_json(**message)
-        return self.parse(response, self.select_parser(parser), **kwargs)
+        return self.count_and_parse(response, **kwargs)
 
     def build_kwargs(self, brand_ids, sort_type, is_brand_catalog, page, page_size) -> Dict:
         return dict(
@@ -166,20 +123,21 @@ class BrandCatalog(_CatalogCollector):
             **kwargs
         ) -> Dict:
         provider = {True: {"providerId": "268740", "providerType": "BrandCompany"}, False: {"providerType": "None"}}
-        return super().get_request_body({
-            "connection": {
-                "page": int(page),
-                "size": int(page_size),
-                **self.select_sort_type(sort_type),
-            },
-            "includeNullBrand": "N",
-            "serviceYn": "Y",
-            "catalogStatusType": "Complete",
-            "overseaProductType": "Nothing",
-            "saleMethodType": "NothingOrRental",
-            "brandSeqs": list(map(str, brand_ids)),
-            **provider.get(is_brand_catalog, dict()),
-        })
+        return super().get_request_body(
+            variables={
+                "connection": {
+                    "page": int(page),
+                    "size": int(page_size),
+                    **self.select_sort_type(sort_type),
+                },
+                "includeNullBrand": "N",
+                "serviceYn": "Y",
+                "catalogStatusType": "Complete",
+                "overseaProductType": "Nothing",
+                "saleMethodType": "NothingOrRental",
+                "brandSeqs": list(map(str, brand_ids)),
+                **provider.get(is_brand_catalog, dict()),
+            })
 
     @property
     def param_types(self) -> List:
@@ -216,16 +174,15 @@ class BrandProduct(_CatalogCollector):
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
-            parser: Literal["BrandProduct"] | Callable | None = "BrandProduct",
         ) -> JsonObject:
         kwargs = self.build_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
         if page is None:
-            return self._collect_all(self.select_parser(parser), **kwargs)
+            return self.collect_all(**kwargs)
         message = self.build_request(json=kwargs)
         response = self.request_json(**message)
-        return self.parse(response, self.select_parser(parser), **kwargs)
+        return self.count_and_parse(response, **kwargs)
 
-    @PartnerCenter.with_client_session
+    @PartnerCenter.async_with_session
     async def collect_async(
             self,
             brand_ids: List[int | str],
@@ -234,14 +191,13 @@ class BrandProduct(_CatalogCollector):
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
-            parser: Literal["BrandProduct"] | Callable | None = "BrandProduct",
         ) -> JsonObject:
         kwargs = self.build_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
         if page is None:
-            return await self._collect_async_all(self.select_parser(parser), **kwargs)
+            return await self.collect_async_all(**kwargs)
         message = self.build_request(json=kwargs)
         response = await self.request_async_json(**message)
-        return self.parse(response, self.select_parser(parser), **kwargs)
+        return self.count_and_parse(response, **kwargs)
 
     def build_kwargs(self, brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size) -> Dict:
         return dict(
@@ -259,7 +215,8 @@ class BrandProduct(_CatalogCollector):
             **kwargs
         ) -> Dict:
         kv = lambda key, value: {key: value} if value is not None else {}
-        return super().get_request_body({
+        return super().get_request_body(
+            variables={
                 "connection": {
                     "page": int(page),
                     "size": int(page_size),

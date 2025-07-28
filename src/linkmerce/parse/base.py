@@ -59,30 +59,31 @@ class RecordsParser(ListParser):
 
 
 class QueryParser(RecordsParser, metaclass=ABCMeta):
+    format: Literal["csv","json"] = "json"
     table_alias: str = "data"
 
     def __init__(self, obj: Any, *args, **kwargs):
         super().__init__(obj, *args, **kwargs)
 
+    @abstractmethod
+    def make_query(self, *args, **kwargs) -> str:
+        raise NotImplementedError("The 'make_query' method must be implemented.")
+
     def parse(self, obj: Any, *args, **kwargs) -> Iterable:
         if isinstance(obj, Sequence if self.sequential else Iterable):
-            return self.select(obj, *args, **kwargs)
+            query = self.make_query(*args, **kwargs)
+            return self.select(obj, query)
         else:
             self.raise_parse_error()
 
-    def select(self, obj: Sequence[Any], *args, format: Literal["csv","json"] = "json", **kwargs) -> List[Any]:
-        query = self.make_query(*args, **kwargs)
-        if format == "csv":
+    def select(self, obj: Any, query: str) -> List[Any]:
+        if self.format == "csv":
             from linkmerce.utils.duckdb import select_to_csv as select
-        elif format == "json":
+        elif self.format == "json":
             from linkmerce.utils.duckdb import select_to_json as select
         else:
             raise ValueError("Invalid format. Supported formats are: csv, json.")
         return select(query, params={self.table_alias: obj})
-
-    @abstractmethod
-    def make_query(self, *args, **kwargs) -> str:
-        raise NotImplementedError("The 'make_query' method must be implemented.")
 
     def render_query(self, query: str, table: str = str(), **kwargs) -> str:
         from linkmerce.utils.jinja import render_string

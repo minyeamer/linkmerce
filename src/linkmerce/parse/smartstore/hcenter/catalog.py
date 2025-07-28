@@ -34,7 +34,7 @@ class _CatalogParser(QueryParser):
     @check_errors
     def parse(self, response: JsonObject, **kwargs) -> List[Dict]:
         data = response["data"][self.object_type]["items"]
-        return self.select(data, format="json", **kwargs) if data else list()
+        return self.select(data, self.make_query(**kwargs)) if data else list()
 
 
 class BrandCatalog(_CatalogParser):
