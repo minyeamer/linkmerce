@@ -6,7 +6,7 @@ import os
 from typing import Iterable, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Dict, Hashable, List, Literal, Union
+    from typing import Any, Callable, Hashable, Literal, Union
     from io import BytesIO, StringIO
     from pandas._typing import DtypeArg
     IndexLabel = Union[Sequence[Hashable], Hashable]
@@ -33,12 +33,12 @@ def select_table(data: pd.DataFrame, cols: IndexLabel, dropna: bool=False, reord
 def read_table(
         io: bytes | str,
         table_format: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
-        sheet_name: str | int | List | None = 0,
+        sheet_name: str | int | list | None = 0,
         header: int | Sequence[int] | None = 0,
         dtype: DtypeArg | None = None,
         engine: Literal["xlrd", "openpyxl", "odf", "pyxlsb", "calamine"] | None = None,
-        parse_dates: bool | Sequence[int] | Sequence[Sequence[str] | Sequence[int]] | Dict[str, Sequence[int] | list[str]] = None,
-        file_pattern: Dict | None = None,
+        parse_dates: bool | Sequence[int] | Sequence[Sequence[str] | Sequence[int]] | dict[str, Sequence[int] | list[str]] = None,
+        file_pattern: dict | None = None,
         **kwargs
     ) -> pd.DataFrame:
     def read_io(io: BytesIO | StringIO, format: Literal["excel", "csv", "html", "xml"]) -> pd.DataFrame:
@@ -69,7 +69,7 @@ def read_table(
         raise TypeError("Invalid type for table_format. A string or sequence type is allowed.")
 
 
-def _read_bytes(io: bytes | str, file_pattern: Dict | None=None) -> BytesIO | StringIO:
+def _read_bytes(io: bytes | str, file_pattern: dict | None=None) -> BytesIO | StringIO:
     from io import BytesIO, StringIO
     if isinstance(io, str):
         if (os.path.splitext(io)[1] in TABLE_FORMAT):
@@ -103,7 +103,7 @@ def _to_sequence(cols: IndexLabel) -> Iterable[Hashable]:
     return [cols] if isinstance(cols, str) or not isinstance(cols, Iterable) else cols
 
 
-def _try_sequence(func: Callable, kwargs: Dict[str,Sequence]=dict(), persist: Dict=dict()) -> Any:
+def _try_sequence(func: Callable, kwargs: dict[str,Sequence]=dict(), persist: dict=dict()) -> Any:
     from itertools import product
     params = list(map(lambda values: dict(zip(kwargs.keys(), values)),list(product(*kwargs.values()))))
     for param in params[:-1]:

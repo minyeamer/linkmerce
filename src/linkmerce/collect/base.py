@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 import functools
 
-from typing import Callable, Dict, Sequence, TYPE_CHECKING
+from typing import Callable, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Hashable, IO, List, Literal, Tuple, TypeVar
+    from typing import Any, Hashable, IO, Iterator, Literal, TypeVar
     from linkmerce.types import JsonObject, JsonSerialize
     _KT = TypeVar("_KT", Hashable)
     _VT = TypeVar("_VT", Any)
@@ -26,10 +26,10 @@ class BaseSessionClient(metaclass=ABCMeta):
     def __init__(
             self,
             session: Session | ClientSession | None = None,
-            account: Dict[_KT,_VT] = dict(),
-            params: Dict | List[Tuple] | bytes | None = None,
-            body: Dict | Dict | List[Tuple] | bytes | IO | JsonSerialize | None = None,
-            headers: Dict[_KT,_VT] = dict(),
+            account: dict[_KT,_VT] = dict(),
+            params: dict | list[tuple] | bytes | None = None,
+            body: dict | dict | list[tuple] | bytes | IO | JsonSerialize | None = None,
+            headers: dict[_KT,_VT] = dict(),
         ):
         self.set_session(session)
         self.set_account(account)
@@ -47,25 +47,25 @@ class BaseSessionClient(metaclass=ABCMeta):
     def set_session(self, session: Session | ClientSession | None = None):
         self.__session = session
 
-    def get_account(self, key: _KT | None = None, **kwargs) -> _VT | Dict:
+    def get_account(self, key: _KT | None = None, **kwargs) -> _VT | dict:
         return self.__account[key] if key is not None else self.__account
 
-    def set_account(self, account: Dict[_KT,_VT] = dict(), **kwargs):
+    def set_account(self, account: dict[_KT,_VT] = dict(), **kwargs):
         self.__account = account
 
-    def get_request_params(self, **kwargs) -> Dict | List[Tuple] | bytes:
+    def get_request_params(self, **kwargs) -> dict | list[tuple] | bytes:
         return self.__params
 
-    def set_request_params(self, params: Dict | List[Tuple] | bytes | None = None, **kwargs):
+    def set_request_params(self, params: dict | list[tuple] | bytes | None = None, **kwargs):
         self.__params = params
 
-    def get_request_body(self, **kwargs) -> Dict | List[Tuple] | bytes | IO | JsonSerialize:
+    def get_request_body(self, **kwargs) -> dict | list[tuple] | bytes | IO | JsonSerialize:
         return self.__body
 
-    def set_request_body(self, body: Dict | Dict | List[Tuple] | bytes | IO | JsonSerialize | None = None, **kwargs):
+    def set_request_body(self, body: dict | dict | list[tuple] | bytes | IO | JsonSerialize | None = None, **kwargs):
         self.__body = body
 
-    def get_request_headers(self, **kwargs) -> Dict[str,str]:
+    def get_request_headers(self, **kwargs) -> dict[str,str]:
         return dict(self.__headers, **kwargs) if kwargs else self.__headers
 
     def set_request_headers(
@@ -75,7 +75,7 @@ class BaseSessionClient(metaclass=ABCMeta):
             encoding: str = "gzip, deflate, br",
             language: Literal["ko","en"] | str = "ko",
             connection: str = "keep-alive",
-            contents: Literal["form", "javascript", "json", "text", "multipart"] | str | Dict = str(),
+            contents: Literal["form", "javascript", "json", "text", "multipart"] | str | dict = str(),
             cookies: str = str(),
             host: str = str(),
             origin: str = str(),
@@ -84,11 +84,11 @@ class BaseSessionClient(metaclass=ABCMeta):
             client: str = str(),
             mobile: bool = False,
             platform: str = str(),
-            metadata: Literal["cors", "navigate"] | Dict[str,str] = "navigate",
+            metadata: Literal["cors", "navigate"] | dict[str,str] = "navigate",
             https: bool = False,
             user_agent: str = str(),
             ajax: bool = False,
-            headers: Dict | None = None,
+            headers: dict | None = None,
             **kwargs
         ):
         if headers is None:
@@ -114,11 +114,11 @@ class RequestSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | RequestsCookieJar = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             **kwargs
         ) -> Response:
         return self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
@@ -127,11 +127,11 @@ class RequestSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | RequestsCookieJar = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             **kwargs
         ) -> int:
         with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
@@ -141,11 +141,11 @@ class RequestSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | RequestsCookieJar = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             **kwargs
         ) -> bytes:
         with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
@@ -155,11 +155,11 @@ class RequestSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | RequestsCookieJar = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             **kwargs
         ) -> str:
         with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
@@ -169,11 +169,11 @@ class RequestSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | RequestsCookieJar = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             **kwargs
         ) -> JsonObject:
         with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
@@ -183,13 +183,13 @@ class RequestSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | RequestsCookieJar = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             **kwargs
-        ) -> Dict[str,str]:
+        ) -> dict[str,str]:
         with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.headers
 
@@ -197,11 +197,11 @@ class RequestSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | RequestsCookieJar = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             features: str | Sequence[str] | None = "html.parser",
             **kwargs
         ) -> BeautifulSoup:
@@ -213,13 +213,13 @@ class RequestSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | RequestsCookieJar = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             content_type: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
-            table_options: Dict = dict(),
+            table_options: dict = dict(),
             **kwargs
         ) -> DATAFRAME:
         from linkmerce.src.linkmerce.extensions.pandas import read_table
@@ -253,11 +253,11 @@ class AiohttpSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | LooseCookies = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             **kwargs
         ) -> ClientResponse:
         return await self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
@@ -266,11 +266,11 @@ class AiohttpSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | LooseCookies = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             **kwargs
         ) -> int:
         async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
@@ -280,11 +280,11 @@ class AiohttpSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | LooseCookies = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             **kwargs
         ) -> bytes:
         async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
@@ -294,11 +294,11 @@ class AiohttpSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | LooseCookies = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             **kwargs
         ) -> str:
         async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
@@ -308,11 +308,11 @@ class AiohttpSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | LooseCookies = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             **kwargs
         ) -> JsonObject:
         async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
@@ -322,13 +322,13 @@ class AiohttpSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | LooseCookies = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             **kwargs
-        ) -> Dict[str,str]:
+        ) -> dict[str,str]:
         async with self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs) as response:
             return response.headers
 
@@ -336,11 +336,11 @@ class AiohttpSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | LooseCookies = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             features: str | Sequence[str] | None = "html.parser",
             **kwargs
         ) -> BeautifulSoup:
@@ -352,13 +352,13 @@ class AiohttpSessionClient(BaseSessionClient):
             self,
             method: str,
             url: str,
-            params: Dict | List[Tuple] | bytes | None = None,
-            data: Dict | List[Tuple] | bytes | IO | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
             json: JsonSerialize | None = None,
-            headers: Dict[str,str] = None,
-            cookies: Dict | LooseCookies = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             content_type: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
-            table_options: Dict = dict(),
+            table_options: dict = dict(),
             **kwargs
         ) -> DATAFRAME:
         from linkmerce.src.linkmerce.extensions.pandas import read_table
@@ -438,10 +438,10 @@ class Collector(SessionClient, ParserClient, metaclass=ABCMeta):
     def __init__(
             self,
             session: Session | ClientSession | None = None,
-            account: Dict[_KT,_VT] = dict(),
-            params: Dict | List[Tuple] | bytes | None = None,
-            body: Dict | Dict | List[Tuple] | bytes | IO | JsonSerialize | None = None,
-            headers: Dict[_KT,_VT] = dict(),
+            account: dict[_KT,_VT] = dict(),
+            params: dict | list[tuple] | bytes | None = None,
+            body: dict | dict | list[tuple] | bytes | IO | JsonSerialize | None = None,
+            headers: dict[_KT,_VT] = dict(),
             parser: Literal["default"] | Callable | None = "default",
         ):
         SessionClient.__init__(self, session, account, params, body, headers)
@@ -460,17 +460,17 @@ class Collector(SessionClient, ParserClient, metaclass=ABCMeta):
 
     def build_request(
             self,
-            params: Dict | None = None,
-            data: Dict | None = None,
-            json: Dict | None = None,
-            headers: Dict | None = dict(),
+            params: dict | None = None,
+            data: dict | None = None,
+            json: dict | None = None,
+            headers: dict | None = dict(),
             **kwargs
-        ) -> Dict:
+        ) -> dict:
         message = dict(method=self.method, url=self.url)
         keys = ["params", "data", "json", "headers"]
         attrs = ["params", "body", "body", "headers"]
         for key, attr, param in zip(keys, attrs, [params,data,json,headers]):
-            if isinstance(param, Dict):
+            if isinstance(param, dict):
                 message[key] = getattr(self, f"get_request_{attr}")(**param)
         return message
 
@@ -496,7 +496,7 @@ class PaginationMixin:
     def collect_all(
             self,
             concat_response: Literal["auto"] | bool = "auto",
-            tqdm_optinos: Dict = dict(disable=True),
+            tqdm_optinos: dict = dict(disable=True),
             *,
             page: _SKIPPED = None,
             page_size: _SKIPPED = None,
@@ -522,7 +522,7 @@ class PaginationMixin:
     async def collect_async_all(
             self,
             concat_response: Literal["auto"] | bool = "auto",
-            tqdm_optinos: Dict = dict(disable=True),
+            tqdm_optinos: dict = dict(disable=True),
             *,
             page: _SKIPPED = None,
             page_size: _SKIPPED = None,

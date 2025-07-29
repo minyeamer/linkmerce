@@ -3,10 +3,10 @@ from __future__ import annotations
 from linkmerce.parse import QueryParser
 import functools
 
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Literal
+    from typing import Literal
     from linkmerce.types import JsonObject
     import datetime as dt
 
@@ -17,7 +17,7 @@ class _SalesParser(QueryParser):
     def check_errors(func):
         @functools.wraps(func)
         def wrapper(self: _SalesParser, response: JsonObject, *args, **kwargs):
-            if isinstance(response, Dict):
+            if isinstance(response, dict):
                 if "error" not in response:
                     return func(self, response, *args, **kwargs)
                 else:
@@ -26,7 +26,7 @@ class _SalesParser(QueryParser):
                 self.raise_parse_error("The HTTP response is not of dictionary type.")
         return wrapper
 
-    def raise_request_error(self, response: Dict):
+    def raise_request_error(self, response: dict):
         from linkmerce.utils.map import hier_get
         msg = hier_get(response, ["error","error"]) or "null"
         if msg == "Unauthorized":
@@ -45,7 +45,7 @@ class _SalesParser(QueryParser):
             end_date: dt.date | str | None = None,
             date_type: Literal["daily","weekly","monthly"] = "daily",
             **kwargs
-        ) -> List[Dict]:
+        ) -> list[dict]:
         data = response["data"][f"{self.sales_type}Sales"]
         mall_seq = string if (string := str(mall_seq)).isdigit() else "NULL"
         date_part = self.build_date_part(start_date, end_date, date_type)

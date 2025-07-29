@@ -3,10 +3,10 @@ from __future__ import annotations
 import duckdb
 import functools
 
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Generator, List, Literal, Sequence, Tuple
+    from typing import Any, Generator, Literal, Sequence
     from duckdb import DuckDBPyConnection
 
 DEFAULT_TEMP_TABLE = "temp_table"
@@ -25,7 +25,7 @@ def with_connection(func):
     return wrapper
 
 
-def get_columns(conn: DuckDBPyConnection, table: str) -> List[str]:
+def get_columns(conn: DuckDBPyConnection, table: str) -> list[str]:
     return [column[NAME] for column in conn.execute(f"DESCRIBE {table}").fetchall()]
 
 
@@ -36,7 +36,7 @@ def get_columns(conn: DuckDBPyConnection, table: str) -> List[str]:
 def create_table(
         conn: DuckDBPyConnection,
         table: str,
-        data: List[Dict],
+        data: list[dict],
         option: Literal["replace", "ignore"] | None = None,
         temp: bool = False
     ):
@@ -61,9 +61,9 @@ def _create(option: Literal["replace", "ignore"] | None = None, temp: bool = Fal
 
 def select_to_csv(
         query: str,
-        params: Dict | None = None,
+        params: dict | None = None,
         conn: DuckDBPyConnection | None = None,
-    ) -> List[Tuple]:
+    ) -> list[tuple]:
     relation = (conn if conn is not None else duckdb).execute(query, parameters=params)
     columns = [column[NAME] for column in relation.description]
     return [columns] + relation.fetchall()
@@ -71,9 +71,9 @@ def select_to_csv(
 
 def select_to_json(
         query: str,
-        params: Dict | None = None,
+        params: dict | None = None,
         conn: DuckDBPyConnection | None = None,
-    ) -> List[Dict]:
+    ) -> list[dict]:
     relation = (conn if conn is not None else duckdb).execute(query, parameters=params)
     columns = [column[NAME] for column in relation.description]
     return [dict(zip(columns, row)) for row in relation.fetchall()]
@@ -114,12 +114,12 @@ def curret_datetime(
 
 @with_connection
 def rename_keys(
-        data: List[Dict],
-        rename: Dict[str,str],
+        data: list[dict],
+        rename: dict[str,str],
         *,
         conn: DuckDBPyConnection | None = None,
         temp_table: str = DEFAULT_TEMP_TABLE,
-    ) -> List[Dict]:
+    ) -> list[dict]:
     create_table(conn, temp_table, data, option="ignore", temp=True)
     def alias(column: str) -> str:
         return f"{column} AS {rename[column]}" if column in rename else column
@@ -134,14 +134,14 @@ def rename_keys(
 
 @with_connection
 def groupby(
-        data: List[Dict],
+        data: list[dict],
         by: str | Sequence[str],
-        agg: str | Dict[str,Literal["count","sum","avg","min","max","first","last","list"]],
+        agg: str | dict[str,Literal["count","sum","avg","min","max","first","last","list"]],
         dropna: bool = True,
         *,
         conn: DuckDBPyConnection | None = None,
         temp_table: str = DEFAULT_TEMP_TABLE,
-    ) -> List[Dict]:
+    ) -> list[dict]:
     create_table(conn, temp_table, data, option="ignore", temp=True)
     by = [by] if isinstance(by, str) else by
     query = f"SELECT {', '.join(by)}, {_agg(agg)} FROM {temp_table} {_groupby(by, dropna)};"
@@ -154,8 +154,8 @@ def _groupby(by: Sequence[str], dropna: bool = True):
     return f"{where} {groupby}"
 
 
-def _agg(func: str | Dict[str,Literal["count","sum","avg","min","max","first","last","list"]]) -> str:
-    if isinstance(func, Dict):
+def _agg(func: str | dict[str,Literal["count","sum","avg","min","max","first","last","list"]]) -> str:
+    if isinstance(func, dict):
         def render(col: str, agg: str) -> str:
             if agg in {"count","sum","avg","min","max"}:
                 return f"{agg.upper()}({col})"
@@ -170,12 +170,12 @@ def _agg(func: str | Dict[str,Literal["count","sum","avg","min","max","first","l
 
 @with_connection
 def combine_first(
-        *data: List[Dict],
+        *data: list[dict],
         index: str | Sequence[str],
         dropna: bool = True,
         conn: DuckDBPyConnection | None = None,
         temp_table: str = DEFAULT_TEMP_TABLE,
-    ) -> List[Dict]:
+    ) -> list[dict]:
     from itertools import chain
     create_table(conn, temp_table, list(chain.from_iterable(data)), option="ignore", temp=True)
     index = [index] if isinstance(index, str) else index
@@ -190,7 +190,7 @@ def combine_first(
 
 @with_connection
 def partition_by(
-        data: List[Dict],
+        data: list[dict],
         field: str,
         type: str | None = None,
         condition: str | None = None,
@@ -198,7 +198,7 @@ def partition_by(
         *,
         conn: DuckDBPyConnection | None = None,
         temp_table: str = DEFAULT_TEMP_TABLE,
-    ) -> Generator[List[Dict], None, None]:
+    ) -> Generator[list[dict], None, None]:
     create_table(conn, temp_table, data, option="ignore", temp=True)
     if field not in get_columns(conn, temp_table):
         field = _add_partition(conn, temp_table, field, type)
@@ -228,7 +228,7 @@ def _select_partition(
         field: str,
         condition: str | None = None,
         sort: bool = True
-    ) -> List[Any]:
+    ) -> list[Any]:
     query = f"SELECT DISTINCT {field} FROM {table} {_where(condition, field)};"
     if sort:
         return sorted(map(lambda x: x[0], conn.execute(query).fetchall()))

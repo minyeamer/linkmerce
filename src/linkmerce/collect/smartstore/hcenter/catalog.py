@@ -5,7 +5,7 @@ from linkmerce.collect.smartstore.hcenter import PartnerCenter
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict, List, Literal
+    from typing import Literal
     from linkmerce.types import JsonObject
 
 
@@ -15,14 +15,14 @@ class _CatalogCollector(PartnerCenter, PaginationMixin):
     max_page_size = 100
     page_start = 0
     object_type: Literal["catalogs","products"]
-    param_types: Dict[str,str]
-    fields: List
+    param_types: dict[str,str]
+    fields: list
 
     def count_total(self, response: JsonObject) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["data",self.object_type,"totalCount"])
 
-    def get_request_body(self, variables: Dict, **kwargs) -> Dict:
+    def get_request_body(self, variables: dict, **kwargs) -> dict:
         return super().get_request_body(variables=variables)
 
     def set_request_body(self, **kwargs):
@@ -47,7 +47,7 @@ class _CatalogCollector(PartnerCenter, PaginationMixin):
         referer = "https://center.shopping.naver.com/brand-management/catalog"
         super().set_request_headers(contents=contents, referer=referer, **kwargs)
 
-    def select_sort_type(self, sort_type: Literal["popular","recent","price"]) -> Dict[str,str]:
+    def select_sort_type(self, sort_type: Literal["popular","recent","price"]) -> dict[str,str]:
         if sort_type == "product":
             return dict(sort="PopularDegree", direction="DESC")
         elif sort_type == "recent":
@@ -58,7 +58,7 @@ class _CatalogCollector(PartnerCenter, PaginationMixin):
             return dict()
 
     @property
-    def param_types(self) -> Dict[str,str]:
+    def param_types(self) -> dict[str,str]:
         is_product = (self.object_type == "products")
         return {
             "id":"[ID]", "ids":"[ID!]", "name":"String", "mallSeq":"String", "mallProductIds":"[String!]",
@@ -79,7 +79,7 @@ class BrandCatalog(_CatalogCollector):
     @PartnerCenter.with_session
     def collect(
             self,
-            brand_ids: List[int | str],
+            brand_ids: list[int | str],
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
@@ -95,7 +95,7 @@ class BrandCatalog(_CatalogCollector):
     @PartnerCenter.async_with_session
     async def collect_async(
             self,
-            brand_ids: List[int | str],
+            brand_ids: list[int | str],
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
@@ -108,20 +108,20 @@ class BrandCatalog(_CatalogCollector):
         response = await self.request_async_json(**message)
         return self.count_and_parse(response, **kwargs)
 
-    def build_kwargs(self, brand_ids, sort_type, is_brand_catalog, page, page_size) -> Dict:
+    def build_kwargs(self, brand_ids, sort_type, is_brand_catalog, page, page_size) -> dict:
         return dict(
             brand_ids=brand_ids, sort_type=sort_type, is_brand_catalog=is_brand_catalog,
             page=page, page_size=page_size)
 
     def get_request_body(
             self,
-            brand_ids: List[int | str],
+            brand_ids: list[int | str],
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
             **kwargs
-        ) -> Dict:
+        ) -> dict:
         provider = {True: {"providerId": "268740", "providerType": "BrandCompany"}, False: {"providerType": "None"}}
         return super().get_request_body(
             variables={
@@ -140,7 +140,7 @@ class BrandCatalog(_CatalogCollector):
             })
 
     @property
-    def param_types(self) -> List:
+    def param_types(self) -> list:
         types = super().param_types
         return dict(map(lambda x: (x, types[x]), [
             "id", "name", "makerSeq", "seriesSeq", "category", "catalogType", "modelNo", "registerDate",
@@ -150,7 +150,7 @@ class BrandCatalog(_CatalogCollector):
         ]))
 
     @property
-    def fields(self) -> List:
+    def fields(self) -> list:
         return [{
             "items": [
                 "id", {"image": ["SRC", "F80", "F160"]}, "name", "makerName", "makerSeq", "brandName", "brandSeq",
@@ -168,7 +168,7 @@ class BrandProduct(_CatalogCollector):
     @PartnerCenter.with_session
     def collect(
             self,
-            brand_ids: List[int | str],
+            brand_ids: list[int | str],
             mall_seq: int | str | None = None,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
@@ -185,7 +185,7 @@ class BrandProduct(_CatalogCollector):
     @PartnerCenter.async_with_session
     async def collect_async(
             self,
-            brand_ids: List[int | str],
+            brand_ids: list[int | str],
             mall_seq: int | str | None = None,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
@@ -199,21 +199,21 @@ class BrandProduct(_CatalogCollector):
         response = await self.request_async_json(**message)
         return self.count_and_parse(response, **kwargs)
 
-    def build_kwargs(self, brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size) -> Dict:
+    def build_kwargs(self, brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size) -> dict:
         return dict(
             brand_ids=brand_ids, mall_seq=mall_seq, sort_type=sort_type, is_brand_catalog=is_brand_catalog,
             page=page, page_size=page_size)
 
     def get_request_body(
             self,
-            brand_ids: List[int | str],
+            brand_ids: list[int | str],
             mall_seq: int | str | None = None,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
             **kwargs
-        ) -> Dict:
+        ) -> dict:
         kv = lambda key, value: {key: value} if value is not None else {}
         return super().get_request_body(
             variables={
@@ -229,7 +229,7 @@ class BrandProduct(_CatalogCollector):
             })
 
     @property
-    def param_types(self) -> List:
+    def param_types(self) -> list:
         types = super().param_types
         return dict(map(lambda x: (x, types[x]), [
             "ids", "name", "mallSeq", "mallProductIds", "catalogIds", "makerSeq", "category", "registerDate", "serviceYn",
@@ -237,7 +237,7 @@ class BrandProduct(_CatalogCollector):
         ]))
 
     @property
-    def fields(self) -> List:
+    def fields(self) -> list:
         return [{
             "items": [
                 "id", {"image": ["F60", "F80", "SRC"]}, "name", "makerName", "makerSeq", "brandName", "brandSeq",

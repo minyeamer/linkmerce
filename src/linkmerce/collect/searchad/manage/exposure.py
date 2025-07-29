@@ -4,7 +4,7 @@ from linkmerce.collect.searchad.manage import SearchAdManager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict, Literal
+    from typing import Literal
     from linkmerce.types import JsonObject
 
 
@@ -34,7 +34,7 @@ class ExposureDiagnosis(SearchAdManager):
             genderTarget: str = 'U',
             regionalCode: int = 99,
             **kwargs
-        ) -> Dict:
+        ) -> dict:
         return {
             "keyword": str(keyword).upper(),
             "media": int(str(["search","shopping"].index(domain))+str(int(mobile)),2),
@@ -43,7 +43,7 @@ class ExposureDiagnosis(SearchAdManager):
             "regionalCode": int(regionalCode),
         }
 
-    def get_request_headers(self, **kwargs) -> Dict[str,str]:
+    def get_request_headers(self, **kwargs) -> dict[str,str]:
         kwargs["authorization"] = self.get_authorization()
         return super().get_request_headers(**kwargs)
 

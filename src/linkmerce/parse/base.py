@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Iterable, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, List, Literal, Sequence, Tuple, Type, TypeVar
+    from typing import Any, Literal, Sequence, Type, TypeVar
     import datetime as dt
     _ALIAS = TypeVar("_ALIAS", str)
     _DATE = TypeVar("_DATE", str, dt.date, None)
@@ -54,7 +54,7 @@ class RecordsParser(ListParser):
         else:
             self.raise_parse_error()
 
-    def map(self, record: Any, *args, **kwargs) -> Dict:
+    def map(self, record: Any, *args, **kwargs) -> dict:
         return self.dtype(record, *args, **kwargs)
 
 
@@ -76,7 +76,7 @@ class QueryParser(RecordsParser, metaclass=ABCMeta):
         else:
             self.raise_parse_error()
 
-    def select(self, obj: Any, query: str) -> List[Any]:
+    def select(self, obj: Any, query: str) -> list[Any]:
         if self.format == "csv":
             from linkmerce.utils.duckdb import select_to_csv as select
         elif self.format == "json":
@@ -90,7 +90,7 @@ class QueryParser(RecordsParser, metaclass=ABCMeta):
         table = table or self.expr_table(enclose=True)
         return render_string(query, table=table, **kwargs)
 
-    def build_date_part(self, *args: Tuple[_ALIAS,_DATE], safe: bool = True, sep: str = ", ") -> str:
+    def build_date_part(self, *args: tuple[_ALIAS,_DATE], safe: bool = True, sep: str = ", ") -> str:
         date_fields = [self.expr_date(value, alias=alias, safe=safe) for alias, value in args]
         return sep.join(date_fields)
 

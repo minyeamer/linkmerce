@@ -3,10 +3,10 @@ from __future__ import annotations
 from linkmerce.parse import QueryParser
 import functools
 
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Literal
+    from typing import Literal
     from linkmerce.types import JsonObject
 
 
@@ -16,7 +16,7 @@ class _CatalogParser(QueryParser):
     def check_errors(func):
         @functools.wraps(func)
         def wrapper(self: _CatalogParser, response: JsonObject, *args, **kwargs):
-            if isinstance(response, Dict):
+            if isinstance(response, dict):
                 if not response.get("errors"):
                     return func(self, response, *args, **kwargs)
                 else:
@@ -25,14 +25,14 @@ class _CatalogParser(QueryParser):
                 self.raise_parse_error("Could not parse the HTTP response.")
         return wrapper
 
-    def raise_request_error(self, response: Dict):
+    def raise_request_error(self, response: dict):
         from linkmerce.utils.map import hier_get
         from linkmerce.exceptions import RequestError
         msg = hier_get(response, ["errors",0,"message"]) or "null"
         raise RequestError(f"An error occurred during the request: {msg}")
 
     @check_errors
-    def parse(self, response: JsonObject, **kwargs) -> List[Dict]:
+    def parse(self, response: JsonObject, **kwargs) -> list[dict]:
         data = response["data"][self.object_type]["items"]
         return self.select(data, self.make_query(**kwargs)) if data else list()
 

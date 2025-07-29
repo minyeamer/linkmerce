@@ -4,10 +4,10 @@ from google.cloud.bigquery import Client as BigQueryClient
 from google.cloud.bigquery.job import LoadJobConfig
 import functools
 
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, List, Literal, Sequence, TypeVar
+    from typing import Any, Iterator, Literal, Sequence, TypeVar
     from google.cloud.bigquery.table import Row
     JsonString = TypeVar("JsonString", str)
     Path = TypeVar("Path", str)
@@ -19,11 +19,11 @@ DEFAULT_ACCOUNT = "env/service_account.json"
 
 
 class ServiceAccount(dict):
-    def __init__(self, info: JsonString | Path | Dict[str,str]):
+    def __init__(self, info: JsonString | Path | dict[str,str]):
         super().__init__(self.read_account(info))
 
-    def read_account(self, info: JsonString | Path | Dict[str,str]) -> Dict:
-        if isinstance(info, Dict):
+    def read_account(self, info: JsonString | Path | dict[str,str]) -> dict:
+        if isinstance(info, dict):
             return info
         elif isinstance(info, str):
             import json
@@ -54,10 +54,10 @@ def with_service_account(func):
 ########################### Select Table ##########################
 ###################################################################
 
-def _select_table(client: BigQueryClient, query: str) -> Iterator[Dict[str,Any]]:
+def _select_table(client: BigQueryClient, query: str) -> Iterator[dict[str,Any]]:
     if query.split(' ', maxsplit=1)[0].upper() != "SELECT":
         query = f"SELECT * FROM `{query}`;"
-    def row_to_dict(row: Row) -> Dict[str,Any]:
+    def row_to_dict(row: Row) -> dict[str,Any]:
         return dict(row.items())
     return map(row_to_dict, client.query(query).result())
 
@@ -68,7 +68,7 @@ def select_table_to_json(
         project_id: str,
         *,
         account: ServiceAccount | None = None,
-    ) -> List[Dict[str,Any]]:
+    ) -> list[dict[str,Any]]:
     client = create_connection(project_id, account)
     return _select_table(client, query)
 
@@ -81,12 +81,12 @@ def _write_append(
         client: BigQueryClient, 
         table: str,
         project_id: str,
-        data: List[Dict],
-        partition: Dict | None = None,
+        data: list[dict],
+        partition: dict | None = None,
         serialize: bool = True,
         progress: bool = True,
     ) -> bool:
-    if isinstance(partition, Dict) and ("field" in partition):
+    if isinstance(partition, dict) and ("field" in partition):
         from linkmerce.utils.duckdb import partition_by
         iterable = partition_by(data, **partition)
     else:
@@ -106,8 +106,8 @@ def _write_append(
 def load_table_from_json(
         table: str,
         project_id: str,
-        data: List[Dict],
-        partition: Dict | None = None,
+        data: list[dict],
+        partition: dict | None = None,
         serialize: bool = True,
         progress: bool = True,
         *,
@@ -121,9 +121,9 @@ def load_table_from_json(
 def overwrite_table_from_json(
         table: str,
         project_id: str,
-        data: List[Dict],
+        data: list[dict],
         condition: str | None = None,
-        partition: Dict | None = None,
+        partition: dict | None = None,
         serialize: bool = True,
         progress: bool = True,
         *,
@@ -149,11 +149,11 @@ def overwrite_table_from_json(
 def upsert_table_from_json(
         table: str,
         project_id: str,
-        data: List[Dict],
+        data: list[dict],
         by: str | Sequence[str],
-        agg: str | Dict[str,Literal["first","count","sum","avg","min","max"]],
+        agg: str | dict[str,Literal["first","count","sum","avg","min","max"]],
         condition: str | None = None,
-        partition: Dict | None = None,
+        partition: dict | None = None,
         serialize: bool = True,
         progress: bool = True,
         *,

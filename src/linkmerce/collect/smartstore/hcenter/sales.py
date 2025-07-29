@@ -4,7 +4,7 @@ from linkmerce.collect.smartstore.hcenter import PartnerCenter
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict, List, Literal
+    from typing import Literal
     from linkmerce.types import JsonObject
     import datetime as dt
 
@@ -14,7 +14,7 @@ class _SalesCollector(PartnerCenter):
     path = "/brand/content"
     date_format = "%Y-%m-%d"
     sales_type: Literal["store","category","product"]
-    fields: List[Dict]
+    fields: list[dict]
 
     @PartnerCenter.with_session
     def collect(
@@ -46,7 +46,7 @@ class _SalesCollector(PartnerCenter):
         response = await self.request_async_json(**message)
         return self.parse(response, **kwargs)
 
-    def build_kwargs(self, mall_seq, start_date, end_date, date_type, page, page_size) -> Dict:
+    def build_kwargs(self, mall_seq, start_date, end_date, date_type, page, page_size) -> dict:
         return dict(mall_seq=mall_seq, start_date=start_date, end_date=end_date, date_type=date_type, page=page, page_size=page_size)
 
     def get_request_body(
@@ -58,7 +58,7 @@ class _SalesCollector(PartnerCenter):
             page: int = 1,
             page_size: int = 1000,
             **kwargs
-        ) -> Dict:
+        ) -> dict:
         return super().get_request_body(
             variables={
                 "queryRequest": {
@@ -98,7 +98,7 @@ class StoreSales(_SalesCollector):
     sales_type = "store"
 
     @property
-    def fields(self) -> List[Dict]:
+    def fields(self) -> list[dict]:
         return [
             {"period": ["date"]},
             {"sales": [
@@ -111,7 +111,7 @@ class CategorySales(_SalesCollector):
     sales_type = "category"
 
     @property
-    def fields(self) -> List[Dict]:
+    def fields(self) -> list[dict]:
         return [
             {"product": [{"category": ["identifier", "fullName"]}]},
             {"sales": ["paymentAmount", "paymentCount", "purchaseConversionRate", "paymentAmountPerPaying"]},
@@ -124,7 +124,7 @@ class ProductSales(_SalesCollector):
     sales_type = "product"
 
     @property
-    def fields(self) -> List[Dict]:
+    def fields(self) -> list[dict]:
         return [
             {"product": ["identifier", "name", {"category": ["identifier", "name", "fullName"]}]},
             {"sales": ["paymentAmount", "paymentCount", "purchaseConversionRate"]},

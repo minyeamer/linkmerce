@@ -4,7 +4,7 @@ from linkmerce.collect.naver.api import NaverOpenAPI
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict, Literal
+    from typing import Literal
     from linkmerce.types import JsonObject
 
 
@@ -45,7 +45,7 @@ class _SearchCollector(NaverOpenAPI):
         params = dict(query=query, display=display, start=start, sort=sort)
         return self._collect_backend(params=params)
 
-    def _collect_backend(self, params: Dict = dict(), **kwargs) -> JsonObject:
+    def _collect_backend(self, params: dict = dict(), **kwargs) -> JsonObject:
         message = self.build_request(params=dict(params=params))
         response = self.request_json(**message)
         return self.parse(response, **params, **kwargs)
@@ -61,13 +61,13 @@ class _SearchCollector(NaverOpenAPI):
         params = dict(query=query, display=display, start=start, sort=sort)
         return await self._collect_async_backend(params=params)
 
-    async def _collect_async_backend(self, params: Dict = dict(), **kwargs) -> JsonObject:
+    async def _collect_async_backend(self, params: dict = dict(), **kwargs) -> JsonObject:
         message = self.build_request(params=params)
         response = await self.request_async_json(**message)
         return self.parse(response, **params, **kwargs)
 
-    def get_request_params(self, params: Dict = dict(), **kwargs) -> Dict:
-        return params
+    def get_request_params(self, **kwargs) -> dict:
+        return kwargs
 
 
 class BlogSearch(_SearchCollector):

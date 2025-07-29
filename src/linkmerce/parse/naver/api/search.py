@@ -3,10 +3,10 @@ from __future__ import annotations
 from linkmerce.parse import QueryParser
 import functools
 
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Literal
+    from typing import Literal
     from linkmerce.types import JsonObject
 
 
@@ -17,7 +17,7 @@ class _SearchParser(QueryParser):
     def check_errors(func):
         @functools.wraps(func)
         def wrapper(self: _SearchParser, response: JsonObject, *args, **kwargs):
-            if isinstance(response, Dict):
+            if isinstance(response, dict):
                 if "errorMessage" not in response:
                     return func(self, response, *args, **kwargs)
                 else:
@@ -26,12 +26,12 @@ class _SearchParser(QueryParser):
                 self.raise_parse_error("Could not parse the HTTP response.")
         return wrapper
 
-    def raise_request_error(self, response: Dict):
+    def raise_request_error(self, response: dict):
         from linkmerce.exceptions import RequestError
         raise RequestError(response.get("errorMessage") or str())
 
     @check_errors
-    def parse(self, response: JsonObject, query: str, start: int = 1, **kwargs) -> List[Dict]:
+    def parse(self, response: JsonObject, query: str, start: int = 1, **kwargs) -> list[dict]:
         data = response["items"]
         start = (start-1) + (self.rank_start-1)
         return self.select(data, self.make_query(query, start)) if data else list()
@@ -154,12 +154,10 @@ class ShoppingSearch(_SearchParser):
         query = """
         SELECT
             '{{ keyword }}' AS keyword,
-            (ROW_NUMBER() OVER () + {{ start }}) AS rank,
+            (ROW_NUMBER() OVER () + {{ start }}) AS displayRank,
             productId AS nvMid,
             TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS INT64) AS mallPid,
             title AS productName,
-            productType AS orgType,
-            TRY_CAST(CEIL(TRY_CAST(productType AS INT1) / 3) AS INT1) AS productClass,
             ((TRY_CAST(productType AS INT1) + 2) % 3) AS productType,
             NULLIF(mallName, '네이버') AS mallName,
             IF(link LIKE '%/catalog/%', link, NULL) AS nvMurl,
@@ -171,7 +169,9 @@ class ShoppingSearch(_SearchParser):
             category3 AS categoryName3,
             category4 AS categoryName4,
             image AS imageUrl,
-            TRY_CAST(lprice AS INT64) AS salesPrice
+            TRY_CAST(lprice AS INT64) AS salesPrice,
+            {{ created_at }} AS createdAt
         FROM {{ table }}
         """
-        return self.render_query(query, keyword=keyword, start=start)
+        created_at = self.curret_datetime()
+        return self.render_query(query, keyword=keyword, start=start, created_at=created_at)

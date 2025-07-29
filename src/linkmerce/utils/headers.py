@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -15,7 +15,7 @@ def make_headers(
         encoding: str = "gzip, deflate, br",
         language: Literal["ko","en"] | str = "ko",
         connection: str = "keep-alive",
-        contents: Literal["form", "javascript", "json", "text", "multipart"] | str | Dict = str(),
+        contents: Literal["form", "javascript", "json", "text", "multipart"] | str | dict = str(),
         cookies: str = str(),
         host: str = str(),
         origin: str = str(),
@@ -24,13 +24,13 @@ def make_headers(
         client: str = str(),
         mobile: bool = False,
         platform: str = str(),
-        metadata: Literal["cors", "navigate"] | Dict[str,str] = "cors",
+        metadata: Literal["cors", "navigate"] | dict[str,str] = "cors",
         https: bool = False,
         user_agent: str = str(),
         ajax: bool = False,
         version: int = CHROME_VERSION,
         **kwargs
-    ) -> Dict[str,str]:
+    ) -> dict[str,str]:
     return {
         **({"authority": authority} if authority else dict()),
         **({"accept": accept} if accept else dict()),
@@ -63,7 +63,7 @@ def _get_default_language(value: Literal["ko","en"] | str = "ko") -> str:
         return value
 
 
-def _get_content_type(contents: Literal["form", "javascript", "json", "text", "multipart"] | str | Dict):
+def _get_content_type(contents: Literal["form", "javascript", "json", "text", "multipart"] | str | dict):
     if isinstance(contents, str):
         if contents == "form":
             return "application/x-www-form-urlencoded"
@@ -77,7 +77,7 @@ def _get_content_type(contents: Literal["form", "javascript", "json", "text", "m
             return "multipart/form-data"
         else:
             return contents
-    elif isinstance(contents, Dict):
+    elif isinstance(contents, dict):
         content_type = _get_content_type(contents["type"])
         for key, value in contents.items(): # boundary, charset, ...
             if key != "type":
@@ -107,7 +107,7 @@ def _get_current_platform() -> str:
     return "macOS" if os_name == "Darwin" else os_name
 
 
-def _get_fetch_metadata(metadata: Literal["cors", "navigate"] | Dict[str,str] = "navigate") -> Dict[str,str]:
+def _get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str,str] = "navigate") -> dict[str,str]:
     if isinstance(metadata, str):
         if metadata == "cors":
             return {"sec-fetch-dest": "empty", "sec-fetch-mode": "cors", "sec-fetch-site": "same-origin", "sec-fetch-user": "?1"}
@@ -115,7 +115,7 @@ def _get_fetch_metadata(metadata: Literal["cors", "navigate"] | Dict[str,str] = 
             return {"sec-fetch-dest": "document", "sec-fetch-mode": "navigate", "sec-fetch-site": "none", "sec-fetch-user": "?1"}
         else:
             return dict()
-    elif isinstance(metadata, Dict):
+    elif isinstance(metadata, dict):
         return metadata
     else:
         return dict()
