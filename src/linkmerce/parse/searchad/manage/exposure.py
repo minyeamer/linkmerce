@@ -41,7 +41,7 @@ class ExposureDiagnosis(QueryParser):
             '{{ keyword }}' AS keyword,
             ROW_NUMBER() OVER () AS displayRank,
             productTitle AS productName,
-            isOwn AS isOwn,
+            isOwn,
             categoryNames AS wholeCategoryName,
             NULLIF(fmpBrand, '') AS mallName,
             NULLIF(fmpMaker, '') AS makerName,
@@ -49,6 +49,25 @@ class ExposureDiagnosis(QueryParser):
             {{ created_at }} AS createdAt
         FROM {{ table }}
         {{ where }}
+        """
+        created_at = self.curret_datetime()
+        where = "WHERE isOwn = {}".format(str(is_own).upper()) if isinstance(is_own, bool) else str()
+        return self.render_query(query, keyword=keyword, mobile=mobile, created_at=created_at, where=where)
+
+
+class ExposureRank(ExposureDiagnosis):
+    def make_query(self, keyword: str, mobile: bool = True, is_own: bool | None = None, **kwargs) -> str:
+        query = """
+        SELECT * EXCLUDE (isOwn)
+        FROM (
+            SELECT
+                '{{ keyword }}' AS keyword,
+                productTitle AS productName,
+                ROW_NUMBER() OVER () AS displayRank,
+                {{ created_at }} AS createdAt,
+                isOwn
+            FROM {{ table }}
+        ) {{ where }}
         """
         created_at = self.curret_datetime()
         where = "WHERE isOwn = {}".format(str(is_own).upper()) if isinstance(is_own, bool) else str()

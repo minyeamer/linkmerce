@@ -46,7 +46,7 @@ class _SearchCollector(NaverOpenAPI):
         return self._collect_backend(params=params)
 
     def _collect_backend(self, params: dict = dict(), **kwargs) -> JsonObject:
-        message = self.build_request(params=dict(params=params))
+        message = self.build_request(params=params)
         response = self.request_json(**message)
         return self.parse(response, **params, **kwargs)
 
@@ -164,3 +164,7 @@ class ShoppingSearch(_SearchCollector):
         ) -> JsonObject:
         params = dict(query=query, display=display, start=start, sort=sort)
         return await self._collect_async_backend(params=params)
+
+
+class ShoppingRank(ShoppingSearch):
+    ...
