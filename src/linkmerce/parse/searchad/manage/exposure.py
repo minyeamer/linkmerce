@@ -39,12 +39,14 @@ class ExposureDiagnosis(QueryParser):
         query = """
         SELECT
             '{{ keyword }}' AS keyword,
-            ROW_NUMBER() OVER () AS displayRank,
+            rank AS displayRank,
+            TRY_CAST(REGEXP_EXTRACT(imageUrl, '^https://shopping-phinf.pstatic.net/main_\\d+/(\\d+)', 1) AS INT64) AS nvMid,
             productTitle AS productName,
             isOwn,
             categoryNames AS wholeCategoryName,
             NULLIF(fmpBrand, '') AS mallName,
             NULLIF(fmpMaker, '') AS makerName,
+            imageUrl,
             CAST(COALESCE(lowPrice, mobileLowPrice, NULL) AS INT64) AS salesPrice,
             {{ created_at }} AS createdAt
         FROM {{ table }}
@@ -61,14 +63,15 @@ class ExposureRank(ExposureDiagnosis):
         SELECT * EXCLUDE (isOwn)
         FROM (
             SELECT
+                TRY_CAST(REGEXP_EXTRACT(imageUrl, '^https://shopping-phinf.pstatic.net/main_\\d+/(\\d+)', 1) AS INT64) AS nvMid,
                 '{{ keyword }}' AS keyword,
                 productTitle AS productName,
                 ROW_NUMBER() OVER () AS displayRank,
                 {{ created_at }} AS createdAt,
                 isOwn
             FROM {{ table }}
-        ) {{ where }}
+        ) WHERE nvMid IS NOT NULL {{ is_own }}
         """
         created_at = self.curret_datetime()
-        where = "WHERE isOwn = {}".format(str(is_own).upper()) if isinstance(is_own, bool) else str()
-        return self.render_query(query, keyword=keyword, mobile=mobile, created_at=created_at, where=where)
+        is_own = "AND isOwn = {}".format(str(is_own).upper()) if isinstance(is_own, bool) else str()
+        return self.render_query(query, keyword=keyword, mobile=mobile, created_at=created_at, is_own=is_own)

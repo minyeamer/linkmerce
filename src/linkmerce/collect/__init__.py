@@ -1,1 +1,1 @@
-from linkmerce.collect.base import Collector, PaginationMixin
+from linkmerce.collect.base import Collector

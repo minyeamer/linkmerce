@@ -1,10 +1,18 @@
+from __future__ import annotations
+
 from linkmerce.collect import Collector
+import functools
 
-from typing import TypedDict
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from typing import Any, Callable, Hashable, IO, Literal, TypeVar
+    from linkmerce.types import JsonSerialize
+    _KT = TypeVar("_KT", Hashable)
+    _VT = TypeVar("_VT", Any)
 
-class Account(TypedDict):
-    customer_id: int
+    from requests import Session
+    from aiohttp.client import ClientSession
 
 
 class SearchAdManager(Collector):
@@ -16,17 +24,36 @@ class SearchAdManager(Collector):
     access_token: str = str()
     refresh_token: str = str()
 
+    def __init__(
+            self,
+            customer_id: int | str,
+            session: Session | ClientSession | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            body: dict | dict | list[tuple] | bytes | IO | JsonSerialize | None = None,
+            headers: dict[_KT,_VT] = dict(),
+            parser: Literal["default"] | Callable | None = "default",
+        ):
+        self.set_customer_id(customer_id)
+        super().__init__(session, params, body, headers, parser)
+
+    def get_customer_id(self) -> int | str:
+        return self.customer_id
+
+    def set_customer_id(self, customer_id: int | str):
+        self.customer_id = customer_id
+
     @property
     def url(self) -> str:
         return self.api_url + ('/' * (not self.path.startswith('/'))) + self.path
 
-    def __post_init__(self):
-        self.validate()
-        self.authorize()
-        self.link_customer()
-
-    def set_account(self, account: Account, **kwargs):
-        super().set_account(account=account)
+    def with_token(func):
+        @functools.wraps(func)
+        def wrapper(self: SearchAdManager, *args, **kwargs):
+            self.validate()
+            self.authorize()
+            self.link_customer()
+            return func(self, *args, **kwargs)
+        return wrapper
 
     def validate(self):
         from urllib.parse import quote
@@ -59,7 +86,7 @@ class SearchAdManager(Collector):
         self.refresh_token = refreshToken
 
     def link_customer(self, referer: str = str()):
-        url = f"{self.api_url}/customer-links/{self.get_account('customer_id')}/token"
+        url = f"{self.api_url}/customer-links/{self.get_customer_id()}/token"
         referer = referer or (self.main_url + "/front")
         headers = super().get_request_headers(authorization=self.get_authorization(), referer=referer, origin=self.main_url)
         self.access_token = self.request_json("GET", url, headers=headers)["token"]

@@ -16,3 +16,12 @@ def hier_get(__m: dict, path: Sequence[_KT], default: _VT | None = None) -> _VT:
         else:
             return default
     return cur
+
+
+def distinct_dict(*args: dict) -> dict[_KT,list[_VT]]:
+    from collections import defaultdict, OrderedDict
+    base = defaultdict(OrderedDict)
+    for __m in args:
+        for key, value in __m.items():
+            base[key][value] = None
+    return {key: list(distinct.keys()) for key, distinct in base.items()}

@@ -156,7 +156,7 @@ class ShoppingSearch(_SearchParser):
             '{{ keyword }}' AS keyword,
             (ROW_NUMBER() OVER () + {{ start }}) AS displayRank,
             productId AS nvMid,
-            TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS INT64) AS mallPid,
+            TRY_CAST(REGEXP_EXTRACT(link, '/products/(\\d+)$', 1) AS INT64) AS mallPid,
             title AS productName,
             ((TRY_CAST(productType AS INT1) + 2) % 3) AS productType,
             NULLIF(mallName, '네이버') AS mallName,
@@ -184,12 +184,13 @@ class ShoppingRank(_SearchParser):
         query = """
         SELECT
             productId AS nvMid,
-            TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS INT64) AS mallPid,
+            TRY_CAST(REGEXP_EXTRACT(link, '/products/(\\d+)$', 1) AS INT64) AS mallPid,
             '{{ keyword }}' AS keyword,
             ((TRY_CAST(productType AS INT1) + 2) % 3) AS productType,
             (ROW_NUMBER() OVER () + {{ start }}) AS displayRank,
             {{ created_at }} AS createdAt
         FROM {{ table }}
+        WHERE productId IS NOT NULL
         """
         created_at = self.curret_datetime()
         return self.render_query(query, keyword=keyword, start=start, created_at=created_at)

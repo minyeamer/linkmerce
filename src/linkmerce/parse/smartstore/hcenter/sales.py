@@ -39,16 +39,15 @@ class _SalesParser(QueryParser):
     @check_errors
     def parse(
             self,
-            response: JsonObject, 
+            response: JsonObject,
             mall_seq: int | str | None = None,
-            start_date: dt.date | str | None = None,
-            end_date: dt.date | str | None = None,
+            date_pairs: tuple[dt.date,dt.date] = tuple(),
             date_type: Literal["daily","weekly","monthly"] = "daily",
             **kwargs
         ) -> list[dict]:
         data = response["data"][f"{self.sales_type}Sales"]
         mall_seq = string if (string := str(mall_seq)).isdigit() else "NULL"
-        date_part = self.build_date_part(start_date, end_date, date_type)
+        date_part = self.build_date_part(*date_pairs, date_type=date_type)
         return self.select(data, self.make_query(mall_seq, date_part)) if data else list()
 
     def build_date_part(self, start_date = None, end_date = None, date_type = "daily") -> str:

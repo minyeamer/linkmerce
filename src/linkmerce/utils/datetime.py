@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+from functools import total_ordering
 import datetime as dt
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    ...
+    from typing import Literal, TypeVar
+    _NUMERIC = TypeVar("_NUMERIC", float, int, bool, dt.date, dt.datetime)
 
+
+###################################################################
+############################# strpdate ############################
+###################################################################
 
 def strpdate(date: dt.date | str, format: str = "%Y-%m-%d") -> dt.date:
     return date if isinstance(date, dt.date) else dt.datetime.strptime(str(date), format).date()
@@ -17,3 +23,112 @@ def safe_strpdate(date: dt.date | str, format: str = "%Y-%m-%d", default: dt.dat
         return strpdate(date, format)
     except:
         return default
+
+
+###################################################################
+############################ Date Range ###########################
+###################################################################
+
+@total_ordering
+class YearMonth:
+    def __init__(self, year: int, month: int):
+        self.year = year
+        self.month = min(max(month, 1), 12)
+
+    def date(self, day: int = 1) -> dt.date:
+        return dt.date(self.year, self.month, day)
+
+    def eomonth(self) -> dt.date:
+        from calendar import monthrange
+        return self.date(monthrange(self.year, self.month)[1])
+
+    def _compare(self):
+        return self.year * 100 + self.month
+
+    def __eq__(self, other):
+        if isinstance(other, YearMonth):
+            return self._compare() == other._compare()
+        return NotImplemented
+
+    def __lt__(self, other):
+        if isinstance(other, YearMonth):
+            return self._compare() < other._compare()
+        return NotImplemented
+
+    def __pos__(self) -> YearMonth:
+        self.__add__(1)
+        return self
+
+    def __add__(self, other: int) -> YearMonth:
+        month = self.month + other
+        if month > 12:
+            year += (month // 12)
+            month = (month % 12)
+        elif month < 1:
+            delta = 1 - month
+            year -= (delta - 1) // 12 + 1
+            month = 12 - ((delta - 1) % 12)
+        else:
+            year = self.year
+            month = month
+        return YearMonth(year, month)
+
+    def __sub__(self, other: int) -> YearMonth:
+        return self.__add__(-other)
+
+    def __str__(self) -> str:
+        return "{}-{}".format(self.year, str(self.month).rjust(2, '0'))
+
+
+def date_range(
+        start: dt.date | str,
+        end: dt.date | str,
+        freq: Literal["D","W","M"] = "D",
+        format: str = "%Y-%m-%d",
+    ) -> list[dt.date]:
+    return _generate_date_range(start, end, freq, format, add_one=False)
+
+
+def date_pairs(
+        start: dt.date | str,
+        end: dt.date | str,
+        freq: Literal["D","W","M"] = "D",
+        format: str = "%Y-%m-%d",
+    ) -> list[tuple[dt.date,dt.date]]:
+    if freq == "D":
+        return [(date, date) for date in _generate_date_range(start, end, freq, format, add_one=False)]
+    else:
+        ranges = _generate_date_range(start, end, freq, add_one=True)
+        return [(ranges[i], ranges[i+1] - dt.timedelta(days=1)) for i in range(len(ranges)-1)]
+
+
+def _generate_date_range(
+        start: dt.date | str,
+        end: dt.date | str,
+        freq: Literal["D","W","M"] = "D",
+        format: str = "%Y-%m-%d",
+        add_one: bool = False,
+    ) -> list[dt.date]:
+    start, end = strpdate(start, format), strpdate(end, format)
+    freq = freq.upper()
+    if freq == "D":
+        return _generate_range(start, end, dt.timedelta(days=1))
+    elif freq == "W":
+        start_of_week = start - dt.timedelta(days=start.weekday())
+        end_of_week = end + dt.timedelta(days=(6-end.weekday())) + dt.timedelta(days=(7 * int(add_one)))
+        return _generate_range(start_of_week, end_of_week, dt.timedelta(days=7))
+    elif freq == "M":
+        start_month = YearMonth(start.year, start.month)
+        end_month = YearMonth(end.year, end.month) + int(add_one)
+        return [ym.date() for ym in _generate_range(start_month, end_month, 1)]
+    else:
+        raise ValueError("Invalid frequency value. Supported frequencies are: 'D', 'W', 'M'")
+
+
+def _generate_range(start: _NUMERIC, end: _NUMERIC, delta: _NUMERIC) -> list[_NUMERIC]:
+    ranges = list()
+    cur = start
+    while cur <= end:
+        ranges.append(cur)
+        cur += delta
+    return ranges

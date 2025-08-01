@@ -1,15 +1,15 @@
 from __future__ import annotations
-from linkmerce.collect import PaginationMixin
 from linkmerce.collect.smartstore.hcenter import PartnerCenter
 
-from typing import TYPE_CHECKING
+from typing import Iterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal
-    from linkmerce.types import JsonObject
+    from typing import Callable, Coroutine, Literal, Sequence
+    from linkmerce.collect.tasks import RequestEachPages
+    from linkmerce.types import JsonObject, TaskOptions
 
 
-class _CatalogCollector(PartnerCenter, PaginationMixin):
+class _CatalogCollector(PartnerCenter):
     method = "POST"
     path = "/graphql/product-catalog"
     max_page_size = 100
@@ -18,14 +18,46 @@ class _CatalogCollector(PartnerCenter, PaginationMixin):
     param_types: dict[str,str]
     fields: list
 
-    def count_total(self, response: JsonObject) -> int:
+    def set_options(self, options: TaskOptions = dict()):
+        super().set_options(options or dict(
+            PaginateAll=dict(delay=1, limit=3, tqdm_options=dict(disable=True)),
+            RequestEachPages=dict(delay=1, limit=3)))
+
+    def _init_task(
+            self,
+            func: Callable | Coroutine,
+            context: Sequence = list(),
+            expand: dict = dict(),
+            partial: dict = dict(),
+            page: int | list[int] | None = 0,
+            page_size: int = 100,
+            **kwargs
+        ) -> RequestEachPages:
+        if page is not None:
+            expand["page"] = page
+            partial["page_size"] = page_size
+        task = (self.request_each_pages(func, context).partial(**partial).expand(**expand)
+                .parse(**self.update_parser(**kwargs)))
+        if page is None:
+            task = task.loop(self._count_total, self.max_page_size, self.page_start)
+        return task.concat("auto")
+
+    def _build_and_request(self, **json) -> JsonObject:
+        message = self.build_request(json=json)
+        return self.request_json(**message)
+
+    async def _build_and_request_async(self, **json) -> JsonObject:
+        message = self.build_request(json=json)
+        return await self.request_async_json(**message)
+
+    def _count_total(self, response: JsonObject) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["data",self.object_type,"totalCount"])
 
     def get_request_body(self, variables: dict, **kwargs) -> dict:
         return super().get_request_body(variables=variables)
 
-    def set_request_body(self, **kwargs):
+    def set_request_body(self, *args, **kwargs):
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
         param_types = self.param_types
         super().set_request_body(
@@ -75,47 +107,41 @@ class _CatalogCollector(PartnerCenter, PaginationMixin):
 
 class BrandCatalog(_CatalogCollector):
     object_type = "catalogs"
+    args = ["brand_ids", "sort_type", "is_brand_catalog", "page", "page_size"]
 
     @PartnerCenter.with_session
     def collect(
             self,
-            brand_ids: list[int | str],
+            brand_ids: str | Iterable[str],
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
-            page: int | None = 0,
+            page: int | list[int] | None = 0,
             page_size: int = 100,
+            **kwargs
         ) -> JsonObject:
-        kwargs = self.build_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
-        if page is None:
-            return self.collect_all(**kwargs)
-        message = self.build_request(json=kwargs)
-        response = self.request_json(**message)
-        return self.count_and_parse(response, **kwargs)
+        return self._init_task(self._build_and_request,
+            expand=dict(brand_ids=brand_ids),
+            partial=dict(sort_type=sort_type, is_brand_catalog=is_brand_catalog),
+            page=page, page_size=page_size, **kwargs).run()
 
     @PartnerCenter.async_with_session
     async def collect_async(
             self,
-            brand_ids: list[int | str],
+            brand_ids: str | Iterable[str],
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
-            page: int | None = 0,
+            page: int | list[int] | None = 0,
             page_size: int = 100,
+            **kwargs
         ) -> JsonObject:
-        kwargs = self.build_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
-        if page is None:
-            return await self.collect_async_all(**kwargs)
-        message = self.build_request(json=kwargs)
-        response = await self.request_async_json(**message)
-        return self.count_and_parse(response, **kwargs)
-
-    def build_kwargs(self, brand_ids, sort_type, is_brand_catalog, page, page_size) -> dict:
-        return dict(
-            brand_ids=brand_ids, sort_type=sort_type, is_brand_catalog=is_brand_catalog,
-            page=page, page_size=page_size)
+        return await self._init_task(self._build_and_request_async,
+            expand=dict(brand_ids=brand_ids),
+            partial=dict(sort_type=sort_type, is_brand_catalog=is_brand_catalog),
+            page=page, page_size=page_size, **kwargs).run_async()
 
     def get_request_body(
             self,
-            brand_ids: list[int | str],
+            brand_ids: str,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
@@ -135,7 +161,7 @@ class BrandCatalog(_CatalogCollector):
                 "catalogStatusType": "Complete",
                 "overseaProductType": "Nothing",
                 "saleMethodType": "NothingOrRental",
-                "brandSeqs": list(map(str, brand_ids)),
+                "brandSeqs": brand_ids.split(','),
                 **provider.get(is_brand_catalog, dict()),
             })
 
@@ -168,45 +194,51 @@ class BrandProduct(_CatalogCollector):
     @PartnerCenter.with_session
     def collect(
             self,
-            brand_ids: list[int | str],
-            mall_seq: int | str | None = None,
+            brand_ids: str | Iterable[str],
+            mall_seq: int | str | Iterable[int | str] | None = None,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
+            **kwargs
         ) -> JsonObject:
-        kwargs = self.build_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
-        if page is None:
-            return self.collect_all(**kwargs)
-        message = self.build_request(json=kwargs)
-        response = self.request_json(**message)
-        return self.count_and_parse(response, **kwargs)
+        return self._init_task(self._build_and_request,
+            **self._zip_brand_mall(brand_ids, mall_seq, sort_type=sort_type, is_brand_catalog=is_brand_catalog),
+            page=page, page_size=page_size, **kwargs).run()
 
     @PartnerCenter.async_with_session
     async def collect_async(
             self,
-            brand_ids: list[int | str],
-            mall_seq: int | str | None = None,
+            brand_ids: str | Iterable[str],
+            mall_seq: int | str | Iterable | None = None,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
+            **kwargs
         ) -> JsonObject:
-        kwargs = self.build_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
-        if page is None:
-            return await self.collect_async_all(**kwargs)
-        message = self.build_request(json=kwargs)
-        response = await self.request_async_json(**message)
-        return self.count_and_parse(response, **kwargs)
+        return self._init_task(self._build_and_request_async,
+            **self._zip_brand_mall(brand_ids, mall_seq, sort_type=sort_type, is_brand_catalog=is_brand_catalog),
+            page=page, page_size=page_size, **kwargs).run_async()
 
-    def build_kwargs(self, brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size) -> dict:
-        return dict(
-            brand_ids=brand_ids, mall_seq=mall_seq, sort_type=sort_type, is_brand_catalog=is_brand_catalog,
-            page=page, page_size=page_size)
+    def _zip_brand_mall(
+            self,
+            brand_ids: str | Iterable[str],
+            mall_seq: int | str | Iterable[int | str] | None = None,
+            **partial
+        ) -> dict:
+        is_iterable_brand = (not isinstance(brand_ids, str)) and isinstance(brand_ids, Iterable)
+        is_iterable_mall = (not isinstance(mall_seq, str)) and isinstance(mall_seq, Iterable)
+        if is_iterable_brand and (len(brand_ids) == len(mall_seq)):
+            return dict(context=[dict(brand_ids=ids, mall_seq=seq) for ids, seq in zip(brand_ids, mall_seq)], partial=partial)
+        elif not (is_iterable_brand or is_iterable_mall):
+            return dict(expand=dict(brand_ids=brand_ids), partial=dict(mall_seq=mall_seq, **partial))
+        else:
+            return dict(expand=dict(brand_ids=brand_ids), partial=partial)
 
     def get_request_body(
             self,
-            brand_ids: list[int | str],
+            brand_ids: str,
             mall_seq: int | str | None = None,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
@@ -225,7 +257,7 @@ class BrandProduct(_CatalogCollector):
                 **kv("isBrandOfficialMall", is_brand_catalog),
                 "serviceYn": "Y",
                 **kv("mallSeq", mall_seq),
-                "brandSeqs": list(map(str, brand_ids)),
+                "brandSeqs": brand_ids.split(','),
             })
 
     @property

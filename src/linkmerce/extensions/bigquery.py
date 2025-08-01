@@ -113,6 +113,8 @@ def load_table_from_json(
         *,
         account: ServiceAccount | None = None,
     ) -> bool:
+    if not data:
+        return True
     client = create_connection(project_id, account)
     return _write_append(client, table, project_id, data, partition, serialize, progress)
 
@@ -129,6 +131,8 @@ def overwrite_table_from_json(
         *,
         account: ServiceAccount | None = None,
     ) -> bool:
+    if not data:
+        return True
     client = create_connection(project_id, account)
     success = False
     where = _where(**(dict(condition=condition) if condition else (partition or dict())))
@@ -159,6 +163,8 @@ def upsert_table_from_json(
         *,
         account: ServiceAccount | None = None,
     ) -> bool:
+    if not data:
+        return True
     client = create_connection(project_id, account)
     success = False
     where = _where(**(dict(condition=condition) if condition else (partition or dict())))

@@ -6,11 +6,13 @@ import functools
 from typing import Callable, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Hashable, IO, Iterator, Literal, TypeVar
-    from linkmerce.types import JsonObject, JsonSerialize
+    from typing import Any, Coroutine, Hashable, IO, Literal, TypeVar
+    from linkmerce.collect.tasks import RequestLoop, RequestEach
+    from linkmerce.collect.tasks import PaginateAll, RequestEachPages
+    from linkmerce.types import JsonObject, JsonSerialize, ResponseComponent
+    from linkmerce.types import TaskOption, TaskOptions
     _KT = TypeVar("_KT", Hashable)
     _VT = TypeVar("_VT", Any)
-    _SKIPPED = TypeVar("_SKIPPED", None)
 
     from requests import Session, Response
     from requests.cookies import RequestsCookieJar
@@ -18,21 +20,22 @@ if TYPE_CHECKING:
     from aiohttp.typedefs import LooseCookies
 
     from bs4 import BeautifulSoup
-    # from pandas import DataFrame
-    DATAFRAME = TypeVar("DATAFRAME")
+    import datetime as dt
 
+
+###################################################################
+########################## Session Client #########################
+###################################################################
 
 class BaseSessionClient(metaclass=ABCMeta):
     def __init__(
             self,
             session: Session | ClientSession | None = None,
-            account: dict[_KT,_VT] = dict(),
             params: dict | list[tuple] | bytes | None = None,
             body: dict | dict | list[tuple] | bytes | IO | JsonSerialize | None = None,
             headers: dict[_KT,_VT] = dict(),
         ):
         self.set_session(session)
-        self.set_account(account)
         self.set_request_params(params)
         self.set_request_body(body)
         self.set_request_headers(**headers)
@@ -47,22 +50,26 @@ class BaseSessionClient(metaclass=ABCMeta):
     def set_session(self, session: Session | ClientSession | None = None):
         self.__session = session
 
-    def get_account(self, key: _KT | None = None, **kwargs) -> _VT | dict:
-        return self.__account[key] if key is not None else self.__account
-
-    def set_account(self, account: dict[_KT,_VT] = dict(), **kwargs):
-        self.__account = account
-
     def get_request_params(self, **kwargs) -> dict | list[tuple] | bytes:
+        if kwargs:
+            if isinstance(self.__params, dict):
+                return dict(self.__params, **kwargs)
+            elif self.__params is None:
+                return kwargs
         return self.__params
 
-    def set_request_params(self, params: dict | list[tuple] | bytes | None = None, **kwargs):
+    def set_request_params(self, params: dict | list[tuple] | bytes | None = None):
         self.__params = params
 
     def get_request_body(self, **kwargs) -> dict | list[tuple] | bytes | IO | JsonSerialize:
+        if kwargs:
+            if isinstance(self.__body, dict):
+                return dict(self.__body, **kwargs)
+            elif self.__body is None:
+                return kwargs
         return self.__body
 
-    def set_request_body(self, body: dict | dict | list[tuple] | bytes | IO | JsonSerialize | None = None, **kwargs):
+    def set_request_body(self, body: dict | dict | list[tuple] | bytes | IO | JsonSerialize | None = None):
         self.__body = body
 
     def get_request_headers(self, **kwargs) -> dict[str,str]:
@@ -119,9 +126,14 @@ class RequestSessionClient(BaseSessionClient):
             json: JsonSerialize | None = None,
             headers: dict[str,str] = None,
             cookies: dict | RequestsCookieJar = None,
+            parse: Literal["status","content","text","json","headers","html","table"] | None = None,
             **kwargs
-        ) -> Response:
-        return self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
+        ) -> Response | ResponseComponent:
+        kwargs = dict(method=method, url=url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
+        if parse is None:
+            return self.get_session().request(**kwargs)
+        else:
+            return getattr(self, f"request_{parse}")(**kwargs)
 
     def request_status(
             self,
@@ -221,8 +233,8 @@ class RequestSessionClient(BaseSessionClient):
             content_type: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
             table_options: dict = dict(),
             **kwargs
-        ) -> DATAFRAME:
-        from linkmerce.src.linkmerce.extensions.pandas import read_table
+        ):
+        from linkmerce.extensions.pandas import read_table
         response = self.request_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return read_table(response, table_format=content_type, **table_options)
 
@@ -258,9 +270,14 @@ class AiohttpSessionClient(BaseSessionClient):
             json: JsonSerialize | None = None,
             headers: dict[str,str] = None,
             cookies: dict | LooseCookies = None,
+            parse: Literal["status","content","text","json","headers","html","table"] | None = None,
             **kwargs
-        ) -> ClientResponse:
-        return await self.get_session().request(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
+        ) -> ClientResponse | ResponseComponent:
+        kwargs = dict(method=method, url=url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
+        if parse is None:
+            return await self.get_session().request(**kwargs)
+        else:
+            return await getattr(self, f"request_async_{parse}")(**kwargs)
 
     async def request_async_status(
             self,
@@ -360,8 +377,8 @@ class AiohttpSessionClient(BaseSessionClient):
             content_type: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
             table_options: dict = dict(),
             **kwargs
-        ) -> DATAFRAME:
-        from linkmerce.src.linkmerce.extensions.pandas import read_table
+        ):
+        from linkmerce.extensions.pandas import read_table
         response = await self.request_async_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return read_table(response, table_format=content_type, **table_options)
 
@@ -383,21 +400,14 @@ class AiohttpSessionClient(BaseSessionClient):
         finally:
             self.set_session(None)
 
-    def async_with_semaphore(func):
-        @functools.wraps(func)
-        async def wrapper(self: AiohttpSessionClient, *args, max_tasks: int | None = None, **kwargs):
-            if isinstance(max_tasks, int):
-                import asyncio
-                async with asyncio.Semaphore(max_tasks) as semaphore:
-                    return await func(self, *args, **kwargs)
-            else:
-                return await func(self, *args, **kwargs)
-        return wrapper
-
 
 class SessionClient(RequestSessionClient, AiohttpSessionClient):
     ...
 
+
+###################################################################
+########################### Extra Client ##########################
+###################################################################
 
 class ParserClient(metaclass=ABCMeta):
     def __init__(self, parser: Literal["default"] | Callable | None = "default"):
@@ -416,6 +426,9 @@ class ParserClient(metaclass=ABCMeta):
             parser = self.import_parser(self.__class__.__name__ if parser == "default" else parser)
         self.__parser = self._type_check_parser(parser)
 
+    def update_parser(self, parser: Literal["self"] | Callable | None = "self", **kwargs) -> dict:
+        return dict(parser=self.get_parser(parser), **kwargs)
+
     def _type_check_parser(self, parser: Callable | None = None) -> Callable:
         if isinstance(parser, Callable) or (parser is None):
             return parser
@@ -431,25 +444,100 @@ class ParserClient(metaclass=ABCMeta):
         return getattr(module, name)
 
 
-class Collector(SessionClient, ParserClient, metaclass=ABCMeta):
+class TaskClient():
+    def __init__(self, options: TaskOptions = dict()):
+        self.set_options(options)
+
+    def get_options(self, name: _KT) -> TaskOption:
+        return self.__options.get(name, dict())
+
+    def set_options(self, options: TaskOptions = dict()):
+        self.__options = options
+
+    def build_options(self, name: _KT, **kwargs) -> TaskOption:
+        options = {key: value for key, value in kwargs.items() if value is not None}
+        return options or self.get_options(name)
+
+    def request_loop(
+            self,
+            func: Callable | Coroutine,
+            condition: Callable[...,bool],
+            count: int | None = None,
+            delay: Literal["incremental"] | float | int | Sequence[int,int] | None = None,
+            loop_error: type | None = None,
+        ) -> RequestLoop:
+        from linkmerce.collect.tasks import RequestLoop
+        options = self.build_options("RequestLoop", count=count, delay=delay, loop_error=loop_error)
+        return RequestLoop(func, condition, **options)
+
+    def request_each(
+            self,
+            func: Callable | Coroutine,
+            context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] = list(),
+            delay: float | int | tuple[int,int] | None = None,
+            limit: int | None = None,
+            loop_options: dict = dict(),
+            tqdm_options: dict | None = None,
+        ) -> RequestEach:
+        from linkmerce.collect.tasks import RequestEach
+        options = self.build_options("RequestEach", delay=delay, limit=limit, tqdm_options=tqdm_options)
+        if "loop_options" not in options:
+            options["loop_options"] = self.build_options("RequestLoop", **loop_options)
+        return RequestEach(func, context, **options)
+
+    def paginate_all(
+            self,
+            func: Callable | Coroutine,
+            counter: Callable[...,int],
+            max_page_size: int,
+            page_start: int | None = None,
+            delay: float | int | tuple[int,int] | None = None,
+            limit: int | None = None,
+            tqdm_options: dict | None = None,
+            count_error: type | None = None,
+        ) -> PaginateAll:
+        from linkmerce.collect.tasks import PaginateAll
+        options = self.build_options("PaginateAll",
+            page_start=page_start, delay=delay, limit=limit, tqdm_options=tqdm_options, count_error=count_error)
+        return PaginateAll(func, counter, max_page_size, **options)
+
+    def request_each_pages(
+            self,
+            func: Callable | Coroutine,
+            context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] | dict[_KT,_VT] = list(),
+            delay: float | int | tuple[int,int] | None = None,
+            limit: int | None = None,
+            loop_options: dict = dict(),
+            tqdm_options: dict | None = None,
+        ) -> RequestEachPages:
+        from linkmerce.collect.tasks import RequestEachPages
+        options = self.build_options("RequestEachPages", delay=delay, limit=limit, tqdm_options=tqdm_options)
+        if "loop_options" not in options:
+            options["loop_options"] = self.build_options("PaginateAll", **loop_options)
+        return RequestEachPages(func, context, **options)
+
+
+###################################################################
+############################ Collector ############################
+###################################################################
+
+class Collector(SessionClient, ParserClient, TaskClient, metaclass=ABCMeta):
     method: str
     url: str
+    args: list[str] = list()
 
     def __init__(
             self,
             session: Session | ClientSession | None = None,
-            account: dict[_KT,_VT] = dict(),
             params: dict | list[tuple] | bytes | None = None,
             body: dict | dict | list[tuple] | bytes | IO | JsonSerialize | None = None,
             headers: dict[_KT,_VT] = dict(),
             parser: Literal["default"] | Callable | None = "default",
+            options: TaskOptions = dict(),
         ):
-        SessionClient.__init__(self, session, account, params, body, headers)
+        SessionClient.__init__(self, session, params, body, headers)
         ParserClient.__init__(self, parser)
-        self.__post_init__()
-
-    def __post_init__(self):
-        ...
+        TaskClient.__init__(self, options)
 
     @abstractmethod
     def collect(self, **kwargs) -> Any:
@@ -464,89 +552,22 @@ class Collector(SessionClient, ParserClient, metaclass=ABCMeta):
             data: dict | None = None,
             json: dict | None = None,
             headers: dict | None = dict(),
-            **kwargs
         ) -> dict:
         message = dict(method=self.method, url=self.url)
         keys = ["params", "data", "json", "headers"]
         attrs = ["params", "body", "body", "headers"]
-        for key, attr, param in zip(keys, attrs, [params,data,json,headers]):
-            if isinstance(param, dict):
-                message[key] = getattr(self, f"get_request_{attr}")(**param)
+        for key, attr, kwargs in zip(keys, attrs, [params,data,json,headers]):
+            if isinstance(kwargs, dict):
+                message[key] = getattr(self, f"get_request_{attr}")(**kwargs)
         return message
 
-
-class PaginationMixin:
-    max_page_size: int
-    page_start: int = 1
-    total_count: int | None = None
-
-    def count_total(self, response: Any) -> int:
-        raise NotImplementedError("To use the 'PaginationMixin's methods, the 'count_total' method must be implemented.")
-
-    def parse(self, *args, **kwargs) -> Any:
-        raise NotImplementedError("To use the 'PaginationMixin's methods, the 'parse' method must be implemented.")
-
-    def collect(self, **kwargs) -> Any:
-        raise NotImplementedError("To use the 'collect_all' method, the 'collect' method must be implemented.")
-
-    async def collect_async(self, **kwargs):
-        raise NotImplementedError("To use the 'collect_async_all' method, the 'collect_async' method must be implemented.")
-
-    @Collector.with_session
-    def collect_all(
+    def generate_date_pairs(
             self,
-            concat_response: Literal["auto"] | bool = "auto",
-            tqdm_optinos: dict = dict(disable=True),
-            *,
-            page: _SKIPPED = None,
-            page_size: _SKIPPED = None,
-            **kwargs
-        ) -> Any:
-        response = self.collect(page=self.page_start, page_size=self.max_page_size, **kwargs)
-        concat = isinstance(response, Sequence) if concat_response == "auto" else concat_response
-        total = self.total_count
-
-        data = response if concat else [response]
-        if isinstance(total, int) and (total > self.max_page_size):
-            from math import ceil
-            from tqdm.auto import tqdm
-            for page in tqdm(range(self.page_start + 1, ceil(total / self.max_page_size)), **tqdm_optinos):
-                if concat:
-                    data += self.collect(page=page, page_size=self.max_page_size, **kwargs)
-                else:
-                    data.append(self.collect(page=page, page_size=self.max_page_size, **kwargs))
-        return data
-
-    @Collector.async_with_session
-    @Collector.async_with_semaphore
-    async def collect_async_all(
-            self,
-            concat_response: Literal["auto"] | bool = "auto",
-            tqdm_optinos: dict = dict(disable=True),
-            *,
-            page: _SKIPPED = None,
-            page_size: _SKIPPED = None,
-            **kwargs
-        ) -> Any:
-        response = await self.collect_async(page=self.page_start, page_size=self.max_page_size, **kwargs)
-        concat = isinstance(response, Sequence) if concat_response == "auto" else concat_response
-        total = self.total_count
-
-        data = response if concat else [response]
-        if isinstance(total, int) and (total > self.max_page_size):
-            from math import ceil
-            from tqdm.auto import tqdm
-            results = await tqdm.gather(*[
-                self.collect_async(page=page, **kwargs)
-                    for page in range(self.page_start + 1, ceil(total / self.max_page_size))], **tqdm_optinos)
-            if concat:
-                from itertools import chain
-                return data + list(chain.from_iterable(results))
-            else:
-                return data + results
-        else:
-            return data
-
-    def count_and_parse(self, response: Any, parser: Literal["self"] | Callable | None = "self", *args, **kwargs) -> Any:
-        self.total_count = self.count_total(response)
-        return self.parse(response, parser, *args, **kwargs)
+            start: dt.date | str,
+            end: dt.date | str,
+            freq: Literal["D","W","M"] = "D",
+            format: str = "%Y-%m-%d",
+        ) -> tuple[dt.date,dt.date] | list[tuple[dt.date,dt.date]]:
+        from linkmerce.utils.datetime import date_pairs
+        pairs = date_pairs(start, end, freq, format)
+        return pairs[0] if len(pairs) == 1 else pairs
