@@ -561,13 +561,14 @@ class Collector(SessionClient, ParserClient, TaskClient, metaclass=ABCMeta):
                 message[key] = getattr(self, f"get_request_{attr}")(**kwargs)
         return message
 
-    def generate_date_pairs(
+    def generate_date_context(
             self,
-            start: dt.date | str,
-            end: dt.date | str,
+            start_date: dt.date | str,
+            end_date: dt.date | str,
             freq: Literal["D","W","M"] = "D",
             format: str = "%Y-%m-%d",
-        ) -> tuple[dt.date,dt.date] | list[tuple[dt.date,dt.date]]:
+        ) -> list[dict[str,dt.date]] | dict[str,dt.date]:
         from linkmerce.utils.datetime import date_pairs
-        pairs = date_pairs(start, end, freq, format)
-        return pairs[0] if len(pairs) == 1 else pairs
+        pairs = date_pairs(start_date, end_date, freq, format)
+        context = list(map(lambda values: dict(zip(["start_date","end_date"], values)), pairs))
+        return context[0] if len(context) == 1 else context

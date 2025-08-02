@@ -278,3 +278,26 @@ class BrandProduct(_CatalogCollector):
                 "categoryShapeType", "categoryLeafYn", "productStatusCode", "saleMethodTypeCode"
             ]
         }, "totalCount"]
+
+
+class ProductPrice(BrandProduct):
+    object_type = "products"
+    products: list[dict] = list()
+
+    def _build_and_request(self, **json) -> JsonObject:
+        message = self.build_request(json=json)
+        response = self.request_json(**message)
+        self._update_products(response, **json)
+        return response
+
+    async def _build_and_request_async(self, **json) -> JsonObject:
+        message = self.build_request(json=json)
+        response = await self.request_async_json(**message)
+        self._update_products(response, **json)
+        return response
+
+    def _update_products(self, response: JsonObject, **kwargs):
+        try:
+            self.products += self.parse(response, parser="ProductList", **kwargs)
+        except:
+            pass

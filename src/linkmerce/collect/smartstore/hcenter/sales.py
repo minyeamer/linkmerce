@@ -31,15 +31,15 @@ class _SalesCollector(PartnerCenter):
             page_size: int = 1000,
             **kwargs
         ) -> JsonObject:
-        date_pairs = self.generate_date_pairs(start_date, end_date, freq=date_type[0], format=self.date_format)
-        return (self.request_each(self._build_and_request)
-                .partial(date_type=date_type, page_size=page_size).expand(mall_seq=mall_seq, date_pairs=date_pairs, page=page)
+        context = self.generate_date_context(start_date, end_date, freq=date_type[0].upper(), format=self.date_format)
+        return (self.request_each(self._build_and_request, context=context)
+                .partial(date_type=date_type, page_size=page_size).expand(mall_seq=mall_seq, page=page)
                 .parse(**self.update_parser(**kwargs)).concat("auto").run())
 
     @PartnerCenter.async_with_session
     async def collect_async(
             self,
-            mall_seq: int | str,
+            mall_seq: int | str | Iterable[int | str],
             start_date: dt.date | str,
             end_date: dt.date | str,
             date_type: Literal["daily","weekly","monthly"] = "daily",
@@ -47,9 +47,9 @@ class _SalesCollector(PartnerCenter):
             page_size: int = 1000,
             **kwargs
         ) -> JsonObject:
-        date_pairs = self.generate_date_pairs(start_date, end_date, freq=date_type[0], format=self.date_format)
-        return await (self.request_each(self._build_and_request_async)
-                .partial(date_type=date_type, page_size=page_size).expand(mall_seq=mall_seq, date_pairs=date_pairs, page=page)
+        context = self.generate_date_context(start_date, end_date, freq=date_type[0].upper(), format=self.date_format)
+        return await (self.request_each(self._build_and_request_async, context=context)
+                .partial(date_type=date_type, page_size=page_size).expand(mall_seq=mall_seq, page=page)
                 .parse(**self.update_parser(**kwargs)).concat("auto").run_async())
 
     def _build_and_request(self, **json) -> JsonObject:
@@ -63,7 +63,8 @@ class _SalesCollector(PartnerCenter):
     def get_request_body(
             self,
             mall_seq: int | str,
-            date_pairs: tuple[dt.date,dt.date],
+            start_date: dt.date,
+            end_date: dt.date,
             date_type: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
             page_size: int = 1000,
@@ -74,8 +75,8 @@ class _SalesCollector(PartnerCenter):
                 "queryRequest": {
                     "mallSequence": str(mall_seq),
                     "dateType": date_type.capitalize(),
-                    "startDate": str(date_pairs[0]),
-                    "endDate": str(date_pairs[1]),
+                    "startDate": str(start_date),
+                    "endDate": str(end_date),
                     **({"sortBy": "PaymentAmount"} if self.sales_type != "store" else dict()),
                     **({"pageable": {"page":int(page), "size":int(page_size)}} if self.sales_type != "store" else dict()),
                 }
@@ -141,3 +142,26 @@ class ProductSales(_SalesCollector):
             {"visit": ["click"]},
             {"rest": [{"comparePreWeek": ["isNewlyAdded"]}]},
         ]
+
+
+class AggregatedSales(ProductSales):
+    sales_type = "product"
+    products: list[dict] = list()
+
+    def _build_and_request(self, **json) -> JsonObject:
+        message = self.build_request(json=json)
+        response = self.request_json(**message)
+        self._update_products(response, **json)
+        return response
+
+    async def _build_and_request_async(self, **json) -> JsonObject:
+        message = self.build_request(json=json)
+        response = await self.request_async_json(**message)
+        self._update_products(response, **json)
+        return response
+
+    def _update_products(self, response: JsonObject, **kwargs):
+        try:
+            self.products += self.parse(response, parser="ProductList", **kwargs)
+        except:
+            pass

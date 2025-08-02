@@ -77,13 +77,14 @@ class BrandProduct(_CatalogParser):
         query = """
         SELECT
             TRY_CAST(id AS INT64) AS nvMid,
-            {{ mall_seq }} AS mallPid,
+            {{ product_id }} AS mallPid,
             TRY_CAST(catalogId AS INT64) AS catalogId,
             name AS productName,
             TRY_CAST(NULLIF(makerSeq, '0') AS INT64) AS makerId,
             makerName,
             TRY_CAST(brandSeq AS INT64) AS brandId,
             brandName,
+            TRY_CAST({{ mall_seq }} AS INT64) AS mallSeq,
             mallName,
             TRY_CAST(categoryId AS INT32) AS categoryId,
             categoryName,
@@ -101,5 +102,52 @@ class BrandProduct(_CatalogParser):
             DATE_TRUNC('SECOND', TRY_CAST(registerDate AS TIMESTAMP)) AS registerDate
         FROM {{ table }};
         """
-        mall_seq = "mallProductId" if mall_seq is None else "TRY_CAST(mallProductId AS INT64)"
-        return self.render_query(query, mall_seq=mall_seq)
+        product_id = "mallProductId" if mall_seq is None else "TRY_CAST(mallProductId AS INT64)"
+        return self.render_query(query, mall_seq=mall_seq, product_id=product_id)
+
+
+class ProductPrice(BrandProduct):
+    object_type = "products"
+
+    def make_query(self, mall_seq: int | str | None = None, **kwargs) -> str:
+        query = """
+        SELECT * EXCLUDE (seq)
+        FROM (
+            SELECT
+                {{ product_id }} AS mallPid,
+                TRY_CAST({{ mall_seq }} AS INT64) AS mallSeq,
+                TRY_CAST(categoryId AS INT32) AS categoryId,
+                TRY_CAST(lowestPrice AS INT64) AS salesPrice,
+                {{ yesterday }} AS updateDate,
+                ROW_NUMBER() OVER (PARTITION BY mallPid) AS seq
+            FROM {{ table }}
+        ) WHERE (mallPid IS NOT NULL) AND (seq = 1);
+        """
+        product_id = "mallProductId" if mall_seq is None else "TRY_CAST(mallProductId AS INT64)"
+        yesterday = self.curret_date(interval=-1)
+        return self.render_query(query, mall_seq=mall_seq, product_id=product_id, yesterday=yesterday)
+
+
+class ProductList(BrandProduct):
+    object_type = "products"
+
+    def make_query(self, mall_seq: int | str | None = None, **kwargs) -> str:
+        query = """
+        SELECT * EXCLUDE (seq)
+        FROM (
+            SELECT
+                {{ product_id }} AS mallPid,
+                TRY_CAST({{ mall_seq }} AS INT64) AS mallSeq,
+                TRY_CAST(categoryId AS INT32) AS categoryId,
+                TRY_CAST(SPLIT_PART(fullCategoryId, '>', 3) AS INT32) AS categoryId3,
+                name AS productName,
+                TRY_CAST(lowestPrice AS INT64) AS salesPrice,
+                TRY_CAST(registerDate AS DATE) AS registerDate,
+                {{ today }} AS updateDate,
+                ROW_NUMBER() OVER (PARTITION BY mallPid) AS seq
+            FROM {{ table }}
+        ) WHERE (mallPid IS NOT NULL) AND (seq = 1);
+        """
+        product_id = "mallProductId" if mall_seq is None else "TRY_CAST(mallProductId AS INT64)"
+        today = self.curret_date()
+        return self.render_query(query, mall_seq=mall_seq, product_id=product_id, today=today)

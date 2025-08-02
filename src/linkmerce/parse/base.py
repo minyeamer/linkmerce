@@ -118,15 +118,17 @@ class QueryParser(RecordsParser, metaclass=ABCMeta):
             self,
             type: Literal["DATE","STRING"] = "DATE",
             format: str | None = "%Y-%m-%d",
+            interval: str | int | None = None,
         ) -> str:
         from linkmerce.utils.duckdb import curret_date
-        return curret_date(type, format)
+        return curret_date(type, format, interval)
 
     def curret_datetime(
             self,
             type: Literal["DATETIME","STRING"] = "DATETIME",
             format: str | None = "%Y-%m-%d %H:%M:%S",
+            interval: str | int | None = None,
             tzinfo: str | None = None,
         ) -> str:
         from linkmerce.utils.duckdb import curret_datetime
-        return curret_datetime(type, format, tzinfo)
+        return curret_datetime(type, format, interval, tzinfo)
