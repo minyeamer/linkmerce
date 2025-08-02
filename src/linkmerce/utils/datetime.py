@@ -7,7 +7,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, TypeVar
+    from pytz import BaseTzInfo
     _NUMERIC = TypeVar("_NUMERIC", float, int, bool, dt.date, dt.datetime)
+
+
+DATE_UNIT = ["second", "minute", "hour", "day", "month", "year"]
 
 
 ###################################################################
@@ -23,6 +27,93 @@ def safe_strpdate(date: dt.date | str, format: str = "%Y-%m-%d", default: dt.dat
         return strpdate(date, format)
     except:
         return default
+
+
+###################################################################
+############################# Datetime ############################
+###################################################################
+
+def now(
+        days: int = 0,
+        seconds: int = 0,
+        microseconds: int = 0,
+        milliseconds: int = 0,
+        minutes: int = 0,
+        hours: int = 0,
+        weeks: int = 0,
+        delta: Literal['+','-'] = '-',
+        tzinfo: BaseTzInfo | str | None = None,
+        droptz: bool = False,
+        unit: Literal["second","minute","hour","day","month","year"] | None = "second",
+    ) -> dt.datetime:
+    datetime = dt.datetime.now(get_timezone(tzinfo))
+    if days or seconds or microseconds or milliseconds or minutes or hours or weeks:
+        timedelta = dt.timedelta(days, seconds, microseconds, milliseconds, minutes, hours, weeks)
+        datetime = (datetime - timedelta) if delta == '-' else (datetime + timedelta)
+    if droptz:
+        datetime = datetime.replace(tzinfo=None)
+    if unit:
+        datetime = trunc_datetime(datetime, unit)
+    return datetime
+
+
+def today(
+        days: int = 0,
+        weeks: int = 0,
+        delta: Literal['+','-'] = '-',
+        tzinfo: BaseTzInfo | str | None = None,
+        unit: Literal["month","year"] | None = None,
+    ) -> dt.date:
+    return now(days=days, weeks=weeks, delta=delta, tzinfo=tzinfo, unit=unit).date()
+
+
+def trunc_datetime(
+        datetime: dt.datetime,
+        unit: Literal["second","minute","hour","day","month","year"] | None = None
+    ) -> dt.datetime:
+    if unit not in DATE_UNIT:
+        return datetime
+    index = DATE_UNIT.index(unit.lower())
+    if index >= 0:
+        datetime = datetime.replace(microsecond=0)
+    if index >= 1:
+        datetime = datetime.replace(second=0)
+    if index >= 2:
+        datetime = datetime.replace(minute=0)
+    if index >= 3:
+        datetime = datetime.replace(hour=0)
+    if index >= 4:
+        datetime = datetime.replace(day=1)
+    if index >= 5:
+        datetime = datetime.replace(month=1)
+    return datetime
+
+
+###################################################################
+############################ Time Zone ############################
+###################################################################
+
+def get_timezone(tzinfo: BaseTzInfo | str | None = None) -> BaseTzInfo:
+    if tzinfo:
+        from pytz import timezone, UnknownTimeZoneError
+        try:
+            return timezone(tzinfo)
+        except UnknownTimeZoneError:
+            return
+
+
+def set_timezone(
+        datetime: dt.datetime,
+        tzinfo: BaseTzInfo | str | None = None,
+        astimezone: BaseTzInfo | str | None = None,
+        droptz: bool = False
+    ) -> dt.datetime:
+    tzinfo = get_timezone(tzinfo)
+    if tzinfo:
+        datetime = datetime.astimezone(tzinfo) if datetime.tzinfo else tzinfo.localize(datetime)
+    if astimezone:
+        datetime = datetime.astimezone(get_timezone(astimezone))
+    return datetime.replace(tzinfo=None) if droptz else datetime
 
 
 ###################################################################
@@ -95,8 +186,8 @@ def date_pairs(
         freq: Literal["D","W","M"] = "D",
         format: str = "%Y-%m-%d",
     ) -> list[tuple[dt.date,dt.date]]:
-    if freq == "D":
-        return [(date, date) for date in _generate_date_range(start, end, freq, format, add_one=False)]
+    if freq.upper() == "D":
+        return [(date, date) for date in _generate_date_range(start, end, "D", format, add_one=False)]
     else:
         ranges = _generate_date_range(start, end, freq, add_one=True)
         return [(ranges[i], ranges[i+1] - dt.timedelta(days=1)) for i in range(len(ranges)-1)]
