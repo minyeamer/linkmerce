@@ -115,8 +115,8 @@ def load_table_from_json(
     ) -> bool:
     if not data:
         return True
-    client = create_connection(project_id, account)
-    return _write_append(client, table, project_id, data, partition, serialize, progress)
+    with create_connection(project_id, account) as client:
+        return _write_append(client, table, project_id, data, partition, serialize, progress)
 
 
 @with_service_account
@@ -133,20 +133,20 @@ def overwrite_table_from_json(
     ) -> bool:
     if not data:
         return True
-    client = create_connection(project_id, account)
-    success = False
-    where = _where(**(dict(condition=condition) if condition else (partition or dict())))
-    source = f"FROM `{table}` {where}"
+    with create_connection(project_id, account) as client:
+        success = False
+        where = _where(**(dict(condition=condition) if condition else (partition or dict())))
+        source = f"FROM `{table}` {where}"
 
-    existing_data = _select_table(client, f"SELECT * {source};")
-    client.query(f"DELETE {source};")
+        existing_data = _select_table(client, f"SELECT * {source};")
+        client.query(f"DELETE {source};")
 
-    try:
-        success = _write_append(client, table, project_id, data, partition, serialize, progress)
-        return success
-    finally:
-        if not success:
-            _write_append(client, table, project_id, list(existing_data), serialize=serialize)
+        try:
+            success = _write_append(client, table, project_id, data, partition, serialize, progress)
+            return success
+        finally:
+            if not success:
+                _write_append(client, table, project_id, list(existing_data), serialize=serialize)
 
 
 @with_service_account
@@ -165,22 +165,22 @@ def upsert_table_from_json(
     ) -> bool:
     if not data:
         return True
-    client = create_connection(project_id, account)
-    success = False
-    where = _where(**(dict(condition=condition) if condition else (partition or dict())))
-    source = f"FROM `{table}` {where}"
+    with create_connection(project_id, account) as client:
+        success = False
+        where = _where(**(dict(condition=condition) if condition else (partition or dict())))
+        source = f"FROM `{table}` {where}"
 
-    from linkmerce.utils.duckdb import groupby
-    existing_data = list(_select_table(client, f"SELECT * {source};"))
-    combined_data = groupby(data + existing_data, by, agg)
-    client.query(f"DELETE {source};")
+        from linkmerce.utils.duckdb import groupby
+        existing_data = list(_select_table(client, f"SELECT * {source};"))
+        combined_data = groupby(data + existing_data, by, agg)
+        client.query(f"DELETE {source};")
 
-    try:
-        success = _write_append(client, table, project_id, combined_data, partition, serialize, progress)
-        return success
-    finally:
-        if not success:
-            _write_append(client, table, project_id, existing_data, serialize=serialize)
+        try:
+            success = _write_append(client, table, project_id, combined_data, partition, serialize, progress)
+            return success
+        finally:
+            if not success:
+                _write_append(client, table, project_id, existing_data, serialize=serialize)
 
 
 def _where(condition: str | None = None, field: str | None = None, **kwargs) -> str:

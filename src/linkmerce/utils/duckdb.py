@@ -86,26 +86,38 @@ def select_to_json(
 def curret_date(
         type: Literal["DATE","STRING"] = "DATE",
         format: str | None = "%Y-%m-%d",
+        interval: str | int | None = None,
     ) -> str:
     expr = "CURRENT_DATE"
-    if format:
-        expr = f"STRFTIME({expr}, '{format}')"
-        if type.upper() == "DATE":
-            return f"CAST({expr} AS DATE)"
-    return expr
+    if interval is not None:
+        expr = f"CAST(({expr} {_interval(interval)}) AS DATE)"
+    if (type.upper() == "STRING") and format:
+        return f"STRFTIME({expr}, '{format}')"
+    return expr if type.upper() == "DATE" else "NULL"
 
 
 def curret_datetime(
         type: Literal["DATETIME","STRING"] = "DATETIME",
         format: str | None = "%Y-%m-%d %H:%M:%S",
+        interval: str | int | None = None,
         tzinfo: str | None = None,
     ) -> str:
     expr = "CURRENT_TIMESTAMP {}".format(f"AT TIME ZONE '{tzinfo}'" if tzinfo else str()).strip()
+    expr = f"{expr} {_interval(interval)}".strip()
     if format:
         expr = f"STRFTIME({expr}, '{format}')"
         if type.upper() == "DATETIME":
             return f"CAST({expr} AS TIMESTAMP)"
-    return expr
+    return expr if type.upper() == "DATETIME" else "NULL"
+
+
+def _interval(value: str | int | None = None) -> str:
+    if isinstance(value, str):
+        return value
+    elif isinstance(value, int):
+        return "{} INTERVAL {} DAY".format('-' if value < 0 else '+', abs(value))
+    else:
+        return str()
 
 
 ###################################################################
@@ -188,24 +200,24 @@ def combine_first(
 ########################### Partition By ##########################
 ###################################################################
 
-@with_connection
 def partition_by(
         data: list[dict],
         field: str,
         type: str | None = None,
         condition: str | None = None,
         sort: bool = True,
-        *,
-        conn: DuckDBPyConnection | None = None,
-        temp_table: str = DEFAULT_TEMP_TABLE,
     ) -> Generator[list[dict], None, None]:
-    create_table(conn, temp_table, data, option="ignore", temp=True)
-    if field not in get_columns(conn, temp_table):
-        field = _add_partition(conn, temp_table, field, type)
-    exclude = "EXCLUDE (_PARTITIONFIELD)" if field == "_PARTITIONFIELD" else str()
-    for partition in _select_partition(conn, temp_table, field, condition, sort):
-        yield select_to_json(
-            f"SELECT * {exclude} FROM temp_table WHERE {field} = {_quote(partition)};", conn=conn)
+    conn = duckdb.connect()
+    try:
+        create_table(conn, DEFAULT_TEMP_TABLE, data, option="ignore", temp=True)
+        if field not in get_columns(conn, DEFAULT_TEMP_TABLE):
+            field = _add_partition(conn, DEFAULT_TEMP_TABLE, field, type)
+        exclude = "EXCLUDE (_PARTITIONFIELD)" if field == "_PARTITIONFIELD" else str()
+        for partition in _select_partition(conn, DEFAULT_TEMP_TABLE, field, condition, sort):
+            yield select_to_json(
+                f"SELECT * {exclude} FROM temp_table WHERE {field} = {_quote(partition)};", conn=conn)
+    finally:
+        conn.close()
 
 
 def _add_partition(
