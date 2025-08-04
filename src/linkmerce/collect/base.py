@@ -221,23 +221,6 @@ class RequestSessionClient(BaseSessionClient):
         response = self.request_text(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return BeautifulSoup(response, features)
 
-    def request_table(
-            self,
-            method: str,
-            url: str,
-            params: dict | list[tuple] | bytes | None = None,
-            data: dict | list[tuple] | bytes | IO | None = None,
-            json: JsonSerialize | None = None,
-            headers: dict[str,str] = None,
-            cookies: dict | RequestsCookieJar = None,
-            content_type: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
-            table_options: dict = dict(),
-            **kwargs
-        ):
-        from linkmerce.extensions.pandas import read_table
-        response = self.request_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
-        return read_table(response, table_format=content_type, **table_options)
-
     def with_session(func):
         @functools.wraps(func)
         def wrapper(self: RequestSessionClient, *args, init_session: bool = False, **kwargs):
@@ -364,23 +347,6 @@ class AiohttpSessionClient(BaseSessionClient):
         from bs4 import BeautifulSoup
         response = await self.request_async_text(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return BeautifulSoup(response, features)
-
-    async def request_async_table(
-            self,
-            method: str,
-            url: str,
-            params: dict | list[tuple] | bytes | None = None,
-            data: dict | list[tuple] | bytes | IO | None = None,
-            json: JsonSerialize | None = None,
-            headers: dict[str,str] = None,
-            cookies: dict | LooseCookies = None,
-            content_type: Literal["excel", "csv", "html", "xml"] | Sequence = "xlsx",
-            table_options: dict = dict(),
-            **kwargs
-        ):
-        from linkmerce.extensions.pandas import read_table
-        response = await self.request_async_content(method, url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
-        return read_table(response, table_format=content_type, **table_options)
 
     def async_with_session(func):
         @functools.wraps(func)
