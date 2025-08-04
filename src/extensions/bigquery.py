@@ -87,15 +87,15 @@ def _write_append(
         progress: bool = True,
     ) -> bool:
     if isinstance(partition, dict) and ("field" in partition):
-        from linkmerce.utils.duckdb import partition_by
-        iterable = partition_by(data, **partition)
+        from linkmerce.utils.duckdb import Partition
+        iterator = Partition(data, **partition)
     else:
-        iterable = [data]
+        iterator = [data]
 
     from tqdm.auto import tqdm
     import json
     job_config = LoadJobConfig(write_disposition="WRITE_APPEND")
-    for rows in tqdm(iterable, desc=f"Uploading data to '{project_id}.{table}'", disable=(not progress)):
+    for rows in tqdm(iterator, desc=f"Uploading data to '{project_id}.{table}'", disable=(not progress)):
         if serialize:
             rows = json.loads(json.dumps(rows, ensure_ascii=False, default=str))
         client.load_table_from_json(rows, f"{project_id}.{table}", job_config=job_config).result()

@@ -6,7 +6,7 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Generator, Literal, Sequence
+    from typing import Any, Literal, Sequence
     from duckdb import DuckDBPyConnection
 
 DEFAULT_TEMP_TABLE = "temp_table"
@@ -200,52 +200,68 @@ def combine_first(
 ########################### Partition By ##########################
 ###################################################################
 
-def partition_by(
-        data: list[dict],
-        field: str,
-        type: str | None = None,
-        condition: str | None = None,
-        sort: bool = True,
-    ) -> Generator[list[dict], None, None]:
-    conn = duckdb.connect()
-    try:
-        create_table(conn, DEFAULT_TEMP_TABLE, data, option="ignore", temp=True)
-        if field not in get_columns(conn, DEFAULT_TEMP_TABLE):
-            field = _add_partition(conn, DEFAULT_TEMP_TABLE, field, type)
-        exclude = "EXCLUDE (_PARTITIONFIELD)" if field == "_PARTITIONFIELD" else str()
-        for partition in _select_partition(conn, DEFAULT_TEMP_TABLE, field, condition, sort):
-            yield select_to_json(
-                f"SELECT * {exclude} FROM temp_table WHERE {field} = {_quote(partition)};", conn=conn)
-    finally:
-        conn.close()
+class Partition:
+    def __init__(
+            self,
+            data: list[dict],
+            field: str,
+            type: str | None = None,
+            condition: str | None = None,
+            sort: bool = True,
+            temp_table: str = DEFAULT_TEMP_TABLE,
+        ):
+        self.conn = duckdb.connect()
+        self.table = temp_table
+        try:
+            self.set_data(data)
+            self.set_field(field, type)
+            self.set_partitions(condition, sort)
+        except:
+            ...
 
+    def set_data(self, data: list[dict]):
+        create_table(self.conn, self.table, data, option="ignore", temp=True)
 
-def _add_partition(
-        conn: DuckDBPyConnection,
-        table: str,
-        expr: str,
-        type: str | None = None,
-    ) -> str:
-    field = "_PARTITIONFIELD"
-    if not type:
-        type = conn.execute(f"SELECT {expr} FROM {table} LIMIT 1").description[0][TYPE]
-    conn.execute(f"ALTER TABLE {table} ADD COLUMN {field} {type};")
-    conn.execute(f"UPDATE {table} SET {field} = {expr};")
-    return field
+    def set_field(self, field: str, type: str | None = None):
+        if field not in get_columns(self.conn, self.table):
+            field = "_PARTITIONFIELD"
+            if not type:
+                type = self.conn.execute(f"SELECT {field} FROM {self.table} LIMIT 1").description[0][TYPE]
+            self.conn.execute(f"ALTER TABLE {self.table} ADD COLUMN {field} {type};")
+            self.conn.execute(f"UPDATE {self.table} SET {field} = {field};")
+        self.field = field
 
+    def set_partitions(self,  condition: str | None = None, sort: bool = True):
+        query = f"SELECT DISTINCT {self.field} FROM {self.table} {_where(condition, self.field)};"
+        if sort:
+            self.partitions = sorted(map(lambda x: x[0], self.conn.execute(query).fetchall()))
+        else:
+            self.partitions = [row[0] for row in self.conn.execute(query).fetchall()]
 
-def _select_partition(
-        conn: DuckDBPyConnection,
-        table: str,
-        field: str,
-        condition: str | None = None,
-        sort: bool = True
-    ) -> list[Any]:
-    query = f"SELECT DISTINCT {field} FROM {table} {_where(condition, field)};"
-    if sort:
-        return sorted(map(lambda x: x[0], conn.execute(query).fetchall()))
-    else:
-        return [row[0] for row in conn.execute(query).fetchall()]
+    def __iter__(self) -> Partition:
+        self.index = 0
+        return self
+
+    def __next__(self) -> list[dict]:
+        if self.index < len(self):
+            exclude = "EXCLUDE (_PARTITIONFIELD)" if self.field == "_PARTITIONFIELD" else str()
+            query = f"SELECT * {exclude} FROM temp_table WHERE {self.field} = {_quote(self.partitions[self.index])};"
+            self.index += 1
+            return select_to_json(query, conn=self.conn)
+        else:
+            raise StopIteration
+
+    def __len__(self) -> int:
+        return len(self.partitions)
+
+    def __exit__(self):
+        self.close()
+
+    def close(self):
+        try:
+            self.conn.close()
+        except:
+            pass
 
 
 def _where(condition: str | None = None, field: str | None = None, **kwargs) -> str:
