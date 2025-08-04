@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.types import JsonObject
+    from linkmerce.common import JsonObject
     import datetime as dt
 
 
@@ -30,10 +30,10 @@ class _SalesParser(QueryParser):
         from linkmerce.utils.map import hier_get
         msg = hier_get(response, ["error","error"]) or "null"
         if msg == "Unauthorized":
-            from linkmerce.exceptions import UnauthorizedError
+            from linkmerce.common import UnauthorizedError
             raise UnauthorizedError("Unauthorized request")
         else:
-            from linkmerce.exceptions import RequestError
+            from linkmerce.common import RequestError
             raise RequestError(f"An error occurred during the request: {msg}")
 
     @check_errors

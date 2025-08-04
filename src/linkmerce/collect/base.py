@@ -9,8 +9,8 @@ if TYPE_CHECKING:
     from typing import Any, Coroutine, Hashable, IO, Literal, TypeVar
     from linkmerce.collect.tasks import RequestLoop, RequestEach
     from linkmerce.collect.tasks import PaginateAll, RequestEachPages
-    from linkmerce.types import JsonObject, JsonSerialize, ResponseComponent
-    from linkmerce.types import TaskOption, TaskOptions
+    from linkmerce.common import JsonObject, JsonSerialize, ResponseComponent
+    from linkmerce.common import TaskOption, TaskOptions
     _KT = TypeVar("_KT", Hashable)
     _VT = TypeVar("_VT", Any)
 

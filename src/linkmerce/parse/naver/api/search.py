@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.types import JsonObject
+    from linkmerce.common import JsonObject
 
 
 class _SearchParser(QueryParser):
@@ -27,7 +27,7 @@ class _SearchParser(QueryParser):
         return wrapper
 
     def raise_request_error(self, response: dict):
-        from linkmerce.exceptions import RequestError
+        from linkmerce.common import RequestError
         raise RequestError(response.get("errorMessage") or str())
 
     @check_errors

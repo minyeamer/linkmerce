@@ -6,7 +6,7 @@ from typing import Iterable, TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Callable, Coroutine, Literal, Sequence
     from linkmerce.collect.tasks import RequestEachPages
-    from linkmerce.types import JsonObject, TaskOptions
+    from linkmerce.common import JsonObject, TaskOptions
 
 
 class _CatalogCollector(PartnerCenter):

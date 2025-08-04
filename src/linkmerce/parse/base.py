@@ -21,7 +21,7 @@ class Parser(metaclass=ABCMeta):
         raise NotImplementedError("The 'parse' method must be implemented.")
 
     def raise_parse_error(self, msg: str):
-        from linkmerce.exceptions import ParseError
+        from linkmerce.common import ParseError
         raise ParseError(msg)
 
 

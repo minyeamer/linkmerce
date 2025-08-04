@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Iterable, Literal
-    from linkmerce.types import JsonObject, TaskOptions
+    from linkmerce.common import JsonObject, TaskOptions
 
 
 class ExposureDiagnosis(SearchAdManager):

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.types import JsonObject
+    from linkmerce.common import JsonObject
 
 
 class _CatalogParser(QueryParser):
@@ -27,7 +27,7 @@ class _CatalogParser(QueryParser):
 
     def raise_request_error(self, response: dict):
         from linkmerce.utils.map import hier_get
-        from linkmerce.exceptions import RequestError
+        from linkmerce.common import RequestError
         msg = hier_get(response, ["errors",0,"message"]) or "null"
         raise RequestError(f"An error occurred during the request: {msg}")
 

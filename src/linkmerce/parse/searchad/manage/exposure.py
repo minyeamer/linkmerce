@@ -6,7 +6,7 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.types import JsonObject
+    from linkmerce.common import JsonObject
 
 
 class ExposureDiagnosis(QueryParser):
@@ -23,7 +23,7 @@ class ExposureDiagnosis(QueryParser):
         return wrapper
 
     def raise_request_error(self, response: dict):
-        from linkmerce.exceptions import RequestError, UnauthorizedError
+        from linkmerce.common import RequestError, UnauthorizedError
         msg = response.get("title") or response.get("message") or str()
         if (msg == "Forbidden") or ("권한이 없습니다." in msg) or ("인증이 만료됐습니다." in msg):
             raise UnauthorizedError(msg)
@@ -47,7 +47,7 @@ class ExposureDiagnosis(QueryParser):
             NULLIF(fmpBrand, '') AS mallName,
             NULLIF(fmpMaker, '') AS makerName,
             imageUrl,
-            CAST(COALESCE(lowPrice, mobileLowPrice, NULL) AS INT64) AS salesPrice,
+            -- CAST(COALESCE(lowPrice, mobileLowPrice, NULL) AS INT64) AS salesPrice,
             {{ created_at }} AS createdAt
         FROM {{ table }}
         {{ where }}

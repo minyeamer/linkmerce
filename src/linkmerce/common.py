@@ -12,3 +12,19 @@ ResponseComponent = Union[int, bytes, str, JsonObject, dict[str,str]]
 
 TaskOption = Dict[_KT,_VT]
 TaskOptions = Dict[_KT,TaskOption]
+
+
+class AuthenticationError(RuntimeError):
+    ...
+
+
+class ParseError(ValueError):
+    ...
+
+
+class RequestError(RuntimeError):
+    ...
+
+
+class UnauthorizedError(RuntimeError):
+    ...

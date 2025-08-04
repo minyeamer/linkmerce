@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Hashable, IO, Literal, TypeVar
-    from linkmerce.types import JsonSerialize
+    from linkmerce.common import JsonSerialize
     _KT = TypeVar("_KT", Hashable)
     _VT = TypeVar("_VT", Any)
 
