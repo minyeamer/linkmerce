@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any, Literal, Sequence
     from duckdb import DuckDBPyConnection
-    from linkmerce.utils.pyarrow import Table
 
 DEFAULT_TEMP_TABLE = "temp_table"
 
@@ -78,17 +77,6 @@ def select_to_json(
     relation = (conn if conn is not None else duckdb).execute(query, parameters=params)
     columns = [column[NAME] for column in relation.description]
     return [dict(zip(columns, row)) for row in relation.fetchall()]
-
-
-def select_to_arrow(
-        query: str,
-        table: tuple[str,Table],
-        params: dict | None = None,
-        conn: DuckDBPyConnection | None = None,
-    ) -> Table:
-    with duckdb.connect() as conn:
-        conn.register(*table)
-        return conn.execute(query, parameters=params).arrow()
 
 
 ###################################################################
