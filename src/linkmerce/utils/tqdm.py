@@ -20,7 +20,11 @@ def gather(
         delay: Real | Sequence[Real,Real] = 0.,
         tqdm_options: dict = dict(),
     ) -> list:
-    from tqdm import tqdm
+    try:
+        from tqdm import tqdm
+    except:
+        tqdm = lambda x: x
+        tqdm_options = dict()
     import time
     def run_with_delay(args: tuple[_VT,...] | dict[_KT,_VT]) -> Any:
         try:
@@ -41,8 +45,12 @@ async def gather_async(
         limit: int | None = None,
         tqdm_options: dict = dict(),
     ) -> list:
-    from tqdm.asyncio import tqdm
     import asyncio
+    try:
+        from tqdm.asyncio import tqdm_asyncio
+    except:
+        tqdm_asyncio = asyncio
+        tqdm_options = dict()
     async def run_with_delay(args: tuple[_VT,...] | dict[_KT,_VT]) -> Any:
         try:
             if isinstance(args, dict):
@@ -59,7 +67,7 @@ async def gather_async(
             return await run_with_delay(args)
 
     semaphore = asyncio.Semaphore(limit) if isinstance(limit, int) else None
-    return await tqdm.gather(*[run_with_delay_and_limit(semaphore, args) for args in arr_args], **tqdm_options)
+    return await tqdm_asyncio.gather(*[run_with_delay_and_limit(semaphore, args) for args in arr_args], **tqdm_options)
 
 
 def _get_seconds(value: Real | Sequence[Real,Real]) -> Real:

@@ -105,9 +105,12 @@ def load_table_from_duckdb(
         progress: bool = True,
     ) -> bool:
     from linkmerce.common.load import DuckDBIterator
-    
-    from tqdm.auto import tqdm
     from io import BytesIO
+
+    try:
+        from tqdm import tqdm
+    except:
+        tqdm = lambda x, **kwargs: x
 
     if not connection.exists_table(from_table):
         return True
