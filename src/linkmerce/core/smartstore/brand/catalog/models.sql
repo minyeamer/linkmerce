@@ -174,3 +174,23 @@ ON CONFLICT DO UPDATE SET
   , salesPrice = COALESCE(excluded.salesPrice, salesPrice)
   , registerDate = COALESCE(excluded.registerDate, registerDate)
   , updateDate = excluded.updateDate;
+
+
+-- MatchCatalog: create
+CREATE OR REPLACE TABLE {{ table }} (
+    mallPid BIGINT PRIMARY KEY
+  , catalogId BIGINT
+  , createdAt TIMESTAMP NOT NULL
+);
+
+-- MatchCatalog: select
+SELECT
+    TRY_CAST(mallProductId AS BIGINT) AS mallPid
+  , TRY_CAST(catalogId AS BIGINT) AS catalogId
+  , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS createdAt
+FROM {{ array }}
+WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
+  AND (TRY_CAST(catalogId AS BIGINT) IS NOT NULL);
+
+-- MatchCatalog: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;

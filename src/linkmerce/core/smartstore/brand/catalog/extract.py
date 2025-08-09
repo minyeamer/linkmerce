@@ -322,3 +322,7 @@ class BrandPrice(BrandProduct):
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
                 .run_async())
+
+
+class MatchCatalog(BrandPrice):
+    object_type = "products"

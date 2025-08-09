@@ -63,3 +63,16 @@ class BrandPrice(BrandProduct):
         price = super().insert_into_table(obj, key="insert_price", table=price_table, values=":select_price:", params=params)
         product = super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:", params=params)
         return price, product
+
+
+class MatchCatalog(_CatalogTransformer):
+    object_type = "products"
+    queries = ["create", "select", "insert"]
+
+    def insert_into_table(
+            self,
+            obj: list,
+            table: str = ":default:",
+            **kwargs
+        ) -> tuple[DuckDBPyRelation,DuckDBPyRelation]:
+        return super().insert_into_table(obj, key="insert", table=table, values=":select:")

@@ -143,17 +143,16 @@ def overwrite_table_from_duckdb(
     success = False
     source = f"FROM `{project_id}.{to_table}` {connection.expr_where(condition, default=str())}"
     existing_values = select_table(client, f"SELECT * {source};")
+
     if dry_run:
-        _copy_bq_to_duckdb(connection, from_table, list(existing_values))
-        return True
+        return _copy_bq_to_duckdb(connection, from_table, list(existing_values))
     client.query(f"DELETE {source};")
 
     try:
         success = load_table_from_duckdb(client, connection, from_table, to_table, project_id, schema, partition_by, progress)
         return success
     finally:
-        if not success:
-            _copy_bq_to_duckdb(connection, from_table, list(existing_values))
+        if (not success) and _copy_bq_to_duckdb(connection, from_table, list(existing_values)):
             load_table_from_duckdb(client, connection, TEMP_TABLE, to_table, project_id, schema, partition_by, progress=False)
 
 
@@ -177,22 +176,27 @@ def upsert_table_from_duckdb(
     success = False
     source = f"FROM `{project_id}.{to_table}` {connection.expr_where(condition, default=str())}"
     existing_values = select_table(client, f"SELECT * {source};")
-    _copy_bq_to_duckdb(connection, from_table, list(existing_values))
+    copy_status = _copy_bq_to_duckdb(connection, from_table, list(existing_values))
 
-    union = f"((SELECT * FROM {from_table}) UNION ALL (SELECT * FROM {TEMP_TABLE}))"
-    connection.groupby(union, by, agg).to_table(TEMP_GROUPBY_TABLE)
+    if copy_status:
+        union = f"((SELECT * FROM {from_table}) UNION ALL (SELECT * FROM {TEMP_TABLE}))"
+        connection.groupby(union, by, agg).to_table(TEMP_GROUPBY_TABLE)
+        from_table = TEMP_GROUPBY_TABLE
+
     if dry_run:
         return True
     client.query(f"DELETE {source};")
 
     try:
-        success = load_table_from_duckdb(client, connection, TEMP_GROUPBY_TABLE, to_table, project_id, schema, partition_by, progress)
+        success = load_table_from_duckdb(client, connection, from_table, to_table, project_id, schema, partition_by, progress)
         return success
     finally:
-        if not success:
+        if (not success) and copy_status:
             load_table_from_duckdb(client, connection, TEMP_TABLE, to_table, project_id, schema, partition_by, progress=False)
 
 
-def _copy_bq_to_duckdb(connection: DuckDBConnection, existing_table: str, existing_values: list[dict]):
+def _copy_bq_to_duckdb(connection: DuckDBConnection, existing_table: str, existing_values: list[dict]) -> bool:
     connection.copy_table(existing_table, TEMP_TABLE, option="replace", temp=True)
-    connection.insert_into_table_from_json(TEMP_TABLE, existing_values)
+    if existing_values:
+        connection.insert_into_table_from_json(TEMP_TABLE, existing_values)
+    return bool(existing_values)

@@ -78,6 +78,27 @@ def brand_price(
     return run_with_duckdb(get_module(".catalog"), "BrandPrice", "BrandPrice", connection, how, table, return_type, args, **options)
 
 
+def match_catalog(
+        cookies: str,
+        brand_ids: str | Iterable[str],
+        mall_seq: int | str | Iterable[int | str],
+        sort_type: Literal["popular","recent","price"] = "recent",
+        is_brand_catalog: bool | None = None,
+        page: int | list[int] | None = 0,
+        page_size: int = 100,
+        connection: DuckDBConnection | None = None,
+        how: Literal["sync","async","async_loop"] = "sync",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> JsonObject:
+    args = (brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
+    table = get_table(transform_options, "table")
+    extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
+    options = dict(extract_options=extract_options, transform_options=transform_options)
+    return run_with_duckdb(get_module(".catalog"), "MatchCatalog", "MatchCatalog", connection, how, table, return_type, args, **options)
+
+
 def store_sales(
         cookies: str,
         mall_seq: int | str | Iterable[int | str],

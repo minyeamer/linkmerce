@@ -165,37 +165,37 @@ def overwrite_all_records(
             _insert_all_records(worksheet, existing_data, cell="A1", clear=True, clear_header=False)
 
 
-@with_service_account
-def upsert_all_records(
-        key: str,
-        sheet: str,
-        data: list[dict],
-        by: str | Sequence[str],
-        agg: str | dict[str,Literal["first","count","sum","avg","min","max"]],
-        include_header: bool = False,
-        col: str = 'A',
-        row: int = 0,
-        cell: str = str(),
-        clear_header: bool = False,
-        *,
-        account: ServiceAccount | None = None,
-    ) -> JSONResponse:
-    if not data:
-        return
-    worksheet = open_worksheet(key, sheet, account)
-    success = False
+# @with_service_account
+# def upsert_all_records(
+#         key: str,
+#         sheet: str,
+#         data: list[dict],
+#         by: str | Sequence[str],
+#         agg: str | dict[str,Literal["first","count","sum","avg","min","max"]],
+#         include_header: bool = False,
+#         col: str = 'A',
+#         row: int = 0,
+#         cell: str = str(),
+#         clear_header: bool = False,
+#         *,
+#         account: ServiceAccount | None = None,
+#     ) -> JSONResponse:
+#     if not data:
+#         return
+#     worksheet = open_worksheet(key, sheet, account)
+#     success = False
 
-    from linkmerce.utils.duckdb import groupby
-    existing_data = _get_all_records(worksheet)
-    combined_data = groupby(data + existing_data, by, agg)
+#     from linkmerce.utils.duckdb import groupby
+#     existing_data = _get_all_records(worksheet)
+#     combined_data = groupby(data + existing_data, by, agg)
 
-    try:
-        response = _insert_all_records(worksheet, combined_data, include_header, col, row, cell, clear=True, clear_header=clear_header)
-        success = True
-        return response
-    finally:
-        if not success:
-            _insert_all_records(worksheet, existing_data, cell="A1", clear=True, clear_header=False)
+#     try:
+#         response = _insert_all_records(worksheet, combined_data, include_header, col, row, cell, clear=True, clear_header=clear_header)
+#         success = True
+#         return response
+#     finally:
+#         if not success:
+#             _insert_all_records(worksheet, existing_data, cell="A1", clear=True, clear_header=False)
 
 
 def _insert_all_records(
