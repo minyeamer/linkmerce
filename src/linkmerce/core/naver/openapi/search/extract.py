@@ -86,7 +86,7 @@ class _SearchExtractor(NaverOpenAPI):
         return kwargs
 
     def is_valid_response(self, response: JsonObject) -> bool:
-        return not (isinstance(response, dict) and (response.get("errorCode") == "012"))
+        return not (isinstance(response, dict) and response.get("errorCode"))
 
 
 class BlogSearch(_SearchExtractor):

@@ -196,7 +196,7 @@ SELECT
   , NULLIF(mallName, '네이버') AS mallName
   , IF(link LIKE '%/catalog/%', link, NULL) AS nvMurl
   , IF(link LIKE '%/catalog/%', NULL, link) AS mallPurl
-  , brand AS brandName
+  , NULLIF(brand, '') AS brandName
   , maker AS makerName
   , category1 AS categoryName1
   , category2 AS categoryName2
@@ -251,7 +251,7 @@ SELECT
   , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS mallPid
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS productName
   , NULLIF(mallName, '네이버') AS mallName
-  , brand AS brandName
+  , NULLIF(brand, '') AS brandName
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updatedAt
 FROM {{ array }}
 WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL;
