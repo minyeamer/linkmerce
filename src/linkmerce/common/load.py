@@ -1,21 +1,78 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from linkmerce.common.tasks import Task
+from pathlib import Path
 
 from typing import overload, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Literal, Type
+    from typing import Any, Callable, Literal, Sequence, Type
     from types import TracebackType
+
     from duckdb import DuckDBPyConnection, DuckDBPyRelation
-    from io import BytesIO
-    from pathlib import Path
     import datetime as dt
 
+NAME, TYPE = 0, 0
+
+
+def concat_sql(*statement: str, drop_empty: bool = True, sep=' ', terminate: bool = True) -> str:
+    query = sep.join(filter(None, statement) if drop_empty else statement)
+    return query + ';' if terminate and not query.endswith(';') else query
+
+
+def csv_to_json(obj: list[tuple], header: int | list[str] = 0) -> list[dict]:
+    if isinstance(header, int):
+        header, obj = obj[header], obj[header+1:]
+    return [dict(zip(header, row)) for row in obj]
+
+
+def json_to_csv(obj: list[dict], header: int | list[str] = 0) -> list[tuple]:
+    if isinstance(header, int):
+        header = list(obj[header].keys())
+    return [header] + [[row.get(key) for key in header] for row in obj]
+
+
+def save_to_csv(obj: list[tuple], file_path: str | Path, encoding: str | None = "utf-8", **kwargs):
+    import csv
+    with open(file_path, 'w', newline='', encoding=encoding) as file:
+        writer = csv.writer(file, **kwargs)
+        writer.writerows(obj)
+
+
+def save_to_json(obj: list[dict], file_path: str | Path, encoding: str | None = "utf-8", **kwargs):
+    import json
+    with open(file_path, 'w', encoding=encoding) as file:
+        json.dump(obj, file, **kwargs)
+
+
+def run_with_tempfile(func: Callable[[str],Any], values: bytes, mode = "w+b", suffix: str | None = None, **kwargs) -> Any:
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode, suffix=suffix, **kwargs) as temp_file:
+        temp_file.write(values)
+        return func(temp_file.name)
+
+
+def write_tempfile(write_func: Callable[[str],None], mode = "w+b", suffix: str | None = None, **kwargs) -> bytes:
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode, suffix=suffix, **kwargs) as temp_file:
+        file_path = temp_file.name
+        write_func(file_path)
+        with open(file_path, "rb") as file:
+            return file.read()
+
+
+###################################################################
+############################ Connection ###########################
+###################################################################
 
 class Connection(metaclass=ABCMeta):
     def __init__(self, **kwargs):
         self.set_connection(**kwargs)
+
+    @property
+    def conn(self) -> Any:
+        return self.get_connection()
 
     @abstractmethod
     def get_connection(self) -> Any:
@@ -41,13 +98,16 @@ class Connection(metaclass=ABCMeta):
 
     ############################## Fetch ##############################
 
+    def fetch_all(self, format: Literal["csv","json","parquet"], query: str) -> list[tuple] | list[dict] | bytes:
+        raise NotImplementedError("The 'fetch_all' method must be implemented.")
+
     def fetch_all_to_csv(self, query: str) -> list[tuple]:
         raise NotImplementedError("The 'fetch_all_to_csv' method must be implemented.")
 
     def fetch_all_to_json(self, query: str) -> list[dict]:
         raise NotImplementedError("The 'fetch_all_to_json' method must be implemented.")
 
-    def fetch_all_to_parquet(self, query: str, file_name: str | None = None) -> BytesIO | None:
+    def fetch_all_to_parquet(self, query: str) -> bytes:
         raise NotImplementedError("The 'fetch_all_to_parquet' method must be implemented.")
 
     ############################ Expression ###########################
@@ -61,6 +121,15 @@ class Connection(metaclass=ABCMeta):
             alias = f" AS {alias}" if alias else str()
             return f"{func}({value} AS {type})" + alias
 
+    def expr_create(self, option: Literal["replace", "ignore"] | None = None, temp: bool = False) -> str:
+        temp = "TEMP" if temp else str()
+        if option == "replace":
+            return f"CREATE OR REPLACE {temp} TABLE"
+        elif option == "ignore":
+            return f"CREATE {temp} TABLE IF NOT EXISTS"
+        else:
+            return f"CREATE {temp} TABLE"
+
     def expr_date(self, value: dt.date | str | None = None, alias: str = str(), safe: bool = False) -> str:
         alias = f" AS {alias}" if alias else str()
         if safe:
@@ -68,29 +137,54 @@ class Connection(metaclass=ABCMeta):
         else:
             return f"DATE '{value}'" + alias
 
-    def curret_date(
-            self,
-            type: Literal["DATE","STRING"] = "DATE",
-            format: str | None = "%Y-%m-%d",
-            interval: str | int | None = None,
-        ) -> str:
-        from linkmerce.utils.duckdb import curret_date
-        return curret_date(type, format, interval)
+    def expr_interval(value: str | int | None = None) -> str:
+        if isinstance(value, str):
+            return value
+        elif isinstance(value, int):
+            return "{} INTERVAL {} DAY".format('-' if value < 0 else '+', abs(value))
+        else:
+            return str()
 
-    def curret_datetime(
+    def expr_now(
             self,
             type: Literal["DATETIME","STRING"] = "DATETIME",
             format: str | None = "%Y-%m-%d %H:%M:%S",
             interval: str | int | None = None,
             tzinfo: str | None = None,
         ) -> str:
-        from linkmerce.utils.duckdb import curret_datetime
-        return curret_datetime(type, format, interval, tzinfo)
+        expr = "CURRENT_TIMESTAMP {}".format(f"AT TIME ZONE '{tzinfo}'" if tzinfo else str()).strip()
+        expr = f"{expr} {self.expr_interval(interval)}".strip()
+        if format:
+            expr = f"STRFTIME({expr}, '{format}')"
+            if type.upper() == "DATETIME":
+                return f"CAST({expr} AS TIMESTAMP)"
+        return expr if type.upper() == "DATETIME" else "NULL"
 
+    def expr_today(
+            self,
+            type: Literal["DATE","STRING"] = "DATE",
+            format: str | None = "%Y-%m-%d",
+            interval: str | int | None = None,
+        ) -> str:
+        expr = "CURRENT_DATE"
+        if interval is not None:
+            expr = f"CAST(({expr} {self.expr_interval(interval)}) AS DATE)"
+        if (type.upper() == "STRING") and format:
+            return f"STRFTIME({expr}, '{format}')"
+        return expr if type.upper() == "DATE" else "NULL"
+
+
+###################################################################
+############################## DuckDB #############################
+###################################################################
 
 class DuckDBConnection(Connection):
     def __init__(self, **kwargs):
         self.set_connection(**kwargs)
+
+    @property
+    def conn(self) -> DuckDBPyConnection:
+        return self.get_connection()
 
     def get_connection(self) -> DuckDBPyConnection:
         return self.__conn
@@ -101,95 +195,404 @@ class DuckDBConnection(Connection):
 
     def close(self):
         try:
-            self.get_connection().close()
+            self.conn.close()
         except:
             pass
+
+    def __enter__(self) -> DuckDBConnection:
+        return self
+
+    def __exit__(self, type: Type[BaseException], value: BaseException, traceback: TracebackType):
+        self.close()
 
     ############################# Execute #############################
 
     @overload
-    def execute(self, query: str, **params) -> DuckDBPyRelation:
+    def execute(self, query: str, **params) -> DuckDBPyConnection:
         ...
 
     @overload
-    def execute(self, query: str, obj: list, **params) -> DuckDBPyRelation:
+    def execute(self, query: str, obj: list, **params) -> DuckDBPyConnection:
         ...
 
-    def execute(self, query: str, obj: list | None = None, **params) -> DuckDBPyRelation:
+    def execute(self, query: str, obj: list | None = None, **params) -> DuckDBPyConnection:
         if obj is None:
-            return self.get_connection().execute(query, parameters=(params or None))
+            return self.conn.execute(query, parameters=(params or None))
         else:
-            return self.get_connection().execute(query, parameters=dict(obj=obj, **params))
+            return self.conn.execute(query, parameters=dict(obj=obj, **params))
 
-    ############################ Fetch CSV ############################
+    ############################### SQL ###############################
 
     @overload
-    def fetch_all_to_csv(self, query: str, params: dict | None = None) -> list[tuple]:
+    def sql(self, query: str, **params) -> DuckDBPyRelation:
         ...
 
     @overload
-    def fetch_all_to_csv(self, *, table: str) -> Any:
+    def sql(self, query: str, obj: list, **params) -> DuckDBPyRelation:
         ...
+
+    def sql(self, query: str, obj: list | None = None, **params) -> DuckDBPyRelation:
+        if obj is None:
+            return self.conn.sql(query, params=(params or None))
+        else:
+            return self.conn.sql(query, params=dict(obj=obj, **params))
+
+    ############################## Fetch ##############################
+
+    def fetch_all(
+            self,
+            format: Literal["csv","json","parquet"],
+            query: str,
+            params: dict | None = None,
+            save_to: str | Path | None = None,
+        ) -> list[tuple] | list[tuple] | bytes | None:
+        try:
+            return getattr(self, f"fetch_all_to_{format}")(query, params, save_to)
+        except AttributeError:
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
 
     def fetch_all_to_csv(
             self,
-            query: str | None = None,
+            query: str,
             params: dict | None = None,
-            *,
-            table: str | None = None
-        ) -> list[tuple]:
-        from linkmerce.utils.duckdb import select_to_json
-        if table:
-            query = "SELECT * FROM {};".format(table)
-        if not query:
-            raise TypeError("DuckDBConnection.fetch_all_to_csv() missing 1 required positional argument: 'query'")
-        return select_to_json(self.get_connection(), query, params)
-
-    ############################ Fetch JSON ###########################
-
-    @overload
-    def fetch_all_to_json(self, query: str, params: dict | None = None) -> list[dict]:
-        ...
-
-    @overload
-    def fetch_all_to_json(self, *, table: str) -> list[dict]:
-        ...
+            save_to: str | Path | None = None,
+        ) -> list[tuple] | None:
+        relation = self.conn.execute(query, parameters=params)
+        results = [self.get_columns(relation)] + relation.fetchall()
+        if save_to:
+            return save_to_csv(results, save_to, delimiter=',')
+        else:
+            return results
 
     def fetch_all_to_json(
             self,
-            query: str | None = None,
+            query: str,
             params: dict | None = None,
-            *,
-            table: str | None = None
-        ) -> list[dict]:
-        from linkmerce.utils.duckdb import select_to_json
-        if table:
-            query = "SELECT * FROM {};".format(table)
-        if not query:
-            raise TypeError("DuckDBConnection.fetch_all_to_json() missing 1 required positional argument: 'query'")
-        return select_to_json(self.get_connection(), query, params)
-
-    ########################## Fetch Parquet ##########################
-
-    @overload
-    def fetch_all_to_parquet(self, query: str, file_name: str | None = None, params: dict | None = None) -> BytesIO | None:
-        ...
-
-    @overload
-    def fetch_all_to_parquet(self, *, table: str, file_name: str | None = None, params: dict | None = None) -> BytesIO:
-        ...
+            save_to: str | Path | None = None,
+        ) -> list[dict] | None:
+        relation = self.conn.execute(query, parameters=params)
+        columns = self.get_columns(relation)
+        results = [dict(zip(columns, row)) for row in relation.fetchall()]
+        if save_to:
+            return save_to_json(results, save_to, indent=2, ensure_ascii=False, default=str)
+        else:
+            return results
 
     def fetch_all_to_parquet(
             self,
-            query: str | None = None,
-            file_name: str | None = None,
+            query: str,
             params: dict | None = None,
-            *,
-            table: str | None = None
-        ) -> BytesIO | None:
-        from linkmerce.utils.duckdb import select_to_parquet
-        if table:
-            query = "SELECT * FROM {};".format(table)
-        if not query:
-            raise TypeError("DuckDBConnection.fetch_all_to_parquet() missing 1 required positional argument: 'query'")
-        return select_to_parquet(self.get_connection(), query, file_name, params)
+            save_to: str | Path | None = None,
+        ) -> bytes | None:
+        relation = self.conn.sql(query, params=params)
+        if save_to:
+            return relation.to_parquet(save_to)
+        else:
+            def to_parquet(temp_file: str):
+                relation.to_parquet(temp_file)
+            return write_tempfile(to_parquet, mode="w+b", suffix=".parquet")
+
+    ############################### Read ##############################
+
+    def read(
+            self,
+            format: Literal["csv","json","parquet"],
+            values: list[tuple] | list[dict] | bytes | str | Path,
+            params: dict | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
+        ) -> DuckDBPyConnection:
+        try:
+            return getattr(self, f"read_{format}")(values, params, prefix, suffix)
+        except AttributeError:
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
+
+    def read_csv(
+            self,
+            values: list[tuple] | str | Path,
+            params: dict | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
+        ) -> DuckDBPyConnection:
+        if isinstance(values, (str,Path)):
+            query = f"SELECT * FROM read_csv('{values}')"
+        else:
+            query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
+            params = dict(params or dict(), values=csv_to_json(values))
+        return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+
+    def read_json(
+            self,
+            values: list[dict] | str | Path,
+            params: dict | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
+        ) -> DuckDBPyConnection:
+        if isinstance(values, (str,Path)):
+            query = f"SELECT * FROM read_json_auto('{values}')"
+        else:
+            query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
+            params = dict(params or dict(), values=values)
+        return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+
+    def read_parquet(
+            self,
+            values: bytes | str | Path,
+            params: dict | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
+        ) -> DuckDBPyConnection:
+        if isinstance(values, (str,Path)):
+            query = f"SELECT * FROM read_parquet('{values}')"
+            return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+        else:
+            def create_table(temp_file: str) -> DuckDBPyConnection:
+                query = concat_sql(prefix, f"SELECT * FROM read_parquet('{temp_file}')", suffix)
+                return self.conn.execute(query, parameters=params)
+            return run_with_tempfile(create_table, values, mode="w+b", suffix=".parquet")
+
+    ############################## Create #############################
+
+    def create_table(
+            self,
+            table: str,
+            values: list[tuple] | list[dict] | bytes | str | Path,
+            format: Literal["csv","json","parquet"],
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+            params: dict | None = None,
+        ) -> DuckDBPyConnection:
+        try:
+            return getattr(self, f"create_table_from_{format}")(table, values, option, temp, params)
+        except AttributeError:
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
+
+    def create_table_from_csv(
+            self,
+            table: str,
+            values: list[tuple] | str | Path,
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+            params: dict | None = None,
+        ) -> DuckDBPyConnection:
+        return self.read_csv(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
+
+    def create_table_from_json(
+            self,
+            table: str,
+            values: list[dict] | str | Path,
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+            params: dict | None = None,
+        ) -> DuckDBPyConnection:
+        return self.read_json(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
+
+    def create_table_from_parquet(
+            self,
+            table: str,
+            values: bytes | str | Path,
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+            params: dict | None = None,
+        ) -> DuckDBPyConnection:
+        return self.read_parquet(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
+
+    def copy_table(
+            self,
+            table: str,
+            copy_to: str,
+            limit: int | None = 0,
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+        ) -> DuckDBPyConnection:
+        limit_ = f"LIMIT {limit}" if isinstance(limit, int) else None
+        query = concat_sql(f"{self.expr_create(option, temp)} {copy_to} AS SELECT * FROM {table}", limit_)
+        return self.conn.execute(query)
+
+    ############################## Insert #############################
+
+    def insert_into_table(
+            self,
+            table: str,
+            values: list[tuple] | list[dict] | bytes | str | Path,
+            format: Literal["csv","json","parquet"],
+            on_conflict: str | None = None,
+            params: dict | None = None,
+        ) -> DuckDBPyConnection:
+        try:
+            return getattr(self, f"insert_into_table_from_{format}")(table, values, on_conflict, params)
+        except AttributeError:
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
+
+    def insert_into_table_from_csv(
+            self,
+            table: str,
+            values: list[tuple] | str | Path,
+            on_conflict: str | None = None,
+            params: dict | None = None,
+        ) -> DuckDBPyConnection:
+        suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
+        return self.read_csv(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
+
+    def insert_into_table_from_json(
+            self,
+            table: str,
+            values: list[dict] | str | Path,
+            on_conflict: str | None = None,
+            params: dict | None = None,
+        ) -> DuckDBPyConnection:
+        suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
+        return self.read_json(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
+
+    def insert_into_table_from_parquet(
+            self,
+            table: str,
+            values: bytes | str | Path,
+            on_conflict: str | None = None,
+            params: dict | None = None,
+        ) -> DuckDBPyConnection:
+        suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
+        return self.read_parquet(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
+
+    ############################# Group By ############################
+
+    def groupby(
+            self,
+            source: str,
+            by: str | Sequence[str],
+            agg: str | dict[str,Literal["count","sum","avg","min","max","first","last","list"]],
+            dropna: bool = True,
+            params: dict | None = None,
+        ) -> DuckDBPyRelation:
+        by = [by] if isinstance(by, str) else by
+        where = "WHERE " + " AND ".join([f"{col} IS NOT NULL" for col in by]) if dropna else None
+        groupby = "GROUP BY {}".format(", ".join(by))
+        query = concat_sql(f"SELECT {', '.join(by)}, {self.agg(agg)} FROM {source}", where, groupby)
+        return self.conn.sql(query, params=params)
+
+    def agg(self, func: str | dict[str,Literal["count","sum","avg","min","max","first","last","list"]]) -> str:
+        if isinstance(func, dict):
+            def render(col: str, agg: str) -> str:
+                if agg in {"count","sum","avg","min","max"}:
+                    return f"{agg.upper()}({col})"
+                elif agg in {"first","last","list"}:
+                    return f"{agg.upper()}({col}) FILTER (WHERE {col} IS NOT NULL)"
+                else:
+                    return agg
+            return ", ".join([f"{render(col, agg)} AS {col}" for col, agg in func.items()])
+        else:
+            return func
+
+    ############################## Utils ##############################
+
+    def has_table(self, table: str) -> bool:
+        query = f"SELECT 1 FROM information_schema.tables WHERE table_name = '{table}' LIMIT 1;"
+        return bool(self.conn.execute(query).fetchone())
+
+    def exists_table(self, table: str) -> bool:
+        if self.has_table(table):
+            query = f"SELECT 1 FROM {table} LIMIT 1;"
+            return bool(self.conn.execute(query).fetchone())
+        return False
+
+    def get_columns(self, obj: str | DuckDBPyConnection) -> list[str]:
+        if isinstance(obj, str):
+            obj = self.conn.execute(f"DESCRIBE {obj}")
+            return [column[NAME] for column in obj.fetchall()]
+        else:
+            return [column[NAME] for column in obj.description]
+
+    def has_column(self, obj: str | DuckDBPyConnection, column: str) -> bool:
+        return column in self.get_columns(obj)
+
+    def unique(self, table: str, expr: str, ascending: bool | None = None, condition: str | None = None) -> list:
+        select = f"SELECT DISTINCT {expr} AS expr FROM {table}"
+        order_by = "ORDER BY expr {}".format({True:"ASC", False:"DESC"}[ascending]) if isinstance(ascending, bool) else None
+        query = concat_sql(select, self.expr_where(condition), order_by)
+        return [row[0] for row in self.conn.execute(query).fetchall()]
+
+    def expr_where(self, condition: str | None = None, column: str | None = None, default: str = "WHERE TRUE") -> str:
+        if condition:
+            if condition.split(' ', maxsplit=1)[0].upper() == "WHERE":
+                return condition
+            else:
+                return concat_sql("WHERE", column, condition, terminate=False)
+        else:
+            return default
+
+    def expr_value(self, value: Any) -> str:
+        import datetime as dt
+        if isinstance(value, (float,int)):
+            return str(value)
+        elif isinstance(value, dt.date):
+            dtype = "TIMESTAMP" if isinstance(value, dt.datetime) else "DATE"
+            return f"{dtype} '{value}'"
+        else:
+            return f"'{value}'"
+
+
+###################################################################
+############################# Iterator ############################
+###################################################################
+
+class DuckDBIterator(Task):
+    temp_table: str = "temp_table"
+
+    def __init__(self, conn: DuckDBConnection, format: Literal["csv","json","parquet"]):
+        self.conn = conn
+        self.format = format
+        self.table = str()
+        self.partitions = [dict()]
+        self.index = 0
+
+    def run(self):
+        ...
+
+    def from_table(self, table: str) -> DuckDBIterator:
+        return self.setattr("table", table)
+
+    def from_values(
+            self,
+            values: list[tuple] | list[dict] | bytes | str | Path,
+            format: Literal["csv","json","parquet"],
+            params: dict | None = None,
+        ) -> DuckDBIterator:
+        self.conn.create_table(self.temp_table, values, format, option="replace", temp=True, params=params)
+        return self.setattr("table", self.temp_table)
+
+    def partition_by(
+            self,
+            by: str | list[str],
+            ascending: bool | None = True,
+            condition: str | None = None,
+            if_errors: Literal["ignore","raise"] = "raise",
+        ) -> DuckDBIterator:
+        from linkmerce.utils.tqdm import _expand_kwargs
+        map_partitions = dict()
+        for expr in ([by] if isinstance(by, str) else by):
+            if if_errors == "ignore":
+                from duckdb import BinderException
+                try:
+                    map_partitions[expr] = self.conn.unique(self.table, expr, ascending, condition)
+                except BinderException:
+                    continue
+            else:
+                map_partitions[expr] = self.conn.unique(self.table, expr, ascending, condition)
+        return self.setattr("partitions", _expand_kwargs(**map_partitions))
+
+    def __iter__(self) -> DuckDBIterator:
+        self.index = 0
+        return self
+
+    def __next__(self) -> list[tuple] | list[tuple] | bytes:
+        if self.index >= len(self):
+            raise StopIteration
+        map_partition = self.partitions[self.index]
+        condition = " AND ".join([f"{expr} = {self.conn.expr_value(value)}" for expr, value in map_partition.items()])
+        query = f"SELECT * FROM {self.table} WHERE {condition or 'TRUE'};"
+        results = self.conn.fetch_all(self.format, query)
+        self.index += 1
+        return results
+
+    def __len__(self) -> int:
+        return len(self.partitions)

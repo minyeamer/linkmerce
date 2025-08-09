@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, Literal
     from linkmerce.common.extract import JsonObject
+    from linkmerce.common.load import DuckDBConnection
 
 
 def get_module(name: str) -> str:
@@ -21,7 +22,8 @@ def exposure_diagnosis(
         domain: Literal["search","shopping"] = "search",
         mobile: bool = True,
         is_own: bool | None = None,
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        connection: DuckDBConnection | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -29,7 +31,7 @@ def exposure_diagnosis(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies), variables=dict(customer_id=customer_id))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".exposure"), "ExposureDiagnosis", "ExposureDiagnosis", "sync", table, return_type, args, **options)
+    return run_with_duckdb(get_module(".exposure"), "ExposureDiagnosis", "ExposureDiagnosis", connection, "sync", table, return_type, args, **options)
 
 
 def exposure_rank(
@@ -39,7 +41,8 @@ def exposure_rank(
         domain: Literal["search","shopping"] = "search",
         mobile: bool = True,
         is_own: bool | None = None,
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        connection: DuckDBConnection | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -47,4 +50,4 @@ def exposure_rank(
     table = [get_table(transform_options, "rank_table"), get_table(transform_options, "product_table", "product")]
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies), variables=dict(customer_id=customer_id))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".exposure"), "ExposureRank", "ExposureRank", "sync", table, return_type, args, **options)
+    return run_with_duckdb(get_module(".exposure"), "ExposureRank", "ExposureRank", connection, "sync", table, return_type, args, **options)

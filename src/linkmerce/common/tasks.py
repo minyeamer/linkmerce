@@ -6,10 +6,10 @@ from typing import Any, Hashable, Iterable, Sequence, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Callable, Coroutine, Literal
-    _KT = TypeVar("_KT", bound=Hashable)
-    _VT = TypeVar("_VT", bound=Any)
     _SKIPPED = TypeVar("_SKIPPED", bound=None)
 
+_KT = TypeVar("_KT", bound=Hashable)
+_VT = TypeVar("_VT", bound=Any)
 TaskOption = dict[_KT,_VT]
 TaskOptions = dict[_KT,TaskOption]
 

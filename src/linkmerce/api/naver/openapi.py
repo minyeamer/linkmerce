@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, Literal
     from linkmerce.common.extract import JsonObject
+    from linkmerce.common.load import DuckDBConnection
 
 
 def get_module(name: str) -> str:
@@ -21,8 +22,9 @@ def search_blog(
         start: int | Iterable[int] = 1,
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -30,7 +32,7 @@ def search_blog(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".search"), "BlogSearch", "BlogSearch", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".search"), "BlogSearch", "BlogSearch", connection, how, table, return_type, args, **options)
 
 
 def search_news(
@@ -40,8 +42,9 @@ def search_news(
         start: int | Iterable[int] = 1,
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -49,7 +52,7 @@ def search_news(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".search"), "NewsSearch", "NewsSearch", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".search"), "NewsSearch", "NewsSearch", connection, how, table, return_type, args, **options)
 
 
 def search_book(
@@ -59,8 +62,9 @@ def search_book(
         start: int | Iterable[int] = 1,
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -68,7 +72,7 @@ def search_book(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".search"), "BookSearch", "BookSearch", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".search"), "BookSearch", "BookSearch", connection, how, table, return_type, args, **options)
 
 
 def search_cafe(
@@ -78,8 +82,9 @@ def search_cafe(
         start: int | Iterable[int] = 1,
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -87,7 +92,7 @@ def search_cafe(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".search"), "CafeSearch", "CafeSearch", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".search"), "CafeSearch", "CafeSearch", connection, how, table, return_type, args, **options)
 
 
 def search_kin(
@@ -97,8 +102,9 @@ def search_kin(
         start: int | Iterable[int] = 1,
         display: int = 100,
         sort: Literal["sim","date","point"] = "sim",
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -106,7 +112,7 @@ def search_kin(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".search"), "KiNSearch", "KiNSearch", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".search"), "KiNSearch", "KiNSearch", connection, how, table, return_type, args, **options)
 
 
 def search_image(
@@ -117,8 +123,9 @@ def search_image(
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
         filter: Literal["all","large","medium","small"] = "all",
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -126,7 +133,7 @@ def search_image(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".search"), "ImageSearch", "ImageSearch", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".search"), "ImageSearch", "ImageSearch", connection, how, table, return_type, args, **options)
 
 
 def search_shop(
@@ -136,8 +143,9 @@ def search_shop(
         start: int | Iterable[int] = 1,
         display: int = 100,
         sort: Literal["sim","date","asc","dsc"] = "sim",
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -145,7 +153,7 @@ def search_shop(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".search"), "ShoppingSearch", "ShoppingSearch", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".search"), "ShoppingSearch", "ShoppingSearch", connection, how, table, return_type, args, **options)
 
 
 def rank_shop(
@@ -155,8 +163,9 @@ def rank_shop(
         start: int | Iterable[int] = 1,
         display: int = 100,
         sort: Literal["sim","date","asc","dsc"] = "sim",
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> dict[str,JsonObject]:
@@ -164,4 +173,4 @@ def rank_shop(
     table = [get_table(transform_options, "rank_table"), get_table(transform_options, "product_table", "product")]
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".search"), "ShoppingRank", "ShoppingRank", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".search"), "ShoppingRank", "ShoppingRank", connection, how, table, return_type, args, **options)

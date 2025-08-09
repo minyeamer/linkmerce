@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal, Type
     from linkmerce.common.extract import Extractor, JsonObject
     from linkmerce.common.transform import Transformer, DBTransformer, DuckDBTransformer
+    from linkmerce.common.load import DuckDBConnection
 
 
 ###################################################################
@@ -109,14 +110,18 @@ def run_with_duckdb(
         module: str,
         extractor: str,
         transformer: str | None = None,
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
         table: str | Sequence[str] = ":default:",
-        return_type: Literal["raw","csv","json","parquet"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         args: tuple = tuple(),
         kwargs: dict = dict(),
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> Any | dict[str,Any]:
+    if connection is not None:
+        return run_with_duckdb_connection(
+            module, connection, extractor, transformer, how, table, return_type, args, kwargs, extract_options, transform_options)
     extract_options = extract_options.copy() if isinstance(extract_options, dict) else dict()
     has_parser = not ((return_type == "raw") or ("parser" in extract_options))
     with import_dbt(module if has_parser else None, transformer)(**(transform_options or dict())) as transformer_:
@@ -125,6 +130,30 @@ def run_with_duckdb(
         extractor_ = import_extractor(module, extractor)(**extract_options)
         results = _extract(extractor_, how, args, kwargs)
         return _fetch_all_from_table(transformer_, results, table, return_type)
+
+
+def run_with_duckdb_connection(
+        module: str,
+        connection: DuckDBConnection,
+        extractor: str,
+        transformer: str | None = None,
+        how: Literal["sync","async","async_loop"] = "sync",
+        table: str | Sequence[str] = ":default:",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        args: tuple = tuple(),
+        kwargs: dict = dict(),
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> Any | dict[str,Any]:
+    extract_options = extract_options.copy() if isinstance(extract_options, dict) else dict()
+    transform_options = dict(transform_options or dict(), db_info=dict(conn=connection))
+    has_parser = not ((return_type == "raw") or ("parser" in extract_options))
+    transformer_ = import_dbt(module, transformer)(**transform_options)
+    if transformer and has_parser:
+        extract_options["parser"] = transformer_.transform
+    extractor_ = import_extractor(module, extractor)(**extract_options)
+    results = _extract(extractor_, how, args, kwargs)
+    return _fetch_all_from_table(transformer_, results, table, return_type)
 
 
 def get_table_from_options(transform_options: dict | None = None, key: str = "table", default: str = ":default:") -> str:
@@ -143,14 +172,15 @@ def _fetch_all_from_table(
         transformer: DuckDBTransformer,
         results: JsonObject,
         table: str | Sequence[str] = ":default:",
-        return_type: Literal["raw","csv","json","parquet"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
     ) -> Any | dict[str,Any]:
+    if return_type == "none":
+        return
     if (return_type == "raw") or (transformer.conn is None):
         return results
-    fetch_all = getattr(transformer, f"fetch_all_to_{return_type}")
-    if isinstance(table, str):
-        return fetch_all(_get_table(transformer, table))
+    elif isinstance(table, str):
+        return transformer.fetch_all(return_type, _get_table(transformer, table))
     elif isinstance(table, Sequence):
-        return {_get_table(transformer, table_): fetch_all(table_) for table_ in table}
+        return {_get_table(transformer, table_): transformer.fetch_all(return_type, table_) for table_ in table}
     else:
         raise TypeError("Invalid type for table. A string or sequence type is allowed.")

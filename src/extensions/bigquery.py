@@ -1,21 +1,24 @@
 from __future__ import annotations
 
-from google.cloud.bigquery import Client as BigQueryClient
-from google.cloud.bigquery.job import LoadJobConfig
-import functools
-
-from typing import TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, Literal, Sequence, TypeVar
-    from google.cloud.bigquery.table import Row
+    from typing import Any, Iterator, Literal, TypeVar
     JsonString = TypeVar("JsonString", str)
     Path = TypeVar("Path", str)
+
+    from linkmerce.common.load import DuckDBConnection
+    from google.cloud.bigquery import Client as BigQueryClient
+    from google.cloud.bigquery import SchemaField
+    from google.cloud.bigquery.job import LoadJobConfig
+    from google.cloud.bigquery.table import Row
 
 
 BIGQUERY_JOB = {"append": "WRITE_APPEND", "replace": "WRITE_TRUNCATE"}
 
 DEFAULT_ACCOUNT = "env/service_account.json"
+TEMP_TABLE = "temp_table"
+TEMP_GROUPBY_TABLE = "temp_groupby_table"
 
 
 class ServiceAccount(dict):
@@ -36,25 +39,13 @@ class ServiceAccount(dict):
             raise ValueError("Unrecognized service account.")
 
 
-def create_connection(project_id: str, account: ServiceAccount) -> BigQueryClient:
+def connect(project_id: str, account: ServiceAccount) -> BigQueryClient:
+    from google.cloud.bigquery import Client as BigQueryClient
     account = account if isinstance(account, ServiceAccount) else ServiceAccount(account)
     return BigQueryClient.from_service_account_info(account, project=project_id)
 
 
-def with_service_account(func):
-    @functools.wraps(func)
-    def wrapper(*args, account: ServiceAccount | None = None, **kwargs):
-        if account is None:
-            account = ServiceAccount(DEFAULT_ACCOUNT)
-        return func(*args, account=account, **kwargs)
-    return wrapper
-
-
-###################################################################
-########################### Select Table ##########################
-###################################################################
-
-def _select_table(client: BigQueryClient, query: str) -> Iterator[dict[str,Any]]:
+def select_table(client: BigQueryClient, query: str) -> Iterator[dict[str,Any]]:
     if query.split(' ', maxsplit=1)[0].upper() != "SELECT":
         query = f"SELECT * FROM `{query}`;"
     def row_to_dict(row: Row) -> dict[str,Any]:
@@ -62,134 +53,143 @@ def _select_table(client: BigQueryClient, query: str) -> Iterator[dict[str,Any]]
     return map(row_to_dict, client.query(query).result())
 
 
-@with_service_account
-def select_table_to_json(
-        query: str,
-        project_id: str,
-        *,
-        account: ServiceAccount | None = None,
-    ) -> list[dict[str,Any]]:
-    client = create_connection(project_id, account)
-    return _select_table(client, query)
-
-
 ###################################################################
 ############################ Load Table ###########################
 ###################################################################
 
-def _write_append(
-        client: BigQueryClient, 
-        table: str,
+class PartitionOptions(dict):
+    def __init__(
+            self,
+            by: str | list[str] | None = None,
+            ascending: bool | None = True,
+            condition: str | None = None,
+            if_errors: Literal["ignore","raise"] = "raise",
+            **kwargs
+        ):
+        super().__init__(by=by, ascending=ascending, condition=condition, if_errors=if_errors)
+
+
+def init_load_job(
+        schema: Sequence[dict | SchemaField] | None = None,
+        source_format: str | None = "PARQUET",
+        write_disposition: str | None = "WRITE_APPEND",
+        **kwargs
+    ) -> LoadJobConfig:
+    from google.cloud.bigquery.job import LoadJobConfig
+    if isinstance(schema, Sequence):
+        kwargs["schema"] = to_bigquery_schema(schema)
+    if source_format is not None:
+        kwargs["source_format"] = source_format
+    if write_disposition is not None:
+        kwargs["write_disposition"] = write_disposition
+    return LoadJobConfig(**kwargs)
+
+
+def to_bigquery_schema(schema: Sequence[dict | SchemaField]) -> list[SchemaField]:
+    from google.cloud.bigquery import SchemaField
+    def map(type: str | None = None, **kwargs) -> SchemaField:
+        if type is not None:
+            kwargs["field_type"] = type
+        return SchemaField(**kwargs)
+    return [field if isinstance(field, SchemaField) else map(**field) for field in schema]
+
+
+def load_table_from_duckdb(
+        client: BigQueryClient,
+        connection: DuckDBConnection,
+        from_table: str,
+        to_table: str,
         project_id: str,
-        data: list[dict],
-        partition: dict | None = None,
-        serialize: bool = True,
+        schema: Sequence[dict | SchemaField] = None,
+        partition_by: PartitionOptions = dict(),
         progress: bool = True,
     ) -> bool:
-    if isinstance(partition, dict) and ("field" in partition):
-        from linkmerce.utils.duckdb import Partition
-        iterator = Partition(data, **partition)
-    else:
-        iterator = [data]
-
+    from linkmerce.common.load import DuckDBIterator
+    
     from tqdm.auto import tqdm
-    import json
-    job_config = LoadJobConfig(write_disposition="WRITE_APPEND")
-    for rows in tqdm(iterator, desc=f"Uploading data to '{project_id}.{table}'", disable=(not progress)):
-        if serialize:
-            rows = json.loads(json.dumps(rows, ensure_ascii=False, default=str))
-        client.load_table_from_json(rows, f"{project_id}.{table}", job_config=job_config).result()
+    from io import BytesIO
+
+    if not connection.exists_table(from_table):
+        return True
+
+    iterator = DuckDBIterator(connection, format="parquet").from_table(from_table)
+    if partition_by:
+        iterator = iterator.partition_by(**partition_by)
+
+    job_config = init_load_job(schema=schema)
+    for bytes_ in tqdm(iterator, desc=f"Uploading data to '{project_id}.{to_table}'", disable=(not progress)):
+        client.load_table_from_file(BytesIO(bytes_), f"{project_id}.{to_table}", job_config=job_config).result()
     return True
 
 
-@with_service_account
-def load_table_from_json(
-        table: str,
+def overwrite_table_from_duckdb(
+        client: BigQueryClient,
+        connection: DuckDBConnection,
+        from_table: str,
+        to_table: str,
         project_id: str,
-        data: list[dict],
-        partition: dict | None = None,
-        serialize: bool = True,
-        progress: bool = True,
-        *,
-        account: ServiceAccount | None = None,
-    ) -> bool:
-    if not data:
-        return True
-    with create_connection(project_id, account) as client:
-        return _write_append(client, table, project_id, data, partition, serialize, progress)
-
-
-@with_service_account
-def overwrite_table_from_json(
-        table: str,
-        project_id: str,
-        data: list[dict],
         condition: str | None = None,
-        partition: dict | None = None,
-        serialize: bool = True,
+        schema: Sequence[dict | SchemaField] = None,
+        partition_by: PartitionOptions = dict(),
         progress: bool = True,
-        *,
-        account: ServiceAccount | None = None,
+        dry_run: bool = False,
     ) -> bool:
-    if not data:
+    if not connection.exists_table(from_table):
         return True
-    with create_connection(project_id, account) as client:
-        success = False
-        where = _where(**(dict(condition=condition) if condition else (partition or dict())))
-        source = f"FROM `{table}` {where}"
 
-        existing_data = _select_table(client, f"SELECT * {source};")
-        client.query(f"DELETE {source};")
+    success = False
+    source = f"FROM `{project_id}.{to_table}` {connection.expr_where(condition, default=str())}"
+    existing_values = select_table(client, f"SELECT * {source};")
+    if dry_run:
+        _copy_bq_to_duckdb(connection, from_table, list(existing_values))
+        return True
+    client.query(f"DELETE {source};")
 
-        try:
-            success = _write_append(client, table, project_id, data, partition, serialize, progress)
-            return success
-        finally:
-            if not success:
-                _write_append(client, table, project_id, list(existing_data), serialize=serialize)
+    try:
+        success = load_table_from_duckdb(client, connection, from_table, to_table, project_id, schema, partition_by, progress)
+        return success
+    finally:
+        if not success:
+            _copy_bq_to_duckdb(connection, from_table, list(existing_values))
+            load_table_from_duckdb(client, connection, TEMP_TABLE, to_table, project_id, schema, partition_by, progress=False)
 
 
-@with_service_account
-def upsert_table_from_json(
-        table: str,
+def upsert_table_from_duckdb(
+        client: BigQueryClient,
+        connection: DuckDBConnection,
+        from_table: str,
+        to_table: str,
         project_id: str,
-        data: list[dict],
         by: str | Sequence[str],
         agg: str | dict[str,Literal["first","count","sum","avg","min","max"]],
         condition: str | None = None,
-        partition: dict | None = None,
-        serialize: bool = True,
+        schema: Sequence[dict | SchemaField] = None,
+        partition_by: PartitionOptions = dict(),
         progress: bool = True,
-        *,
-        account: ServiceAccount | None = None,
+        dry_run: bool = False,
     ) -> bool:
-    if not data:
+    if not connection.exists_table(from_table):
         return True
-    with create_connection(project_id, account) as client:
-        success = False
-        where = _where(**(dict(condition=condition) if condition else (partition or dict())))
-        source = f"FROM `{table}` {where}"
 
-        from linkmerce.utils.duckdb import groupby
-        existing_data = list(_select_table(client, f"SELECT * {source};"))
-        combined_data = groupby(data + existing_data, by, agg)
-        client.query(f"DELETE {source};")
+    success = False
+    source = f"FROM `{project_id}.{to_table}` {connection.expr_where(condition, default=str())}"
+    existing_values = select_table(client, f"SELECT * {source};")
+    _copy_bq_to_duckdb(connection, from_table, list(existing_values))
 
-        try:
-            success = _write_append(client, table, project_id, combined_data, partition, serialize, progress)
-            return success
-        finally:
-            if not success:
-                _write_append(client, table, project_id, existing_data, serialize=serialize)
+    union = f"((SELECT * FROM {from_table}) UNION ALL (SELECT * FROM {TEMP_TABLE}))"
+    connection.groupby(union, by, agg).to_table(TEMP_GROUPBY_TABLE)
+    if dry_run:
+        return True
+    client.query(f"DELETE {source};")
+
+    try:
+        success = load_table_from_duckdb(client, connection, TEMP_GROUPBY_TABLE, to_table, project_id, schema, partition_by, progress)
+        return success
+    finally:
+        if not success:
+            load_table_from_duckdb(client, connection, TEMP_TABLE, to_table, project_id, schema, partition_by, progress=False)
 
 
-def _where(condition: str | None = None, field: str | None = None, **kwargs) -> str:
-    if condition is not None:
-        if condition.split(' ', maxsplit=1)[0].upper() == "WHERE":
-            return condition
-        elif field:
-            return f"WHERE {field} {condition}"
-        else:
-            return "WHERE TRUE"
-    else:
-        return "WHERE TRUE"
+def _copy_bq_to_duckdb(connection: DuckDBConnection, existing_table: str, existing_values: list[dict]):
+    connection.copy_table(existing_table, TEMP_TABLE, option="replace", temp=True)
+    connection.insert_into_table_from_json(TEMP_TABLE, existing_values)

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, Literal
     from linkmerce.common.extract import JsonObject
+    from linkmerce.common.load import DuckDBConnection
     import datetime as dt
 
 
@@ -22,8 +23,9 @@ def brand_catalog(
         is_brand_catalog: bool | None = None,
         page: int | list[int] | None = 0,
         page_size: int = 100,
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -31,7 +33,7 @@ def brand_catalog(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".catalog"), "BrandCatalog", "BrandCatalog", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".catalog"), "BrandCatalog", "BrandCatalog", connection, how, table, return_type, args, **options)
 
 
 def brand_product(
@@ -42,8 +44,9 @@ def brand_product(
         is_brand_catalog: bool | None = None,
         page: int | list[int] | None = 0,
         page_size: int = 100,
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -51,7 +54,7 @@ def brand_product(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".catalog"), "BrandProduct", "BrandProduct", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".catalog"), "BrandProduct", "BrandProduct", connection, how, table, return_type, args, **options)
 
 
 def brand_price(
@@ -62,8 +65,9 @@ def brand_price(
         is_brand_catalog: bool | None = None,
         page: int | list[int] | None = 0,
         page_size: int = 100,
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -71,7 +75,7 @@ def brand_price(
     table = [get_table(transform_options, "price_table"), get_table(transform_options, "product_table", "product")]
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".catalog"), "BrandPrice", "BrandPrice", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".catalog"), "BrandPrice", "BrandPrice", connection, how, table, return_type, args, **options)
 
 
 def store_sales(
@@ -82,8 +86,9 @@ def store_sales(
         date_type: Literal["daily","weekly","monthly"] = "daily",
         page: int | Iterable[int] = 1,
         page_size: int = 1000,
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -91,7 +96,7 @@ def store_sales(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".sales"), "StoreSales", "StoreSales", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".sales"), "StoreSales", "StoreSales", connection, how, table, return_type, args, **options)
 
 
 def category_sales(
@@ -102,8 +107,9 @@ def category_sales(
         date_type: Literal["daily","weekly","monthly"] = "daily",
         page: int | Iterable[int] = 1,
         page_size: int = 1000,
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -111,7 +117,7 @@ def category_sales(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".sales"), "CategorySales", "CategorySales", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".sales"), "CategorySales", "CategorySales", connection, how, table, return_type, args, **options)
 
 
 def product_sales(
@@ -122,8 +128,9 @@ def product_sales(
         date_type: Literal["daily","weekly","monthly"] = "daily",
         page: int | Iterable[int] = 1,
         page_size: int = 1000,
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -131,7 +138,7 @@ def product_sales(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".sales"), "ProductSales", "ProductSales", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".sales"), "ProductSales", "ProductSales", connection, how, table, return_type, args, **options)
 
 
 def aggregated_sales(
@@ -142,8 +149,9 @@ def aggregated_sales(
         date_type: Literal["daily","weekly","monthly"] = "daily",
         page: int | Iterable[int] = 1,
         page_size: int = 1000,
+        connection: DuckDBConnection | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        return_type: Literal["csv","json","parquet","raw"] = "json",
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
@@ -151,4 +159,4 @@ def aggregated_sales(
     table = [get_table(transform_options, "sales_table"), get_table(transform_options, "product_table", "product")]
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".sales"), "AggregatedSales", "AggregatedSales", how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".sales"), "AggregatedSales", "AggregatedSales", connection, how, table, return_type, args, **options)

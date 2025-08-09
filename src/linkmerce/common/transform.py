@@ -14,8 +14,7 @@ if TYPE_CHECKING:
     from linkmerce.common.load import Connection, DuckDBConnection
     from linkmerce.common.models import Models
 
-    from duckdb import DuckDBPyRelation
-    from io import BytesIO
+    from duckdb import DuckDBPyConnection, DuckDBPyRelation
     from pathlib import Path
 
 
@@ -117,14 +116,17 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
 
     ############################## Fetch ##############################
 
+    def fetch_all(self, format: Literal["csv","json","parquet"], query: str) -> list[tuple] | list[dict] | bytes:
+        return self.conn.fetch_all(format, query)
+
     def fetch_all_to_csv(self, query: str) -> list[tuple]:
         return self.conn.fetch_all_to_csv(query)
 
     def fetch_all_to_json(self, query: str) -> list[dict]:
         return self.conn.fetch_all_to_json(query)
 
-    def fetch_all_to_parquet(self, query: str, file_name: str | None = None) -> BytesIO | None:
-        return self.conn.fetch_all_to_parquet(query, file_name)
+    def fetch_all_to_parquet(self, query: str) -> bytes:
+        return self.conn.fetch_all_to_parquet(query)
 
     ############################### CRUD ##############################
 
@@ -207,9 +209,9 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
     def get_connection(self) -> DuckDBConnection:
         return self.__conn
 
-    def set_connection(self, **kwargs):
+    def set_connection(self, conn: DuckDBConnection | None = None, **kwargs):
         from linkmerce.common.load import DuckDBConnection
-        self.__conn = DuckDBConnection(**kwargs)
+        self.__conn = conn if isinstance(conn, DuckDBConnection) else  DuckDBConnection(**kwargs)
 
     def __enter__(self) -> DuckDBTransformer:
         return self
@@ -221,60 +223,82 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
     ############################# Execute #############################
 
     @overload
-    def execute(self, query: str, **params) -> DuckDBPyRelation:
+    def execute(self, query: str, **params) -> DuckDBPyConnection:
         ...
 
     @overload
-    def execute(self, query: str, obj: list, **params) -> DuckDBPyRelation:
+    def execute(self, query: str, obj: list, **params) -> DuckDBPyConnection:
         ...
 
-    def execute(self, query: str, obj: list | None = None, **params) -> DuckDBPyRelation:
+    def execute(self, query: str, obj: list | None = None, **params) -> DuckDBPyConnection:
         if obj is None:
             return self.conn.execute(query, **params)
         else:
             return self.conn.execute(query, obj, **params)
 
+    ############################### SQL ###############################
+
+    @overload
+    def sql(self, query: str, **params) -> DuckDBPyRelation:
+        ...
+
+    @overload
+    def sql(self, query: str, obj: list, **params) -> DuckDBPyRelation:
+        ...
+
+    def sql(self, query: str, obj: list | None = None, **params) -> DuckDBPyRelation:
+        if obj is None:
+            return self.conn.sql(query, **params)
+        else:
+            return self.conn.sql(query, obj, **params)
+
     ########################### Fetch Table ###########################
+
+    def fetch_all(
+            self,
+            format: Literal["csv","json","parquet"],
+            table: Literal[":default:"] | TableName = ":default:",
+        ) -> list[tuple] | list[tuple] | bytes:
+        try:
+            return getattr(self, f"fetch_all_to_{format}")(table)
+        except AttributeError:
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
 
     def fetch_all_to_csv(self, table: Literal[":default:"] | TableName = ":default:") -> list[tuple]:
         table = self.default_table if table == ":default:" else table
-        return self.conn.fetch_all_to_csv(table=table)
+        return self.conn.fetch_all_to_csv(f"SELECT * FROM {table}")
 
     def fetch_all_to_json(self, table: Literal[":default:"] | TableName = ":default:") -> list[dict]:
         table = self.default_table if table == ":default:" else table
-        return self.conn.fetch_all_to_json(table=table)
+        return self.conn.fetch_all_to_json(f"SELECT * FROM {table}")
 
-    def fetch_all_to_parquet(
-            self,
-            table: Literal[":default:"] | TableName = ":default:",
-            file_name: str | None = None
-        ) -> BytesIO | None:
+    def fetch_all_to_parquet(self, table: Literal[":default:"] | TableName = ":default:") -> bytes:
         table = self.default_table if table == ":default:" else table
-        return self.conn.fetch_all_to_parquet(table=table, file_name=file_name)
+        return self.conn.fetch_all_to_parquet(f"SELECT * FROM {table}")
 
     ############################### CRUD ##############################
 
-    def create(self, query: str = str(), key: str = "create", render: dict | None = None, params: dict | None = None) -> DuckDBPyRelation:
+    def create(self, query: str = str(), key: str = "create", render: dict | None = None, params: dict | None = None) -> DuckDBPyConnection:
         query = self._get_or_render_query(query, key, render)
         return self.conn.execute(query, **(params or dict()))
 
-    def select(self, query: str = str(), key: str = "select", render: dict | None = None, params: dict | None = None) -> DuckDBPyRelation:
+    def select(self, query: str = str(), key: str = "select", render: dict | None = None, params: dict | None = None) -> DuckDBPyConnection:
         query = self._get_or_render_query(query, key, render)
         return self.conn.execute(query, **(params or dict()))
 
-    def update(self, query: str = str(), key: str = "update", render: dict | None = None, params: dict | None = None) -> DuckDBPyRelation:
+    def update(self, query: str = str(), key: str = "update", render: dict | None = None, params: dict | None = None) -> DuckDBPyConnection:
         query = self._get_or_render_query(query, key, render)
         return self.conn.execute(query, **(params or dict()))
 
-    def delete(self, query: str = str(), key: str = "delete", render: dict | None = None, params: dict | None = None) -> DuckDBPyRelation:
+    def delete(self, query: str = str(), key: str = "delete", render: dict | None = None, params: dict | None = None) -> DuckDBPyConnection:
         query = self._get_or_render_query(query, key, render)
         return self.conn.execute(query, **(params or dict()))
 
-    def insert_into(self, query: str = str(), key: str = "insert", render: dict | None = None, params: dict | None = None) -> DuckDBPyRelation:
+    def insert_into(self, query: str = str(), key: str = "insert", render: dict | None = None, params: dict | None = None) -> DuckDBPyConnection:
         query = self._get_or_render_query(query, key, render)
         return self.conn.execute(query, **(params or dict()))
 
-    def upsert_into(self, query: str = str(), key: str = "upsert", render: dict | None = None, params: dict | None = None) -> DuckDBPyRelation:
+    def upsert_into(self, query: str = str(), key: str = "upsert", render: dict | None = None, params: dict | None = None) -> DuckDBPyConnection:
         query = self._get_or_render_query(query, key, render)
         return self.conn.execute(query, **(params or dict()))
 
@@ -288,7 +312,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             render: dict | None = None,
             params: dict | None = None,
             **kwargs
-        ) -> DuckDBPyRelation:
+        ) -> DuckDBPyConnection:
         render = self._put_items_into_render_kwargs(render, table=table)
         return self.create(query, key, render, params)
 
@@ -300,7 +324,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             render: dict | None = None,
             params: dict | None = None,
             **kwargs
-        ) -> DuckDBPyRelation:
+        ) -> DuckDBPyConnection:
         render = self._put_items_into_render_kwargs(render, table=table)
         return self.select(query, key, render, params)
 
@@ -312,7 +336,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             render: dict | None = None,
             params: dict | None = None,
             **kwargs
-        ) -> DuckDBPyRelation:
+        ) -> DuckDBPyConnection:
         render = self._put_items_into_render_kwargs(render, table=table)
         return self.update(query, key, render, params)
 
@@ -324,7 +348,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             render: dict | None = None,
             params: dict | None = None,
             **kwargs
-        ) -> DuckDBPyRelation:
+        ) -> DuckDBPyConnection:
         render = self._put_items_into_render_kwargs(render, table=table)
         return self.delete(query, key, render, params)
 
@@ -338,7 +362,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             render: dict | None = None,
             params: dict | None = None,
             **kwargs
-        ) -> DuckDBPyRelation:
+        ) -> DuckDBPyConnection:
         if values is not None:
             values = self.expr_values(values)
         render = self._put_items_into_render_kwargs(render, table=table, values=values)
@@ -354,7 +378,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             render: dict | None = None,
             params: dict | None = None,
             **kwargs
-        ) -> DuckDBPyRelation:
+        ) -> DuckDBPyConnection:
         if values is not None:
             values = self.expr_values(values)
         render = self._put_items_into_render_kwargs(render, table=table, values=values)
