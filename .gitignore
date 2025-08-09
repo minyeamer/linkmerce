@@ -26,6 +26,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+build.sh
 dist.sh
 
 # PyInstaller
@@ -153,6 +154,43 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
+# PyCharm
+#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
+#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+.idea/
+*.iml
+
+# Visual Studio Code
+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
+#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#  you could uncomment the following to ignore the entire vscode folder
+.vscode/
+
+# vim
+*.swp
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# OSX
+.DS_Store
+
+# SQL Server backups
+*.bkp
+
+# Spark
+rat-results.txt
+
 # mkdocs documentation
 /site
 
@@ -169,26 +207,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
-
-# Abstra
-# Abstra is an AI-powered process automation framework.
-# Ignore directories containing user credentials, local state, and settings.
-# Learn more at https://abstra.io/docs
-.abstra/
-
-# Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
-#  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
-#  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
 
 # Ruff stuff:
 .ruff_cache/
@@ -208,9 +226,83 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# OS temp files
-.DS_Store
+# Airflow configuration
+airflow.cfg
+airflow_login.py
+dbinit.py
+initdb.py
+secrets.py
+
+# Airflow sqlite databases
+airflow.db
+
+# Airflow temporary artifacts
+airflow-core/src/airflow/git_version
+airflow-core/src/airflow/ui/coverage/
+files/
+# and legacy ones
+airflow/git_version
+airflow/ui/coverage/
+logs/
+airflow-webserver.pid
+airflow-api-server.pid
+standalone_admin_password.txt
+warnings.txt
+warn-summary-*.txt
+
+# Git stuff
+# Kubernetes generated templated files
+*.generated
+*.tar.gz
+scripts/ci/kubernetes/kube/.generated/airflow.yaml
+scripts/ci/kubernetes/docker/requirements.txt
+
+# Node & Webpack Stuff
+*.entry.js
+node_modules
+npm-debug.log*
+derby.log
+metastore_db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+/.vite/
+# Exclude the ui .vite dir
+airflow-core/src/airflow/ui/.vite/
+# And the legacy old files just in case
+airflow/ui/.vite/
+# Add the auth manager vite folder just in case
+airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.vite/
+.pnpm-store
+*.tsbuildinfo
+
+# Airflow log files when airflow is run locally
+airflow-*.err
+airflow-*.out
+airflow-*.log
+airflow-*.pid
+.airflow_db_initialised
+
+# Legacy Provider-related ignores
+/airflow/providers/__init__.py
+
+# used to checkout target-branch in CI
+/target-airflow
+
+# Dask Executor tests generate this directory
+/tests/executors/dask-worker-space/
+
+# airflow-build-dockerfile and correconding ignore file
+airflow-build-dockerfile*
+
+# Ignore zip files https://github.com/apache/airflow/issues/46449
+*.zip
 
 # Debug files
 debug*.ipynb
 debug*.sh
+
+airflow/extensions/
