@@ -7,6 +7,9 @@ from typing import Any, Callable, Hashable, IO, TypeVar, Union, overload, TYPE_C
 
 if TYPE_CHECKING:
     from typing import Coroutine, Literal, Sequence
+    _KT = TypeVar("_KT", bound=Hashable)
+    _VT = TypeVar("_VT", bound=Any)
+
     from linkmerce.common.tasks import TaskOption, TaskOptions
     from linkmerce.common.tasks import RequestLoop, RequestEach, RequestEachLoop
     from linkmerce.common.tasks import PaginateAll, RequestEachPages
@@ -16,11 +19,9 @@ if TYPE_CHECKING:
     from bs4 import BeautifulSoup
     import datetime as dt
 
-_KT = TypeVar("_KT", bound=Hashable)
-_VT = TypeVar("_VT", bound=Any)
-
 Headers = dict[_KT,_VT]
 Variables = dict[_KT,_VT]
+
 JsonObject = Union[dict, list]
 JsonSerialize = Union[dict, list, bytes, IO]
 ResponseComponent = Union[int, bytes, str, JsonObject, dict[str,str]]

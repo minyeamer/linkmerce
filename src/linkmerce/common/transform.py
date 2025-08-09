@@ -7,14 +7,16 @@ from typing import overload, TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any, Literal, Sequence, Type, TypeVar
     from types import TracebackType
-    from linkmerce.common.load import Connection, DuckDBConnection
-    from linkmerce.common.models import Models
-    from duckdb import DuckDBPyRelation
-    from io import BytesIO
-    from pathlib import Path
     Expression = TypeVar("Expression", bound=str)
     TableName = TypeVar("TableName", bound=str)
     QueryKey = TypeVar("QueryKey", bound=str)
+
+    from linkmerce.common.load import Connection, DuckDBConnection
+    from linkmerce.common.models import Models
+
+    from duckdb import DuckDBPyRelation
+    from io import BytesIO
+    from pathlib import Path
 
 
 class Transformer(metaclass=ABCMeta):
