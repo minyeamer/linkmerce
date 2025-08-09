@@ -28,8 +28,9 @@ class _SalesTransformer(DuckDBTransformer):
             if "error" not in obj:
                 params = dict(mall_seq=mall_seq, end_date=end_date)
                 if self.start_date:
+                    sales = obj["data"][f"{self.sales_type}Sales"]
                     params.update(start_date=start_date)
-                return self.insert_into_table(obj["data"][f"{self.sales_type}Sales"], params=params)
+                return self.insert_into_table(sales, params=params) if sales else None
             else:
                 self.raise_request_error(obj)
         else:

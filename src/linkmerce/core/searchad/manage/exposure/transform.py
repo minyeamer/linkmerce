@@ -15,7 +15,8 @@ class ExposureDiagnosis(DuckDBTransformer):
     def transform(self, obj: JsonObject, keyword: str, is_own: bool | None = None, **kwargs):
         if isinstance(obj, dict):
             if not obj.get("code"):
-                return self.insert_into_table(obj["adList"], params=dict(keyword=keyword, is_own=is_own))
+                params = dict(keyword=keyword, is_own=is_own)
+                return self.insert_into_table(obj["adList"], params=params) if obj["adList"] else None
             else:
                 self.raise_request_error(obj)
         else:

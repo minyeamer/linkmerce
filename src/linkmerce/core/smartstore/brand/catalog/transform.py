@@ -17,8 +17,9 @@ class _CatalogTransformer(DuckDBTransformer):
     def transform(self, obj: JsonObject, mall_seq: int | str | None = None, **kwargs):
         if isinstance(obj, dict):
             if not obj.get("errors"):
+                items = obj["data"][self.object_type]["items"]
                 params = dict(mall_seq=mall_seq) if self.object_type == "products" else None
-                return self.insert_into_table(obj["data"][self.object_type]["items"], params=params)
+                return self.insert_into_table(items, params=params) if items else None
             else:
                 from linkmerce.utils.map import hier_get
                 msg = hier_get(obj, ["errors",0,"message"]) or "null"

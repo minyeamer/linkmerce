@@ -17,7 +17,8 @@ class _SearchTransformer(DuckDBTransformer):
     def transform(self, obj: JsonObject, query: str, start: int = 1, **kwargs):
         if isinstance(obj, dict):
             if "errorMessage" not in obj:
-                return self.insert_into_table(obj["items"], params=dict(keyword=query, start=(start-1)))
+                params = dict(keyword=query, start=(start-1))
+                return self.insert_into_table(obj["items"], params=params) if obj["items"] else None
             else:
                 self.raise_request_error(obj.get("errorMessage") or str())
         else:
@@ -67,12 +68,11 @@ class ShoppingRank(_SearchTransformer):
             self,
             rank_table: str = ":default:",
             product_table: str = "product",
-            render: dict | None = None,
-            params: dict | None = None,
+            params: dict = dict(),
             **kwargs
         ) -> tuple[DuckDBPyRelation,DuckDBPyRelation]:
-        rank = super().create_table(key="create_rank", table=rank_table, render=render, params=params)
-        product = super().create_table(key="create_product", table=product_table, render=render, params=params)
+        rank = super().create_table(key="create_rank", table=rank_table, params=params)
+        product = super().create_table(key="create_product", table=product_table, params=params)
         return rank, product
 
     def insert_into_table(
@@ -80,10 +80,9 @@ class ShoppingRank(_SearchTransformer):
             obj: list,
             rank_table: str = ":default:",
             product_table: str = "product",
-            render: dict | None = None,
-            params: dict | None = None,
+            params: dict = dict(),
             **kwargs
         ) -> tuple[DuckDBPyRelation,DuckDBPyRelation]:
-        rank = super().insert_into_table(obj, key="insert_rank", table=rank_table, values=":select_rank:", render=render, params=params)
-        product = super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:", render=render, params=params)
+        rank = super().insert_into_table(obj, key="insert_rank", table=rank_table, values=":select_rank:", params=params)
+        product = super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:")
         return rank, product
