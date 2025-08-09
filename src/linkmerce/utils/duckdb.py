@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import duckdb
 import functools
 
 from typing import TYPE_CHECKING
@@ -8,21 +7,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any, Literal, Sequence
     from duckdb import DuckDBPyConnection
+    from io import BytesIO
+    TableName = str
+    TableReturn = list[tuple] | list[dict] | BytesIO
 
 DEFAULT_TEMP_TABLE = "temp_table"
 
 NAME, TYPE = 0, 0
-
-
-def with_connection(func):
-    @functools.wraps(func)
-    def wrapper(*args, conn: DuckDBPyConnection | None = None, **kwargs):
-        if conn is None:
-            with duckdb.connect() as conn:
-                return func(*args, conn=conn, **kwargs)
-        else:
-            return func(*args, conn=conn, **kwargs)
-    return wrapper
 
 
 def get_columns(conn: DuckDBPyConnection, table: str) -> list[str]:
@@ -33,12 +24,12 @@ def get_columns(conn: DuckDBPyConnection, table: str) -> list[str]:
 ############################## Create #############################
 ###################################################################
 
-def create_table(
+def create_table_from_json(
         conn: DuckDBPyConnection,
         table: str,
         data: list[dict],
         option: Literal["replace", "ignore"] | None = None,
-        temp: bool = False
+        temp: bool = False,
     ):
     source = "SELECT data.* FROM (SELECT UNNEST($data) AS data)"
     query = f"{_create(option, temp)} {table} AS ({source})"
@@ -55,28 +46,78 @@ def _create(option: Literal["replace", "ignore"] | None = None, temp: bool = Fal
         return f"CREATE {temp} TABLE"
 
 
+def with_temp_table(func):
+    @functools.wraps(func)
+    def wrapper(conn: DuckDBPyConnection, source: TableName | list[dict], *args, **kwargs):
+        if not isinstance(source, str):
+            create_table_from_json(conn, DEFAULT_TEMP_TABLE, source, option="replace", temp=True)
+            source = DEFAULT_TEMP_TABLE
+            try:
+                return func(conn, source, *args, **kwargs)
+            finally:
+                conn.execute(f"DROP TABLE {source};")
+        else:
+            return func(conn, source, *args, **kwargs)
+    return wrapper
+
+
 ###################################################################
 ############################## Select #############################
 ###################################################################
 
+def select(
+        conn: DuckDBPyConnection,
+        query: str,
+        return_type: Literal["csv","json","parquet"],
+        params: dict | None = None,
+    ) -> TableReturn:
+    if return_type == "csv":
+        return select_to_csv(conn, query, params)
+    elif return_type == "json":
+        return select_to_json(conn, query, params)
+    elif return_type == "parquet":
+        return select_to_csv(conn, query, params=params)
+    else:
+        raise ValueError("Invalid value for return_type. Supported formats are: csv, json, parquet.")
+
+
 def select_to_csv(
+        conn: DuckDBPyConnection,
         query: str,
         params: dict | None = None,
-        conn: DuckDBPyConnection | None = None,
     ) -> list[tuple]:
-    relation = (conn if conn is not None else duckdb).execute(query, parameters=params)
+    relation = conn.execute(query, parameters=params)
     columns = [column[NAME] for column in relation.description]
     return [columns] + relation.fetchall()
 
 
 def select_to_json(
+        conn: DuckDBPyConnection,
         query: str,
         params: dict | None = None,
-        conn: DuckDBPyConnection | None = None,
     ) -> list[dict]:
-    relation = (conn if conn is not None else duckdb).execute(query, parameters=params)
+    relation = conn.execute(query, parameters=params)
     columns = [column[NAME] for column in relation.description]
     return [dict(zip(columns, row)) for row in relation.fetchall()]
+
+
+def select_to_parquet(
+        conn: DuckDBPyConnection,
+        query: str,
+        file_name: str | None = None,
+        params: dict | None = None,
+    ) -> BytesIO | None:
+    relation = conn.sql(query, params=params)
+    if file_name is None:
+        from io import BytesIO
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as temp_file:
+            file_path = temp_file.name
+            relation.to_parquet(file_path)
+            with open(file_path, "rb") as file:
+                return BytesIO(file.read())
+    else:
+        relation.to_parquet(file_name)
 
 
 ###################################################################
@@ -121,43 +162,21 @@ def _interval(value: str | int | None = None) -> str:
 
 
 ###################################################################
-############################## Rename #############################
-###################################################################
-
-@with_connection
-def rename_keys(
-        data: list[dict],
-        rename: dict[str,str],
-        *,
-        conn: DuckDBPyConnection | None = None,
-        temp_table: str = DEFAULT_TEMP_TABLE,
-    ) -> list[dict]:
-    create_table(conn, temp_table, data, option="ignore", temp=True)
-    def alias(column: str) -> str:
-        return f"{column} AS {rename[column]}" if column in rename else column
-    columns = ", ".join(map(alias, get_columns(conn, temp_table)))
-    query = f"SELECT {columns} FROM {temp_table};"
-    return select_to_json(query, conn=conn)
-
-
-###################################################################
 ############################# Group By ############################
 ###################################################################
 
-@with_connection
+@with_temp_table
 def groupby(
-        data: list[dict],
+        conn: DuckDBPyConnection,
+        source: TableName | list[dict],
         by: str | Sequence[str],
         agg: str | dict[str,Literal["count","sum","avg","min","max","first","last","list"]],
+        return_type: Literal["csv","json","parquet"],
         dropna: bool = True,
-        *,
-        conn: DuckDBPyConnection | None = None,
-        temp_table: str = DEFAULT_TEMP_TABLE,
-    ) -> list[dict]:
-    create_table(conn, temp_table, data, option="ignore", temp=True)
+    ) -> TableReturn:
     by = [by] if isinstance(by, str) else by
-    query = f"SELECT {', '.join(by)}, {_agg(agg)} FROM {temp_table} {_groupby(by, dropna)};"
-    return select_to_json(query, conn=conn)
+    query = f"SELECT {', '.join(by)}, {_agg(agg)} FROM {source} {_groupby(by, dropna)};"
+    return select(conn, query, return_type)
 
 
 def _groupby(by: Sequence[str], dropna: bool = True):
@@ -180,22 +199,6 @@ def _agg(func: str | dict[str,Literal["count","sum","avg","min","max","first","l
         return func
 
 
-@with_connection
-def combine_first(
-        *data: list[dict],
-        index: str | Sequence[str],
-        dropna: bool = True,
-        conn: DuckDBPyConnection | None = None,
-        temp_table: str = DEFAULT_TEMP_TABLE,
-    ) -> list[dict]:
-    from itertools import chain
-    create_table(conn, temp_table, list(chain.from_iterable(data)), option="ignore", temp=True)
-    index = [index] if isinstance(index, str) else index
-    agg = _agg({col: "first" for col in get_columns(conn, temp_table) if col not in index})
-    query = f"SELECT {', '.join(index)}, {agg} FROM {temp_table} {_groupby(index, dropna)};"
-    return select_to_json(query, conn=conn)
-
-
 ###################################################################
 ########################### Partition By ##########################
 ###################################################################
@@ -203,24 +206,23 @@ def combine_first(
 class Partition:
     def __init__(
             self,
-            data: list[dict],
+            conn: DuckDBPyConnection,
+            source: TableName | list[dict],
             field: str,
             type: str | None = None,
             condition: str | None = None,
             sort: bool = True,
-            temp_table: str = DEFAULT_TEMP_TABLE,
         ):
-        self.conn = duckdb.connect()
-        self.table = temp_table
-        try:
-            self.set_data(data)
-            self.set_field(field, type)
-            self.set_partitions(condition, sort)
-        except:
-            ...
+        self.conn = conn
+        self.set_table(source)
+        self.set_field(field, type)
+        self.set_partitions(condition, sort)
 
-    def set_data(self, data: list[dict]):
-        create_table(self.conn, self.table, data, option="ignore", temp=True)
+    def set_table(self, source: TableName | list[dict]):
+        if not isinstance(source, str):
+            create_table_from_json(self.conn, DEFAULT_TEMP_TABLE, source, option="replace", temp=True)
+            source = DEFAULT_TEMP_TABLE
+        self.table = source
 
     def set_field(self, field: str, type: str | None = None):
         if field not in get_columns(self.conn, self.table):
@@ -253,15 +255,6 @@ class Partition:
 
     def __len__(self) -> int:
         return len(self.partitions)
-
-    def __exit__(self):
-        self.close()
-
-    def close(self):
-        try:
-            self.conn.close()
-        except:
-            pass
 
 
 def _where(condition: str | None = None, field: str | None = None, **kwargs) -> str:

@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 CHROME_VERSION = 138
 
 
-def make_headers(
+def build_headers(
         authority: str = str(),
         accept: str = "*/*",
         encoding: str = "gzip, deflate, br",
