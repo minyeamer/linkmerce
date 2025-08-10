@@ -1,36 +1,40 @@
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 import pendulum
 
 
 with DAG(
-    dag_id = "rank_shop",
+    dag_id = "rank_ad",
     schedule = "0 6-18 * * *",
     start_date = pendulum.datetime(2025, 8, 11, tz="Asia/Seoul"),
     catchup = False,
-    tags = ["naver", "naver_openapi", "naver_rank"],
+    tags = ["searchad", "searchad_manage", "naver_rank"],
 ) as dag:
 
-    @task(task_id="client_info")
-    def client_info() -> list[dict]:
+    @task(task_id="customer_info")
+    def customer_info() -> list[dict]:
         from variables import list_accounts
-        return list_accounts(["naver","openapi"])
+        return list_accounts(["searchad","manage"])
+
+    @task(task_id="cookies")
+    def cookies() -> list[str]:
+        from variables import list_cookies
+        return list_cookies(["searchad","manage"])
 
     @task(task_id="tables")
     def tables() -> dict[str,str]:
         from variables import map_tables
-        return map_tables(["naver","openapi","rank_shop"])
+        return map_tables(["searchad","manage","rank_ad"])
 
     @task(task_id="schemas")
     def schemas() -> dict[str,list[dict]]:
         from variables import map_schemas
-        return map_schemas(["naver","openapi","rank_shop"])
+        return map_schemas(["searchad","manage","rank_ad"])
 
     @task(task_id="params")
     def params() -> tuple[list,dict]:
         from variables import read_params
-        params_ = read_params(["naver","openapi","product"])
+        params_ = read_params(["searchad","manage","product"])
         return params_["by"], params_["agg"]
 
     @task(task_id="service_account")
@@ -49,7 +53,7 @@ with DAG(
         import os
         import shutil
 
-        file_path = read_file_path(["naver","openapi","rank_shop"])
+        file_path = read_file_path(["searchad","manage","rank_ad"])
         if os.path.exists(file_path):
             shutil.rmtree(file_path)
         os.makedirs(file_path, exist_ok=True)
@@ -59,42 +63,51 @@ with DAG(
 
 
     @task(task_id="queries")
-    def queries(client_info: list[dict]) -> list[dict]:
+    def queries(customer_info: list[dict], cookies: list[str]) -> list[dict]:
         from variables import read_google_sheets
-        keywords = read_google_sheets(["naver","openapi","rank_shop"], "keyword", numericise_ignore=[1])
-        n_split = list(range(0, len(keywords), len(keywords)//len(client_info)))[:len(client_info)]
-        return [dict(client_info[i], query=keywords[start:end], seq=i) for i, (start, end) in enumerate(zip(n_split, (n_split[1:]+[None])))]
+        keywords = read_google_sheets(["searchad","manage","rank_ad"], "keyword", numericise_ignore=[1])
+        n_split = list(range(0, len(keywords), len(keywords)//len(customer_info)))[:len(customer_info)]
+        return [dict(customer_info[i], cookies=cookies[i], keyword=keywords[start:end], seq=i)
+                for i, (start, end) in enumerate(zip(n_split, (n_split[1:]+[None])))]
 
 
-    @task(task_id="etl_rank_shop", pool="nshopping_rank_pool")
-    def etl_rank_shop(queries: dict, **kwargs) -> dict:
+    @task(task_id="etl_rank_ad", pool="searchad_rank_pool")
+    def etl_rank_ad(queries: dict, **kwargs) -> list[dict]:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.naver.openapi import rank_shop
+        from linkmerce.api.searchad.manage import exposure_rank
         from extensions.bigquery import connect as connect_bigquery
         from extensions.bigquery import load_table_from_duckdb
         import os
+        import time
 
         temp_path, tables, schemas, _, service_account = _read_xcom(**kwargs)
         project_id = service_account["project_id"]
+        returns = list()
 
+        keywords = queries.pop("keyword", list())
         seq = queries.pop("seq", 0)
-        start = [1, 101, 201]
-        display = 100
-        sort = "sim"
+        domain = "search"
+        mobile = True
 
-        with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            results = rank_shop(**queries, start=start, display=display, sort=sort, connection=conn, how="async", return_type="parquet")
-            temp_file = {name: _write_parquet(results[name], os.path.join(temp_path, f"{name}/{seq}.parquet")) for name in ["data", "product"]}
+        for i in range(0, len(keywords), 100):
+            keyword = keywords[i:i+100]
 
-            with connect_bigquery(project_id, service_account) as client:
-                return dict(
-                    query = len(queries.get("query", list())),
-                    size = (start[-1] + display - 1),
-                    sort = sort,
-                    count = dict(rank=conn.count_table("data"), product=conn.count_table("product")),
-                    status = dict(rank=load_table_from_duckdb(client, conn, "data", tables["data"], project_id, schemas["data"]), product=None),
-                    temp_file = temp_file,
-                )
+            with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
+                results = exposure_rank(**queries, keyword=keyword, domain=domain, mobile=mobile, connection=conn, return_type="parquet")
+                temp_file = {name: _write_parquet(results[name], os.path.join(temp_path, f"{name}/{seq}_{i}.parquet")) for name in ["data", "product"]}
+
+                with connect_bigquery(project_id, service_account) as client:
+                    returns.append(dict(
+                        query = len(keyword),
+                        domain = domain,
+                        mobile = mobile,
+                        count = dict(rank=conn.count_table("data"), product=conn.count_table("product")),
+                        status = dict(rank=load_table_from_duckdb(client, conn, "data", tables["data"], project_id, schemas["data"]), product=None),
+                        temp_file = temp_file,
+                    ))
+            time.sleep(1)
+
+        return returns
 
     def _write_parquet(obj: bytes, temp_file: str) -> str:
         with open(temp_file, "wb") as file:
@@ -135,20 +148,7 @@ with DAG(
                 return dict(status = upsert_table_from_duckdb(*product_args))
 
 
-    match_catalog = TriggerDagRunOperator(
-        task_id = "match_catalog",
-        trigger_dag_id = "match_catalog",
-        trigger_run_id = None,
-        logical_date = "{{data_interval_start}}",
-        reset_dag_run = True,
-        wait_for_completion = False,
-        poke_interval = 60,
-        allowed_states = ["success"],
-        failed_states = None,
-    )
-
-
     read = [tables(), schemas(), params(), service_account()]
-    main = etl_rank_shop.expand(queries=queries(client_info()))
+    main = etl_rank_ad.expand(queries=queries(customer_info(), cookies()))
 
-    read >> mkdir() >> main >> refresh_rank() >> upsert_product() >> match_catalog
+    read >> mkdir() >> main >> refresh_rank() >> upsert_product()
