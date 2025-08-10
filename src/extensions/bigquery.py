@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from google.cloud.bigquery import Client as BigQueryClient
     from google.cloud.bigquery import SchemaField
     from google.cloud.bigquery.job import LoadJobConfig
-    from google.cloud.bigquery.table import Row
+    from google.cloud.bigquery.table import Row, RowIterator
 
 
 BIGQUERY_JOB = {"append": "WRITE_APPEND", "replace": "WRITE_TRUNCATE"}
@@ -51,6 +51,12 @@ def select_table(client: BigQueryClient, query: str) -> Iterator[dict[str,Any]]:
     def row_to_dict(row: Row) -> dict[str,Any]:
         return dict(row.items())
     return map(row_to_dict, client.query(query).result())
+
+
+def delete_table(client: BigQueryClient, query: str) -> RowIterator:
+    if query.split(' ', maxsplit=1)[0].upper() != "DELETE":
+        query = f"DELETE FROM `{query}` WHERE TRUE;"
+    return client.query(query).result()
 
 
 ###################################################################
