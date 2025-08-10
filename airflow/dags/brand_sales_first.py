@@ -59,8 +59,8 @@ with DAG(
         from extensions.bigquery import overwrite_table_from_duckdb
         from extensions.bigquery import upsert_table_from_duckdb
 
-        start_date = str(data_interval_end.subtract(days=2).date())
-        end_date = str(data_interval_end.subtract(days=1).date())
+        start_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=2).date())
+        end_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
         project_id = service_account["project_id"]
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
