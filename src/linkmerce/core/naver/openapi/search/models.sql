@@ -240,6 +240,7 @@ CREATE OR REPLACE TABLE {{ table }} (
     nvMid BIGINT PRIMARY KEY
   , mallPid BIGINT
   , productName VARCHAR
+  , wholeCategoryName VARCHAR
   , mallName VARCHAR
   , brandName VARCHAR
   , updatedAt TIMESTAMP NOT NULL
@@ -250,6 +251,7 @@ SELECT
     TRY_CAST(productId AS BIGINT) AS nvMid
   , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS mallPid
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS productName
+  , CONCAT_WS('>', category1, category2, category3, category4) AS wholeCategoryName
   , NULLIF(mallName, '네이버') AS mallName
   , NULLIF(brand, '') AS brandName
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updatedAt
@@ -261,6 +263,7 @@ INSERT INTO {{ table }} {{ values }}
 ON CONFLICT DO UPDATE SET
     mallPid = COALESCE(excluded.mallPid, mallPid)
   , productName = COALESCE(excluded.productName, productName)
+  , wholeCategoryName = COALESCE(excluded.wholeCategoryName, wholeCategoryName)
   , mallName = COALESCE(excluded.mallName, mallName)
   , brandName = COALESCE(excluded.brandName, brandName)
   , updatedAt = excluded.updatedAt;

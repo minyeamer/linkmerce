@@ -29,7 +29,7 @@ SELECT
   , NULLIF(fmpBrand, '') AS mallName
   , NULLIF(fmpMaker, '') AS makerName
   , imageUrl
-  , TRY_CAST(COALESCE(lowPrice, mobileLowPrice, NULL) AS INTEGER) AS salesPrice
+  , TRY_CAST(COALESCE(lowPrice, mobileLowPrice) AS INTEGER) AS salesPrice
 FROM {{ array }}
 WHERE ($is_own IS NULL) OR (isOwn = $is_own);
 
@@ -71,6 +71,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 CREATE OR REPLACE TABLE {{ table }} (
     productId BIGINT PRIMARY KEY
   , isNvMid BOOLEAN
+  , mallPid BIGINT
   , productName VARCHAR
   , wholeCategoryName VARCHAR
   , mallName VARCHAR
@@ -89,10 +90,11 @@ FROM (
           TRY_CAST(TRY_CAST(FROM_BASE64(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/[^/]+/([^.]+)', 1)) AS VARCHAR) AS BIGINT)
         ELSE NULL END) AS productId
     , PREFIX(imageUrl, 'https://shopping-') AS isNvMid
+    , NULL AS mallPid
     , productTitle AS productName
     , categoryNames AS wholeCategoryName
     , NULLIF(fmpBrand, '') AS mallName
-    , TRY_CAST(COALESCE(lowPrice, mobileLowPrice, NULL) AS INTEGER) AS salesPrice
+    , TRY_CAST(COALESCE(lowPrice, mobileLowPrice) AS INTEGER) AS salesPrice
     , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updatedAt
   FROM {{ array }}
   WHERE ($is_own IS NULL) OR (isOwn = $is_own)
