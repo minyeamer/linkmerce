@@ -179,8 +179,8 @@ class Connection(metaclass=ABCMeta):
 ###################################################################
 
 class DuckDBConnection(Connection):
-    def __init__(self, **kwargs):
-        self.set_connection(**kwargs)
+    def __init__(self, tzinfo: str | None = None, **kwargs):
+        self.set_connection(tzinfo, **kwargs)
 
     @property
     def conn(self) -> DuckDBPyConnection:
@@ -189,9 +189,11 @@ class DuckDBConnection(Connection):
     def get_connection(self) -> DuckDBPyConnection:
         return self.__conn
 
-    def set_connection(self, **kwargs):
+    def set_connection(self, tzinfo: str | None = None, **kwargs):
         import duckdb
         self.__conn = duckdb.connect(**kwargs)
+        if tzinfo is not None:
+            self.conn.execute(f"SET TimeZone = '{tzinfo}';")
 
     def close(self):
         try:
@@ -494,6 +496,9 @@ class DuckDBConnection(Connection):
             query = f"SELECT 1 FROM {table} LIMIT 1;"
             return bool(self.conn.execute(query).fetchone())
         return False
+
+    def count_table(self, table: str) -> int:
+        return self.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchall()[0][0]
 
     def get_columns(self, obj: str | DuckDBPyConnection) -> list[str]:
         if isinstance(obj, str):
