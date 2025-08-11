@@ -26,9 +26,9 @@ class _SalesTransformer(DuckDBTransformer):
         ):
         if isinstance(obj, dict):
             if "error" not in obj:
+                sales = obj["data"][f"{self.sales_type}Sales"]
                 params = dict(mall_seq=mall_seq, end_date=end_date)
                 if self.start_date:
-                    sales = obj["data"][f"{self.sales_type}Sales"]
                     params.update(start_date=start_date)
                 return self.insert_into_table(sales, params=params) if sales else None
             else:
