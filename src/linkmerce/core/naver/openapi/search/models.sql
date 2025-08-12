@@ -215,10 +215,10 @@ CREATE OR REPLACE TABLE {{ table }} (
     keyword VARCHAR
   , nvMid BIGINT
   , mallPid BIGINT
-  , productType TINYINT -- {0: "가격비교 상품", 1: "가격비교 비매칭 일반상품", 2: "가격비교 매칭 일반상품"}
+  , productType TINYINT -- {0: "가격비교 상품", 1: "가격비교 비매칭 일반상품", 2: "가격비교 매칭 일반상품", 3: "광고상품"}
   , displayRank SMALLINT
   , createdAt TIMESTAMP NOT NULL
-  , PRIMARY KEY (keyword, nvMid)
+  , PRIMARY KEY (keyword, displayRank)
 );
 
 -- ShoppingRank: select_rank
@@ -239,10 +239,12 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 CREATE OR REPLACE TABLE {{ table }} (
     nvMid BIGINT PRIMARY KEY
   , mallPid BIGINT
+  , productType TINYINT -- {0: "가격비교 상품", 1: "일반상품", 3: "광고상품"}
   , productName VARCHAR
   , wholeCategoryName VARCHAR
   , mallName VARCHAR
   , brandName VARCHAR
+  , salesPrice INTEGER
   , updatedAt TIMESTAMP NOT NULL
 );
 
@@ -250,10 +252,12 @@ CREATE OR REPLACE TABLE {{ table }} (
 SELECT
     TRY_CAST(productId AS BIGINT) AS nvMid
   , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS mallPid
+  , IF(link LIKE '%/catalog/%', 0, 1) AS productType
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS productName
   , CONCAT_WS('>', category1, category2, category3, category4) AS wholeCategoryName
   , NULLIF(mallName, '네이버') AS mallName
   , NULLIF(brand, '') AS brandName
+  , TRY_CAST(lprice AS INTEGER) AS salesPrice
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updatedAt
 FROM {{ array }}
 WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL;
