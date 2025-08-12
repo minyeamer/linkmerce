@@ -4,9 +4,27 @@ from typing import Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Coroutine, Hashable, Iterable, TypeVar
+    from types import ModuleType
     from numbers import Real
     _KT = TypeVar("_KT", Hashable)
     _VT = TypeVar("_VT", Any)
+
+
+def import_tqdm() -> ModuleType:
+    try:
+        from tqdm import tqdm
+        return tqdm
+    except:
+        return lambda x, **kwargs: x
+
+
+def import_tqdm_asyncio() -> ModuleType:
+    try:
+        from tqdm.asyncio import tqdm_asyncio
+        return tqdm_asyncio
+    except:
+        import asyncio
+        return asyncio
 
 
 ###################################################################
@@ -20,12 +38,13 @@ def gather(
         delay: Real | Sequence[Real,Real] = 0.,
         tqdm_options: dict = dict(),
     ) -> list:
+    import time
     try:
         from tqdm import tqdm
     except:
         tqdm = lambda x: x
         tqdm_options = dict()
-    import time
+
     def run_with_delay(args: tuple[_VT,...] | dict[_KT,_VT]) -> Any:
         try:
             if isinstance(args, dict):
@@ -51,6 +70,7 @@ async def gather_async(
     except:
         tqdm_asyncio = asyncio
         tqdm_options = dict()
+
     async def run_with_delay(args: tuple[_VT,...] | dict[_KT,_VT]) -> Any:
         try:
             if isinstance(args, dict):

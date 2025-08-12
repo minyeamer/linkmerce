@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     from duckdb import DuckDBPyConnection, DuckDBPyRelation
-    import datetime as dt
 
 NAME, TYPE = 0, 0
 
@@ -19,6 +18,12 @@ NAME, TYPE = 0, 0
 def concat_sql(*statement: str, drop_empty: bool = True, sep=' ', terminate: bool = True) -> str:
     query = sep.join(filter(None, statement) if drop_empty else statement)
     return query + ';' if terminate and not query.endswith(';') else query
+
+
+def where(where_clause: str | None = None, default: str | None = None) -> str:
+    if not (where_clause or default):
+        return str()
+    return f"WHERE {where_clause or default}"
 
 
 def csv_to_json(obj: list[tuple], header: int | list[str] = 0) -> list[dict]:
@@ -112,16 +117,12 @@ class Connection(metaclass=ABCMeta):
 
     ############################ Expression ###########################
 
-    def expr(self, value: Any, type: str, alias: str = str(), safe: bool = False) -> str:
-        type = type.upper()
-        if type == "DATE":
-            return self.expr_date(value, alias, safe)
-        else:
-            func = "TRY_CAST" if safe else "CAST"
-            alias = f" AS {alias}" if alias else str()
-            return f"{func}({value} AS {type})" + alias
+    def expr_cast(self, value: Any | None, type: str, alias: str = str(), safe: bool = False) -> str:
+        cast = "TRY_CAST" if safe else "CAST"
+        alias = f" AS {alias}" if alias else str()
+        return f"{cast}({self.expr_value(value)} AS {type.upper()})" + alias
 
-    def expr_create(self, option: Literal["replace", "ignore"] | None = None, temp: bool = False) -> str:
+    def expr_create(self, option: Literal["replace","ignore"] | None = None, temp: bool = False) -> str:
         temp = "TEMP" if temp else str()
         if option == "replace":
             return f"CREATE OR REPLACE {temp} TABLE"
@@ -130,20 +131,14 @@ class Connection(metaclass=ABCMeta):
         else:
             return f"CREATE {temp} TABLE"
 
-    def expr_date(self, value: dt.date | str | None = None, alias: str = str(), safe: bool = False) -> str:
-        alias = f" AS {alias}" if alias else str()
-        if safe:
-            return (f"DATE '{value}'" if value is not None else "NULL") + alias
+    def expr_value(self, value: Any | None) -> str:
+        import datetime as dt
+        if value is None:
+            return "NULL"
+        elif isinstance(value, (float,int)):
+            return str(value)
         else:
-            return f"DATE '{value}'" + alias
-
-    def expr_interval(value: str | int | None = None) -> str:
-        if isinstance(value, str):
-            return value
-        elif isinstance(value, int):
-            return "{} INTERVAL {} DAY".format('-' if value < 0 else '+', abs(value))
-        else:
-            return str()
+            return f"'{value}'"
 
     def expr_now(
             self,
@@ -172,6 +167,14 @@ class Connection(metaclass=ABCMeta):
         if (type.upper() == "STRING") and format:
             return f"STRFTIME({expr}, '{format}')"
         return expr if type.upper() == "DATE" else "NULL"
+
+    def expr_interval(days: str | int | None = None) -> str:
+        if isinstance(days, str):
+            return days
+        elif isinstance(days, int):
+            return "{} INTERVAL {} DAY".format('-' if days < 0 else '+', abs(days))
+        else:
+            return str()
 
 
 ###################################################################
@@ -260,7 +263,7 @@ class DuckDBConnection(Connection):
             save_to: str | Path | None = None,
         ) -> list[tuple] | None:
         relation = self.conn.execute(query, parameters=params)
-        results = [self.get_columns(relation)] + relation.fetchall()
+        results = [tuple(self.get_columns(relation))] + relation.fetchall()
         if save_to:
             return save_to_csv(results, save_to, delimiter=',')
         else:
@@ -360,7 +363,7 @@ class DuckDBConnection(Connection):
             table: str,
             values: list[tuple] | list[dict] | bytes | str | Path,
             format: Literal["csv","json","parquet"],
-            option: Literal["replace", "ignore"] | None = None,
+            option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
@@ -373,7 +376,7 @@ class DuckDBConnection(Connection):
             self,
             table: str,
             values: list[tuple] | str | Path,
-            option: Literal["replace", "ignore"] | None = None,
+            option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
@@ -383,7 +386,7 @@ class DuckDBConnection(Connection):
             self,
             table: str,
             values: list[dict] | str | Path,
-            option: Literal["replace", "ignore"] | None = None,
+            option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
@@ -393,7 +396,7 @@ class DuckDBConnection(Connection):
             self,
             table: str,
             values: bytes | str | Path,
-            option: Literal["replace", "ignore"] | None = None,
+            option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
@@ -401,14 +404,14 @@ class DuckDBConnection(Connection):
 
     def copy_table(
             self,
-            table: str,
-            copy_to: str,
+            source_table: str,
+            target_table: str,
             limit: int | None = 0,
-            option: Literal["replace", "ignore"] | None = None,
+            option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
         ) -> DuckDBPyConnection:
         limit_ = f"LIMIT {limit}" if isinstance(limit, int) else None
-        query = concat_sql(f"{self.expr_create(option, temp)} {copy_to} AS SELECT * FROM {table}", limit_)
+        query = concat_sql(f"{self.expr_create(option, temp)} {target_table} AS SELECT * FROM {source_table}", limit_)
         return self.conn.execute(query)
 
     ############################## Insert #############################
@@ -480,19 +483,19 @@ class DuckDBConnection(Connection):
                 elif agg in {"first","last","list"}:
                     return f"{agg.upper()}({col}) FILTER (WHERE {col} IS NOT NULL)"
                 else:
-                    return agg
+                    return f"{agg}({col})"
             return ", ".join([f"{render(col, agg)} AS {col}" for col, agg in func.items()])
         else:
             return func
 
     ############################## Utils ##############################
 
-    def has_table(self, table: str) -> bool:
+    def table_exists(self, table: str) -> bool:
         query = f"SELECT 1 FROM information_schema.tables WHERE table_name = '{table}' LIMIT 1;"
         return bool(self.conn.execute(query).fetchone())
 
-    def exists_table(self, table: str) -> bool:
-        if self.has_table(table):
+    def table_has_rows(self, table: str) -> bool:
+        if self.table_exists(table):
             query = f"SELECT 1 FROM {table} LIMIT 1;"
             return bool(self.conn.execute(query).fetchone())
         return False
@@ -510,30 +513,11 @@ class DuckDBConnection(Connection):
     def has_column(self, obj: str | DuckDBPyConnection, column: str) -> bool:
         return column in self.get_columns(obj)
 
-    def unique(self, table: str, expr: str, ascending: bool | None = None, condition: str | None = None) -> list:
+    def unique(self, table: str, expr: str, ascending: bool | None = None, where_clause: str | None = None) -> list:
         select = f"SELECT DISTINCT {expr} AS expr FROM {table}"
         order_by = "ORDER BY expr {}".format({True:"ASC", False:"DESC"}[ascending]) if isinstance(ascending, bool) else None
-        query = concat_sql(select, self.expr_where(condition), order_by)
+        query = concat_sql(select, where(where_clause), order_by)
         return [row[0] for row in self.conn.execute(query).fetchall()]
-
-    def expr_where(self, condition: str | None = None, column: str | None = None, default: str = "WHERE TRUE") -> str:
-        if condition:
-            if condition.split(' ', maxsplit=1)[0].upper() == "WHERE":
-                return condition
-            else:
-                return concat_sql("WHERE", column, condition, terminate=False)
-        else:
-            return default
-
-    def expr_value(self, value: Any) -> str:
-        import datetime as dt
-        if isinstance(value, (float,int)):
-            return str(value)
-        elif isinstance(value, dt.date):
-            dtype = "TIMESTAMP" if isinstance(value, dt.datetime) else "DATE"
-            return f"{dtype} '{value}'"
-        else:
-            return f"'{value}'"
 
 
 ###################################################################
@@ -569,7 +553,7 @@ class DuckDBIterator(Task):
             self,
             by: str | list[str],
             ascending: bool | None = True,
-            condition: str | None = None,
+            where_clause: str | None = None,
             if_errors: Literal["ignore","raise"] = "raise",
         ) -> DuckDBIterator:
         from linkmerce.utils.tqdm import _expand_kwargs
@@ -578,11 +562,11 @@ class DuckDBIterator(Task):
             if if_errors == "ignore":
                 from duckdb import BinderException
                 try:
-                    map_partitions[expr] = self.conn.unique(self.table, expr, ascending, condition)
+                    map_partitions[expr] = self.conn.unique(self.table, expr, ascending, where_clause)
                 except BinderException:
                     continue
             else:
-                map_partitions[expr] = self.conn.unique(self.table, expr, ascending, condition)
+                map_partitions[expr] = self.conn.unique(self.table, expr, ascending, where_clause)
         return self.setattr("partitions", _expand_kwargs(**map_partitions))
 
     def __iter__(self) -> DuckDBIterator:
@@ -593,8 +577,8 @@ class DuckDBIterator(Task):
         if self.index >= len(self):
             raise StopIteration
         map_partition = self.partitions[self.index]
-        condition = " AND ".join([f"{expr} = {self.conn.expr_value(value)}" for expr, value in map_partition.items()])
-        query = f"SELECT * FROM {self.table} WHERE {condition or 'TRUE'};"
+        where_clause = " AND ".join([f"{expr} = {self.conn.expr_value(value)}" for expr, value in map_partition.items()])
+        query = concat_sql(f"SELECT * FROM {self.table}", where(where_clause))
         results = self.conn.fetch_all(self.format, query)
         self.index += 1
         return results

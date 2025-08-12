@@ -15,7 +15,7 @@ def get_module(name: str) -> str:
     return (".searchad.manage" + name) if name.startswith('.') else name
 
 
-def exposure_diagnosis(
+def diagnose_exposure(
         customer_id: str,
         cookies: str,
         keyword: str | Iterable[str],
@@ -34,7 +34,7 @@ def exposure_diagnosis(
     return run_with_duckdb(get_module(".exposure"), "ExposureDiagnosis", "ExposureDiagnosis", connection, "sync", table, return_type, args, **options)
 
 
-def exposure_rank(
+def rank_exposure(
         customer_id: str,
         cookies: str,
         keyword: str | Iterable[str],
