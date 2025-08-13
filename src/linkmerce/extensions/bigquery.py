@@ -174,7 +174,10 @@ class BigQueryClient(Connection):
         return Table(table, schema)
 
     def get_schema(self, table: str) -> list[SchemaField]:
-        return self.conn.get_table(f"{self.project_id}.{table}").schema
+        return self.get_table(f"{self.project_id}.{table}").schema
+
+    def get_columns(self, table: str) -> list[str]:
+        return [field.name for field in self.get_schema(table)]
 
     ############################# Load Job ############################
 
@@ -263,8 +266,8 @@ class BigQueryClient(Connection):
             source_table: str,
             target_table: str,
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]],
-            not_matched: str | Sequence[str],
+            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]] = dict(),
+            not_matched: str | Sequence[str] | None = None,
             where_clause: str | None = None,
         ) -> LoadJob:
         where = [f"T.{where_clause}"] if where_clause else list()
@@ -273,9 +276,11 @@ class BigQueryClient(Connection):
         query = concat_sql(query, self._merge_update(matched), self._merge_insert(not_matched))
         self.execute_job(query)
 
-    def _merge_update(self, matched: str | dict[str,Literal["count","sum","avg","min","max","first","last","list"]]) -> str:
+    def _merge_update(self, matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]] = dict()) -> str:
         prefix = "WHEN MATCHED THEN UPDATE SET "
-        if isinstance(matched, dict):
+        if not matched:
+            return self._merge_update({col: "source_first" for col in self.get_columns()})
+        elif isinstance(matched, dict):
             def render(col: str, agg: str) -> str:
                 if agg in {"source_first","target_first"}:
                     kwargs = dict(zip(["left","right"], ('S','T') if agg == "source_first" else ('T','S')))
@@ -290,12 +295,16 @@ class BigQueryClient(Connection):
         else:
             return prefix + str(matched)
 
-    def _merge_insert(self, not_matched: Sequence[str]) -> str:
+    def _merge_insert(self, not_matched: str | Sequence[str] | None = None) -> str:
         prefix = "WHEN NOT MATCHED THEN "
-        if (not isinstance(not_matched, str)) and isinstance(not_matched, Sequence):
+        if not not_matched:
+            return self._merge_insert(self.get_columns())
+        elif isinstance(not_matched, str):
+            return prefix + not_matched
+        elif isinstance(not_matched, Sequence):
             return prefix + "INSERT ({}) VALUES ({})".format(", ".join(not_matched), "S."+", S.".join(not_matched))
         else:
-            return prefix + not_matched
+            return prefix + str(not_matched)
 
     ########################## Load and Merge #########################
 
@@ -306,13 +315,13 @@ class BigQueryClient(Connection):
             source_file: IO[bytes],
             source_format: Literal["avgo","csv","json","orc","parquet"],
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]],
-            not_matched: str | Sequence[str],
+            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]] = dict(),
+            not_matched: str | Sequence[str] | None = None,
             where_clause: str | None = None,
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
             write: Literal["append","empty","truncate","truncate_data"] = "truncate",
             if_not_found: Literal["create","errors","ignore"] = "errors",
-            table_lock_wait_interval: float | int | None = 1.,
+            table_lock_wait_interval: float | int | None = None,
             table_lock_wait_timeout: float | int | None = 60.,
             drop_stage_after_merge: bool = True,
         ) -> LoadJob:
@@ -444,11 +453,11 @@ class BigQueryClient(Connection):
             staging_table: BigQueryTable,
             target_table: BigQueryTable,
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]],
-            not_matched: str | Sequence[str],
+            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]] = dict(),
+            not_matched: str | Sequence[str] | None = None,
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
             where_clause: str | None = None,
-            table_lock_wait_interval: float | int | None = 1.,
+            table_lock_wait_interval: float | int | None = None,
             table_lock_wait_timeout: float | int | None = 60.,
             drop_stage_after_merge: bool = True,
         ) -> bool:

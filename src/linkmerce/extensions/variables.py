@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Sequence
+    from typing import Any, Literal, Sequence
     from pathlib import Path
     from linkmerce.extensions.gsheets import ServiceAccount, WorksheetClient
 
@@ -111,18 +111,18 @@ def read_variables(
         file_path: str | Path,
         key_path: str | int | Sequence[str | int] = list(),
         format: Literal["auto","json","yaml"] = "auto",
-        account: ServiceAccount | None = None,
         credentials_path: str | Path | None = None,
         schemas_path: str | Path | None = None,
+        service_account: ServiceAccount | None = None,
         with_table_schema: bool | None = False,
     ) -> dict:
     variables = read_variable(file_path, key_path, format, dtype=dict)
     if ("credentials" in variables) and path_exists(credentials_path, "credentials_path"):
         variables["credentials"] = parse_credentials(credentials_path, variables["credentials"])
-    if "sheets" in variables:
-        variables.update(parse_sheets(account, variables["sheets"]))
     if ("tables" in variables) and isinstance(with_table_schema, bool):
         variables["tables"] = parse_tables(variables["tables"], schemas_path, with_table_schema)
+    if "sheets" in variables:
+        variables.update(parse_sheets(service_account, variables["sheets"]))
     return variables
 
 
@@ -144,20 +144,6 @@ def parse_credentials(credentials_path: str, credentials_info: str | int | Seque
         raise ValueError("Could not parse the credentials from variables.")
 
 
-def parse_sheets(account: ServiceAccount, sheets_info: dict | list) -> dict:
-    from linkmerce.extensions.gsheets import WorksheetClient
-    client = WorksheetClient(account)
-    if isinstance(sheets_info, dict):
-        if ("key" in sheets_info) and ("sheet" in sheets_info):
-            return x if isinstance(x := read_google_sheets(client, **sheets_info), dict) else dict(records=x)
-        else:
-            return {key: read_google_sheets(client, **info) for key, info in sheets_info.items()}
-    elif isinstance(sheets_info, list):
-        return [read_google_sheets(client, **info) for info in sheets_info if isinstance(info, dict)]
-    else:
-        raise ValueError("Could not parse the sheets from variables.")
-
-
 def parse_tables(
         tables_info: dict[str,dict[str,Any]],
         schemas_path: str | Path | None = None,
@@ -173,6 +159,20 @@ def parse_tables(
             return tables_info
     else:
         return {db: info["table"] for db, info in tables_info.items()}
+
+
+def parse_sheets(account: ServiceAccount, sheets_info: dict | list) -> dict:
+    from linkmerce.extensions.gsheets import WorksheetClient
+    client = WorksheetClient(account)
+    if isinstance(sheets_info, dict):
+        if ("key" in sheets_info) and ("sheet" in sheets_info):
+            return x if isinstance(x := read_google_sheets(client, **sheets_info), dict) else dict(records=x)
+        else:
+            return {key: read_google_sheets(client, **info) for key, info in sheets_info.items()}
+    elif isinstance(sheets_info, list):
+        return [read_google_sheets(client, **info) for info in sheets_info if isinstance(info, dict)]
+    else:
+        raise ValueError("Could not parse the sheets from variables.")
 
 
 def read_google_sheets(

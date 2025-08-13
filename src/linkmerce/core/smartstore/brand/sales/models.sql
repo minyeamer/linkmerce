@@ -1,19 +1,19 @@
 -- StoreSales: create
 CREATE OR REPLACE TABLE {{ table }} (
-    mallSeq BIGINT NOT NULL
-  , paymentCount BIGINT
-  , paymentAmount BIGINT
-  , refundAmount BIGINT
-  , paymentDate DATE NOT NULL
+    mall_seq BIGINT NOT NULL
+  , payment_count BIGINT
+  , payment_amount BIGINT
+  , refund_amount BIGINT
+  , payment_date DATE NOT NULL
 );
 
 -- StoreSales: select
 SELECT
-    TRY_CAST($mall_seq AS BIGINT) AS mallSeq
-  , sales.paymentCount AS paymentCount
-  , sales.paymentAmount AS paymentAmount
-  , sales.refundAmount AS refundAmount
-  , TRY_CAST($end_date AS DATE) AS paymentDate
+    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , sales.paymentCount AS payment_count
+  , sales.paymentAmount AS payment_amount
+  , sales.refundAmount AS refund_amount
+  , TRY_CAST($end_date AS DATE) AS payment_date
 FROM {{ array }}
 WHERE (TRY_CAST($mall_seq AS BIGINT) IS NOT NULL)
   AND (TRY_CAST($end_date AS DATE) IS NOT NULL);
@@ -24,24 +24,24 @@ INSERT INTO {{ table }} {{ values }};
 
 -- CategorySales: create
 CREATE OR REPLACE TABLE {{ table }} (
-    categoryId3 INTEGER NOT NULL
-  , wholeCategoryName VARCHAR
-  , mallSeq BIGINT
-  , clickCount BIGINT
-  , paymentCount BIGINT
-  , paymentAmount BIGINT
-  , paymentDate DATE NOT NULL
+    category_id3 INTEGER NOT NULL
+  , full_category_name VARCHAR
+  , mall_seq BIGINT
+  , click_count BIGINT
+  , payment_count BIGINT
+  , payment_amount BIGINT
+  , payment_date DATE NOT NULL
 );
 
 -- CategorySales: select
 SELECT
-    TRY_CAST(product.category.identifier AS INTEGER) AS categoryId3
-  , product.category.fullName AS wholeCategoryName
-  , TRY_CAST($mall_seq AS BIGINT) AS mallSeq
-  , visit.click AS clickCount
-  , sales.paymentCount AS paymentCount
-  , sales.paymentAmount AS paymentAmount
-  , TRY_CAST($end_date AS DATE) AS paymentDate
+    TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
+  , product.category.fullName AS full_category_name
+  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , visit.click AS click_count
+  , sales.paymentCount AS payment_count
+  , sales.paymentAmount AS payment_amount
+  , TRY_CAST($end_date AS DATE) AS payment_date
 FROM {{ array }}
 WHERE (TRY_CAST(product.category.identifier AS INTEGER) IS NOT NULL)
   AND (TRY_CAST($end_date AS DATE) IS NOT NULL);
@@ -53,29 +53,29 @@ INSERT INTO {{ table }} {{ values }};
 -- ProductSales: create
 CREATE OR REPLACE TABLE {{ table }} (
     mallPid BIGINT NOT NULL
-  , productName VARCHAR
-  , mallSeq BIGINT
-  , categoryId3 INTEGER
-  , categoryName3 VARCHAR
-  , wholeCategoryName VARCHAR
-  , clickCount BIGINT
-  , paymentCount BIGINT
-  , paymentAmount BIGINT
-  , paymentDate DATE NOT NULL
+  , product_name VARCHAR
+  , mall_seq BIGINT
+  , category_id3 INTEGER
+  , category_name3 VARCHAR
+  , full_category_name VARCHAR
+  , click_count BIGINT
+  , payment_count BIGINT
+  , payment_amount BIGINT
+  , payment_date DATE NOT NULL
 );
 
 -- ProductSales: select
 SELECT
     TRY_CAST(product.identifier AS BIGINT) AS mallPid
-  , product.name AS productName
-  , TRY_CAST($mall_seq AS BIGINT) AS mallSeq
-  , TRY_CAST(product.category.identifier AS INTEGER) AS categoryId3
-  , product.category.name AS categoryName3
-  , product.category.fullName AS wholeCategoryName
-  , visit.click AS clickCount
-  , sales.paymentCount AS paymentCount
-  , sales.paymentAmount AS paymentAmount
-  , TRY_CAST($end_date AS DATE) AS paymentDate
+  , product.name AS product_name
+  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
+  , product.category.name AS category_name3
+  , product.category.fullName AS full_category_name
+  , visit.click AS click_count
+  , sales.paymentCount AS payment_count
+  , sales.paymentAmount AS payment_amount
+  , TRY_CAST($end_date AS DATE) AS payment_date
 FROM {{ array }}
 WHERE (TRY_CAST(product.identifier AS BIGINT) IS NOT NULL)
   AND (TRY_CAST($end_date AS DATE) IS NOT NULL);
@@ -87,38 +87,38 @@ INSERT INTO {{ table }} {{ values }};
 -- AggregatedSales: create_sales
 CREATE OR REPLACE TABLE {{ table }} (
     mallPid BIGINT
-  , mallSeq BIGINT
-  , categoryId3 INTEGER
-  , clickCount BIGINT
-  , paymentCount BIGINT
-  , paymentAmount BIGINT
-  , paymentDate DATE
-  , PRIMARY KEY (mallPid, paymentDate)
+  , mall_seq BIGINT
+  , category_id3 INTEGER
+  , click_count BIGINT
+  , payment_count BIGINT
+  , payment_amount BIGINT
+  , payment_date DATE
+  , PRIMARY KEY (mallPid, payment_date)
 );
 
 -- AggregatedSales: select_sales
 SELECT
     sales.mallPid
-  , MAX(sales.mallSeq) AS mallSeq
-  , MAX(sales.categoryId3) AS categoryId3
-  , SUM(sales.clickCount) AS clickCount
-  , SUM(sales.paymentCount) AS paymentCount
-  , SUM(sales.paymentAmount) AS paymentAmount
-  , sales.paymentDate
+  , MAX(sales.mall_seq) AS mall_seq
+  , MAX(sales.category_id3) AS category_id3
+  , SUM(sales.click_count) AS click_count
+  , SUM(sales.paymentCount) AS payment_count
+  , SUM(sales.paymentAmount) AS payment_amount
+  , sales.payment_date
 FROM (
   SELECT
       TRY_CAST(product.identifier AS BIGINT) AS mallPid
-    , TRY_CAST($mall_seq AS BIGINT) AS mallSeq
-    , TRY_CAST(product.category.identifier AS INTEGER) AS categoryId3
-    , visit.click AS clickCount
-    , sales.paymentCount AS paymentCount
-    , sales.paymentAmount AS paymentAmount
-    , CAST($end_date AS DATE) AS paymentDate
+    , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+    , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
+    , visit.click AS click_count
+    , sales.paymentCount AS payment_count
+    , sales.paymentAmount AS payment_amount
+    , CAST($end_date AS DATE) AS payment_date
   FROM {{ array }}
   WHERE (TRY_CAST(product.identifier AS BIGINT) IS NOT NULL)
     AND (TRY_CAST($end_date AS DATE) IS NOT NULL)
 ) AS sales
-GROUP BY sales.mallPid, sales.paymentDate;
+GROUP BY sales.mallPid, sales.payment_date;
 
 -- AggregatedSales: insert_sales
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
@@ -126,13 +126,13 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 -- AggregatedSales: create_product
 CREATE OR REPLACE TABLE {{ table }} (
     mallPid BIGINT PRIMARY KEY
-  , mallSeq BIGINT
-  , categoryId INTEGER
-  , categoryId3 INTEGER
-  , productName VARCHAR
-  , salesPrice INTEGER
-  , registerDate DATE
-  , updateDate DATE
+  , mall_seq BIGINT
+  , category_id INTEGER
+  , category_id3 INTEGER
+  , product_name VARCHAR
+  , sales_price INTEGER
+  , register_date DATE
+  , update_date DATE
 );
 
 -- AggregatedSales: select_product
@@ -140,13 +140,13 @@ SELECT sales.* EXCLUDE (seq)
 FROM (
   SELECT
       TRY_CAST(product.identifier AS BIGINT) AS mallPid
-    , TRY_CAST($mall_seq AS BIGINT) AS mallSeq
-    , NULL AS categoryId
-    , TRY_CAST(product.category.identifier AS INTEGER) AS categoryId3
-    , product.name AS productName
-    , NULL AS salesPrice
-    , $start_date AS registerDate
-    , CURRENT_DATE AS updateDate
+    , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+    , NULL AS category_id
+    , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
+    , product.name AS product_name
+    , NULL AS sales_price
+    , $start_date AS register_date
+    , CURRENT_DATE AS update_date
     , ROW_NUMBER() OVER (PARTITION BY product.identifier) AS seq
   FROM {{ array }}
   WHERE TRY_CAST(product.identifier AS BIGINT) IS NOT NULL
@@ -156,9 +156,9 @@ WHERE sales.seq = 1;
 -- AggregatedSales: upsert_product
 INSERT INTO {{ table }} {{ values }}
 ON CONFLICT DO UPDATE SET
-    categoryId = COALESCE(excluded.categoryId, categoryId)
-  , categoryId3 = COALESCE(excluded.categoryId3, categoryId3)
-  , productName = COALESCE(excluded.productName, productName)
-  , salesPrice = COALESCE(excluded.salesPrice, salesPrice)
-  , registerDate = COALESCE(excluded.registerDate, registerDate)
-  , updateDate = excluded.updateDate;
+    category_id = COALESCE(excluded.category_id, category_id)
+  , category_id3 = COALESCE(excluded.category_id3, category_id3)
+  , product_name = COALESCE(excluded.product_name, product_name)
+  , sales_price = COALESCE(excluded.sales_price, sales_price)
+  , register_date = LEAST(excluded.register_date, register_date)
+  , update_date = excluded.update_date;
