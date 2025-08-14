@@ -13,18 +13,29 @@ def read(
         tables: bool = False,
         sheets: bool = False,
         service_account: bool = False,
-        with_table_schema: bool | None = False,
     ) -> dict:
     from airflow.sdk import Variable
-    from linkmerce.extensions.variables import read_variables
-    file_path = Variable.get("variables")
-    credentials_path = Variable.get("credentials_path") if credentials else None
-    schemas_path = Variable.get("schemas_path") if tables else None
+    from linkmerce.api.config import read_config
+
+    file_path = Variable.get("config")
+    credentials_path = Variable.get("credentials") if credentials else None
+    schemas_path = Variable.get("schemas") if tables else None
     service_account = Variable.get("service_account") if sheets or service_account else None
 
-    variables = read_variables(file_path, path, format, credentials_path, schemas_path, service_account, with_table_schema)
+    config = read_config(
+        file_path, path, format, credentials_path, schemas_path, service_account, read_google_sheets=sheets)
+
+    for key, isin in zip(["credentials","tables","sheets","service_account"], [credentials,tables,sheets,service_account]):
+        if (not isin) and (key in config):
+            config.pop(key)
+
     if credentials == "expand":
-        variables.update(variables.get("credentials", dict()))
+        config.update(config.get("credentials", dict()))
     if service_account:
-        variables["service_account"] = service_account
-    return variables
+        config["service_account"] = service_account
+    return config
+
+
+def split_by_credentials(credentials: list[dict], shuffle: bool = False, **kwargs: list) -> list[dict]:
+    from linkmerce.api.config import split_by_credentials
+    return split_by_credentials(credentials, shuffle, **kwargs)
