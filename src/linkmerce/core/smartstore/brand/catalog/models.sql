@@ -176,14 +176,14 @@ ON CONFLICT DO UPDATE SET
   , update_date = excluded.update_date;
 
 
--- MatchCatalog: create
+-- ProductCatalog: create
 CREATE OR REPLACE TABLE {{ table }} (
     product_id BIGINT PRIMARY KEY
-  , catalog_id BIGINT
+  , catalog_id BIGINT NOT NULL
   , created_at TIMESTAMP NOT NULL
 );
 
--- MatchCatalog: select
+-- ProductCatalog: select
 SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
   , TRY_CAST(catalogId AS BIGINT) AS catalog_id
@@ -192,5 +192,5 @@ FROM {{ array }}
 WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
   AND (TRY_CAST(catalogId AS BIGINT) IS NOT NULL);
 
--- MatchCatalog: insert
+-- ProductCatalog: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;

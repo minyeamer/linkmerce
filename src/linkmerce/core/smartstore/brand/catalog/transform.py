@@ -65,7 +65,7 @@ class BrandPrice(BrandProduct):
         return price, product
 
 
-class MatchCatalog(_CatalogTransformer):
+class ProductCatalog(BrandProduct):
     object_type = "products"
     queries = ["create", "select", "insert"]
 

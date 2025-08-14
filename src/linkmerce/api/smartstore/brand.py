@@ -78,7 +78,7 @@ def brand_price(
     return run_with_duckdb(get_module(".catalog"), "BrandPrice", "BrandPrice", connection, how, table, return_type, args, **options)
 
 
-def match_catalog(
+def product_catalog(
         cookies: str,
         brand_ids: str | Iterable[str],
         mall_seq: int | str | Iterable[int | str],
@@ -96,7 +96,7 @@ def match_catalog(
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies))
     options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(get_module(".catalog"), "MatchCatalog", "MatchCatalog", connection, how, table, return_type, args, **options)
+    return run_with_duckdb(get_module(".catalog"), "ProductCatalog", "ProductCatalog", connection, how, table, return_type, args, **options)
 
 
 def store_sales(

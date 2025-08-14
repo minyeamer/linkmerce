@@ -284,7 +284,7 @@ class BrandProduct(_CatalogExtractor):
         }, "totalCount"]
 
 
-class BrandPrice(BrandProduct):
+class _BrandStoreProduct(BrandProduct):
     object_type = "products"
 
     @PartnerCenter.with_session
@@ -324,5 +324,9 @@ class BrandPrice(BrandProduct):
                 .run_async())
 
 
-class MatchCatalog(BrandPrice):
+class BrandPrice(_BrandStoreProduct):
+    object_type = "products"
+
+
+class ProductCatalog(_BrandStoreProduct):
     object_type = "products"

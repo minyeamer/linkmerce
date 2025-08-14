@@ -1,6 +1,6 @@
 [project]
 name = "linkmerce"
-version = "0.3.6"
+version = "0.3.7"
 description = "E-commerce API integration management"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,6 +12,7 @@ dependencies = [
     "nest-asyncio>=1.6.0",
     "pytz>=2025.2",
     "requests>=2.32.4",
+    "ruamel-yaml==0.18.14",
     "tqdm>=4.67.1",
 ]
 

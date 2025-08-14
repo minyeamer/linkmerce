@@ -6,7 +6,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , product_name VARCHAR
   , is_own BOOLEAN
   , full_category_name VARCHAR
-  , mall_name VARCHAR
+  , brand_name VARCHAR
   , maker_name VARCHAR
   , image_url VARCHAR
   , sales_price INTEGER
@@ -26,7 +26,7 @@ SELECT
   , productTitle AS product_name
   , isOwn AS is_own
   , categoryNames AS full_category_name
-  , NULLIF(fmpBrand, '') AS mall_name
+  , NULLIF(fmpBrand, '') AS brand_name
   , NULLIF(fmpMaker, '') AS maker_name
   , imageUrl AS image_url
   , TRY_CAST(COALESCE(lowPrice, mobileLowPrice) AS INTEGER) AS sales_price
@@ -70,12 +70,12 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 -- ExposureRank: create_product
 CREATE OR REPLACE TABLE {{ table }} (
     id BIGINT PRIMARY KEY
-  , product_id BIGINT
+  , product_id BIGINT NULL -- Placeholder
   , product_type TINYINT -- {0: "가격비교 상품", 1: "일반상품", 3: "광고상품"}
   , product_name VARCHAR
-  , category_id INTEGER
+  , category_id INTEGER NULL -- Placeholder
   , full_category_name VARCHAR
-  , mall_name VARCHAR
+  , mall_name VARCHAR NULL -- Placeholder
   , brand_name VARCHAR
   , sales_price INTEGER
   , updated_at TIMESTAMP NOT NULL
@@ -96,8 +96,8 @@ FROM (
     , productTitle AS product_name
     , NULL AS category_id
     , categoryNames AS full_category_name
-    , NULLIF(fmpBrand, '') AS mall_name
-    , NULL AS brand_name
+    , NULL AS mall_name
+    , NULLIF(fmpBrand, '') AS brand_name
     , TRY_CAST(COALESCE(lowPrice, mobileLowPrice) AS INTEGER) AS sales_price
     , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
   FROM {{ array }}

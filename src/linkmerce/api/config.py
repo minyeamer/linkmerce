@@ -8,10 +8,10 @@ if TYPE_CHECKING:
     from linkmerce.extensions.gsheets import ServiceAccount, WorksheetClient
 
 
-DEFAULT_ACCOUNT = "env/service_account.json"
-DEFAULT_CREDENTIALSS = "env/credentials.yaml"
+DEFAULT_CONFIG = "env/config.yaml"
+DEFAULT_CREDENTIALS = "env/credentials.yaml"
 DEFAULT_SCHEMAS = "env/schemas.json"
-DEFAULT_VARIABLES = "env/variables.yaml"
+DEFAULT_SERVICE_ACCOUNT = "env/service_account.json"
 
 
 def exists(obj: Any, dtype: type,  list: bool = False, dict: bool = False) -> bool:
@@ -45,7 +45,7 @@ def path_exists(path: str, name: str) -> bool:
 ############################### Read ##############################
 ###################################################################
 
-def read(file_path: str | Path, format: Literal["auto","json","yaml"] = "auto") -> dict:
+def read(file_path: str | Path, format: Literal["auto","json","yaml"] = "auto") -> dict | list:
     if format == "auto":
         import os
         return read(file_path, format=os.path.splitext(file_path)[1][1:])
@@ -57,16 +57,17 @@ def read(file_path: str | Path, format: Literal["auto","json","yaml"] = "auto") 
         raise ValueError("Invalid value for format. Supported formats are: json, yaml.")
 
 
-def read_json(file_path: str | Path) -> dict:
+def read_json(file_path: str | Path) -> dict | list:
     import json
     with open(file_path, 'r', encoding="utf-8") as file:
         return json.loads(file.read())
 
 
-def read_yaml(file_path: str | Path) -> dict:
-    import yaml
+def read_yaml(file_path: str | Path) -> dict | list:
+    from ruamel.yaml import YAML
     with open(file_path, 'r', encoding="utf-8") as file:
-        return yaml.safe_load(file.read())
+        yaml = YAML(typ="safe")
+        return yaml.load(file.read())
 
 
 def read_file(file_path: str | Path) -> str:
@@ -75,10 +76,32 @@ def read_file(file_path: str | Path) -> str:
 
 
 ###################################################################
-############################# Variable ############################
+############################## Config #############################
 ###################################################################
 
-def read_variable(
+def read_config(
+        file_path: str | Path,
+        key_path: str | int | Sequence[str | int] = list(),
+        format: Literal["auto","json","yaml"] = "auto",
+        credentials_path: str | Path | None = None,
+        schemas_path: str | Path | None = None,
+        service_account: ServiceAccount | None = None,
+        skip_subpath: bool = False,
+        with_table_schema: bool | None = False,
+        read_google_sheets: bool = True,
+    ) -> dict:
+    config = read_check(file_path, key_path, format, dtype=dict)
+    if ("credentials" in config) and (credentials_path is not None):
+        if path_exists(credentials_path, "credentials_path"):
+            config["credentials"] = parse_credentials(credentials_path, config["credentials"], skip_subpath)
+    if ("tables" in config) and isinstance(with_table_schema, bool):
+        config["tables"] = parse_tables(config["tables"], schemas_path, with_table_schema)
+    if ("sheets" in config) and read_google_sheets and (service_account is not None):
+        config.update(parse_sheets(service_account, config["sheets"]))
+    return config
+
+
+def read_check(
         file_path: str | Path,
         key_path: str | int | Sequence[str | int] = list(),
         format: Literal["auto","json","yaml"] = "auto",
@@ -86,48 +109,21 @@ def read_variable(
         list: bool = False,
         dict: bool = False,
     ) -> Any | dict | list:
-    return parse_variable(read(file_path, format), key_path, dtype, list, dict)
-
-
-def parse_variable(
-        variable: dict | list,
-        key_path: str | int | Sequence[str | int] = list(),
-        dtype: type | None = None,
-        list: bool = False,
-        dict: bool = False,
-    ) -> dict | list:
+    file = read(file_path, format)
     for key in ([key_path] if isinstance(key_path, (str,int)) else key_path):
-        variable = variable[key]
-    if (dtype is not None) and (not exists(variable, dtype, list, dict)):
-        raise ValueError("Invalid variable format.")
-    return variable
+        file = file[key]
+    if (dtype is not None) and (not exists(file, dtype, list, dict)):
+        raise ValueError("Invalid data type.")
+    return file
 
+########################### Credentials ###########################
 
-###################################################################
-############################ Variables ############################
-###################################################################
-
-def read_variables(
-        file_path: str | Path,
-        key_path: str | int | Sequence[str | int] = list(),
-        format: Literal["auto","json","yaml"] = "auto",
-        credentials_path: str | Path | None = None,
-        schemas_path: str | Path | None = None,
-        service_account: ServiceAccount | None = None,
-        with_table_schema: bool | None = False,
-    ) -> dict:
-    variables = read_variable(file_path, key_path, format, dtype=dict)
-    if ("credentials" in variables) and path_exists(credentials_path, "credentials_path"):
-        variables["credentials"] = parse_credentials(credentials_path, variables["credentials"])
-    if ("tables" in variables) and isinstance(with_table_schema, bool):
-        variables["tables"] = parse_tables(variables["tables"], schemas_path, with_table_schema)
-    if "sheets" in variables:
-        variables.update(parse_sheets(service_account, variables["sheets"]))
-    return variables
-
-
-def parse_credentials(credentials_path: str, credentials_info: str | int | Sequence[str | int] = list()) -> dict | list:
-    credentials = read_variable(credentials_path, credentials_info, dtype=dict)
+def parse_credentials(
+        credentials_path: str,
+        credentials_info: str | int | Sequence[str | int] = list(),
+        skip_subpath: bool = False,
+    ) -> dict | list:
+    credentials = read_check(credentials_path, credentials_info)
 
     def read_if_path(value: Any) -> Any:
         if isinstance(value, str) and value.startswith("Path(") and value.endswith(")"):
@@ -135,14 +131,39 @@ def parse_credentials(credentials_path: str, credentials_info: str | int | Seque
         else:
             return value
 
-    if isinstance(credentials, list):
+    if skip_subpath and isinstance(credentials, (list,dict)):
+        return credentials
+    elif isinstance(credentials, list):
         from linkmerce.utils.map import list_apply
         return list_apply(credentials, read_if_path)
     elif isinstance(credentials, dict):
         return {key: read_if_path(value) for key, value in credentials.items()}
     else:
-        raise ValueError("Could not parse the credentials from variables.")
+        raise ValueError("Could not parse the credentials from config.")
 
+
+def split_by_credentials(credentials: list[dict], shuffle: bool = False, **kwargs: list) -> list[dict]:
+    from copy import deepcopy
+
+    n = len(credentials)
+    if n == 0:
+        return list()
+
+    results = deepcopy(credentials)
+    for key, values in kwargs.items():
+        if shuffle:
+            import random
+            random.shuffle(values)
+
+        chunks = list(range(0, len(values), len(values)//n))
+        for i in range(n):
+            start = chunks[i]
+            end = chunks[i+1] if i+1 < n else None
+            results[i].update({key: values[start:end]})
+
+    return results
+
+############################## Tables #############################
 
 def parse_tables(
         tables_info: dict[str,dict[str,Any]],
@@ -150,16 +171,17 @@ def parse_tables(
         with_table_schema: bool | None = False,
     ) -> dict[str,dict[str,Any]]:
     if not isinstance(tables_info, dict):
-        raise ValueError("Could not parse the tables from variables.")
-    elif with_table_schema:
+        raise ValueError("Could not parse the tables from config.")
+    elif with_table_schema and (schemas_path is not None):
         if path_exists(schemas_path, "schemas_path"):
             for db, info in tables_info.copy().items():
                 if "schema" in info:
-                    tables_info[db]["schema"] = read_variable(schemas_path, info["schema"], dtype=dict, list=True)
+                    tables_info[db]["schema"] = read_check(schemas_path, info["schema"], dtype=dict, list=True)
             return tables_info
     else:
         return {db: info["table"] for db, info in tables_info.items()}
 
+############################## Sheets #############################
 
 def parse_sheets(account: ServiceAccount, sheets_info: dict | list) -> dict:
     from linkmerce.extensions.gsheets import WorksheetClient
@@ -172,8 +194,7 @@ def parse_sheets(account: ServiceAccount, sheets_info: dict | list) -> dict:
     elif isinstance(sheets_info, list):
         return [read_google_sheets(client, **info) for info in sheets_info if isinstance(info, dict)]
     else:
-        raise ValueError("Could not parse the sheets from variables.")
-
+        raise ValueError("Could not parse the sheets from config.")
 
 def read_google_sheets(
         client: WorksheetClient,
@@ -203,3 +224,16 @@ def read_google_sheets(
         return {key: [record[key] for record in records] for key in keys}
     else:
         return records
+
+############################# Default #############################
+
+def _default_config(
+        key_path: str | int | Sequence[str | int] = list(),
+        format: Literal["auto","json","yaml"] = "auto",
+        skip_subpath: bool = False,
+        with_table_schema: bool | None = False,
+    ) -> dict:
+    return read_config(
+        DEFAULT_CONFIG, key_path, format, DEFAULT_CREDENTIALS, DEFAULT_SCHEMAS, DEFAULT_SERVICE_ACCOUNT,
+        skip_subpath, with_table_schema
+    )

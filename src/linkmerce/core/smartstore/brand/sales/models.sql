@@ -52,7 +52,7 @@ INSERT INTO {{ table }} {{ values }};
 
 -- ProductSales: create
 CREATE OR REPLACE TABLE {{ table }} (
-    mallPid BIGINT NOT NULL
+    product_id BIGINT NOT NULL
   , product_name VARCHAR
   , mall_seq BIGINT
   , category_id3 INTEGER
@@ -66,7 +66,7 @@ CREATE OR REPLACE TABLE {{ table }} (
 
 -- ProductSales: select
 SELECT
-    TRY_CAST(product.identifier AS BIGINT) AS mallPid
+    TRY_CAST(product.identifier AS BIGINT) AS product_id
   , product.name AS product_name
   , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
   , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
@@ -86,28 +86,28 @@ INSERT INTO {{ table }} {{ values }};
 
 -- AggregatedSales: create_sales
 CREATE OR REPLACE TABLE {{ table }} (
-    mallPid BIGINT
+    product_id BIGINT
   , mall_seq BIGINT
   , category_id3 INTEGER
   , click_count BIGINT
   , payment_count BIGINT
   , payment_amount BIGINT
   , payment_date DATE
-  , PRIMARY KEY (mallPid, payment_date)
+  , PRIMARY KEY (product_id, payment_date)
 );
 
 -- AggregatedSales: select_sales
 SELECT
-    sales.mallPid
+    sales.product_id
   , MAX(sales.mall_seq) AS mall_seq
   , MAX(sales.category_id3) AS category_id3
   , SUM(sales.click_count) AS click_count
-  , SUM(sales.paymentCount) AS payment_count
-  , SUM(sales.paymentAmount) AS payment_amount
+  , SUM(sales.payment_count) AS payment_count
+  , SUM(sales.payment_amount) AS payment_amount
   , sales.payment_date
 FROM (
   SELECT
-      TRY_CAST(product.identifier AS BIGINT) AS mallPid
+      TRY_CAST(product.identifier AS BIGINT) AS product_id
     , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
     , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
     , visit.click AS click_count
@@ -118,19 +118,19 @@ FROM (
   WHERE (TRY_CAST(product.identifier AS BIGINT) IS NOT NULL)
     AND (TRY_CAST($end_date AS DATE) IS NOT NULL)
 ) AS sales
-GROUP BY sales.mallPid, sales.payment_date;
+GROUP BY sales.product_id, sales.payment_date;
 
 -- AggregatedSales: insert_sales
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- AggregatedSales: create_product
 CREATE OR REPLACE TABLE {{ table }} (
-    mallPid BIGINT PRIMARY KEY
+    product_id BIGINT PRIMARY KEY
   , mall_seq BIGINT
   , category_id INTEGER
-  , category_id3 INTEGER
+  , category_id3 INTEGER NULL -- Placeholder
   , product_name VARCHAR
-  , sales_price INTEGER
+  , sales_price INTEGER NULL -- Placeholder
   , register_date DATE
   , update_date DATE
 );
@@ -139,7 +139,7 @@ CREATE OR REPLACE TABLE {{ table }} (
 SELECT sales.* EXCLUDE (seq)
 FROM (
   SELECT
-      TRY_CAST(product.identifier AS BIGINT) AS mallPid
+      TRY_CAST(product.identifier AS BIGINT) AS product_id
     , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
     , NULL AS category_id
     , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3

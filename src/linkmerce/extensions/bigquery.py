@@ -174,7 +174,7 @@ class BigQueryClient(Connection):
         return Table(table, schema)
 
     def get_schema(self, table: str) -> list[SchemaField]:
-        return self.get_table(f"{self.project_id}.{table}").schema
+        return self.conn.get_table(f"{self.project_id}.{table}").schema
 
     def get_columns(self, table: str) -> list[str]:
         return [field.name for field in self.get_schema(table)]
@@ -266,20 +266,25 @@ class BigQueryClient(Connection):
             source_table: str,
             target_table: str,
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]] = dict(),
+            matched: str | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] = dict(),
             not_matched: str | Sequence[str] | None = None,
             where_clause: str | None = None,
         ) -> LoadJob:
         where = [f"T.{where_clause}"] if where_clause else list()
         on = " AND ".join([f"T.{col} = S.{col}" for col in ([on] if isinstance(on, str) else on)]+where)
         query = f"MERGE INTO `{self.project_id}.{target_table}` AS T USING `{self.project_id}.{source_table}` AS S ON {on}"
-        query = concat_sql(query, self._merge_update(matched), self._merge_insert(not_matched))
-        self.execute_job(query)
+        query = concat_sql(query, self._merge_update(matched, on), self._merge_insert(not_matched, target_table))
+        return self.execute_job(query)
 
-    def _merge_update(self, matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]] = dict()) -> str:
+    def _merge_update(
+            self,
+            matched: str | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] = dict(),
+            on: str | Sequence[str] = list(),
+        ) -> str:
         prefix = "WHEN MATCHED THEN UPDATE SET "
         if not matched:
-            return self._merge_update({col: "source_first" for col in self.get_columns()})
+            on = [on] if isinstance(on, str) else on
+            return self._merge_update({col: "replace" for col in self.get_columns() if col not in on})
         elif isinstance(matched, dict):
             def render(col: str, agg: str) -> str:
                 if agg in {"source_first","target_first"}:
@@ -288,17 +293,17 @@ class BigQueryClient(Connection):
                 elif agg in {"greatest","least"}:
                     return f"{agg.upper()}(S.{col}, T.{col})"
                 elif agg in {"replace","ignore"}:
-                    return f"S.{agg}" if agg == "replace" else f"T.{agg}"
+                    return f"S.{col}" if agg == "replace" else f"T.{col}"
                 else:
                     return f"{agg}({col})"
             return prefix + ", ".join([f"T.{col} = {render(col, agg)}" for col, agg in matched.items()])
         else:
             return prefix + str(matched)
 
-    def _merge_insert(self, not_matched: str | Sequence[str] | None = None) -> str:
+    def _merge_insert(self, not_matched: str | Sequence[str] | None = None, target_table: str = str()) -> str:
         prefix = "WHEN NOT MATCHED THEN "
         if not not_matched:
-            return self._merge_insert(self.get_columns())
+            return self._merge_insert(self.get_columns(target_table))
         elif isinstance(not_matched, str):
             return prefix + not_matched
         elif isinstance(not_matched, Sequence):
@@ -315,7 +320,7 @@ class BigQueryClient(Connection):
             source_file: IO[bytes],
             source_format: Literal["avgo","csv","json","orc","parquet"],
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]] = dict(),
+            matched: str | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] = dict(),
             not_matched: str | Sequence[str] | None = None,
             where_clause: str | None = None,
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
@@ -427,6 +432,7 @@ class BigQueryClient(Connection):
             if_not_found: Literal["create","errors","ignore"] = "errors",
             progress: bool = True,
             backup_table: DuckDBTable | None = TEMP_TABLE,
+            if_backup_table_exists: Literal["errors","ignore","replace"] = "replace",
         ) -> bool:
         if not connection.table_exists(source_table):
             return True
@@ -443,7 +449,8 @@ class BigQueryClient(Connection):
             return success
         finally:
             if (not success) and (backup_table is not None) and existing_values:
-                connection.copy_table(source_table, backup_table, option="replace", temp=True)
+                create_option = self._raise_error_if_table_exists(if_backup_table_exists)
+                connection.copy_table(source_table, backup_table, option=create_option, temp=True)
                 connection.insert_into_table_from_json(backup_table, existing_values)
 
     def merge_into_table_from_duckdb(
@@ -453,12 +460,13 @@ class BigQueryClient(Connection):
             staging_table: BigQueryTable,
             target_table: BigQueryTable,
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["source_first","target_first","greatest","least","replace","ignore"]] = dict(),
+            matched: str | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] = dict(),
             not_matched: str | Sequence[str] | None = None,
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
             where_clause: str | None = None,
             table_lock_wait_interval: float | int | None = None,
             table_lock_wait_timeout: float | int | None = 60.,
+            if_staging_table_exists: Literal["errors","ignore","replace"] = "replace",
             drop_stage_after_merge: bool = True,
         ) -> bool:
         if not connection.table_exists(source_table):
@@ -468,10 +476,25 @@ class BigQueryClient(Connection):
 
         try:
             self._wait_until_table_not_found(staging_table, table_lock_wait_interval, table_lock_wait_timeout)
-            self.copy_table(target_table, staging_table, option="replace")
+            create_option = self._raise_error_if_table_exists(if_staging_table_exists)
+            self.copy_table(target_table, staging_table, option=create_option)
             self.load_table_from_duckdb(connection, source_table, staging_table, schema=schema, write="append")
             self.merge_into_table(staging_table, target_table, on, matched, not_matched, where_clause)
             return True
         finally:
             if drop_stage_after_merge and self.table_exists(staging_table):
-                self.execute_job(f"DROP TABLE `{self.project_id}.{staging_table}`")
+                self.execute_job(f"DROP TABLE `{self.project_id}.{staging_table}`;")
+
+    def _raise_error_if_table_exists(
+            self,
+            table: BigQueryTable,
+            option: Literal["errors","ignore","replace"] = "replace"
+        ) -> Literal["ignore","replace"]:
+        if option == "errors":
+            if self.table_exists(table):
+                from google.api_core.exceptions import AlreadyExists
+                raise AlreadyExists(f"Error: Table '{table}' already exists.")
+            else:
+                return "replace"
+        else:
+            return option
