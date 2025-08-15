@@ -178,6 +178,15 @@ class RequestSessionClient(BaseSessionClient):
         with self.get_session().request(**message) as response:
             return response.json()
 
+    def request_json_safe(self, **kwargs) -> JsonObject:
+        message = self.build_request_message(**kwargs)
+        with self.get_session().request(**message) as response:
+            from json import JSONDecodeError
+            try:
+                return response.json()
+            except JSONDecodeError:
+                return None
+
     def request_headers(self, **kwargs) -> dict[str,str]:
         message = self.build_request_message(**kwargs)
         with self.get_session().request(**message) as response:
@@ -243,6 +252,15 @@ class AiohttpSessionClient(BaseSessionClient):
         message = self.build_request_message(**kwargs)
         async with self.get_session().request(**message) as response:
             return await response.json()
+
+    async def request_async_json_safe(self, **kwargs) -> JsonObject:
+        message = self.build_request_message(**kwargs)
+        async with self.get_session().request(**message) as response:
+            from json import JSONDecodeError
+            try:
+                return await response.json()
+            except JSONDecodeError:
+                return None
 
     async def request_async_headers(self, **kwargs) -> dict[str,str]:
         message = self.build_request_message(**kwargs)

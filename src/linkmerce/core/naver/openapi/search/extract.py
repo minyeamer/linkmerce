@@ -64,7 +64,7 @@ class _SearchExtractor(NaverOpenAPI):
             start: int | Iterable[int] = 1,
             **kwargs
         ) -> JsonObject:
-        return (self.request_each_loop(self.request_json)
+        return (self.request_each_loop(self.request_json_safe)
                 .partial(**kwargs)
                 .expand(query=query, start=start)
                 .loop(self.is_valid_response)
@@ -76,7 +76,7 @@ class _SearchExtractor(NaverOpenAPI):
             start: int | Iterable[int] = 1,
             **kwargs
         ) -> JsonObject:
-        return await (self.request_each_loop(self.request_async_json)
+        return await (self.request_each_loop(self.request_async_json_safe)
                 .partial(**kwargs)
                 .expand(query=query, start=start)
                 .loop(self.is_valid_response)

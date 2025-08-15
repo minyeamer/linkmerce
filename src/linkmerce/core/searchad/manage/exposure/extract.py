@@ -25,14 +25,20 @@ class ExposureDiagnosis(SearchAdManager):
             is_own: bool | None = None,
             **kwargs
         ) -> JsonObject:
-        return (self.request_each_loop(self.request_json)
+        return (self.request_each_loop(self.request_json_safe)
                 .partial(domain=domain, mobile=mobile, is_own=is_own)
                 .expand(keyword=keyword)
                 .loop(self.is_valid_response)
                 .run())
 
     def is_valid_response(self, response: JsonObject) -> bool:
-        return not (isinstance(response, dict) and (response.get("code") == 90100))
+        if isinstance(response, dict):
+            msg = response.get("title") or response.get("message") or str()
+            if (msg == "Forbidden") or ("권한이 없습니다." in msg) or ("인증이 만료됐습니다." in msg):
+                from linkmerce.common.exceptions import UnauthorizedError
+                raise UnauthorizedError(msg)
+            return (not response.get("code"))
+        return False
 
     def build_request_params(
             self,
