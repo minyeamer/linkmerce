@@ -1,13 +1,22 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import DuckDBTransformer
+from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import JsonObject
+    from linkmerce.common.transform import JsonObject
     from duckdb import DuckDBPyRelation
+
+
+class SearchItems(JsonTransformer):
+    dtype = dict
+
+    def is_valid_response(self, obj: dict) -> bool:
+        if "errorMessage" in obj:
+            self.raise_request_error(obj.get("errorMessage") or str())
+        return True
 
 
 class _SearchTransformer(DuckDBTransformer):
@@ -15,14 +24,10 @@ class _SearchTransformer(DuckDBTransformer):
     queries: list[str] = ["create", "select", "insert"]
 
     def transform(self, obj: JsonObject, query: str, start: int = 1, **kwargs):
-        if isinstance(obj, dict):
-            if "errorMessage" not in obj:
-                params = dict(keyword=query, start=(start-1))
-                return self.insert_into_table(obj["items"], params=params) if obj["items"] else None
-            else:
-                self.raise_request_error(obj.get("errorMessage") or str())
-        else:
-            self.raise_parse_error()
+        items = SearchItems(path=["items"]).transform(obj)
+        if items:
+            params = dict(keyword=query, start=(start-1))
+            self.insert_into_table(items, params=params)
 
 
 class BlogSearch(_SearchTransformer):

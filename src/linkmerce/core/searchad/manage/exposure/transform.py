@@ -1,34 +1,32 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import DuckDBTransformer
+from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import JsonObject
+    from linkmerce.common.transform import JsonObject
     from duckdb import DuckDBPyRelation
+
+
+class AdList(JsonTransformer):
+    dtype = dict
+    path = ["adList"]
+
+    def is_valid_response(self, obj: dict) -> bool:
+        if obj.get("code"):
+            self.raise_request_error(obj.get("title") or obj.get("message") or str())
+        return True
 
 
 class ExposureDiagnosis(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
     def transform(self, obj: JsonObject, keyword: str, is_own: bool | None = None, **kwargs):
-        if isinstance(obj, dict):
-            if not obj.get("code"):
-                params = dict(keyword=keyword, is_own=is_own)
-                return self.insert_into_table(obj["adList"], params=params) if obj["adList"] else None
-            else:
-                self.raise_request_error(obj)
-        else:
-            self.raise_parse_error()
-
-    def raise_request_error(self, obj: JsonObject):
-        msg = obj.get("title") or obj.get("message") or str()
-        if (msg == "Forbidden") or ("권한이 없습니다." in msg) or ("인증이 만료됐습니다." in msg):
-            from linkmerce.common.exceptions import UnauthorizedError
-            raise UnauthorizedError(msg)
-        else:
-            super().raise_request_error(msg)
+        ads = AdList().transform(obj)
+        if ads:
+            params = dict(keyword=keyword, is_own=is_own)
+            return self.insert_into_table(ads, params=params)
 
 
 class ExposureRank(ExposureDiagnosis):

@@ -1,14 +1,28 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import DuckDBTransformer
+from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import JsonObject
+    from linkmerce.common.transform import JsonObject
     from duckdb import DuckDBPyRelation
     import datetime as dt
+
+
+class SalesList(JsonTransformer):
+    dtype = dict
+
+    def is_valid_response(self, obj: dict) -> bool:
+        if "error" in obj:
+            from linkmerce.utils.map import hier_get
+            msg = hier_get(obj, ["error","error"]) or "null"
+            if msg == "Unauthorized":
+                from linkmerce.common.exceptions import UnauthorizedError
+                raise UnauthorizedError("Unauthorized request")
+            super().raise_request_error(f"An error occurred during the request: {msg}")
+        return True
 
 
 class _SalesTransformer(DuckDBTransformer):
@@ -24,26 +38,12 @@ class _SalesTransformer(DuckDBTransformer):
             end_date: dt.date | None = None,
             **kwargs
         ):
-        if isinstance(obj, dict):
-            if "error" not in obj:
-                sales = obj["data"][f"{self.sales_type}Sales"]
-                params = dict(mall_seq=mall_seq, end_date=end_date)
-                if self.start_date:
-                    params.update(start_date=start_date)
-                return self.insert_into_table(sales, params=params) if sales else None
-            else:
-                self.raise_request_error(obj)
-        else:
-            self.raise_parse_error()
-
-    def raise_request_error(self, obj: JsonObject):
-        from linkmerce.utils.map import hier_get
-        msg = hier_get(obj, ["error","error"]) or "null"
-        if msg == "Unauthorized":
-            from linkmerce.common.exceptions import UnauthorizedError
-            raise UnauthorizedError("Unauthorized request")
-        else:
-            super().raise_request_error(f"An error occurred during the request: {msg}")
+        sales = SalesList(path=["data",f"{self.sales_type}Sales"]).transform(obj)
+        if sales:
+            params = dict(mall_seq=mall_seq, end_date=end_date)
+            if self.start_date:
+                params.update(start_date=start_date)
+            self.insert_into_table(sales, params=params)
 
 
 class StoreSales(_SalesTransformer):

@@ -1,13 +1,24 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import DuckDBTransformer
+from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import JsonObject
+    from linkmerce.common.transform import JsonObject
     from duckdb import DuckDBPyRelation
+
+
+class CatalogItems(JsonTransformer):
+    dtype = dict
+
+    def is_valid_response(self, obj: dict) -> bool:
+        if "errors" in obj:
+            from linkmerce.utils.map import hier_get
+            msg = hier_get(obj, ["errors",0,"message"]) or "null"
+            self.raise_request_error(f"An error occurred during the request: {msg}")
+        return True
 
 
 class _CatalogTransformer(DuckDBTransformer):
@@ -15,17 +26,10 @@ class _CatalogTransformer(DuckDBTransformer):
     queries: list[str] = ["create", "select", "insert"]
 
     def transform(self, obj: JsonObject, mall_seq: int | str | None = None, **kwargs):
-        if isinstance(obj, dict):
-            if not obj.get("errors"):
-                items = obj["data"][self.object_type]["items"]
-                params = dict(mall_seq=mall_seq) if self.object_type == "products" else None
-                return self.insert_into_table(items, params=params) if items else None
-            else:
-                from linkmerce.utils.map import hier_get
-                msg = hier_get(obj, ["errors",0,"message"]) or "null"
-                self.raise_request_error(f"An error occurred during the request: {msg}")
-        else:
-            self.raise_parse_error()
+        items = CatalogItems(path=["data",self.object_type,"items"]).transform(obj)
+        if items:
+            params = dict(mall_seq=mall_seq) if self.object_type == "products" else None
+            self.insert_into_table(items, params=params)
 
 
 class BrandCatalog(_CatalogTransformer):

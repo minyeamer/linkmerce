@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 
-from typing import overload, TYPE_CHECKING
+from typing import Union, overload, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Literal, Sequence, Type, TypeVar
+    from typing import Any, Hashable, Literal, Sequence, Type, TypeVar
     from types import TracebackType
+    _KT = TypeVar("_KT", Hashable)
     Expression = TypeVar("Expression", bound=str)
     TableName = TypeVar("TableName", bound=str)
     QueryKey = TypeVar("QueryKey", bound=str)
@@ -16,6 +17,8 @@ if TYPE_CHECKING:
 
     from duckdb import DuckDBPyConnection, DuckDBPyRelation
     from pathlib import Path
+
+JsonObject = Union[dict, list]
 
 
 class Transformer(metaclass=ABCMeta):
@@ -34,6 +37,45 @@ class Transformer(metaclass=ABCMeta):
         from linkmerce.common.exceptions import RequestError
         raise RequestError(msg)
 
+
+###################################################################
+########################## HTTP Response ##########################
+###################################################################
+
+class JsonTransformer(Transformer, metaclass=ABCMeta):
+    dtype: type = dict
+    path: list[_KT] | None = None
+
+    def __init__(self, path: _KT | list[_KT] | None = None, **kwargs):
+        if path is not None:
+            self.path = [path] if isinstance(path, str) else path
+
+    def transform(self, obj: Any, **kwargs) -> JsonObject:
+        if isinstance(obj, self.dtype):
+            if self.is_valid_response(obj):
+                return self.parse(obj, **kwargs)
+            else:
+                self.raise_request_error()
+        else:
+            self.raise_parse_error()
+
+    def parse(self, obj: JsonObject, **kwargs) -> JsonObject:
+        if self.path is not None:
+            from linkmerce.utils.map import hier_get
+            return hier_get(obj, self.path)
+        else:
+            return obj
+
+    def is_valid_response(self, obj: JsonObject) -> bool:
+        return True
+
+    def raise_parse_error(self, msg: str | None = None):
+        self.raise_parse_error(msg if msg is not None else "Could not parse the HTTP response.")
+
+
+###################################################################
+############################# Database ############################
+###################################################################
 
 class DBTransformer(Transformer, metaclass=ABCMeta):
     queries: list[str] = ["create"]
@@ -188,6 +230,10 @@ class DummyDBTransformer(DBTransformer):
         return self
 
 
+###################################################################
+############################## DuckDB #############################
+###################################################################
+
 class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
     default_table: str = "data"
     queries: list[str] = ["create"]
@@ -215,10 +261,6 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
 
     def __enter__(self) -> DuckDBTransformer:
         return self
-
-    def raise_parse_error(self, msg: str | None = None):
-        from linkmerce.common.exceptions import ParseError
-        raise ParseError(msg if msg is not None else "Could not parse the HTTP response.")
 
     ############################# Execute #############################
 
