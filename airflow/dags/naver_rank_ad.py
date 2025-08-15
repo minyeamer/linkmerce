@@ -40,9 +40,9 @@ with DAG(
     CHUNK = 100
 
     @task(task_id="etl_naver_rank_ad", pool="naver_rank_ad")
-    def etl_naver_rank_ad(queries: dict, variables: dict) -> list:
+    def etl_naver_rank_ad(queries: dict, variables: dict) -> list[dict]:
         keywords = queries.pop("keyword")
-        return [main(keywords[i:i+CHUNK], queries, **variables) for i in range(0, len(keywords), CHUNK)]
+        return [main(keywords[i:i+CHUNK], queries, **variables, seq=(i//CHUNK)) for i in range(0, len(keywords), CHUNK)]
 
     def main(
             keyword: list[str],
@@ -50,14 +50,21 @@ with DAG(
             service_account: dict,
             tables: dict[str,str],
             merge: dict[str,dict],
+            seq: int = 0,
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.searchad.manage import rank_exposure
         from linkmerce.extensions.bigquery import BigQueryClient
+        import logging
+        import time
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
+            start_time = time.time()
             rank_exposure(**credentials, keyword=keyword, domain="search", mobile=True, connection=conn, return_type="none")
+            end_time = time.time()
+            minutes, seconds = map(int, divmod(end_time - start_time, 60))
+            logging.info(f"[{seq}] API request completed for searching {len(keyword)} keywords in {minutes:02d}:{seconds:02d}")
 
             with BigQueryClient(service_account) as client:
                 timeout = dict(table_lock_wait_interval=3, table_lock_wait_timeout=30, if_staging_table_exists="errors")
@@ -78,6 +85,7 @@ with DAG(
                         product = client.merge_into_table_from_duckdb(conn, "product", tables["temp_product"], tables["product"], **merge["product"], **timeout),
                     )
                 )
+
 
     variables = read_variables()
     init_staging_table(variables) >> etl_naver_rank_ad.partial(variables=variables).expand(queries=read_queries())
