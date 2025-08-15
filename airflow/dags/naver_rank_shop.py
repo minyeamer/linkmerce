@@ -25,7 +25,7 @@ with DAG(
     def read_queries() -> list:
         from variables import read, split_by_credentials
         variables = read(PATH, credentials=True, tables=True, sheets=True)
-        return split_by_credentials(variables["credentials"], keyword=variables["keyword"][:10])
+        return split_by_credentials(variables["credentials"], keyword=variables["keyword"])
 
 
     @task(task_id="init_staging_table")
@@ -42,7 +42,7 @@ with DAG(
     CHUNK = 100
 
     @task(task_id="etl_naver_rank_shop", pool="naver_rank_shop")
-    def etl_naver_rank_shop(queries: dict, variables: dict) -> list[dict]:
+    def etl_naver_rank_shop(queries: dict, variables: dict) -> dict:
         keyword = queries.pop("keyword")
         main(keyword, queries, **variables)
 
