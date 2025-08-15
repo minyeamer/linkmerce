@@ -55,7 +55,7 @@ class JsonTransformer(Transformer, metaclass=ABCMeta):
             if self.is_valid_response(obj):
                 return self.parse(obj, **kwargs)
             else:
-                self.raise_request_error()
+                self.raise_request_error("HTTP response is not valid.")
         else:
             self.raise_parse_error()
 

@@ -14,7 +14,7 @@ class CatalogItems(JsonTransformer):
     dtype = dict
 
     def is_valid_response(self, obj: dict) -> bool:
-        if "errors" in obj:
+        if obj.get("errors"):
             from linkmerce.utils.map import hier_get
             msg = hier_get(obj, ["errors",0,"message"]) or "null"
             self.raise_request_error(f"An error occurred during the request: {msg}")
