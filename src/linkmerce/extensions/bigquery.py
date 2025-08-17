@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from google.cloud.bigquery import SchemaField, Table
     from google.cloud.bigquery.job import LoadJob, LoadJobConfig, QueryJob
     from google.cloud.bigquery.table import Row, RowIterator
+    Clause = TypeVar("Clause", str)
+    Columns = TypeVar("Columns", Sequence[str])
 
     from linkmerce.common.load import DuckDBConnection
     DuckDBTable = TypeVar("DuckDBTable", str)
@@ -266,9 +268,9 @@ class BigQueryClient(Connection):
             source_table: str,
             target_table: str,
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] = dict(),
-            not_matched: str | Sequence[str] | None = None,
-            where_clause: str | None = None,
+            matched: Clause | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] | Literal[":replace_all:",":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:",":do_nothing:"] = ":insert_all:",
+            where_clause: Clause | None = None,
         ) -> LoadJob:
         where = [f"T.{where_clause}"] if where_clause else list()
         on = " AND ".join([f"T.{col} = S.{col}" for col in ([on] if isinstance(on, str) else on)]+where)
@@ -278,13 +280,15 @@ class BigQueryClient(Connection):
 
     def _merge_update(
             self,
-            matched: str | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] = dict(),
+            matched: Clause | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] | Literal[":replace_all:",":do_nothing:"] = ":replace_all:",
             on: str | Sequence[str] = list(),
         ) -> str:
         prefix = "WHEN MATCHED THEN UPDATE SET "
-        if not matched:
+        if matched == ":replace_all:":
             on = [on] if isinstance(on, str) else on
             return self._merge_update({col: "replace" for col in self.get_columns() if col not in on})
+        elif matched == ":do_nothing:":
+            return None
         elif isinstance(matched, dict):
             def render(col: str, agg: str) -> str:
                 if agg in {"source_first","target_first"}:
@@ -300,10 +304,12 @@ class BigQueryClient(Connection):
         else:
             return prefix + str(matched)
 
-    def _merge_insert(self, not_matched: str | Sequence[str] | None = None, target_table: str = str()) -> str:
+    def _merge_insert(self, not_matched: Clause | Columns | Literal[":insert_all:",":do_nothing:"] = ":insert_all:", target_table: str = str()) -> str:
         prefix = "WHEN NOT MATCHED THEN "
-        if not not_matched:
+        if not_matched == ":insert_all:":
             return self._merge_insert(self.get_columns(target_table))
+        elif not_matched == ":do_nothing:":
+            return None
         elif isinstance(not_matched, str):
             return prefix + not_matched
         elif isinstance(not_matched, Sequence):
@@ -320,9 +326,9 @@ class BigQueryClient(Connection):
             source_file: IO[bytes],
             source_format: Literal["avgo","csv","json","orc","parquet"],
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] = dict(),
-            not_matched: str | Sequence[str] | None = None,
-            where_clause: str | None = None,
+            matched: Clause | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] | Literal[":replace_all:",":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:",":do_nothing:"] = ":insert_all:",
+            where_clause: Clause | None = None,
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
             write: Literal["append","empty","truncate","truncate_data"] = "truncate",
             if_not_found: Literal["create","errors","ignore"] = "errors",
@@ -426,7 +432,7 @@ class BigQueryClient(Connection):
             connection: DuckDBConnection,
             source_table: DuckDBTable,
             target_table: BigQueryTable,
-            where_clause: str = "TRUE",
+            where_clause: Clause = "TRUE",
             partition_by: PartitionOptions = dict(),
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
             if_not_found: Literal["create","errors","ignore"] = "errors",
@@ -460,10 +466,10 @@ class BigQueryClient(Connection):
             staging_table: BigQueryTable,
             target_table: BigQueryTable,
             on: str | Sequence[str],
-            matched: str | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] = dict(),
-            not_matched: str | Sequence[str] | None = None,
+            matched: Clause | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] | Literal[":replace_all:",":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:",":do_nothing:"] = ":insert_all:",
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
-            where_clause: str | None = None,
+            where_clause: Clause | None = None,
             table_lock_wait_interval: float | int | None = None,
             table_lock_wait_timeout: float | int | None = 60.,
             if_staging_table_exists: Literal["errors","ignore","replace"] = "replace",
