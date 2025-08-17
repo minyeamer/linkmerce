@@ -10,7 +10,7 @@ with DAG(
     start_date = pendulum.datetime(2025, 8, 15, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1),
     catchup = False,
-    tags = ["priority:medium", "naver:price", "naver:product", "login:partnercenter", "schedule:daily", "time:midnight"],
+    tags = ["priority:medium", "naver:price", "naver:product", "login:partnercenter", "schedule:daily", "time:night"],
 ) as dag:
 
     PATH = ["smartstore", "brand", "naver_brand_price"]
