@@ -35,9 +35,9 @@ def list_get(__r: list[dict[_KT,_VT]], keys: _KT | Sequence[_KT], default: _VT |
 def hier_get(__m: dict[_KT,_VT], path: Sequence[_KT], default: _VT | None = None) -> _VT:
     cur = __m
     for key in path:
-        if isinstance(cur, dict) and (key in cur):
+        try:
             cur = cur[key]
-        else:
+        except:
             return default
     return cur
 

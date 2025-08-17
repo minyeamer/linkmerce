@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     TableName = TypeVar("TableName", bound=str)
     QueryKey = TypeVar("QueryKey", bound=str)
 
+    from bs4 import BeautifulSoup, Tag
+
     from linkmerce.common.load import Connection, DuckDBConnection
     from linkmerce.common.models import Models
 
@@ -71,6 +73,36 @@ class JsonTransformer(Transformer, metaclass=ABCMeta):
 
     def raise_parse_error(self, msg: str | None = None):
         self.raise_parse_error(msg if msg is not None else "Could not parse the HTTP response.")
+
+
+class HtmlTransformer(Transformer, metaclass=ABCMeta):
+    selector: str | None = None
+    mapping: dict[str,str] | None = None
+
+    def __init__(self, selector: str | None = None, mapping: dict[str,str] | None = None, **kwargs):
+        if isinstance(selector, str):
+            self.selector = selector
+        if isinstance(mapping, dict):
+            self.mapping = mapping
+
+    def transform(self, obj: BeautifulSoup, **kwargs) -> JsonObject:
+        if isinstance(self.selector, str):
+            obj = self.select(obj, self.selector)
+
+        if isinstance(obj, list):
+            return [self.parse(tag, **kwargs) for tag in obj]
+        else:
+            return self.parse(obj, **kwargs)
+
+    def parse(self, obj: BeautifulSoup | Tag | list[Tag], **kwargs) -> JsonObject:
+        if isinstance(self.mapping, dict):
+            return {key: self.select(obj, selector) for key, selector in self.mapping.items()}
+        else:
+            raise NotImplementedError("The 'parse' method must be implemented.")
+
+    def select(self, obj: BeautifulSoup | Tag, selector: str) -> Tag | list[Tag] | str | list[str]:
+        from linkmerce.utils.html import select
+        return select(obj, selector)
 
 
 ###################################################################

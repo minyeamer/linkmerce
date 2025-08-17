@@ -68,19 +68,22 @@ class RunLoop(Task):
             condition: Callable[...,bool],
             count: int | None = 1,
             delay: Literal["incremental"] | float | int | Sequence[int,int] = "incremental",
-            loop_error: type = RuntimeError,
+            ignored_errors: type | Sequence[type] = tuple(),
         ):
         self.func = func
         self.condition = condition
         self.count = count
         self.delay = delay
-        self.loop_error = loop_error
+        self.ignored_errors = ignored_errors
 
     def run(self, *args, **kwargs) -> Any:
         if not isinstance(self.count, int):
             return self._infinite_run(args, kwargs)
         for count in range(1, self.count+1):
-            result = self.func(*args, **kwargs)
+            try:
+                result = self.func(*args, **kwargs)
+            except self.ignored_errors:
+                continue
             if self.condition(result):
                 return result
             else:
@@ -89,9 +92,12 @@ class RunLoop(Task):
 
     async def run_async(self, *args, **kwargs) -> Any:
         if not isinstance(self.count, int):
-            raise self.loop_error("Invalid loop count provided.")
+            raise RuntimeError("Invalid loop count provided.")
         for count in range(1, self.count+1):
-            result = await self.func(*args, **kwargs)
+            try:
+                result = await self.func(*args, **kwargs)
+            except self.ignored_errors:
+                continue
             if self.condition(result):
                 return result
             else:
@@ -125,7 +131,7 @@ class RunLoop(Task):
             await asyncio.sleep(_get_seconds(self.delay))
 
     def _raise_loop_error(self):
-        raise self.loop_error("Exceeded maximum retry attempts without success.")
+        raise RuntimeError("Exceeded maximum retry attempts without success.")
 
 
 class RequestLoop(RunLoop, Request):
@@ -136,16 +142,19 @@ class RequestLoop(RunLoop, Request):
             parser: Callable | None = None,
             count: int | None = 1,
             delay: Literal["incremental"] | float | int | Sequence[int,int] = "incremental",
-            loop_error: type = RuntimeError,
+            ignored_errors: type | Sequence[type] = tuple(),
         ):
-        RunLoop.__init__(self, func, condition, count, delay, loop_error)
+        RunLoop.__init__(self, func, condition, count, delay, ignored_errors)
         self.parser = parser
 
     def run(self, *args, **kwargs) -> Any:
         if not isinstance(self.count, int):
             return self._infinite_run(args, kwargs)
         for count in range(1, self.count+1):
-            result = self.func(*args, **kwargs)
+            try:
+                result = self.func(*args, **kwargs)
+            except self.ignored_errors:
+                continue
             if self.condition(result):
                 return self._parse(result, args, kwargs)
             else:
@@ -154,9 +163,12 @@ class RequestLoop(RunLoop, Request):
 
     async def run_async(self, *args, **kwargs) -> Any:
         if not isinstance(self.count, int):
-            raise self.loop_error("Invalid loop count provided.")
+            raise RuntimeError("Invalid loop count provided.")
         for count in range(1, self.count+1):
-            result = await self.func(*args, **kwargs)
+            try:
+                result = await self.func(*args, **kwargs)
+            except self.ignored_errors:
+                continue
             if self.condition(result):
                 return self._parse(result, args, kwargs)
             else:
