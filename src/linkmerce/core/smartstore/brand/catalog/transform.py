@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Literal
     from linkmerce.common.transform import JsonObject
-    from duckdb import DuckDBPyRelation
 
 
 class CatalogItems(JsonTransformer):
@@ -51,22 +50,20 @@ class BrandPrice(BrandProduct):
             price_table: str = ":default:",
             product_table: str = "product",
             **kwargs
-        ) -> tuple[DuckDBPyRelation,DuckDBPyRelation]:
-        price = super().create_table(key="create_price", table=price_table)
-        product = super().create_table(key="create_product", table=product_table)
-        return price, product
+        ):
+        super().create_table(key="create_price", table=price_table)
+        super().create_table(key="create_product", table=product_table)
 
     def insert_into_table(
             self,
-            obj: list,
+            obj: list[dict],
             price_table: str = ":default:",
             product_table: str = "product",
             params: dict = dict(),
             **kwargs
-        ) -> tuple[DuckDBPyRelation,DuckDBPyRelation]:
-        price = super().insert_into_table(obj, key="insert_price", table=price_table, values=":select_price:", params=params)
-        product = super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:", params=params)
-        return price, product
+        ):
+        super().insert_into_table(obj, key="insert_price", table=price_table, values=":select_price:", params=params)
+        super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:", params=params)
 
 
 class ProductCatalog(BrandProduct):
@@ -75,8 +72,8 @@ class ProductCatalog(BrandProduct):
 
     def insert_into_table(
             self,
-            obj: list,
+            obj: list[dict],
             table: str = ":default:",
             **kwargs
-        ) -> tuple[DuckDBPyRelation,DuckDBPyRelation]:
-        return super().insert_into_table(obj, key="insert", table=table, values=":select:")
+        ):
+        super().insert_into_table(obj, key="insert", table=table, values=":select:")

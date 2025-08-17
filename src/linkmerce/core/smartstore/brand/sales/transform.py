@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Literal
     from linkmerce.common.transform import JsonObject
-    from duckdb import DuckDBPyRelation
     import datetime as dt
 
 
@@ -71,22 +70,20 @@ class AggregatedSales(ProductSales):
             sales_table: str = ":default:",
             product_table: str = "product",
             **kwargs
-        ) -> tuple[DuckDBPyRelation,DuckDBPyRelation]:
-        sales = super().create_table(key="create_sales", table=sales_table)
-        product = super().create_table(key="create_product", table=product_table)
-        return sales, product
+        ):
+        super().create_table(key="create_sales", table=sales_table)
+        super().create_table(key="create_product", table=product_table)
 
     def insert_into_table(
             self,
-            obj: list,
+            obj: list[dict],
             sales_table: str = ":default:",
             product_table: str = "product",
             params: dict = dict(),
             **kwargs
-        ) -> tuple[DuckDBPyRelation,DuckDBPyRelation]:
+        ):
         def split_params(mall_seq: int | str, start_date: dt.date, end_date: dt.date, **kwargs) -> tuple[dict,dict]:
             return dict(mall_seq=mall_seq, end_date=end_date), dict(mall_seq=mall_seq, start_date=start_date)
         sales_params, product_params = split_params(**params)
-        sales = super().insert_into_table(obj, key="insert_sales", table=sales_table, values=":select_sales:", params=sales_params)
-        product = super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:", params=product_params)
-        return sales, product
+        super().insert_into_table(obj, key="insert_sales", table=sales_table, values=":select_sales:", params=sales_params)
+        super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:", params=product_params)
