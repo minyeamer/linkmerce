@@ -44,7 +44,7 @@ with DAG(
     @task(task_id="etl_naver_rank_shop", pool="naver_rank_shop")
     def etl_naver_rank_shop(queries: dict, variables: dict) -> dict:
         keyword = queries.pop("keyword")
-        main(keyword, queries, **variables)
+        return main(keyword, queries, **variables)
 
     def main(
             keyword: list[str],
