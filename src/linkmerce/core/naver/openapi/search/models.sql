@@ -171,7 +171,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , id BIGINT
   , product_id BIGINT
   , product_name VARCHAR
-  , product_type TINYINT -- {0: "가격비교 상품", 1: "가격비교 비매칭 일반상품", 2: "가격비교 매칭 일반상품"}
+  , product_type TINYINT -- {0: '가격비교 상품', 1: '가격비교 비매칭 일반상품', 2: '가격비교 매칭 일반상품'}
   , mall_name VARCHAR
   , url VARCHAR
   , brand_name VARCHAR
@@ -214,7 +214,7 @@ CREATE OR REPLACE TABLE {{ table }} (
     keyword VARCHAR
   , id BIGINT
   , product_id BIGINT
-  , product_type TINYINT -- {0: "가격비교 상품", 1: "가격비교 비매칭 일반상품", 2: "가격비교 매칭 일반상품", 3: "광고상품"}
+  , product_type TINYINT -- {0: '가격비교 상품', 1: '가격비교 비매칭 일반상품', 2: '가격비교 매칭 일반상품', 3: '광고상품'}
   , display_rank SMALLINT
   , created_at TIMESTAMP NOT NULL
   , PRIMARY KEY (keyword, display_rank)
@@ -238,7 +238,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 CREATE OR REPLACE TABLE {{ table }} (
     id BIGINT PRIMARY KEY
   , product_id BIGINT
-  , product_type TINYINT -- {0: "가격비교 상품", 1: "일반상품", 3: "광고상품"}
+  , product_type TINYINT -- {0: '가격비교 상품', 1: '일반상품', 3: '광고상품'}
   , product_name VARCHAR
   , category_id INTEGER NULL -- Placeholder
   , full_category_name VARCHAR

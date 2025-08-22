@@ -71,7 +71,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 CREATE OR REPLACE TABLE {{ table }} (
     id BIGINT PRIMARY KEY
   , product_id BIGINT NULL -- Placeholder
-  , product_type TINYINT -- {0: "가격비교 상품", 1: "일반상품", 3: "광고상품"}
+  , product_type TINYINT -- {0: '가격비교 상품', 1: '일반상품', 3: '광고상품'}
   , product_name VARCHAR
   , category_id INTEGER NULL -- Placeholder
   , full_category_name VARCHAR
