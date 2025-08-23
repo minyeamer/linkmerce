@@ -6,7 +6,7 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Variables
+    from linkmerce.common.extract import Variables, JsonObject
 
 
 class SearchAdManager(Extractor):
@@ -32,7 +32,7 @@ class SearchAdManager(Extractor):
         return self.api_url + ('/' * (not self.path.startswith('/'))) + self.path
 
     @property
-    def customer_id(self) -> str | int:
+    def customer_id(self) -> int | str:
         return self.get_variable("customer_id")
 
     def with_token(func):
@@ -82,3 +82,12 @@ class SearchAdManager(Extractor):
 
     def get_authorization(self) -> str:
         return "Bearer " + self.access_token
+
+    def is_valid_response(self, response: JsonObject) -> bool:
+        if isinstance(response, dict):
+            msg = response.get("title") or response.get("message") or str()
+            if (msg == "Forbidden") or ("권한이 없습니다." in msg) or ("인증이 만료됐습니다." in msg):
+                from linkmerce.common.exceptions import UnauthorizedError
+                raise UnauthorizedError(msg)
+            return (not response.get("code"))
+        return False

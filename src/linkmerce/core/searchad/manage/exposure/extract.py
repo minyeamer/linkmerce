@@ -13,7 +13,7 @@ class ExposureDiagnosis(SearchAdManager):
     path = "/ncc/sam/exposure-status-shopping"
 
     def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(RequestLoop=dict(count=5), RequestEachLoop=dict(delay=1.01)))
+        super().set_options(options or dict(RequestLoop=dict(count=5, ignored_errors=ConnectionError), RequestEachLoop=dict(delay=1.01)))
 
     @SearchAdManager.with_session
     @SearchAdManager.with_token
@@ -30,15 +30,6 @@ class ExposureDiagnosis(SearchAdManager):
                 .expand(keyword=keyword)
                 .loop(self.is_valid_response)
                 .run())
-
-    def is_valid_response(self, response: JsonObject) -> bool:
-        if isinstance(response, dict):
-            msg = response.get("title") or response.get("message") or str()
-            if (msg == "Forbidden") or ("권한이 없습니다." in msg) or ("인증이 만료됐습니다." in msg):
-                from linkmerce.common.exceptions import UnauthorizedError
-                raise UnauthorizedError(msg)
-            return (not response.get("code"))
-        return False
 
     def build_request_params(
             self,
