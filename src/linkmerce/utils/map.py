@@ -8,6 +8,12 @@ if TYPE_CHECKING:
     _VT = TypeVar("_VT", Any)
 
 
+def camel_to_snake(s: str) -> str:
+    import re
+    s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', s)
+    return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
 def distinct_dict(*args: dict[_KT,_VT]) -> dict[_KT,list[_VT]]:
     from collections import defaultdict, OrderedDict
     base = defaultdict(OrderedDict)
