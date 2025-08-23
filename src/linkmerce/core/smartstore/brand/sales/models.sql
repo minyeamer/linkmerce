@@ -106,7 +106,7 @@ SELECT
   , SUM(sales.payment_amount) AS payment_amount
   , sales.payment_date
 FROM (
-  SELECT
+  SELECT DISTINCT
       TRY_CAST(product.identifier AS BIGINT) AS product_id
     , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
     , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
