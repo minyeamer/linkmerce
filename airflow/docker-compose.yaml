@@ -81,7 +81,6 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ${SRC_PROJ_DIR:-../src}/env:/opt/airflow/files/env
     - ${SRC_PROJ_DIR:-../src}/linkmerce:/opt/airflow/plugins/linkmerce
-    - ${SRC_PROJ_DIR:-../src}/extensions:/opt/airflow/plugins/extensions
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
