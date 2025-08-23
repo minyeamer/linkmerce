@@ -23,8 +23,8 @@ with DAG(
 
     @task(task_id="etl_brand_sales")
     def etl_brand_sales(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        start_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=3).date())
-        end_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=2).date())
+        start_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=2).date())
+        end_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
         return main(start_date=start_date, end_date=end_date, **ti.xcom_pull(task_ids="read_variables"))
 
     def main(
