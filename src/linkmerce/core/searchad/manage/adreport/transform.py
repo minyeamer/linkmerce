@@ -116,7 +116,8 @@ class AdvancedReport(Transformer):
 class DailyReport(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
-    def transform(self, obj: str, **kwargs):
+    def transform(self, obj: str, customer_id: int | str, **kwargs):
         report_csv = AdvancedReport().transform(obj, convert_dtypes=True)
-        report_json = [dict(zip(report_csv[0], row)) for row in report_csv[1:]]
-        self.insert_into_table(report_json)
+        if len(report_csv) > 1:
+            report_json = [dict(zip(report_csv[0], row)) for row in report_csv[1:]]
+            self.insert_into_table(report_json, params=dict(customer_id=customer_id))

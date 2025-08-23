@@ -87,7 +87,7 @@ class DailyReport(AdvancedReport):
         ) -> JsonObject:
         kwargs = dict(kwargs,
             report_id=report_id, report_name=report_name, attributes=self.attributes, fields=self.fields,
-            start_date=start_date, end_date=end_date, userid=userid)
+            start_date=start_date, end_date=end_date, userid=userid, customer_id=self.customer_id)
 
         response = self.request_text(**kwargs)
         if self.is_valid_response(response):

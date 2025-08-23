@@ -1,6 +1,7 @@
 -- DailyReport: create
 CREATE OR REPLACE TABLE {{ table }} (
     ad_id VARCHAR
+  , customer_id INTEGER
   , media_name VARCHAR
   , pc_mobile_type TINYINT -- {0: 'PC', 1: '모바일', 2: '기타'}
   , network_type TINYINT -- {0: '검색', 1: '콘텐츠', 2: '기타'}
@@ -15,12 +16,13 @@ CREATE OR REPLACE TABLE {{ table }} (
   , page_view_per_visit DECIMAL(18, 2)
   , stay_time_per_visit DECIMAL(18, 2)
   , ymd DATE
-  , PRIMARY KEY (ymd, ad_id, media_name, pc_mobile_type, network_type)
+  , PRIMARY KEY (ymd, customer_id, pc_mobile_type, network_type, media_name, ad_id)
 );
 
 -- DailyReport: select
 SELECT
-    nccAdId AS ad_id
+    REPLACE(nccAdId, '(삭제)', '') AS ad_id
+  , TRY_CAST($customer_id AS INTEGER) AS customer_id
   , mediaNm AS media_name
   , (CASE WHEN pcMblTp = 'PC' THEN 0 WHEN pcMblTp = '모바일' THEN 1 ELSE 2 END) AS pc_mobile_type
   , (CASE WHEN ntwkTp = '검색' THEN 0 WHEN ntwkTp = '콘텐츠' THEN 1 ELSE 2 END) AS network_type
