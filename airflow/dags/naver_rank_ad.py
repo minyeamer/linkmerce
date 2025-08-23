@@ -26,27 +26,17 @@ with DAG(
         return split_by_credentials(variables["credentials"], keyword=variables["keyword"])
 
 
-    @task(task_id="init_staging_table")
-    def init_staging_table(variables: dict):
-        from linkmerce.extensions.bigquery import BigQueryClient
-        tables = variables["tables"]
-
-        with BigQueryClient(variables["service_account"]) as client:
-            for staging_table in [tables["temp_now"], tables["temp_product"]]:
-                if client.table_exists(staging_table):
-                    client.execute_job(f"DROP TABLE `{client.project_id}.{staging_table}`;")
-
-
     CHUNK = 100
 
-    @task(task_id="etl_naver_rank_ad", pool="naver_rank_ad")
+    @task(task_id="etl_naver_rank_ad", map_index_template="{{ queries['customer_id'] }}")
     def etl_naver_rank_ad(queries: dict, variables: dict) -> list[dict]:
         keywords = queries.pop("keyword")
-        return [main(keywords[i:i+CHUNK], queries, **variables, seq=(i//CHUNK)) for i in range(0, len(keywords), CHUNK)]
+        return [main(**queries, keyword=keywords[i:i+CHUNK], **variables, seq=(i//CHUNK)) for i in range(0, len(keywords), CHUNK)]
 
     def main(
+            customer_id: int | str,
+            cookies: str,
             keyword: list[str],
-            credentials: dict,
             service_account: dict,
             tables: dict[str,str],
             merge: dict[str,dict],
@@ -61,16 +51,15 @@ with DAG(
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             start_time = time.time()
-            rank_exposure(**credentials, keyword=keyword, domain="search", mobile=True, connection=conn, return_type="none")
+            rank_exposure(customer_id, cookies, keyword, domain="search", mobile=True, connection=conn, return_type="none")
             end_time = time.time()
             minutes, seconds = map(int, divmod(end_time - start_time, 60))
             logging.info(f"[{seq}] API request completed for searching {len(keyword)} keywords in {minutes:02d}:{seconds:02d}")
 
             with BigQueryClient(service_account) as client:
-                timeout = dict(table_lock_wait_interval=3, table_lock_wait_timeout=30, if_staging_table_exists="errors")
-
                 return dict(
                     params = dict(
+                        customer_id = customer_id,
                         keyword = len(keyword),
                         domain = "search",
                         mobile = True,
@@ -81,11 +70,11 @@ with DAG(
                     ),
                     status = dict(
                         rank = client.load_table_from_duckdb(conn, "data", tables["data"]),
-                        now = client.merge_into_table_from_duckdb(conn, "data", tables["temp_now"], tables["now"], **merge["now"], **timeout),
-                        product = client.merge_into_table_from_duckdb(conn, "product", tables["temp_product"], tables["product"], **merge["product"], **timeout),
+                        
+                        now = client.merge_into_table_from_duckdb(conn, "data", f'{tables["temp_now"]}_{customer_id}', tables["now"], **merge["now"]),
+                        product = client.merge_into_table_from_duckdb(conn, "product", f'{tables["temp_product"]}_{customer_id}', tables["product"], **merge["product"]),
                     )
                 )
 
 
-    variables = read_variables()
-    init_staging_table(variables) >> etl_naver_rank_ad.partial(variables=variables).expand(queries=read_queries())
+    etl_naver_rank_ad.partial(variables=read_variables()).expand(queries=read_queries())

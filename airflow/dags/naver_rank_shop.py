@@ -25,30 +25,21 @@ with DAG(
     def read_queries() -> list:
         from variables import read, split_by_credentials
         variables = read(PATH, credentials=True, tables=True, sheets=True)
-        return split_by_credentials(variables["credentials"], keyword=variables["keyword"])
-
-
-    @task(task_id="init_staging_table")
-    def init_staging_table(variables: dict):
-        from linkmerce.extensions.bigquery import BigQueryClient
-        tables = variables["tables"]
-
-        with BigQueryClient(variables["service_account"]) as client:
-            for staging_table in [tables["temp_now"], tables["temp_product"]]:
-                if client.table_exists(staging_table):
-                    client.execute_job(f"DROP TABLE `{client.project_id}.{staging_table}`;")
+        queries = split_by_credentials(variables["credentials"], keyword=variables["keyword"])
+        return [dict(query, seq=i) for i, query in enumerate(queries)]
 
 
     CHUNK = 100
 
-    @task(task_id="etl_naver_rank_shop", pool="naver_rank_shop")
+    @task(task_id="etl_naver_rank_shop")
     def etl_naver_rank_shop(queries: dict, variables: dict) -> dict:
-        keyword = queries.pop("keyword")
-        return main(keyword, queries, **variables)
+        return main(**queries, **variables)
 
     def main(
+            client_id: str,
+            client_secret: str,
             keyword: list[str],
-            credentials: dict,
+            seq: int,
             service_account: dict,
             tables: dict[str,str],
             merge: dict[str,dict],
@@ -59,11 +50,9 @@ with DAG(
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            rank_shop(**credentials, query=keyword, start=[1,101,201], sort="sim", connection=conn, how="async", return_type="none")
+            rank_shop(client_id, client_secret, keyword, start=[1,101,201], sort="sim", connection=conn, how="async", return_type="none")
 
             with BigQueryClient(service_account) as client:
-                timeout = dict(table_lock_wait_interval=3, table_lock_wait_timeout=30, if_staging_table_exists="errors")
-
                 return dict(
                     params = dict(
                         query = len(keyword),
@@ -76,8 +65,8 @@ with DAG(
                     ),
                     status = dict(
                         rank = client.load_table_from_duckdb(conn, "data", tables["data"]),
-                        now = client.merge_into_table_from_duckdb(conn, "data", tables["temp_now"], tables["now"], **merge["now"], **timeout),
-                        product = client.merge_into_table_from_duckdb(conn, "product", tables["temp_product"], tables["product"], **merge["product"], **timeout),
+                        now = client.merge_into_table_from_duckdb(conn, "data", f'{tables["temp_now"]}_{seq}', tables["now"], **merge["now"]),
+                        product = client.merge_into_table_from_duckdb(conn, "product", f'{tables["temp_product"]}_{seq}', tables["product"], **merge["product"]),
                     )
                 )
 
@@ -96,5 +85,4 @@ with DAG(
     )
 
 
-    variables = read_variables()
-    init_staging_table(variables) >> etl_naver_rank_shop.partial(variables=variables).expand(queries=read_queries()) >> naver_product_catalog
+    etl_naver_rank_shop.partial(variables=read_variables()).expand(queries=read_queries()) >> naver_product_catalog
