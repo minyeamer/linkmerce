@@ -20,7 +20,7 @@ class Order(DuckDBTransformer):
         orders = OrderList().transform(obj)
         if orders:
             self.validate_content(orders[0]["content"])
-            return self.insert_into_table(orders)
+            self.insert_into_table(orders)
 
     def validate_content(self, content: dict):
         productOrder = content["productOrder"] or dict()
@@ -32,3 +32,26 @@ class Order(DuckDBTransformer):
             if key not in delivery:
                 delivery[key] = delivery.get(key)
         content.update(productOrder=productOrder, delivery=delivery)
+
+
+class ProductOrder(Order):
+    queries = ["create_order", "select_order", "insert_order", "create_product", "select_product", "upsert_product"]
+
+    def create_table(
+            self,
+            order_table: str = ":default:",
+            product_table: str = "product",
+            **kwargs
+        ):
+        super().create_table(key="create_order", table=order_table)
+        super().create_table(key="create_product", table=product_table)
+
+    def insert_into_table(
+            self,
+            obj: list[dict],
+            order_table: str = ":default:",
+            product_table: str = "product",
+            **kwargs
+        ):
+        super().insert_into_table(obj, key="insert_order", table=order_table, values=":select_order:")
+        super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:")

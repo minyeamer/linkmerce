@@ -4,7 +4,7 @@ from linkmerce.core.smartstore.api import SmartstoreAPI
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Literal, Iterable
     from linkmerce.common.extract import JsonObject, TaskOptions
     import datetime as dt
 
@@ -21,10 +21,10 @@ class Order(SmartstoreAPI):
     @SmartstoreAPI.with_token
     def extract(
             self,
-            date: dt.date | str | list,
+            date: dt.date | str | Iterable,
             range_type: Literal["PAYED_DATETIME","ORDERING_CONFIRM","DELIVERY_OPERATED","DELIVERY_COMPLETED","PURCHASE_DECISION_COMPLETED"] = "PAYED_DATETIME",
-            product_order_status: list[str] = list(),
-            claim_status: list[str] = list(),
+            product_order_status: Iterable[str] = list(),
+            claim_status: Iterable[str] = list(),
             place_order_status: str = list(),
             page_start: int = 1,
             retry_count: int = 5,
@@ -48,8 +48,8 @@ class Order(SmartstoreAPI):
             self,
             date: dt.date | str,
             range_type: str = "PAYED_DATETIME",
-            product_order_status: list[str] = list(),
-            claim_status: list[str] = list(),
+            product_order_status: Iterable[str] = list(),
+            claim_status: Iterable[str] = list(),
             place_order_status: str = list(),
             next_cursor: int = 1,
             page_size: int = 300,
@@ -95,3 +95,7 @@ class Order(SmartstoreAPI):
     @property
     def place_order_status(self) -> dict[str,str]:
         return {"NOT_YET": "발주 미확인", "OK": "발주 확인", "CANCEL": "발주 확인 해제"}
+
+
+class ProductOrder(Order):
+    ...
