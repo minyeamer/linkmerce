@@ -381,7 +381,6 @@ class PaginateAll(ForEach, Request):
             delay: float | int | tuple[int,int] = 0.,
             limit: int | None = None,
             tqdm_options: dict = dict(),
-            count_error: type = ValueError,
         ):
         self.func = func
         self.counter = counter
@@ -391,7 +390,6 @@ class PaginateAll(ForEach, Request):
         self.delay = delay
         self.limit = limit
         self.tqdm_options = tqdm_options
-        self.count_error = count_error
         self.concat_how = "never"
 
     def run(self, page: _SKIPPED = None, page_size: _SKIPPED = None, **kwargs) -> list:
@@ -490,6 +488,91 @@ class RequestEachPages(RequestEach):
             return self
 
     def concat(self, how: Literal["always","never","auto"] = "auto") -> RequestEachPages:
+        if isinstance(self.func, PaginateAll):
+            return self.setattr("func", self.func.concat(how), "concat_how", how)
+        else:
+            return self.setattr("concat_how", how)
+
+
+###################################################################
+############################## Cursor #############################
+###################################################################
+
+class CursorAll(RunLoop, ForEach, Request):
+    def __init__(
+            self,
+            func: Callable,
+            get_next_cursor: Callable[...,Any],
+            next_cursor: Any | None = None,
+            parser: Callable | None = None,
+            delay: float | int | tuple[int,int] = 0.,
+        ):
+        self.func = func
+        self.get_next_cursor = get_next_cursor
+        self.next_cursor = next_cursor
+        self.parser = parser
+        self.delay = delay
+        self.concat_how = "never"
+
+    def run(self, next_cursor: _SKIPPED = None, **kwargs) -> list:
+        results, next_cursor = list(), self.next_cursor
+        while (next_cursor is not None) or (not results):
+            result, next_cursor = self._run_with_cursor(next_cursor=next_cursor, **kwargs)
+            results.append(result)
+            self._sleep(self.delay)
+        return self._concat_results(results)
+
+    async def run_async(self):
+        raise NotImplementedError("This task does not support asynchronous execution. Please use the run method instead.")
+
+    def parse(self, parser: Callable | None = None) -> CursorAll:
+        return self.setattr("parser", parser)
+
+    def concat(self, how: Literal["always","never","auto"] = "auto") -> CursorAll:
+        return self.setattr("concat_how", how)
+
+    def _run_with_cursor(self, *args, **kwargs) -> tuple[Any,Any]:
+        results = self.func(*args, **kwargs)
+        return self._parse(results, args, kwargs), self.get_next_cursor(results)
+
+
+class RequestEachCursor(RequestEach):
+    def __init__(
+            self,
+            func: Callable | Coroutine,
+            context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] | dict[_KT,_VT] = list(),
+            parser: Callable | None = None,
+            delay: float | int | tuple[int,int] = 0.,
+            tqdm_options: dict = dict(),
+            cursor_options: dict = dict(tqdm_options=dict(disable=True)),
+        ):
+        super().__init__(func, context, parser, delay, None, tqdm_options)
+        self.cursor_options = cursor_options
+
+    @property
+    def callable(self) -> Callable:
+        if isinstance(self.func, CursorAll):
+            return self.func.run
+        else:
+            return Request(self.func, self.parser).run
+
+    async def run_async(self):
+        raise NotImplementedError("This task does not support asynchronous execution. Please use the run method instead.")
+
+    def parse(self, parser: Callable | None = None) -> RequestEachCursor:
+        return self.setattr("parser", parser)
+
+    def expand(self, **map_kwargs: _VT) -> RequestEachCursor:
+        return super().expand(**map_kwargs)
+
+    def partial(self, **kwargs: _VT) -> RequestEachCursor:
+        return self.setattr("kwargs", kwargs)
+
+    def all_cursor(self, get_next_cursor: Callable[...,Any], next_cursor: Any | None = None, **kwargs) -> RequestEachCursor:
+        cursor_all = CursorAll(self.func, get_next_cursor, next_cursor, self.parser, **(kwargs or self.cursor_options))
+        return self.setattr("func", cursor_all)
+
+    def concat(self, how: Literal["always","never","auto"] = "auto") -> RequestEachCursor:
         if isinstance(self.func, PaginateAll):
             return self.setattr("func", self.func.concat(how), "concat_how", how)
         else:
