@@ -4,7 +4,7 @@ from linkmerce.core.searchad.manage import SearchAdManager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from typing import Iterable, Sequence
     from linkmerce.common.extract import JsonObject
     import datetime as dt
 
@@ -19,8 +19,8 @@ class AdvancedReport(SearchAdManager):
             self,
             report_id: str,
             report_name: str,
-            attributes: list[str],
-            fields: list[str],
+            attributes: Iterable[str],
+            fields: Iterable[str],
             start_date: dt.date | str,
             end_date: dt.date | str,
             userid: str,
@@ -46,8 +46,8 @@ class AdvancedReport(SearchAdManager):
     def build_request_params(
             self,
             report_name: str,
-            attributes: list[str],
-            fields: list[str],
+            attributes: Iterable[str],
+            fields: Iterable[str],
             start_date: dt.date | str,
             end_date: dt.date | str,
             userid: str,
