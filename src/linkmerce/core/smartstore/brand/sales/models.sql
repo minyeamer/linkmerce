@@ -136,22 +136,18 @@ CREATE OR REPLACE TABLE {{ table }} (
 );
 
 -- AggregatedSales: select_product
-SELECT sales.* EXCLUDE (seq)
-FROM (
-  SELECT
-      TRY_CAST(product.identifier AS BIGINT) AS product_id
-    , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
-    , NULL AS category_id
-    , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
-    , product.name AS product_name
-    , NULL AS sales_price
-    , $start_date AS register_date
-    , CURRENT_DATE AS update_date
-    , ROW_NUMBER() OVER (PARTITION BY product.identifier) AS seq
-  FROM {{ array }}
-  WHERE TRY_CAST(product.identifier AS BIGINT) IS NOT NULL
-) AS sales
-WHERE sales.seq = 1;
+SELECT
+    TRY_CAST(product.identifier AS BIGINT) AS product_id
+  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , NULL AS category_id
+  , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
+  , product.name AS product_name
+  , NULL AS sales_price
+  , $start_date AS register_date
+  , CURRENT_DATE AS update_date
+FROM {{ array }}
+WHERE TRY_CAST(product.identifier AS BIGINT) IS NOT NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY product.identifier) = 1;
 
 -- AggregatedSales: upsert_product
 INSERT INTO {{ table }} {{ values }}
