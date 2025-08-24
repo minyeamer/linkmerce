@@ -21,7 +21,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , product_count INTEGER
   , review_count INTEGER
   , review_rating TINYINT
-  , register_time TIMESTAMP
+  , register_dt TIMESTAMP
 );
 
 -- BrandCatalog: select
@@ -47,7 +47,7 @@ SELECT
   , productCount AS product_count
   , totalReviewCount AS review_count
   , TRY_CAST(reviewRating AS INT8) AS review_rating
-  , DATE_TRUNC('SECOND', TRY_CAST(registerDate AS TIMESTAMP)) AS register_time
+  , DATE_TRUNC('SECOND', TRY_CAST(registerDate AS TIMESTAMP)) AS register_dt
 FROM {{ array }}
 WHERE TRY_CAST(id AS BIGINT) IS NOT NULL;
 
@@ -80,7 +80,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , product_url VARCHAR
   , image_url VARCHAR
   , sales_price INTEGER
-  , register_time TIMESTAMP
+  , register_dt TIMESTAMP
 );
 
 -- BrandProduct: select
@@ -108,7 +108,7 @@ SELECT
   , outLinkUrl AS product_url
   , image.SRC AS image_url
   , TRY_CAST(lowestPrice AS INTEGER) AS sales_price
-  , DATE_TRUNC('SECOND', TRY_CAST(registerDate AS TIMESTAMP)) AS register_time
+  , DATE_TRUNC('SECOND', TRY_CAST(registerDate AS TIMESTAMP)) AS register_dt
 FROM {{ array }}
 WHERE (TRY_CAST(id AS BIGINT) IS NOT NULL)
   AND (mallProductId IS NOT NULL);

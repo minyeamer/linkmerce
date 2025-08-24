@@ -34,7 +34,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , title VARCHAR
   , url VARCHAR
   , description VARCHAR
-  , publish_time TIMESTAMP
+  , publish_dt TIMESTAMP
   , PRIMARY KEY (keyword, display_rank)
 );
 
@@ -45,7 +45,7 @@ SELECT
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS title
   , originallink AS url
   , REGEXP_REPLACE(description, '<[^>]+>', '', 'g') AS description
-  , TRY_CAST(TRY_STRPTIME(pubDate, '%a, %d %b %Y %H:%M:%S %z') AS TIMESTAMP) AS publish_time
+  , TRY_CAST(TRY_STRPTIME(pubDate, '%a, %d %b %Y %H:%M:%S %z') AS TIMESTAMP) AS publish_dt
 FROM {{ array }};
 
 -- NewsSearch: insert

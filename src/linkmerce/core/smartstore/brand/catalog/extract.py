@@ -22,9 +22,7 @@ class _CatalogExtractor(PartnerCenter):
     fields: list
 
     def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(
-            PaginateAll=dict(delay=1, limit=3, tqdm_options=dict(disable=True)),
-            RequestEachPages=dict(delay=1, limit=3)))
+        super().set_options(options or dict(PaginateAll=dict(delay=1, limit=3), RequestEachPages=dict(delay=1, limit=3)))
 
     def split_map_kwargs(
             self,
