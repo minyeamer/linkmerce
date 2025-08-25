@@ -229,11 +229,16 @@ def read_google_sheets(
 
 def _default_config(
         key_path: str | int | Sequence[str | int] = list(),
+        file_path: str | Path = DEFAULT_CONFIG,
         format: Literal["auto","json","yaml"] = "auto",
+        credentials_path: str | Path | None = DEFAULT_CREDENTIALS,
+        schemas_path: str | Path | None = DEFAULT_SCHEMAS,
+        service_account: ServiceAccount | None = DEFAULT_SERVICE_ACCOUNT,
         skip_subpath: bool = False,
         with_table_schema: bool | None = False,
+        read_google_sheets: bool = True,
     ) -> dict:
     return read_config(
-        DEFAULT_CONFIG, key_path, format, DEFAULT_CREDENTIALS, DEFAULT_SCHEMAS, DEFAULT_SERVICE_ACCOUNT,
-        skip_subpath, with_table_schema
+        file_path, key_path, format, credentials_path, schemas_path, service_account,
+        skip_subpath, with_table_schema, read_google_sheets
     )
