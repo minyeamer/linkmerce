@@ -24,7 +24,7 @@ class Order(DuckDBTransformer):
 
     def validate_content(self, content: dict):
         productOrder = content["productOrder"] or dict()
-        for key in ["sellerProductCode","optionManageCode","claimStatus","productOption","decisionDate"]:
+        for key in ["sellerProductCode","optionManageCode","claimStatus","productOption","inflowPathAdd","decisionDate"]:
             if key not in productOrder:
                 productOrder[key] = productOrder.get(key)
         delivery = content["delivery"] or dict()
@@ -35,23 +35,23 @@ class Order(DuckDBTransformer):
 
 
 class ProductOrder(Order):
-    queries = ["create_order", "select_order", "insert_order", "create_product", "select_product", "upsert_product"]
+    queries = ["create_order", "select_order", "insert_order", "create_option", "select_option", "upsert_option"]
 
     def create_table(
             self,
             order_table: str = ":default:",
-            product_table: str = "product",
+            option_table: str = "option",
             **kwargs
         ):
         super().create_table(key="create_order", table=order_table)
-        super().create_table(key="create_product", table=product_table)
+        super().create_table(key="create_option", table=option_table)
 
     def insert_into_table(
             self,
             obj: list[dict],
             order_table: str = ":default:",
-            product_table: str = "product",
+            option_table: str = "option",
             **kwargs
         ):
         super().insert_into_table(obj, key="insert_order", table=order_table, values=":select_order:")
-        super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:")
+        super().insert_into_table(obj, key="upsert_option", table=option_table, values=":select_option:")

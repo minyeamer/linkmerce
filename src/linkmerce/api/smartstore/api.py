@@ -54,7 +54,7 @@ def product_order(
         transform_options: dict | None = None,
     ) -> JsonObject:
     args = (date, range_type, product_order_status, claim_status, place_order_status, page_start, retry_count)
-    table = [get_table(transform_options, "sales_table"), get_table(transform_options, "product_table", "product")]
+    table = [get_table(transform_options, "order_table"), get_table(transform_options, "option_table", "option")]
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(get_module(".order"), "ProductOrder", "ProductOrder", connection, "sync", table, return_type, args, **options)

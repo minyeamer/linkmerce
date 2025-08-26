@@ -74,7 +74,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 -- ProductOrder: create_order
 CREATE OR REPLACE TABLE {{ table }} (
     product_order_no BIGINT PRIMARY KEY
-  , order_no BIGINT
+  , order_no BIGINT NOT NULL
   , orderer_no BIGINT
   , channel_seq BIGINT
   , product_id BIGINT
@@ -87,7 +87,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , payment_amount INTEGER
   , supply_amount INTEGER
   , order_dt TIMESTAMP
-  , payment_dt TIMESTAMP
+  , payment_dt TIMESTAMP NOT NULL
 );
 
 -- ProductOrder: select_order
@@ -120,7 +120,7 @@ WHERE TRY_CAST(productOrderId AS BIGINT) IS NOT NULL;
 -- ProductOrder: insert_order
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
--- ProductOrder: create_product
+-- ProductOrder: create_option
 CREATE OR REPLACE TABLE {{ table }} (
     product_id BIGINT
   , option_id BIGINT PRIMARY KEY
@@ -136,7 +136,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , update_date DATE
 );
 
--- ProductOrder: select_product
+-- ProductOrder: select_option
 SELECT
     TRY_CAST(content.productOrder.productId AS BIGINT) AS product_id
   , TRY_CAST(content.productOrder.optionCode AS BIGINT) AS option_id
@@ -158,12 +158,13 @@ FROM {{ array }}
 WHERE TRY_CAST(content.productOrder.optionCode AS BIGINT) IS NOT NULL
 QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.optionCode) = 1;
 
--- ProductOrder: upsert_product
+-- ProductOrder: upsert_option
 INSERT INTO {{ table }} {{ values }}
 ON CONFLICT DO UPDATE SET
     product_id = COALESCE(excluded.product_id, product_id)
   , channel_seq = COALESCE(excluded.channel_seq, channel_seq)
   , seller_product_code = COALESCE(excluded.seller_product_code, seller_product_code)
+  , seller_option_code = COALESCE(excluded.seller_option_code, seller_option_code)
   , product_type = COALESCE(excluded.product_type, product_type)
   , product_name = COALESCE(excluded.product_name, product_name)
   , option_name = COALESCE(excluded.option_name, option_name)
