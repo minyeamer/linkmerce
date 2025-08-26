@@ -153,7 +153,7 @@ SELECT
   , content.productOrder.unitPrice AS sales_price
   , content.productOrder.optionPrice AS option_price
   , content.productOrder.deliveryFeeAmount AS delivery_fee
-    , CURRENT_DATE AS update_date
+  , TRY_CAST(content.order.paymentDate AS DATE) AS update_date
 FROM {{ array }}
 WHERE TRY_CAST(content.productOrder.optionCode AS BIGINT) IS NOT NULL
 QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.optionCode) = 1;
@@ -171,4 +171,4 @@ ON CONFLICT DO UPDATE SET
   , sales_price = COALESCE(excluded.sales_price, sales_price)
   , option_price = COALESCE(excluded.option_price, option_price)
   , delivery_fee = COALESCE(excluded.delivery_fee, delivery_fee)
-  , update_date = excluded.update_date;
+  , update_date = GREATEST(excluded.update_date, update_date);

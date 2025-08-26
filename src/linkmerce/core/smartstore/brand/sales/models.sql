@@ -144,7 +144,7 @@ SELECT
   , product.name AS product_name
   , NULL AS sales_price
   , $start_date AS register_date
-  , CURRENT_DATE AS update_date
+  , $start_date AS update_date
 FROM {{ array }}
 WHERE TRY_CAST(product.identifier AS BIGINT) IS NOT NULL
 QUALIFY ROW_NUMBER() OVER (PARTITION BY product.identifier) = 1;
@@ -157,4 +157,4 @@ ON CONFLICT DO UPDATE SET
   , product_name = COALESCE(excluded.product_name, product_name)
   , sales_price = COALESCE(excluded.sales_price, sales_price)
   , register_date = LEAST(excluded.register_date, register_date)
-  , update_date = excluded.update_date;
+  , update_date = GREATEST(excluded.update_date, update_date);
