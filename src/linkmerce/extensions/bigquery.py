@@ -447,8 +447,9 @@ class BigQueryClient(Connection):
 
         success = False
         from_clause = concat_sql(f"FROM `{self.project_id}.{target_table}`", where(where_clause))
-        existing_values = self.fetch_all_to_json(f"SELECT * {from_clause};")
-        self.conn.query(f"DELETE {from_clause};")
+
+        existing_values = self.fetch_all_to_json(concat_sql("SELECT *", from_clause))
+        self.conn.query(concat_sql("DELETE", from_clause))
 
         try:
             success = self.load_table_from_duckdb(connection, source_table, target_table, partition_by, schema, "append", if_not_found, progress)
