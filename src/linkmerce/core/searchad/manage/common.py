@@ -10,11 +10,12 @@ if TYPE_CHECKING:
 
 
 class SearchAdManager(Extractor):
+    method: str | None = None
     origin: str = "https://searchad.naver.com"
     main_url: str = "https://manage.searchad.naver.com"
     api_url: str = "https://gw.searchad.naver.com/api"
     auth_url: str = "https://gw.searchad.naver.com/auth"
-    path: str
+    path: str | None = None
     access_token: str = str()
     refresh_token: str = str()
 
@@ -29,7 +30,7 @@ class SearchAdManager(Extractor):
 
     @property
     def url(self) -> str:
-        return self.api_url + ('/' * (not self.path.startswith('/'))) + self.path
+        return self.concat_path(self.api_url, self.path)
 
     @property
     def customer_id(self) -> int | str:

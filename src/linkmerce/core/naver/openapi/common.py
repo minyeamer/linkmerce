@@ -5,17 +5,19 @@ from linkmerce.common.extract import Extractor
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Literal
     from linkmerce.common.extract import Variables
 
 
 class NaverOpenAPI(Extractor):
+    method: str | None = None
     origin: str = "https://openapi.naver.com"
     version: str = "v1"
-    path: str
+    path: str | None = None
 
     @property
     def url(self) -> str:
-        return self.origin + '/' + self.version + ('/' * (not self.path.startswith('/'))) + self.path
+        return self.concat_path(self.origin, self.version, self.path)
 
     def set_variables(self, variables: Variables = dict()):
         try:

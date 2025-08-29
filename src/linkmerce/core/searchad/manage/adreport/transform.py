@@ -28,13 +28,15 @@ class AdvancedReport(Transformer):
     def transform(self, obj: str, convert_dtypes: bool = True, **kwargs) -> list[list[str]]:
         from io import StringIO
         import csv
-        reader = csv.reader(StringIO(obj), delimiter=',')
-
-        _, header = next(reader), next(reader)
-        info = self.info
-        apply = [_convert(info[column]["type"]) if convert_dtypes else (lambda x: x) for column in header]
-        header = [info[column]["name"] for column in header]
-        return [header] + [[func(value) for func, value in zip(apply, row)] for row in reader]
+        if obj:
+            reader = csv.reader(StringIO(obj), delimiter=',')
+            _, header = next(reader), next(reader)
+            info = self.info
+            apply = [_convert(info[column]["type"]) if convert_dtypes else (lambda x: x) for column in header]
+            header = [info[column]["name"] for column in header]
+            return [header] + [[func(value) for func, value in zip(apply, row)] for row in reader]
+        else:
+            return list()
 
     @property
     def info(self) -> dict[str,dict]:

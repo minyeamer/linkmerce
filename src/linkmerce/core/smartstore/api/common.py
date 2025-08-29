@@ -10,9 +10,10 @@ if TYPE_CHECKING:
 
 
 class SmartstoreAPI(Extractor):
+    method: str | None = None
     origin: str = "https://api.commerce.naver.com/external"
     version: str = "v1"
-    path: str
+    path: str | None = None
 
     def set_variables(self, variables: Variables = dict()):
         try:
@@ -25,7 +26,7 @@ class SmartstoreAPI(Extractor):
 
     @property
     def url(self) -> str:
-        return self.origin + '/' + self.version + ('/' * (not self.path.startswith('/'))) + self.path
+        return self.concat_path(self.origin, self.version, self.path)
 
     @property
     def client_id(self) -> int | str:

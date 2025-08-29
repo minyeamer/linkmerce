@@ -14,7 +14,9 @@ if TYPE_CHECKING:
     from linkmerce.common.tasks import CursorAll, RequestEachCursor
 
     from requests import Session, Response
+    from requests.cookies import RequestsCookieJar
     from aiohttp.client import ClientSession, ClientResponse
+    from aiohttp.typedefs import LooseCookies
     from bs4 import BeautifulSoup
     import datetime as dt
 
@@ -25,7 +27,6 @@ Variables = dict[_KT,_VT]
 
 JsonObject = Union[dict, list]
 JsonSerialize = Union[dict, list, bytes, IO]
-ResponseComponent = Union[int, bytes, str, JsonObject, dict[str,str]]
 
 
 class Client:
@@ -37,8 +38,8 @@ class Client:
 ###################################################################
 
 class BaseSessionClient(Client, metaclass=ABCMeta):
-    method: str
-    url: str
+    method: str | None = None
+    url: str | None = None
 
     def __init__(
             self,
@@ -56,8 +57,8 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
 
     def build_request_message(self, **kwargs) -> dict:
         return dict(filter(lambda x: x[1] is not None, [
-                ("method", self.method),
-                ("url", self.url),
+                ("method", self.method or kwargs["method"]),
+                ("url", self.url or kwargs["url"]),
                 ("params", self.build_request_params(**kwargs)),
                 ("data", self.build_request_data(**kwargs)),
                 ("json", self.build_request_json(**kwargs)),
@@ -146,17 +147,21 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
 
 
 class RequestSessionClient(BaseSessionClient):
-    method: str
-    url: str
+    method: str | None = None
+    url: str | None = None
 
     def request(
             self,
-            parse: Literal["status","content","text","json","headers","html"] | None = None,
+            method: str,
+            url: str,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
+            json: JsonSerialize | None = None,
+            headers: dict[str,str] = None,
+            cookies: dict | RequestsCookieJar = None,
             **kwargs
-        ) -> Response | ResponseComponent:
-        if parse is not None:
-            return getattr(self, f"request_{parse}")(**kwargs)
-        message = self.build_request_message(**kwargs)
+        ) -> Response:
+        message = dict(method=method, url=url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return self.get_session().request(**message)
 
     def request_status(self, **kwargs) -> int:
@@ -218,20 +223,24 @@ class RequestSessionClient(BaseSessionClient):
 
 
 class AiohttpSessionClient(BaseSessionClient):
-    method: str
-    url: str
+    method: str | None = None
+    url: str | None = None
 
     def request(self, *args, **kwargs):
         raise NotImplementedError("This feature does not support synchronous requests. Please use the request_async method instead.")
 
     async def request_async(
             self,
-            parse: Literal["status","content","text","json","headers","html"] | None = None,
+            method: str,
+            url: str,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | IO | None = None,
+            json: JsonSerialize | None = None,
+            headers: dict[str,str] = None,
+            cookies: dict | LooseCookies = None,
             **kwargs
-        ) -> ClientResponse | ResponseComponent:
-        if parse is not None:
-            return await getattr(self, f"request_async_{parse}")(**kwargs)
-        message = self.build_request_message(**kwargs)
+        ) -> ClientResponse:
+        message = dict(method=method, url=url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
         return await self.get_session().request(**message)
 
     async def request_async_status(self, **kwargs) -> int:
@@ -293,8 +302,8 @@ class AiohttpSessionClient(BaseSessionClient):
 
 
 class SessionClient(RequestSessionClient, AiohttpSessionClient):
-    method: str
-    url: str
+    method: str | None = None
+    url: str | None = None
 
 
 ###################################################################
@@ -431,8 +440,8 @@ class TaskClient(Client):
 ###################################################################
 
 class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
-    method: str
-    url: str
+    method: str | None = None
+    url: str | None = None
 
     def __init__(
             self,
@@ -469,6 +478,12 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
 
     def set_variables(self, variables: Variables = dict()):
         self.__variables = variables
+
+    def concat_path(self, url: str, *args: str) -> str:
+        for path in args:
+            if isinstance(path, str) and path:
+                url = (url[:-1] if url.endswith('/') else url) + '/' + (path[1:] if path.startswith('/') else path)
+        return url
 
     def generate_date_context(
             self,

@@ -15,16 +15,49 @@ DATE_UNIT = ["second", "minute", "hour", "day", "month", "year"]
 
 
 ###################################################################
+############################# strptime ############################
+###################################################################
+
+def strptime(
+        date_string: str,
+        format: str = "%Y-%m-%d",
+        tzinfo: BaseTzInfo | str | None = None,
+        astimezone: BaseTzInfo | str | None = None,
+        droptz: bool = False,
+    ) -> dt.datetime:
+    datetime = dt.datetime.strptime(str(date_string), format)
+    if tzinfo:
+        datetime = datetime.replace(tzinfo=get_timezone(tzinfo))
+        if astimezone:
+            datetime = datetime.astimezone(get_timezone(astimezone))
+    return datetime.replace(tzinfo=None) if droptz else datetime
+
+
+def safe_strptime(
+        datetime: dt.datetime | str,
+        format: str = "%Y-%m-%d",
+        default: dt.datetime | None = None,
+        tzinfo: BaseTzInfo | str | None = None,
+        astimezone: BaseTzInfo | str | None = None,
+        droptz: bool = False,
+    ) -> dt.datetime:
+    try:
+        return datetime if isinstance(datetime, dt.datetime) else strptime(datetime, format, tzinfo, astimezone, droptz)
+    except:
+        return default
+
+
+###################################################################
 ############################# strpdate ############################
 ###################################################################
 
-def strpdate(date: dt.date | str, format: str = "%Y-%m-%d") -> dt.date:
-    return date if isinstance(date, dt.date) else dt.datetime.strptime(str(date), format).date()
+def strpdate(date_string: str, format: str = "%Y-%m-%d") -> dt.date:
+    return dt.datetime.strptime(str(date_string), format).date()
 
 
 def safe_strpdate(date: dt.date | str, format: str = "%Y-%m-%d", default: dt.date | None = None) -> dt.date:
     try:
-        return strpdate(date, format)
+        return date if isinstance(date, dt.date) else strpdate(date, format)
     except:
         return default
 
