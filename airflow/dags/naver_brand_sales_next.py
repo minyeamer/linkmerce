@@ -38,9 +38,11 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.brand import aggregated_sales
         from linkmerce.extensions.bigquery import BigQueryClient
+        sources = dict(sales="naver_brand_sales", product="naver_brand_product")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            aggregated_sales(cookies, mall_seq, date, connection=conn, how="async", return_type="none")
+            options = dict(transform_options = dict(tables = sources))
+            aggregated_sales(cookies, mall_seq, date, connection=conn, how="async", return_type="none", **options)
 
             with BigQueryClient(service_account) as client:
                 on = f"payment_date = '{date}'"
@@ -51,12 +53,12 @@ with DAG(
                         date = date,
                     ),
                     count = dict(
-                        sales = conn.count_table("data"),
-                        product = conn.count_table("product"),
+                        sales = conn.count_table(sources["sales"]),
+                        product = conn.count_table(sources["product"]),
                     ),
                     status = dict(
-                        sales = client.merge_into_table_from_duckdb(conn, "data", tables["temp_data"], tables["data"], where_clause=on, **merge["data"]),
-                        product = client.merge_into_table_from_duckdb(conn, "product", tables["temp_product"], tables["product"], **merge["product"]),
+                        sales = client.merge_into_table_from_duckdb(conn, sources["sales"], tables["temp_data"], tables["data"], where_clause=on, **merge["data"]),
+                        product = client.merge_into_table_from_duckdb(conn, sources["product"], tables["temp_product"], tables["product"], **merge["product"]),
                     )
                 )
 

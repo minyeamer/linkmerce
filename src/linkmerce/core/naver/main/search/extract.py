@@ -7,7 +7,6 @@ if TYPE_CHECKING:
     from typing import Iterable
     from bs4 import BeautifulSoup
     from linkmerce.common.extract import JsonObject
-    from linkmerce.common.tasks import TaskOptions
 
 
 ###################################################################
@@ -18,8 +17,9 @@ class MobileSearch(Extractor):
     method = "GET"
     url = "https://m.search.naver.com/search.naver"
 
-    def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(RequestEach=dict(delay=1.01)))
+    @property
+    def default_options(self) -> dict:
+        return dict(RequestEach=dict(delay=1.01))
 
     @Extractor.with_session
     def extract(self, query: str | Iterable[str]) -> JsonObject | BeautifulSoup:
@@ -39,10 +39,11 @@ class ShoppingProduct(Extractor):
     method = "GET"
     url = "https://ns-portal.shopping.naver.com/api/v1/shopping-paged-product"
 
-    def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(
-            RequestLoop=dict(count=5, ignored_errors=ConnectionError),
-            RequestEachLoop=dict(delay=1.01, limit=3)))
+    @property
+    def default_options(self) -> dict:
+        return dict(
+            RequestLoop = dict(count=5, ignored_errors=ConnectionError),
+            RequestEachLoop = dict(delay=1.01, limit=3))
 
     @Extractor.with_session
     def extract(self, query: str | Iterable[str], mobile: bool = True, **kwargs) -> JsonObject:

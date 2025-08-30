@@ -37,9 +37,11 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.brand import brand_price
         from linkmerce.extensions.bigquery import BigQueryClient
+        sources = dict(price="naver_brand_price", product="naver_brand_product")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            brand_price(cookies, brand_ids, mall_seq, sort_type="recent", page=None, connection=conn, how="async", return_type="none")
+            options = dict(transform_options = dict(tables = sources))
+            brand_price(cookies, brand_ids, mall_seq, sort_type="recent", page=None, connection=conn, how="async", return_type="none", **options)
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -49,12 +51,12 @@ with DAG(
                         page = None,
                     ),
                     count = dict(
-                        price = conn.count_table("data"),
-                        product = conn.count_table("product"),
+                        price = conn.count_table("naver_brand_price"),
+                        product = conn.count_table("naver_brand_product"),
                     ),
                     status = dict(
-                        price = client.load_table_from_duckdb(conn, "data", tables["data"]),
-                        product = client.merge_into_table_from_duckdb(conn, "product", tables["temp_product"], tables["product"], **merge["product"]),
+                        price = client.load_table_from_duckdb(conn, sources["price"], tables["data"]),
+                        product = client.merge_into_table_from_duckdb(conn, sources["product"], tables["temp_product"], tables["product"], **merge["product"]),
                     )
                 )
 

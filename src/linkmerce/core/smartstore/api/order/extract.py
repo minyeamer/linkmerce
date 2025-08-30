@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Iterable
-    from linkmerce.common.extract import JsonObject, TaskOptions
+    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -15,8 +15,9 @@ class Order(SmartstoreAPI):
     path = "/pay-order/seller/product-orders"
     date_format = "%Y-%m-%d"
 
-    def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(CursorAll=dict(delay=1)))
+    @property
+    def default_options(self) -> dict:
+        return dict(CursorAll = dict(delay=1))
 
     @SmartstoreAPI.with_session
     @SmartstoreAPI.with_token
@@ -48,7 +49,7 @@ class Order(SmartstoreAPI):
 
     def build_request_params(
             self,
-            date: dt.date | str,
+            date: dt.date,
             range_type: str = "PAYED_DATETIME",
             product_order_status: Iterable[str] = list(),
             claim_status: Iterable[str] = list(),
@@ -59,7 +60,7 @@ class Order(SmartstoreAPI):
         ) -> dict:
         return {
             "from": f"{date}T00:00:00.000+09:00",
-            "to": f"{date}23:59:59.999+09:00",
+            "to": f"{date}T23:59:59.999+09:00",
             "rangeType": range_type,
             "productOrderStatuses": ','.join(product_order_status),
             "claimStatuses": ','.join(claim_status),
@@ -109,8 +110,9 @@ class OrderStatus(SmartstoreAPI):
     path = "/pay-order/seller/product-orders/last-changed-statuses"
     datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
 
-    def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(CursorAll=dict(delay=1)))
+    @property
+    def default_options(self) -> dict:
+        return dict(CursorAll = dict(delay=1))
 
     @SmartstoreAPI.with_session
     @SmartstoreAPI.with_token
@@ -136,7 +138,7 @@ class OrderStatus(SmartstoreAPI):
 
     def build_request_params(
             self,
-            date: dt.date | str,
+            date: dt.date,
             last_changed_type: str | None = None,
             next_cursor: dict[str,str] = dict(),
             limit_count: int = 300,

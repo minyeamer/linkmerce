@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, Literal
     from linkmerce.common.extract import JsonObject
-    from linkmerce.common.tasks import TaskOptions
 
 
 class _SearchExtractor(NaverOpenAPI):
@@ -35,8 +34,11 @@ class _SearchExtractor(NaverOpenAPI):
     def url(self) -> str:
         return f"{self.origin}/{self.version}/search/{self.content_type}.{self.response_type}"
 
-    def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(RequestLoop=dict(count=5), RequestEachLoop=dict(delay=0.3, limit=3)))
+    @property
+    def default_options(self) -> dict:
+        return dict(
+            RequestLoop = dict(count=5),
+            RequestEachLoop = dict(delay=0.3, limit=3))
 
     @NaverOpenAPI.with_session
     def extract(

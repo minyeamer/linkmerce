@@ -31,31 +31,23 @@ class ExposureDiagnosis(DuckDBTransformer):
 class ExposureRank(ExposureDiagnosis):
     queries = ["create_rank", "select_rank", "insert_rank", "create_product", "select_product", "upsert_product"]
 
-    def create_table(
-            self,
-            rank_table: str = ":default:",
-            product_table: str = "product",
-            **kwargs
-        ):
-        super().create_table(key="create_rank", table=rank_table)
-        super().create_table(key="create_product", table=product_table)
+    def set_tables(self, tables: dict | None = None):
+        base = dict(rank="naver_rank_ad", product="naver_product")
+        super().set_tables(dict(base, **(tables or dict())))
 
-    def insert_into_table(
-            self,
-            obj: list[dict],
-            rank_table: str = ":default:",
-            product_table: str = "product",
-            params: dict = dict(),
-            **kwargs
-        ):
-        def reparse_object(obj: list[dict]) -> list[dict]:
-            obj[0] = dict(obj[0], lowPrice=obj[0].get("lowPrice", None), mobileLowPrice=obj[0].get("mobileLowPrice", None))
-            return obj
+    def create_table(self, **kwargs):
+        super().create_table(key="create_rank", table=":rank:")
+        super().create_table(key="create_product", table=":product:")
 
-        def split_params(keyword: str, is_own: bool | None = None, **kwargs) -> tuple[dict,dict]:
-            return dict(keyword=keyword, is_own=is_own), dict(is_own=is_own)
+    def insert_into_table(self, obj: list[dict], params: dict = dict(), **kwargs):
+        obj = self.reparse_object(obj)
+        rank_params, product_params = self.split_params(**params)
+        super().insert_into_table(obj, key="insert_rank", table=":rank:", values=":select_rank:", params=rank_params)
+        super().insert_into_table(obj, key="upsert_product", table=":product:", values=":select_product:", params=product_params)
 
-        obj = reparse_object(obj)
-        rank_params, product_params = split_params(**params)
-        super().insert_into_table(obj, key="insert_rank", table=rank_table, values=":select_rank:", params=rank_params)
-        super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:", params=product_params)
+    def reparse_object(self, obj: list[dict]) -> list[dict]:
+        obj[0] = dict(obj[0], lowPrice=obj[0].get("lowPrice", None), mobileLowPrice=obj[0].get("mobileLowPrice", None))
+        return obj
+
+    def split_params(self, keyword: str, is_own: bool | None = None, **kwargs) -> tuple[dict,dict]:
+        return dict(keyword=keyword, is_own=is_own), dict(is_own=is_own)

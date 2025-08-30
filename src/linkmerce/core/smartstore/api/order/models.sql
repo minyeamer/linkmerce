@@ -51,7 +51,7 @@ SELECT
   , content.productOrder.productOption AS option_name
   , content.order.payLocationType AS payment_location
   , content.productOrder.inflowPath AS inflow_path
-  , content.productOrder.inflowPathAdd AS inflow_path_add
+  , IF(content.productOrder.inflowPathAdd IN ('null','undefined'), NULL, content.productOrder.inflowPathAdd) AS inflow_path_add
   , content.productOrder.deliveryAttributeType AS delivery_type
   , content.productOrder.quantity AS order_quantity
   , content.productOrder.unitPrice AS sales_price
@@ -107,7 +107,7 @@ SELECT
       WHEN content.order.payLocationType == 'MOBILE' THEN 1
       ELSE NULL END) AS payment_location
   , content.productOrder.inflowPath AS inflow_path
-  , content.productOrder.inflowPathAdd AS inflow_path_add
+  , IF(content.productOrder.inflowPathAdd IN ('null','undefined'), NULL, content.productOrder.inflowPathAdd) AS inflow_path_add
   , content.productOrder.quantity AS order_quantity
   , content.productOrder.totalPaymentAmount AS payment_amount
   , content.productOrder.expectedSettlementAmount AS supply_amount

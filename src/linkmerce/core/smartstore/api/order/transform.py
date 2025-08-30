@@ -37,24 +37,17 @@ class Order(DuckDBTransformer):
 class ProductOrder(Order):
     queries = ["create_order", "select_order", "insert_order", "create_option", "select_option", "upsert_option"]
 
-    def create_table(
-            self,
-            order_table: str = ":default:",
-            option_table: str = "option",
-            **kwargs
-        ):
-        super().create_table(key="create_order", table=order_table)
-        super().create_table(key="create_option", table=option_table)
+    def set_tables(self, tables: dict | None = None):
+        base = dict(order="smartstore_order", option="smartstore_option")
+        super().set_tables(dict(base, **(tables or dict())))
 
-    def insert_into_table(
-            self,
-            obj: list[dict],
-            order_table: str = ":default:",
-            option_table: str = "option",
-            **kwargs
-        ):
-        super().insert_into_table(obj, key="insert_order", table=order_table, values=":select_order:")
-        super().insert_into_table(obj, key="upsert_option", table=option_table, values=":select_option:")
+    def create_table(self, **kwargs):
+        super().create_table(key="create_order", table=":order:")
+        super().create_table(key="create_option", table=":option:")
+
+    def insert_into_table(self, obj: list[dict], **kwargs):
+        super().insert_into_table(obj, key="insert_order", table=":order:", values=":select_order:")
+        super().insert_into_table(obj, key="upsert_option", table=":option:", values=":select_option:")
 
 
 class OrderStatusList(JsonTransformer):

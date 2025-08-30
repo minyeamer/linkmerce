@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Iterable, Literal
-    from linkmerce.common.extract import JsonObject, TaskOptions
+    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -16,8 +16,9 @@ class _SalesExtractor(PartnerCenter):
     sales_type: Literal["store","category","product"]
     fields: list[dict]
 
-    def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(RequestEach=dict(delay=1, limit=3)))
+    @property
+    def default_options(self) -> dict:
+        return dict(RequestEach = dict(delay=1, limit=3))
 
     @PartnerCenter.with_session
     def extract(

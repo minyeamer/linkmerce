@@ -116,11 +116,13 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             self,
             db_info: dict = dict(),
             model_path: Literal["this"] | str | Path = "this",
-            create_options: dict | None = None,
+            tables: dict | None = None,
+            create_options: dict[str,TableName] | None = None,
         ):
         self.set_connection(**db_info)
         self.set_models(model_path)
         self.set_queries(keys=self.queries)
+        self.set_tables(tables)
         if isinstance(create_options, dict):
             self.create(**create_options)
 
@@ -188,6 +190,17 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
     def has_query(self, key: str) -> bool:
         return key in self.get_queries()
 
+    ############################## Tables #############################
+
+    def get_table(self, name: str) -> TableName:
+        return self.get_tables()[name[1:-1]] if name.startswith(':') and name.endswith(':') else name
+
+    def get_tables(self) -> dict[str,TableName]:
+        return self.__tables
+
+    def set_tables(self, tables: dict[str,TableName] | None = None):
+        self.__tables = tables if isinstance(tables, dict) else dict(default="data")
+
     ############################## Fetch ##############################
 
     def fetch_all(self, format: Literal["csv","json","parquet"], query: str) -> list[tuple] | list[dict] | bytes:
@@ -241,42 +254,21 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             return self.get_query(key, render)
 
 
-class DummyDBTransformer(DBTransformer):
-    def __init__(self, *args, **kwargs):
-        self.set_connection()
-
-    @property
-    def transform(self):
-        return None
-
-    def get_connection(self):
-        return None
-
-    def set_connection(self, **kwargs):
-        ...
-
-    def close(self):
-        ...
-
-    def __enter__(self) -> DummyDBTransformer:
-        return self
-
-
 ###################################################################
 ############################## DuckDB #############################
 ###################################################################
 
 class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
-    default_table: str = "data"
     queries: list[str] = ["create"]
 
     def __init__(
             self,
             db_info: dict = dict(),
             model_path: Literal["this"] | str | Path = "this",
+            tables: dict | None = None,
             create_options: dict | None = dict(),
         ):
-        super().__init__(db_info, model_path)
+        super().__init__(db_info, model_path, tables)
         if isinstance(create_options, dict):
             self.create_table(**create_options)
 
@@ -339,16 +331,13 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
 
     def fetch_all_to_csv(self, table: Literal[":default:"] | TableName = ":default:") -> list[tuple]:
-        table = self.default_table if table == ":default:" else table
-        return self.conn.fetch_all_to_csv(f"SELECT * FROM {table}")
+        return self.conn.fetch_all_to_csv(f"SELECT * FROM {self.get_table(table)}")
 
     def fetch_all_to_json(self, table: Literal[":default:"] | TableName = ":default:") -> list[dict]:
-        table = self.default_table if table == ":default:" else table
-        return self.conn.fetch_all_to_json(f"SELECT * FROM {table}")
+        return self.conn.fetch_all_to_json(f"SELECT * FROM {self.get_table(table)}")
 
     def fetch_all_to_parquet(self, table: Literal[":default:"] | TableName = ":default:") -> bytes:
-        table = self.default_table if table == ":default:" else table
-        return self.conn.fetch_all_to_parquet(f"SELECT * FROM {table}")
+        return self.conn.fetch_all_to_parquet(f"SELECT * FROM {self.get_table(table)}")
 
     ############################### CRUD ##############################
 
@@ -468,7 +457,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             **kwargs
         ) -> str:
         if table is not None:
-            kwargs["table"] = self.default_table if table == ":default:" else table
+            kwargs["table"] = self.get_table(table)
         if array is not None:
             kwargs["array"] = self.expr_array("obj") if array == ":default:" else array
         return super().render_query(query_, **kwargs)

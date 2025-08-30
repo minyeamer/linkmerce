@@ -45,35 +45,22 @@ class BrandPrice(BrandProduct):
     object_type = "products"
     queries = ["create_price", "select_price", "insert_price", "create_product", "select_product", "upsert_product"]
 
-    def create_table(
-            self,
-            price_table: str = ":default:",
-            product_table: str = "product",
-            **kwargs
-        ):
-        super().create_table(key="create_price", table=price_table)
-        super().create_table(key="create_product", table=product_table)
+    def set_tables(self, tables: dict | None = None):
+        base = dict(price="naver_brand_price", product="naver_brand_product")
+        super().set_tables(dict(base, **(tables or dict())))
 
-    def insert_into_table(
-            self,
-            obj: list[dict],
-            price_table: str = ":default:",
-            product_table: str = "product",
-            params: dict = dict(),
-            **kwargs
-        ):
-        super().insert_into_table(obj, key="insert_price", table=price_table, values=":select_price:", params=params)
-        super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:", params=params)
+    def create_table(self, **kwargs):
+        super().create_table(key="create_price", table=":price:")
+        super().create_table(key="create_product", table=":product:")
+
+    def insert_into_table(self, obj: list[dict], params: dict = dict(), **kwargs):
+        super().insert_into_table(obj, key="insert_price", table=":price:", values=":select_price:", params=params)
+        super().insert_into_table(obj, key="upsert_product", table=":product:", values=":select_product:", params=params)
 
 
 class ProductCatalog(BrandProduct):
     object_type = "products"
     queries = ["create", "select", "insert"]
 
-    def insert_into_table(
-            self,
-            obj: list[dict],
-            table: str = ":default:",
-            **kwargs
-        ):
+    def insert_into_table(self, obj: list[dict], table: str = ":default:", **kwargs):
         super().insert_into_table(obj, key="insert", table=table, values=":select:")

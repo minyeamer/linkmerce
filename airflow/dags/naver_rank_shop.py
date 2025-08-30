@@ -48,9 +48,11 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.naver.openapi import rank_shop
         from linkmerce.extensions.bigquery import BigQueryClient
+        sources = dict(rank="naver_rank_shop", product="naver_product")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            rank_shop(client_id, client_secret, keyword, start=[1,101,201], sort="sim", connection=conn, how="async", return_type="none")
+            options = dict(transform_options = dict(tables = sources))
+            rank_shop(client_id, client_secret, keyword, start=[1,101,201], sort="sim", connection=conn, how="async", return_type="none", **options)
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -60,13 +62,13 @@ with DAG(
                         sort = "sim",
                     ),
                     count = dict(
-                        rank = conn.count_table("data"),
-                        product = conn.count_table("product"),
+                        rank = conn.count_table(sources["rank"]),
+                        product = conn.count_table(sources["product"]),
                     ),
                     status = dict(
-                        rank = client.load_table_from_duckdb(conn, "data", tables["data"]),
-                        now = client.merge_into_table_from_duckdb(conn, "data", f'{tables["temp_now"]}_{seq}', tables["now"], **merge["now"]),
-                        product = client.merge_into_table_from_duckdb(conn, "product", f'{tables["temp_product"]}_{seq}', tables["product"], **merge["product"]),
+                        rank = client.load_table_from_duckdb(conn, sources["rank"], tables["data"]),
+                        now = client.merge_into_table_from_duckdb(conn, sources["rank"], f'{tables["temp_now"]}_{seq}', tables["now"], **merge["now"]),
+                        product = client.merge_into_table_from_duckdb(conn, sources["product"], f'{tables["temp_product"]}_{seq}', tables["product"], **merge["product"]),
                     )
                 )
 

@@ -5,7 +5,7 @@ from typing import Iterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Literal
-    from linkmerce.common.extract import JsonObject, TaskOptions
+    from linkmerce.common.extract import JsonObject
 
 
 def _is_iterable(obj: Any) -> bool:
@@ -21,8 +21,11 @@ class _CatalogExtractor(PartnerCenter):
     param_types: dict[str,str]
     fields: list
 
-    def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(PaginateAll=dict(delay=1, limit=3), RequestEachPages=dict(delay=1, limit=3)))
+    @property
+    def default_options(self) -> dict:
+        return dict(
+            PaginateAll = dict(delay=1, limit=3),
+            RequestEachPages = dict(delay=1, limit=3))
 
     def split_map_kwargs(
             self,

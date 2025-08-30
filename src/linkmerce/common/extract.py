@@ -312,7 +312,7 @@ class SessionClient(RequestSessionClient, AiohttpSessionClient):
 
 class TaskClient(Client):
     def __init__(self, options: TaskOptions = dict(), parser: Callable | None = None):
-        self.set_options(options)
+        self.set_options(options or self.default_options)
         self.set_parser(parser)
 
     ########################### Task Options ##########################
@@ -326,6 +326,10 @@ class TaskClient(Client):
     def build_options(self, name: _KT, **kwargs) -> TaskOption:
         options = {key: value for key, value in kwargs.items() if value is not None}
         return options or self.get_options(name)
+
+    @property
+    def default_options(self) -> TaskOptions:
+        return dict()
 
     ############################## Parser #############################
 

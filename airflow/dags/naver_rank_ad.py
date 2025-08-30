@@ -48,10 +48,12 @@ with DAG(
         from linkmerce.extensions.bigquery import BigQueryClient
         import logging
         import time
+        sources = dict(rank="naver_rank_ad", product="naver_product")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             start_time = time.time()
-            rank_exposure(customer_id, cookies, keyword, domain="search", mobile=True, connection=conn, return_type="none")
+            options = dict(transform_options = dict(tables = sources))
+            rank_exposure(customer_id, cookies, keyword, domain="search", mobile=True, connection=conn, return_type="none", **options)
             end_time = time.time()
             minutes, seconds = map(int, divmod(end_time - start_time, 60))
             logging.info(f"[{seq}] API request completed for searching {len(keyword)} keywords in {minutes:02d}:{seconds:02d}")
@@ -65,14 +67,13 @@ with DAG(
                         mobile = True,
                     ),
                     count = dict(
-                        rank = conn.count_table("data"),
-                        product = conn.count_table("product"),
+                        rank = conn.count_table(sources["rank"]),
+                        product = conn.count_table(sources["product"]),
                     ),
                     status = dict(
-                        rank = client.load_table_from_duckdb(conn, "data", tables["data"]),
-                        
-                        now = client.merge_into_table_from_duckdb(conn, "data", f'{tables["temp_now"]}_{customer_id}', tables["now"], **merge["now"]),
-                        product = client.merge_into_table_from_duckdb(conn, "product", f'{tables["temp_product"]}_{customer_id}', tables["product"], **merge["product"]),
+                        rank = client.load_table_from_duckdb(conn, sources["rank"], tables["data"]),
+                        now = client.merge_into_table_from_duckdb(conn, sources["rank"], f'{tables["temp_now"]}_{customer_id}', tables["now"], **merge["now"]),
+                        product = client.merge_into_table_from_duckdb(conn, sources["product"], f'{tables["temp_product"]}_{customer_id}', tables["product"], **merge["product"]),
                     )
                 )
 

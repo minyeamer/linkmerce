@@ -5,15 +5,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Iterable, Literal
-    from linkmerce.common.extract import JsonObject, TaskOptions
+    from linkmerce.common.extract import JsonObject
 
 
 class ExposureDiagnosis(SearchAdManager):
     method = "GET"
     path = "/ncc/sam/exposure-status-shopping"
 
-    def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(RequestLoop=dict(count=5, ignored_errors=ConnectionError), RequestEachLoop=dict(delay=1.01)))
+    @property
+    def default_options(self) -> dict:
+        return dict(
+            RequestLoop = dict(count=5, ignored_errors=ConnectionError),
+            RequestEachLoop = dict(delay=1.01))
 
     @SearchAdManager.with_session
     @SearchAdManager.with_token

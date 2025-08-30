@@ -68,23 +68,14 @@ class ShoppingRank(_SearchTransformer):
     content_type = "shop"
     queries = ["create_rank", "select_rank", "insert_rank", "create_product", "select_product", "upsert_product"]
 
-    def create_table(
-            self,
-            rank_table: str = ":default:",
-            product_table: str = "product",
-            params: dict = dict(),
-            **kwargs
-        ):
-        super().create_table(key="create_rank", table=rank_table, params=params)
-        super().create_table(key="create_product", table=product_table, params=params)
+    def set_tables(self, tables: dict | None = None):
+        base = dict(rank="naver_rank_shop", product="naver_product")
+        super().set_tables(dict(base, **(tables or dict())))
 
-    def insert_into_table(
-            self,
-            obj: list[dict],
-            rank_table: str = ":default:",
-            product_table: str = "product",
-            params: dict = dict(),
-            **kwargs
-        ):
-        super().insert_into_table(obj, key="insert_rank", table=rank_table, values=":select_rank:", params=params)
-        super().insert_into_table(obj, key="upsert_product", table=product_table, values=":select_product:")
+    def create_table(self, params: dict = dict(), **kwargs):
+        super().create_table(key="create_rank", table=":rank:", params=params)
+        super().create_table(key="create_product", table=":product:", params=params)
+
+    def insert_into_table(self, obj: list[dict], params: dict = dict(), **kwargs):
+        super().insert_into_table(obj, key="insert_rank", table=":rank:", values=":select_rank:", params=params)
+        super().insert_into_table(obj, key="upsert_product", table=":product:", values=":select_product:")
