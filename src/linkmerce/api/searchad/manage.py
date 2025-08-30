@@ -21,15 +21,15 @@ def adreport(
         cookies: str,
         report_id: str,
         report_name: str,
+        userid: str,
         attributes: list[str],
         fields: list[str],
         start_date: dt.date | str,
-        end_date: dt.date | str,
-        userid: str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> Sequence:
-    args = (report_id, report_name, attributes, fields, start_date, end_date, userid)
+    args = (report_id, report_name, userid, attributes, fields, start_date, end_date)
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies), variables=dict(customer_id=customer_id))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run(get_module(".adreport"), "AdvancedReport", "AdvancedReport", "sync", args, **options)
@@ -40,15 +40,15 @@ def daily_report(
         cookies: str,
         report_id: str,
         report_name: str,
-        start_date: dt.date | str,
-        end_date: dt.date | str,
         userid: str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         connection: DuckDBConnection | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
-    args = (report_id, report_name, start_date, end_date, userid)
+    args = (report_id, report_name, userid, start_date, end_date)
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), headers=dict(cookies=cookies), variables=dict(customer_id=customer_id))
     options = dict(extract_options=extract_options, transform_options=transform_options)

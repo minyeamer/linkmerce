@@ -48,7 +48,7 @@ with DAG(
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            daily_report(customer_id, cookies, report_id, report_name, date, date, userid, connection=conn, return_type="none")
+            daily_report(customer_id, cookies, report_id, report_name, userid, date, connection=conn, return_type="none")
 
             with BigQueryClient(service_account) as client:
                 return dict(

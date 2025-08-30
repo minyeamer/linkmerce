@@ -40,7 +40,7 @@ with DAG(
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            aggregated_sales(cookies, mall_seq, date, date, connection=conn, how="async", return_type="none")
+            aggregated_sales(cookies, mall_seq, date, connection=conn, how="async", return_type="none")
 
             with BigQueryClient(service_account) as client:
                 on = f"payment_date = '{date}'"
@@ -48,8 +48,7 @@ with DAG(
                 return dict(
                     params = dict(
                         mall_seq = len(mall_seq),
-                        start_date = date,
-                        end_date = date,
+                        date = date,
                     ),
                     count = dict(
                         sales = conn.count_table("data"),

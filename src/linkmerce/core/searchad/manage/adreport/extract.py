@@ -4,7 +4,7 @@ from linkmerce.core.searchad.manage import SearchAdManager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Iterable, Sequence
+    from typing import Iterable, Literal, Sequence
     from linkmerce.common.extract import JsonObject
     import datetime as dt
 
@@ -19,16 +19,16 @@ class AdvancedReport(SearchAdManager):
             self,
             report_id: str,
             report_name: str,
+            userid: str,
             attributes: Iterable[str],
             fields: Iterable[str],
             start_date: dt.date | str,
-            end_date: dt.date | str,
-            userid: str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             **kwargs
         ) -> Sequence:
         kwargs = dict(kwargs,
-            report_id=report_id, report_name=report_name, attributes=attributes, fields=fields,
-            start_date=start_date, end_date=end_date, userid=userid)
+            report_id=report_id, report_name=report_name, userid=userid, attributes=attributes, fields=fields,
+            start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date))
 
         response = self.request_text(**kwargs)
         if self.is_valid_response(response):
@@ -46,11 +46,11 @@ class AdvancedReport(SearchAdManager):
     def build_request_params(
             self,
             report_name: str,
+            userid: str,
             attributes: Iterable[str],
             fields: Iterable[str],
             start_date: dt.date | str,
             end_date: dt.date | str,
-            userid: str,
             **kwargs
         ) -> dict:
         return {
@@ -64,7 +64,7 @@ class AdvancedReport(SearchAdManager):
         }
 
     def build_request_headers(self, report_id: str, **kwargs: str) -> dict[str,str]:
-        referer = "{}/customers/{}/reports/{}".format(self.main_url, self.get_variable("customer_id"), report_id)
+        referer = "{}/customers/{}/reports/{}".format(self.main_url, self.customer_id, report_id)
         return dict(self.get_request_headers(), authorization=self.get_authorization(), referer=referer)
 
     @SearchAdManager.cookies_required
@@ -80,14 +80,14 @@ class DailyReport(AdvancedReport):
             self,
             report_id: str,
             report_name: str,
-            start_date: dt.date | str,
-            end_date: dt.date | str,
             userid: str,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             **kwargs
         ) -> JsonObject:
         kwargs = dict(kwargs,
-            report_id=report_id, report_name=report_name, attributes=self.attributes, fields=self.fields,
-            start_date=start_date, end_date=end_date, userid=userid, customer_id=self.customer_id)
+            report_id=report_id, report_name=report_name, userid=userid, attributes=self.attributes, fields=self.fields,
+            start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date), customer_id=self.customer_id)
 
         response = self.request_text(**kwargs)
         if self.is_valid_response(response):

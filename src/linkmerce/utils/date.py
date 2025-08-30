@@ -19,13 +19,15 @@ DATE_UNIT = ["second", "minute", "hour", "day", "month", "year"]
 ###################################################################
 
 def strptime(
-        date_string: str,
+        datetime: dt.datetime | str,
         format: str = "%Y-%m-%d",
         tzinfo: BaseTzInfo | str | None = None,
         astimezone: BaseTzInfo | str | None = None,
         droptz: bool = False,
     ) -> dt.datetime:
-    datetime = dt.datetime.strptime(str(date_string), format)
+    if isinstance(datetime, dt.datetime):
+        return datetime
+    datetime = dt.datetime.strptime(str(datetime), format)
     if tzinfo:
         datetime = datetime.replace(tzinfo=get_timezone(tzinfo))
         if astimezone:
@@ -42,7 +44,7 @@ def safe_strptime(
         droptz: bool = False,
     ) -> dt.datetime:
     try:
-        return datetime if isinstance(datetime, dt.datetime) else strptime(datetime, format, tzinfo, astimezone, droptz)
+        return strptime(datetime, format, tzinfo, astimezone, droptz)
     except:
         return default
 
@@ -51,13 +53,16 @@ def safe_strptime(
 ############################# strpdate ############################
 ###################################################################
 
-def strpdate(date_string: str, format: str = "%Y-%m-%d") -> dt.date:
-    return dt.datetime.strptime(str(date_string), format).date()
+def strpdate(date: dt.date | str, format: str = "%Y-%m-%d") -> dt.date:
+    if isinstance(date, dt.date):
+        return date
+    else:
+        return dt.datetime.strptime(str(date), format).date()
 
 
 def safe_strpdate(date: dt.date | str, format: str = "%Y-%m-%d", default: dt.date | None = None) -> dt.date:
     try:
-        return date if isinstance(date, dt.date) else strpdate(date, format)
+        return strpdate(date, format)
     except:
         return default
 

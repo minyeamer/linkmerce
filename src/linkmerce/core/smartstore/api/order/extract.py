@@ -15,13 +15,14 @@ class Order(SmartstoreAPI):
     path = "/pay-order/seller/product-orders"
 
     def set_options(self, options: TaskOptions = dict()):
-        super().set_options(options or dict(CursorAll=dict(delay=1), RequestEachCursor=dict(delay=1)))
+        super().set_options(options or dict(CursorAll=dict(delay=1)))
 
     @SmartstoreAPI.with_session
     @SmartstoreAPI.with_token
     def extract(
             self,
-            date: dt.date | str | Iterable,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             range_type: Literal["PAYED_DATETIME","ORDERING_CONFIRM","DELIVERY_OPERATED","DELIVERY_COMPLETED","PURCHASE_DECISION_COMPLETED"] = "PAYED_DATETIME",
             product_order_status: Iterable[str] = list(),
             claim_status: Iterable[str] = list(),
@@ -35,7 +36,7 @@ class Order(SmartstoreAPI):
 
         return (self.request_each_cursor(self.request_json_until_success)
                 .partial(**kwargs)
-                .expand(date=date)
+                .expand(date=self.generate_date_range(start_date, end_date, freq='D'))
                 .all_cursor(self.get_next_cursor, page_start)
                 .run())
 

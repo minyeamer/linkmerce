@@ -19,7 +19,8 @@ def get_module(name: str) -> str:
 def order(
         client_id: str,
         client_secret: str,
-        date: dt.date | str | Iterable,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         range_type: Literal["PAYED_DATETIME","ORDERING_CONFIRM","DELIVERY_OPERATED","DELIVERY_COMPLETED","PURCHASE_DECISION_COMPLETED"] = "PAYED_DATETIME",
         product_order_status: Iterable[str] = list(),
         claim_status: Iterable[str] = list(),
@@ -31,7 +32,7 @@ def order(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
-    args = (date, range_type, product_order_status, claim_status, place_order_status, page_start, retry_count)
+    args = (start_date, end_date, range_type, product_order_status, claim_status, place_order_status, page_start, retry_count)
     table = get_table(transform_options, "table")
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
@@ -41,7 +42,8 @@ def order(
 def product_order(
         client_id: str,
         client_secret: str,
-        date: dt.date | str | Iterable,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         range_type: Literal["PAYED_DATETIME","ORDERING_CONFIRM","DELIVERY_OPERATED","DELIVERY_COMPLETED","PURCHASE_DECISION_COMPLETED"] = "PAYED_DATETIME",
         product_order_status: Iterable[str] = list(),
         claim_status: Iterable[str] = list(),
@@ -53,7 +55,7 @@ def product_order(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
-    args = (date, range_type, product_order_status, claim_status, place_order_status, page_start, retry_count)
+    args = (start_date, end_date, range_type, product_order_status, claim_status, place_order_status, page_start, retry_count)
     table = [get_table(transform_options, "order_table"), get_table(transform_options, "option_table", "option")]
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)

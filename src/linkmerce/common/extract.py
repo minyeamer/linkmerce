@@ -485,14 +485,25 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
                 url = (url[:-1] if url.endswith('/') else url) + '/' + (path[1:] if path.startswith('/') else path)
         return url
 
+    def generate_date_range(
+            self,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            freq: Literal["D","W","M"] = "D",
+            format: str = "%Y-%m-%d",
+        ) -> list[dict[str,dt.date]] | dict[str,dt.date]:
+        from linkmerce.utils.date import date_range
+        ranges = date_range(start_date, (start_date if end_date == ":start_date:" else end_date), freq, format)
+        return ranges[0] if len(ranges) == 1 else ranges
+
     def generate_date_context(
             self,
             start_date: dt.date | str,
-            end_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             freq: Literal["D","W","M"] = "D",
             format: str = "%Y-%m-%d",
         ) -> list[dict[str,dt.date]] | dict[str,dt.date]:
         from linkmerce.utils.date import date_pairs
-        pairs = date_pairs(start_date, end_date, freq, format)
+        pairs = date_pairs(start_date, (start_date if end_date == ":start_date:" else end_date), freq, format)
         context = list(map(lambda values: dict(zip(["start_date","end_date"], values)), pairs))
         return context[0] if len(context) == 1 else context
