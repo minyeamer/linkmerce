@@ -13,6 +13,7 @@ class Order(SmartstoreAPI):
     method = "GET"
     version = "v1"
     path = "/pay-order/seller/product-orders"
+    date_format = "%Y-%m-%d"
 
     def set_options(self, options: TaskOptions = dict()):
         super().set_options(options or dict(CursorAll=dict(delay=1)))
@@ -31,16 +32,16 @@ class Order(SmartstoreAPI):
             retry_count: int = 5,
             **kwargs
         ) -> JsonObject:
-        kwargs = dict(kwargs, range_type=range_type, product_order_status=product_order_status,
+        partial = dict(range_type=range_type, product_order_status=product_order_status,
             claim_status=claim_status, place_order_status=place_order_status, retry_count=retry_count)
 
         return (self.request_each_cursor(self.request_json_until_success)
-                .partial(**kwargs)
+                .partial(**partial)
                 .expand(date=self.generate_date_range(start_date, end_date, freq='D'))
-                .all_cursor(self.get_next_cursor, page_start)
+                .all_cursor(self.get_next_cursor, next_cursor=page_start)
                 .run())
 
-    def get_next_cursor(self, response: JsonObject) -> int:
+    def get_next_cursor(self, response: JsonObject, **context) -> int:
         from linkmerce.utils.map import hier_get
         pagination = hier_get(response, ["data","pagination"]) or dict()
         return (pagination.get("page") + 1) if pagination.get("hasNext") else None
@@ -58,7 +59,7 @@ class Order(SmartstoreAPI):
         ) -> dict:
         return {
             "from": f"{date}T00:00:00.000+09:00",
-            # "to": f"{date}23:59:59.999+09:00",
+            "to": f"{date}23:59:59.999+09:00",
             "rangeType": range_type,
             "productOrderStatuses": ','.join(product_order_status),
             "claimStatuses": ','.join(claim_status),
@@ -100,3 +101,60 @@ class Order(SmartstoreAPI):
 
 class ProductOrder(Order):
     ...
+
+
+class OrderStatus(SmartstoreAPI):
+    method = "GET"
+    version = "v1"
+    path = "/pay-order/seller/product-orders/last-changed-statuses"
+    datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
+
+    def set_options(self, options: TaskOptions = dict()):
+        super().set_options(options or dict(CursorAll=dict(delay=1)))
+
+    @SmartstoreAPI.with_session
+    @SmartstoreAPI.with_token
+    def extract(
+            self,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            last_changed_type: str | None = None,
+            retry_count: int = 5,
+            **kwargs
+        ) -> JsonObject:
+        return (self.request_each_cursor(self.request_json_until_success)
+                .partial(last_changed_type=last_changed_type, retry_count=retry_count)
+                .expand(date=self.generate_date_range(start_date, end_date, freq='D'))
+                .all_cursor(self.get_next_cursor, next_cursor=dict())
+                .run())
+
+    def get_next_cursor(self, response: JsonObject, date: dt.date, **context) -> dict[str,str]:
+        from linkmerce.utils.map import hier_get
+        more = hier_get(response, ["data","more"]) or dict()
+        if more.get("moreFrom") and ((more.get("moreFrom") or str()) <= f"{date}T23:59:59.999+09:00"):
+            return more
+
+    def build_request_params(
+            self,
+            date: dt.date | str,
+            last_changed_type: str | None = None,
+            next_cursor: dict[str,str] = dict(),
+            limit_count: int = 300,
+            **kwargs
+        ) -> dict:
+        return {
+            "lastChangedFrom": next_cursor.get("moreFrom") or f"{date}T00:00:00.000+09:00",
+            "lastChangedTo": f"{date}T23:59:59.999+09:00",
+            **({"lastChangedType": last_changed_type} if last_changed_type is not None else {}),
+            **({"moreSequence": next_cursor["moreSequence"]} if "moreSequence" in next_cursor else {}),
+            "limitCount": limit_count,
+        }
+
+    @property
+    def last_changed_type(self) -> dict[str,str]:
+        return {
+            "PAY_WAITING": "결제대기", "PAYED": "결제완료", "EXCHANGE_OPTION": "옵션변경", "DELIVERY_ADDRESS_CHANGED": "배송지변경",
+            "GIFT_RECEIVED": "선물수락", "CLAIM_REJECTED": "클레임철회", "DISPATCHED": "발송처리", "CLAIM_REQUESTED": "클레임요청",
+            "COLLECT_DONE": "수거완료", "CLAIM_COMPLETED": "클레임완료", "PURCHASE_DECIDED": "구매확정",
+            "HOPE_DELIVERY_INFO_CHANGED": "배송희망일변경", "CLAIM_REDELIVERING": "교환재배송처리"
+        }

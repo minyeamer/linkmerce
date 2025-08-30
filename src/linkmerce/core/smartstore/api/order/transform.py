@@ -55,3 +55,17 @@ class ProductOrder(Order):
         ):
         super().insert_into_table(obj, key="insert_order", table=order_table, values=":select_order:")
         super().insert_into_table(obj, key="upsert_option", table=option_table, values=":select_option:")
+
+
+class OrderStatusList(JsonTransformer):
+    dtype = dict
+    path = ["data","lastChangeStatuses"]
+
+
+class OrderStatus(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, **kwargs):
+        status = OrderStatusList().transform(obj)
+        if status:
+            self.insert_into_table(status)

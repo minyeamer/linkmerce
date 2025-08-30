@@ -1,11 +1,11 @@
 -- Order: create
 CREATE OR REPLACE TABLE {{ table }} (
     product_order_no BIGINT PRIMARY KEY
-  , order_no BIGINT
+  , order_no BIGINT NOT NULL
   , orderer_no BIGINT
   , orderer_id VARCHAR
   , orderer_name VARCHAR
-  , channel_seq BIGINT
+  , channel_seq BIGINT NOT NULL
   , product_id BIGINT
   , option_id BIGINT
   , seller_product_code VARCHAR
@@ -64,8 +64,7 @@ SELECT
   , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS dispatch_dt
   , TRY_STRPTIME(SUBSTR(content.delivery.deliveredDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS delivery_dt
   , TRY_STRPTIME(SUBSTR(content.productOrder.decisionDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS decision_dt
-FROM {{ array }}
-WHERE TRY_CAST(productOrderId AS BIGINT) IS NOT NULL;
+FROM {{ array }};
 
 -- Order: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
@@ -76,7 +75,7 @@ CREATE OR REPLACE TABLE {{ table }} (
     product_order_no BIGINT PRIMARY KEY
   , order_no BIGINT NOT NULL
   , orderer_no BIGINT
-  , channel_seq BIGINT
+  , channel_seq BIGINT NOT NULL
   , product_id BIGINT
   , option_id BIGINT
   , product_type INTEGER
@@ -114,8 +113,7 @@ SELECT
   , content.productOrder.expectedSettlementAmount AS supply_amount
   , TRY_STRPTIME(SUBSTR(content.order.orderDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS order_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
-FROM {{ array }}
-WHERE TRY_CAST(productOrderId AS BIGINT) IS NOT NULL;
+FROM {{ array }};
 
 -- ProductOrder: insert_order
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
@@ -172,3 +170,119 @@ ON CONFLICT DO UPDATE SET
   , option_price = COALESCE(excluded.option_price, option_price)
   , delivery_fee = COALESCE(excluded.delivery_fee, delivery_fee)
   , update_date = GREATEST(excluded.update_date, update_date);
+
+
+-- OrderStatus: create
+CREATE OR REPLACE TABLE {{ table }} (
+    product_order_no BIGINT NOT NULL
+  , order_no BIGINT NOT NULL
+  -- , last_changed_type TINYINT -- OrderStatus: last_changed_type
+  , order_status TINYINT -- OrderStatus: order_status
+  -- , claim_type TINYINT -- OrderStatus: claim_type
+  -- , claim_status TINYINT -- OrderStatus: claim_status
+  -- , is_address_changed BOOLEAN
+  -- , gift_receiving_status TINYINT -- OrderStatus: gift_receiving_status
+  , payment_dt TIMESTAMP NOT NULL
+  , updated_dt TIMESTAMP NOT NULL
+);
+
+-- OrderStatus: last_changed_type
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'PAY_WAITING' AS code, '결제 대기' AS name)
+  , STRUCT(1 AS seq, 'PAYED' AS code, '결제 완료' AS name)
+  , STRUCT(2 AS seq, 'EXCHANGE_OPTION' AS code, '옵션 변경 (선물하기)' AS name)
+  , STRUCT(3 AS seq, 'DELIVERY_ADDRESS_CHANGED' AS code, '배송지 변경' AS name)
+  , STRUCT(4 AS seq, 'GIFT_RECEIVED' AS code, '선물 수락 (선물하기)' AS name)
+  , STRUCT(5 AS seq, 'CLAIM_REJECTED' AS code, '클레임 철회' AS name)
+  , STRUCT(6 AS seq, 'DISPATCHED' AS code, '발송 처리' AS name)
+  , STRUCT(7 AS seq, 'CLAIM_REQUESTED' AS code, '클레임 요청' AS name)
+  , STRUCT(8 AS seq, 'COLLECT_DONE' AS code, '수거 완료' AS name)
+  , STRUCT(9 AS seq, 'CLAIM_COMPLETED' AS code, '클레임 완료' AS name)
+  , STRUCT(10 AS seq, 'PURCHASE_DECIDED' AS code, '구매 확정' AS name)
+  , STRUCT(11 AS seq, 'HOPE_DELIVERY_INFO_CHANGED' AS code, '배송 희망일 변경' AS name)
+  , STRUCT(12 AS seq, 'CLAIM_REDELIVERING' AS code, '교환 재배송처리' AS name)
+]);
+
+-- OrderStatus: order_status
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'PAYMENT_WAITING' AS code, '결제 대기' AS name)
+  , STRUCT(1 AS seq, 'PAYED' AS code, '결제 완료' AS name)
+  , STRUCT(2 AS seq, 'DELIVERING' AS code, '배송 중' AS name)
+  , STRUCT(3 AS seq, 'DELIVERED' AS code, '배송 완료' AS name)
+  , STRUCT(4 AS seq, 'PURCHASE_DECIDED' AS code, '구매 확정' AS name)
+  , STRUCT(5 AS seq, 'EXCHANGED' AS code, '교환' AS name)
+  , STRUCT(6 AS seq, 'CANCELED' AS code, '취소' AS name)
+  , STRUCT(7 AS seq, 'RETURNED' AS code, '반품' AS name)
+  , STRUCT(8 AS seq, 'CANCELED_BY_NOPAYMENT' AS code, '미결제 취소' AS name)
+]);
+
+-- OrderStatus: claim_type
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'CANCEL' AS code, '취소' AS name)
+  , STRUCT(1 AS seq, 'RETURN' AS code, '반품' AS name)
+  , STRUCT(2 AS seq, 'EXCHANGE' AS code, '교환' AS name)
+  , STRUCT(3 AS seq, 'PURCHASE_DECISION_HOLDBACK' AS code, '구매 확정 보류' AS name)
+  , STRUCT(4 AS seq, 'ADMIN_CANCEL' AS code, '직권 취소' AS name)
+]);
+
+-- OrderStatus: claim_status
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'CANCEL_REQUEST' AS code, '취소 요청' AS name)
+  , STRUCT(1 AS seq, 'CANCELING' AS code, '취소 처리 중' AS name)
+  , STRUCT(2 AS seq, 'CANCEL_DONE' AS code, '취소 처리 완료' AS name)
+  , STRUCT(3 AS seq, 'CANCEL_REJECT' AS code, '취소 철회' AS name)
+  , STRUCT(4 AS seq, 'RETURN_REQUEST' AS code, '반품 요청' AS name)
+  , STRUCT(5 AS seq, 'EXCHANGE_REQUEST' AS code, '교환 요청' AS name)
+  , STRUCT(6 AS seq, 'COLLECTING' AS code, '수거 처리 중' AS name)
+  , STRUCT(7 AS seq, 'COLLECT_DONE' AS code, '수거 완료' AS name)
+  , STRUCT(8 AS seq, 'EXCHANGE_REDELIVERING' AS code, '교환 재배송 중' AS name)
+  , STRUCT(9 AS seq, 'RETURN_DONE' AS code, '반품 완료' AS name)
+  , STRUCT(10 AS seq, 'EXCHANGE_DONE' AS code, '교환 완료' AS name)
+  , STRUCT(11 AS seq, 'RETURN_REJECT' AS code, '반품 철회' AS name)
+  , STRUCT(12 AS seq, 'EXCHANGE_REJECT' AS code, '교환 철회' AS name)
+  , STRUCT(13 AS seq, 'PURCHASE_DECISION_HOLDBACK' AS code, '구매 확정 보류' AS name)
+  , STRUCT(14 AS seq, 'PURCHASE_DECISION_REQUEST' AS code, '구매 확정 요청' AS name)
+  , STRUCT(15 AS seq, 'PURCHASE_DECISION_HOLDBACK_RELEASE' AS code, '구매 확정 보류 해제' AS name)
+  , STRUCT(16 AS seq, 'ADMIN_CANCELING' AS code, '직권 취소 중' AS name)
+  , STRUCT(17 AS seq, 'ADMIN_CANCEL_DONE' AS code, '직권 취소 완료' AS name)
+  , STRUCT(18 AS seq, 'ADMIN_CANCEL_REJECT' AS code, '직권 취소 철회' AS name)
+]);
+
+-- OrderStatus: gift_receiving_status
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'WAIT_FOR_RECEIVING' AS code, '수락 대기(배송지 입력 대기)' AS name)
+  , STRUCT(1 AS seq, 'RECEIVED' AS code, '수락 완료' AS name)
+]);
+
+-- OrderStatus: select
+SELECT
+    TRY_CAST(productOrderId AS BIGINT) AS product_order_no
+  , TRY_CAST(orderId AS BIGINT) AS order_no
+  -- , lastChangedType AS last_changed_type
+  , (CASE
+      WHEN productOrderStatus = 'PAYMENT_WAITING' THEN 0
+      WHEN productOrderStatus = 'PAYED' THEN 1
+      WHEN productOrderStatus = 'DELIVERING' THEN 2
+      WHEN productOrderStatus = 'DELIVERED' THEN 3
+      WHEN productOrderStatus = 'PURCHASE_DECIDED' THEN 4
+      WHEN productOrderStatus = 'EXCHANGED' THEN 5
+      WHEN productOrderStatus = 'CANCELED' THEN 6
+      WHEN productOrderStatus = 'RETURNED' THEN 7
+      WHEN productOrderStatus = 'CANCELED_BY_NOPAYMENT' THEN 8
+      ELSE NULL END
+    ) AS order_status
+  -- , claimType AS claim_type
+  -- , claimStatus AS claim_status
+  -- , receiverAddressChanged AS is_address_changed
+  -- , giftReceivingStatus AS gift_receiving_status
+  , TRY_STRPTIME(SUBSTR(paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
+  , TRY_STRPTIME(SUBSTR(lastChangedDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS updated_dt
+FROM {{ array }};
+
+-- OrderStatus: insert
+INSERT INTO {{ table }} {{ values }};

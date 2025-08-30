@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 class AdvancedReport(SearchAdManager):
     method = "POST"
     path = "/advanced-report/downloads"
+    date_format = "%Y-%m-%d"
 
     @SearchAdManager.with_session
     @SearchAdManager.with_token

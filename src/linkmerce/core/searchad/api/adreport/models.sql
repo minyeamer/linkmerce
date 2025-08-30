@@ -17,11 +17,11 @@ CREATE OR REPLACE TABLE {{ table }} (
 -- Campaign: campaign_type
 SELECT *
 FROM UNNEST([
-    STRUCT(1 AS type, "파워링크" AS name)
-  , STRUCT(2 AS type, "쇼핑검색" AS name)
-  , STRUCT(3 AS type, "파워컨텐츠" AS name)
-  , STRUCT(4 AS type, "브랜드검색/신제품검색" AS name)
-  , STRUCT(5 AS type, "플레이스" AS name)
+    STRUCT(1 AS type, '파워링크' AS name)
+  , STRUCT(2 AS type, '쇼핑검색' AS name)
+  , STRUCT(3 AS type, '파워컨텐츠' AS name)
+  , STRUCT(4 AS type, '브랜드검색/신제품검색' AS name)
+  , STRUCT(5 AS type, '플레이스' AS name)
 ]);
 
 -- Campaign: select
@@ -69,17 +69,17 @@ CREATE OR REPLACE TABLE {{ table }} (
 -- Adgroup: adgroup_type
 SELECT *
 FROM UNNEST([
-    STRUCT(1 AS type, "파워링크" AS name)
-  , STRUCT(2 AS type, "쇼핑검색-쇼핑몰 상품형" AS name)
-  , STRUCT(3 AS type, "파워컨텐츠-정보형" AS name)
-  , STRUCT(4 AS type, "파워컨텐츠-상품형" AS name)
-  , STRUCT(5 AS type, "브랜드검색-일반형" AS name)
-  , STRUCT(6 AS type, "플레이스-지역소상공인" AS name)
-  , STRUCT(7 AS type, "쇼핑검색-제품 카탈로그형" AS name)
-  , STRUCT(8 AS type, "브랜드검색-브랜드형" AS name)
-  , STRUCT(9 AS type, "쇼핑검색-쇼핑 브랜드형" AS name)
-  , STRUCT(10 AS type, "플레이스-플레이스검색" AS name)
-  , STRUCT(11 AS type, "브랜드검색-신제품검색형" AS name)
+    STRUCT(1 AS type, '파워링크' AS name)
+  , STRUCT(2 AS type, '쇼핑검색-쇼핑몰 상품형' AS name)
+  , STRUCT(3 AS type, '파워컨텐츠-정보형' AS name)
+  , STRUCT(4 AS type, '파워컨텐츠-상품형' AS name)
+  , STRUCT(5 AS type, '브랜드검색-일반형' AS name)
+  , STRUCT(6 AS type, '플레이스-지역소상공인' AS name)
+  , STRUCT(7 AS type, '쇼핑검색-제품 카탈로그형' AS name)
+  , STRUCT(8 AS type, '브랜드검색-브랜드형' AS name)
+  , STRUCT(9 AS type, '쇼핑검색-쇼핑 브랜드형' AS name)
+  , STRUCT(10 AS type, '플레이스-플레이스검색' AS name)
+  , STRUCT(11 AS type, '브랜드검색-신제품검색형' AS name)
 ]);
 
 -- Adgroup: select
@@ -131,17 +131,17 @@ CREATE OR REPLACE TABLE {{ table }} (
 -- Ad: ad_type
 SELECT *
 FROM UNNEST([
-    STRUCT(1 AS type, "파워링크-단일형 소재" AS name)
-  , STRUCT(2 AS type, "쇼핑검색-상품형 소재" AS name)
-  , STRUCT(3 AS type, "파워컨텐츠-정보형 소재" AS name)
-  , STRUCT(4 AS type, "파워컨텐츠-상품형 소재" AS name)
-  , STRUCT(5 AS type, "브랜드검색-일반형 소재" AS name)
-  , STRUCT(6 AS type, "플레이스-지역소상공인 소재" AS name)
-  , STRUCT(7 AS type, "쇼핑검색-카탈로그형 소재" AS name)
-  , STRUCT(9 AS type, "쇼핑검색-쇼핑 브랜드형 소재" AS name)
-  , STRUCT(10 AS type, "플레이스-플레이스 검색 소재" AS name)
-  , STRUCT(12 AS type, "쇼핑검색-쇼핑 브랜드형 이미지 섬네일형 소재" AS name)
-  , STRUCT(13 AS type, "쇼핑검색-쇼핑 브랜드형 이미지 배너형 소재" AS name)
+    STRUCT(1 AS type, '파워링크-단일형 소재' AS name)
+  , STRUCT(2 AS type, '쇼핑검색-상품형 소재' AS name)
+  , STRUCT(3 AS type, '파워컨텐츠-정보형 소재' AS name)
+  , STRUCT(4 AS type, '파워컨텐츠-상품형 소재' AS name)
+  , STRUCT(5 AS type, '브랜드검색-일반형 소재' AS name)
+  , STRUCT(6 AS type, '플레이스-지역소상공인 소재' AS name)
+  , STRUCT(7 AS type, '쇼핑검색-카탈로그형 소재' AS name)
+  , STRUCT(9 AS type, '쇼핑검색-쇼핑 브랜드형 소재' AS name)
+  , STRUCT(10 AS type, '플레이스-플레이스 검색 소재' AS name)
+  , STRUCT(12 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 섬네일형 소재' AS name)
+  , STRUCT(13 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 배너형 소재' AS name)
 ]);
 
 

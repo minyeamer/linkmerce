@@ -426,21 +426,21 @@ class PaginateAll(ForEach, Request):
         from math import ceil
         return range(self.page_start + 1, ceil(total_count / self.max_page_size))
 
-    def _run_with_count(self, *args, **kwargs) -> tuple[Any,int]:
-        results = self.func(*args, **kwargs)
-        return self._parse(results, args, kwargs), self.counter(results)
+    def _run_with_count(self, **kwargs) -> tuple[Any,int]:
+        results = self.func(**kwargs)
+        return self._parse(results, kwargs=kwargs), self.counter(results, **kwargs)
 
-    def _run_without_count(self, *args, **kwargs) -> Any:
-        results = self.func(*args, **kwargs)
-        return self._parse(results, args, kwargs)
+    def _run_without_count(self, **kwargs) -> Any:
+        results = self.func(**kwargs)
+        return self._parse(results, kwargs=kwargs)
 
-    async def _run_async_with_count(self, *args, **kwargs) -> tuple[Any,int]:
-        results = await self.func(*args, **kwargs)
-        return self._parse(results, args, kwargs), self.counter(results)
+    async def _run_async_with_count(self, **kwargs) -> tuple[Any,int]:
+        results = await self.func(**kwargs)
+        return self._parse(results, kwargs=kwargs), self.counter(results, **kwargs)
 
-    async def _run_async_without_count(self, *args, **kwargs) -> Any:
-        results = await self.func(*args, **kwargs)
-        return self._parse(results, args, kwargs)
+    async def _run_async_without_count(self, **kwargs) -> Any:
+        results = await self.func(**kwargs)
+        return self._parse(results, kwargs=kwargs)
 
 
 class RequestEachPages(RequestEach):
@@ -531,9 +531,9 @@ class CursorAll(RunLoop, ForEach, Request):
     def concat(self, how: Literal["always","never","auto"] = "auto") -> CursorAll:
         return self.setattr("concat_how", how)
 
-    def _run_with_cursor(self, *args, **kwargs) -> tuple[Any,Any]:
-        results = self.func(*args, **kwargs)
-        return self._parse(results, args, kwargs), self.get_next_cursor(results)
+    def _run_with_cursor(self, **kwargs) -> tuple[Any,Any]:
+        results = self.func(**kwargs)
+        return self._parse(results, kwargs=kwargs), self.get_next_cursor(results, **kwargs)
 
 
 class RequestEachCursor(RequestEach):

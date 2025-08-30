@@ -39,7 +39,7 @@ class _CatalogExtractor(PartnerCenter):
             expand["page"] = page
         return partial, expand
 
-    def count_total(self, response: JsonObject) -> int:
+    def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["data",self.object_type,"totalCount"])
 

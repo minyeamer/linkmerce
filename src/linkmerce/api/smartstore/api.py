@@ -60,3 +60,22 @@ def product_order(
     extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(get_module(".order"), "ProductOrder", "ProductOrder", connection, "sync", table, return_type, args, **options)
+
+
+def order_status(
+        client_id: str,
+        client_secret: str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        last_changed_type: str | None = None,
+        retry_count: int = 5,
+        connection: DuckDBConnection | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> JsonObject:
+    args = (start_date, end_date, last_changed_type, retry_count)
+    table = get_table(transform_options, "table")
+    extract_options = dict(extract_options or dict(), variables=dict(client_id=client_id, client_secret=client_secret))
+    options = dict(extract_options=extract_options, transform_options=transform_options)
+    return run_with_duckdb(get_module(".order"), "OrderStatus", "OrderStatus", connection, "sync", table, return_type, args, **options)
