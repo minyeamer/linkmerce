@@ -15,7 +15,7 @@ with DAG(
 
     PATH = ["naver", "main", "naver_shopping_page"]
 
-    @task(task_id="read_variables")
+    @task(task_id="read_variables", retries=3, retry_delay=timedelta(minutes=1))
     def read_variables() -> dict:
         from variables import read
         return read(PATH, tables=True, sheets=True, service_account=True)

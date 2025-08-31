@@ -14,12 +14,12 @@ with DAG(
 
     PATH = ["searchad", "manage", "searchad_report"]
 
-    @task(task_id="read_variables")
+    @task(task_id="read_variables", retries=3, retry_delay=timedelta(minutes=1))
     def read_variables() -> dict:
         from variables import read
         return read(PATH, tables=True, service_account=True)
 
-    @task(task_id="read_queries")
+    @task(task_id="read_queries", retries=3, retry_delay=timedelta(minutes=1))
     def read_queries() -> list:
         from variables import read
         variables = read(PATH, credentials=True)

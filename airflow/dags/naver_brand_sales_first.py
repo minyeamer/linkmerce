@@ -15,7 +15,7 @@ with DAG(
 
     PATH = ["smartstore", "brand", "naver_brand_sales"]
 
-    @task(task_id="read_variables")
+    @task(task_id="read_variables", retries=3, retry_delay=timedelta(minutes=1))
     def read_variables() -> dict:
         from variables import read
         return read(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
