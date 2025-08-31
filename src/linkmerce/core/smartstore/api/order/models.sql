@@ -30,6 +30,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , dispatch_dt TIMESTAMP
   , delivery_dt TIMESTAMP
   , decision_dt TIMESTAMP
+  , claim_complete_dt TIMESTAMP
 );
 
 -- Order: select
@@ -64,6 +65,7 @@ SELECT
   , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS dispatch_dt
   , TRY_STRPTIME(SUBSTR(content.delivery.deliveredDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS delivery_dt
   , TRY_STRPTIME(SUBSTR(content.productOrder.decisionDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS decision_dt
+  , TRY_STRPTIME(SUBSTR(content.completedClaims[1].claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS claim_complete_dt
 FROM {{ array }};
 
 -- Order: insert
@@ -113,7 +115,8 @@ SELECT
   , content.productOrder.expectedSettlementAmount AS supply_amount
   , TRY_STRPTIME(SUBSTR(content.order.orderDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS order_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
-FROM {{ array }};
+FROM {{ array }}
+WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL;
 
 -- ProductOrder: insert_order
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
@@ -172,9 +175,72 @@ ON CONFLICT DO UPDATE SET
   , update_date = GREATEST(excluded.update_date, update_date);
 
 
+-- OrderTime: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    product_order_no BIGINT
+  , order_no BIGINT NOT NULL
+  , order_status TINYINT -- OrderStatus: order_status
+  , payment_dt TIMESTAMP NOT NULL
+  , updated_dt TIMESTAMP NOT NULL
+  , PRIMARY KEY (product_order_no, order_status)
+);
+
+-- OrderTime: select
+SELECT os.*
+FROM (
+  SELECT
+      product_order_no
+    , order_no
+    , (CASE
+        WHEN dt_column = 'dispatch_dt' THEN 2
+        WHEN dt_column = 'delivery_dt' THEN 3
+        WHEN dt_column = 'decision_dt' THEN 4
+        WHEN dt_column = 'exchange_complete_dt' THEN 5
+        WHEN dt_column = 'cancel_complete_dt' THEN 6
+        WHEN dt_column = 'return_complete_dt' THEN 7
+        ELSE NULL END) AS order_status
+    , payment_dt
+    , updated_dt
+  FROM (
+    SELECT
+        TRY_CAST(productOrderId AS BIGINT) AS product_order_no
+      , TRY_CAST(content.order.orderId AS BIGINT) AS order_no
+      , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
+      , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS dispatch_dt
+      , TRY_STRPTIME(SUBSTR(content.delivery.deliveredDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS delivery_dt
+      , TRY_STRPTIME(SUBSTR(content.productOrder.decisionDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS decision_dt
+      , (CASE WHEN content.completedClaims[1].claimType = 'EXCHANGE'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims[1].claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+        ELSE NULL END) AS exchange_complete_dt
+      , (CASE WHEN content.completedClaims[1].claimType = 'CANCEL'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims[1].claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+        ELSE NULL END) AS cancel_complete_dt
+      , (CASE WHEN content.completedClaims[1].claimType = 'RETURN'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims[1].claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+        ELSE NULL END) AS return_complete_dt
+    FROM {{ array }}
+  ) AS ord
+  UNPIVOT (
+    updated_dt
+    FOR dt_column IN (
+        dispatch_dt
+      , delivery_dt
+      , decision_dt
+      , exchange_complete_dt
+      , cancel_complete_dt
+      , return_complete_dt
+    )
+  )
+) AS os
+WHERE (os.payment_dt IS NOT NULL) AND (os.updated_dt IS NOT NULL);
+
+-- OrderTime: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
 -- OrderStatus: create
-CREATE OR REPLACE TABLE {{ table }} (
-    product_order_no BIGINT NOT NULL
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    product_order_no BIGINT
   , order_no BIGINT NOT NULL
   -- , last_changed_type TINYINT -- OrderStatus: last_changed_type
   , order_status TINYINT -- OrderStatus: order_status
@@ -184,6 +250,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   -- , gift_receiving_status TINYINT -- OrderStatus: gift_receiving_status
   , payment_dt TIMESTAMP NOT NULL
   , updated_dt TIMESTAMP NOT NULL
+  , PRIMARY KEY (product_order_no, order_status)
 );
 
 -- OrderStatus: last_changed_type
@@ -260,29 +327,33 @@ FROM UNNEST([
 ]);
 
 -- OrderStatus: select
-SELECT
-    TRY_CAST(productOrderId AS BIGINT) AS product_order_no
-  , TRY_CAST(orderId AS BIGINT) AS order_no
-  -- , lastChangedType AS last_changed_type
-  , (CASE
-      WHEN productOrderStatus = 'PAYMENT_WAITING' THEN 0
-      WHEN productOrderStatus = 'PAYED' THEN 1
-      WHEN productOrderStatus = 'DELIVERING' THEN 2
-      WHEN productOrderStatus = 'DELIVERED' THEN 3
-      WHEN productOrderStatus = 'PURCHASE_DECIDED' THEN 4
-      WHEN productOrderStatus = 'EXCHANGED' THEN 5
-      WHEN productOrderStatus = 'CANCELED' THEN 6
-      WHEN productOrderStatus = 'RETURNED' THEN 7
-      WHEN productOrderStatus = 'CANCELED_BY_NOPAYMENT' THEN 8
-      ELSE NULL END
-    ) AS order_status
-  -- , claimType AS claim_type
-  -- , claimStatus AS claim_status
-  -- , receiverAddressChanged AS is_address_changed
-  -- , giftReceivingStatus AS gift_receiving_status
-  , TRY_STRPTIME(SUBSTR(paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
-  , TRY_STRPTIME(SUBSTR(lastChangedDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS updated_dt
-FROM {{ array }};
+SELECT os.*
+FROM (
+  SELECT
+      TRY_CAST(productOrderId AS BIGINT) AS product_order_no
+    , TRY_CAST(orderId AS BIGINT) AS order_no
+    -- , lastChangedType AS last_changed_type
+    , (CASE
+        WHEN productOrderStatus = 'PAYMENT_WAITING' THEN 0
+        WHEN productOrderStatus = 'PAYED' THEN 1
+        WHEN productOrderStatus = 'DELIVERING' THEN 2
+        WHEN productOrderStatus = 'DELIVERED' THEN 3
+        WHEN productOrderStatus = 'PURCHASE_DECIDED' THEN 4
+        WHEN productOrderStatus = 'EXCHANGED' THEN 5
+        WHEN productOrderStatus = 'CANCELED' THEN 6
+        WHEN productOrderStatus = 'RETURNED' THEN 7
+        WHEN productOrderStatus = 'CANCELED_BY_NOPAYMENT' THEN 8
+        ELSE NULL END
+      ) AS order_status
+    -- , claimType AS claim_type
+    -- , claimStatus AS claim_status
+    -- , receiverAddressChanged AS is_address_changed
+    -- , giftReceivingStatus AS gift_receiving_status
+    , TRY_STRPTIME(SUBSTR(paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
+    , TRY_STRPTIME(SUBSTR(lastChangedDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS updated_dt
+  FROM {{ array }}
+) AS os
+WHERE (os.payment_dt IS NOT NULL) AND (os.updated_dt IS NOT NULL) AND (os.order_status > 1);
 
 -- OrderStatus: insert
-INSERT INTO {{ table }} {{ values }};
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;

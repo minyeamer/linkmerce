@@ -23,15 +23,16 @@ class Order(DuckDBTransformer):
             self.insert_into_table(orders)
 
     def validate_content(self, content: dict):
-        productOrder = content["productOrder"] or dict()
+        productOrder = content.get("productOrder") or dict()
         for key in ["sellerProductCode","optionManageCode","claimStatus","productOption","inflowPathAdd","decisionDate"]:
             if key not in productOrder:
                 productOrder[key] = productOrder.get(key)
-        delivery = content["delivery"] or dict()
+        delivery = content.get("delivery") or dict()
         for key in ["sendDate","deliveredDate"]:
             if key not in delivery:
                 delivery[key] = delivery.get(key)
-        content.update(productOrder=productOrder, delivery=delivery)
+        completedClaims = content.get("completedClaims") or [dict(claimType=None, claimRequestAdmissionDate=None)]
+        content.update(productOrder=productOrder, delivery=delivery, completedClaims=completedClaims)
 
 
 class ProductOrder(Order):
@@ -48,6 +49,10 @@ class ProductOrder(Order):
     def insert_into_table(self, obj: list[dict], **kwargs):
         super().insert_into_table(obj, key="insert_order", table=":order:", values=":select_order:")
         super().insert_into_table(obj, key="upsert_option", table=":option:", values=":select_option:")
+
+
+class OrderTime(Order):
+    queries = ["create", "select", "insert"]
 
 
 class OrderStatusList(JsonTransformer):

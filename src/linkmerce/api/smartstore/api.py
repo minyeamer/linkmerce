@@ -31,7 +31,7 @@ def order(
         client_secret: str,
         start_date: dt.date | str,
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-        range_type: Literal["PAYED_DATETIME","ORDERING_CONFIRM","DELIVERY_OPERATED","DELIVERY_COMPLETED","PURCHASE_DECISION_COMPLETED"] = "PAYED_DATETIME",
+        range_type: str = "PAYED_DATETIME",
         product_order_status: Iterable[str] = list(),
         claim_status: Iterable[str] = list(),
         place_order_status: str = list(),
@@ -60,7 +60,7 @@ def product_order(
         client_secret: str,
         start_date: dt.date | str,
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-        range_type: Literal["PAYED_DATETIME","ORDERING_CONFIRM","DELIVERY_OPERATED","DELIVERY_COMPLETED","PURCHASE_DECISION_COMPLETED"] = "PAYED_DATETIME",
+        range_type: str = "PAYED_DATETIME",
         product_order_status: Iterable[str] = list(),
         claim_status: Iterable[str] = list(),
         place_order_status: str = list(),
@@ -107,3 +107,33 @@ def order_status(
         variables = get_variables(client_id, client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
+
+
+def aggregated_order_status(
+        client_id: str,
+        client_secret: str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        retry_count: int = 5,
+        request_delay: float | int = 1.01,
+        connection: DuckDBConnection | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> dict[str,JsonObject]:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.smartstore.api.order.extract import OrderTime
+    # from linkmerce.core.smartstore.api.order.transform import OrderTime
+    components = (get_module(".order"), "OrderTime", "OrderTime")
+    extract_options = update_options(extract_options,
+        options = get_options(request_delay),
+        variables = get_variables(client_id, client_secret))
+    options = dict(kwargs=dict(retry_count=retry_count), extract_options=extract_options, transform_options=transform_options)
+    return dict(
+        order_status = run_with_duckdb(
+            get_module(".order"), "OrderStatus", "OrderStatus", connection, "sync", return_type, (start_date, end_date), **options),
+        purchase_decided = run_with_duckdb(
+            *components, connection, "sync", return_type, (start_date, end_date, "PURCHASE_DECIDED_DATETIME"), **options),
+        claim_completed = run_with_duckdb(
+            *components, connection, "sync", return_type, (start_date, end_date, "CLAIM_COMPLETED_DATETIME"), **options),
+    )

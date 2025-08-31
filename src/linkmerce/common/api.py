@@ -60,7 +60,7 @@ def run(
         transformer_ = import_transformer(module, transformer)(**transform_options)
         extract_options = dict(extract_options, parser=transformer_.transform)
     extractor_ = import_extractor(module, extractor)(**extract_options)
-    return _extract(extractor_, how, args, kwargs)
+    return extract(extractor_, how, args, kwargs)
 
 
 def run_with_connection(
@@ -77,10 +77,10 @@ def run_with_connection(
         return run(module, extractor, transformer, how, args, kwargs, extract_options, transform_options)
     with import_dbt(module, transformer)(**transform_options) as transformer_:
         extractor_ = import_extractor(module, extractor)(parser=transformer_.transform, **extract_options)
-        return _extract(extractor_, how, args, kwargs)
+        return extract(extractor_, how, args, kwargs)
 
 
-def _extract(
+def extract(
         extractor: Extractor,
         how: Literal["sync","async","async_loop"] = "sync",
         args: tuple = tuple(),
@@ -118,20 +118,20 @@ def run_with_duckdb(
         transform_options: dict = dict(),
     ) -> Any | dict[str,Any]:
     if (not transformer) or (return_type == "raw") or ("parser" in extract_options):
-        return run(module, extractor, transformer, how, args, kwargs, extract_options, transform_options)
+        return run(module, extractor, None, how, args, kwargs, extract_options, transform_options)
     elif (connection is None) or ("db_info" in transform_options):
         with import_dbt(module, transformer)(**transform_options) as transformer_:
             extractor_ = import_extractor(module, extractor)(parser=transformer_.transform, **extract_options)
-            _extract(extractor_, how, args, kwargs)
-            return _fetch_all_from_table(transformer_, return_type)
+            extract(extractor_, how, args, kwargs)
+            return fetch_all_from_duckdb_table(transformer_, return_type)
     else:
         transformer_ = import_dbt(module, transformer)(db_info=dict(conn=connection), **transform_options)
         extractor_ = import_extractor(module, extractor)(parser=transformer_.transform, **extract_options)
-        _extract(extractor_, how, args, kwargs)
-        return _fetch_all_from_table(transformer_, return_type)
+        extract(extractor_, how, args, kwargs)
+        return fetch_all_from_duckdb_table(transformer_, return_type)
 
 
-def _fetch_all_from_table(
+def fetch_all_from_duckdb_table(
         transformer: DuckDBTransformer,
         return_type: Literal["csv","json","parquet","none"] = "json",
     ) -> Any | dict[str,Any]:

@@ -25,7 +25,7 @@ class Order(SmartstoreAPI):
             self,
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-            range_type: Literal["PAYED_DATETIME","ORDERING_CONFIRM","DELIVERY_OPERATED","DELIVERY_COMPLETED","PURCHASE_DECISION_COMPLETED"] = "PAYED_DATETIME",
+            range_type: str = "PAYED_DATETIME",
             product_order_status: Iterable[str] = list(),
             claim_status: Iterable[str] = list(),
             place_order_status: str = list(),
@@ -72,27 +72,29 @@ class Order(SmartstoreAPI):
     @property
     def range_type(self) -> dict[str,str]:
         return {
-            "PAY_COMPLETED": "결제일", "ORDERING_CONFIRM": "발주확인일", "DELIVERY_OPERATED": "발송처리일",
-            "DELIVERY_COMPLETED": "배송완료일", "PURCHASE_DECISION_COMPLETED": "구매확정일"
+            "PAYED_DATETIME": "결제 일시", "ORDERED_DATETIME": "주문 일시", "DISPATCHED_DATETIME": "발송 처리 일시",
+            "PURCHASE_DECIDED_DATETIME": "구매 확정 일시", "CLAIM_REQUESTED_DATETIME": "클레임 요청 일시",
+            "CLAIM_COMPLETED_DATETIME": "클레임 완료 일시", "COLLECT_COMPLETED_DATETIME": "수거 완료 일시",
+            "GIFT_RECEIVED_DATETIME": "선물 수락 일시", "HOPE_DELIVERY_INFO_CHANGED_DATETIME": "배송 희망일 변경 일시"
         }
 
     @property
     def product_order_status(self) -> dict[str,str]:
         return {
-            "PAYMENT_WAITING": "결제대기", "PAYED": "결제완료", "WAITING_DISPATCH": "발송대기", "DELIVERING": "배송중",
-            "DELIVERED": "배송완료", "PURCHASE_DECIDED": "구매확정", "CANCELED": "취소", "CANCELED_BY_NOPAYMENT": "미결제취소",
-            "EXCHANGED": "교환", "RETURNED": "반품"
+            "PAYMENT_WAITING": "결제 대기", "PAYED": "결제 완료", "DELIVERING": "배송 중", "DELIVERED": "배송 완료",
+            "PURCHASE_DECIDED": "구매 확정", "EXCHANGED": "교환", "CANCELED": "취소", "RETURNED": "반품",
+            "CANCELED_BY_NOPAYMENT": "미결제 취소"
         }
 
     @property
     def claim_status(self) -> dict[str,str]:
         return {
-            "CANCEL_REQUEST": "취소요청", "CANCELING": "취소중", "CANCEL_DONE": "취소완료", "CANCEL_REJECT": "취소철회",
-            "RETURN_REQUEST": "반품요청", "EXCHANGE_REQUEST": "교환요청", "COLLECTING": "수거중", "COLLECT_DONE": "수거완료",
-            "EXCHANGE_REDELIVERING": "교환재배송중", "EXCHANGE_DONE": "교환완료", "RETURN_DONE": "반품완료",
-            "RETURN_REJECT": "반품철회", "EXCHANGE_REJECT": "교환철회", "PURCHASE_DECISION_HOLDBACK": "구매확정보류",
-            "PURCHASE_DECISION_REQUEST": "구매확정요청", "PURCHASE_DECISION_HOLDBACK_RELEASE": "구매확정보류해제",
-            "ADMIN_CANCELING": "직권취소중", "ADMIN_CANCEL_DONE": "직권취소완료", "ADMIN_CANCEL_REJECT": "직권취소철회"
+            "CANCEL_REQUEST": "취소 요청", "CANCELING": "취소 처리 중", "CANCEL_DONE": "취소 처리 완료", "CANCEL_REJECT": "취소 철회",
+            "RETURN_REQUEST": "반품 요청", "EXCHANGE_REQUEST": "교환 요청", "COLLECTING": "수거 처리 중", "COLLECT_DONE": "수거 완료",
+            "EXCHANGE_REDELIVERING": "교환 재배송 중", "RETURN_DONE": "반품 완료", "EXCHANGE_DONE": "교환 완료",
+            "RETURN_REJECT": "반품 철회", "EXCHANGE_REJECT": "교환 철회", "PURCHASE_DECISION_HOLDBACK": "구매 확정 보류",
+            "PURCHASE_DECISION_REQUEST": "구매 확정 요청", "PURCHASE_DECISION_HOLDBACK_RELEASE": "구매 확정 보류 해제",
+            "ADMIN_CANCELING": "직권 취소 중", "ADMIN_CANCEL_DONE": "직권 취소 완료", "ADMIN_CANCEL_REJECT": "직권 취소 철회", 
         }
 
     @property
@@ -101,6 +103,10 @@ class Order(SmartstoreAPI):
 
 
 class ProductOrder(Order):
+    ...
+
+
+class OrderTime(Order):
     ...
 
 
