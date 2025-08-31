@@ -23,16 +23,40 @@ class Order(DuckDBTransformer):
             self.insert_into_table(orders)
 
     def validate_content(self, content: dict):
-        productOrder = content.get("productOrder") or dict()
-        for key in ["sellerProductCode","optionManageCode","claimStatus","productOption","inflowPathAdd","decisionDate"]:
-            if key not in productOrder:
-                productOrder[key] = productOrder.get(key)
-        delivery = content.get("delivery") or dict()
-        for key in ["sendDate","deliveredDate"]:
+        from linkmerce.utils.map import hier_get
+        order = self.validate_order(content.get("order") or dict())
+        product_order = self.validate_product_order(content.get("productOrder") or dict())
+        delivery = self.validate_delivery(content.get("delivery") or dict())
+        completed_claim = self.validate_completed_claim(hier_get(content, ["completedClaims",0]) or dict())
+        content.update(order=order, productOrder=product_order, delivery=delivery, completedClaims=[completed_claim])
+
+    def validate_order(self, order: dict) -> dict:
+        for key in ["orderId", "ordererNo", "ordererId", "ordererName", "payLocationType", "orderDate", "paymentDate"]:
+            if key not in order:
+                order[key] = order.get(key)
+        return order
+
+    def validate_product_order(self, product_order: dict) -> dict:
+        keys = ["merchantChannelId", "productId", "optionCode", "sellerProductCode", "optionManageCode", "productOrderStatus",
+                "claimStatus", "productClass", "productName", "productOption", "inflowPath", "inflowPathAdd", "inflowPathAdd",
+                "deliveryAttributeType", "quantity", "unitPrice", "optionPrice", "deliveryFeeAmount",
+                "totalPaymentAmount", "expectedSettlementAmount", "decisionDate"]
+        for key in keys:
+            if key not in product_order:
+                product_order[key] = product_order.get(key)
+        return product_order
+
+    def validate_delivery(self, delivery: dict) -> dict:
+        for key in ["sendDate", "deliveredDate"]:
             if key not in delivery:
                 delivery[key] = delivery.get(key)
-        completedClaims = content.get("completedClaims") or [dict(claimType=None, claimRequestAdmissionDate=None)]
-        content.update(productOrder=productOrder, delivery=delivery, completedClaims=completedClaims)
+        return delivery
+
+    def validate_completed_claim(self, completed_claim: dict) -> dict:
+        for key in ["claimType", "claimRequestAdmissionDate"]:
+            if key not in completed_claim:
+                completed_claim[key] = completed_claim.get(key)
+        return completed_claim
 
 
 class ProductOrder(Order):
@@ -66,4 +90,13 @@ class OrderStatus(DuckDBTransformer):
     def transform(self, obj: JsonObject, **kwargs):
         status = OrderStatusList().transform(obj)
         if status:
+            status[0] = self.validate_change_status(status[0])
             self.insert_into_table(status)
+
+    def validate_change_status(self, change_status: dict) -> dict:
+        keys = ["productOrderId", "orderId", "lastChangedType", "productOrderStatus", "claimType", "claimStatus",
+                "receiverAddressChanged", "giftReceivingStatus", "paymentDate", "lastChangedDate"]
+        for key in keys:
+            if key not in change_status:
+                change_status[key] = change_status.get(key)
+        return change_status

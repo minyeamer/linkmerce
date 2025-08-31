@@ -1,5 +1,5 @@
 -- Order: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_order_no BIGINT PRIMARY KEY
   , order_no BIGINT NOT NULL
   , orderer_no BIGINT
@@ -73,7 +73,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- ProductOrder: create_order
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_order_no BIGINT PRIMARY KEY
   , order_no BIGINT NOT NULL
   , orderer_no BIGINT
@@ -122,9 +122,9 @@ WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S'
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- ProductOrder: create_option
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT
-  , option_id BIGINT PRIMARY KEY
+  , option_id BIGINT
   , channel_seq BIGINT
   , seller_product_code VARCHAR
   , seller_option_code VARCHAR
@@ -135,6 +135,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , option_price INTEGER
   , delivery_fee INTEGER
   , update_date DATE
+  , PRIMARY KEY (channel_seq, option_id)
 );
 
 -- ProductOrder: select_option
@@ -163,7 +164,6 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.optionCode) = 1;
 INSERT INTO {{ table }} {{ values }}
 ON CONFLICT DO UPDATE SET
     product_id = COALESCE(excluded.product_id, product_id)
-  , channel_seq = COALESCE(excluded.channel_seq, channel_seq)
   , seller_product_code = COALESCE(excluded.seller_product_code, seller_product_code)
   , seller_option_code = COALESCE(excluded.seller_option_code, seller_option_code)
   , product_type = COALESCE(excluded.product_type, product_type)
