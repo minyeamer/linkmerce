@@ -62,7 +62,7 @@ def daily_report(
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.searchad.manage.adreport.extract import DailyReport
     # from linkmerce.core.searchad.manage.adreport.transform import DailyReport
-    components = (get_module(".exposure"), "DailyReport", "DailyReport")
+    components = (get_module(".adreport"), "DailyReport", "DailyReport")
     args = (report_id, report_name, userid, start_date, end_date)
     extract_options = dict(extract_options, headers=dict(cookies=cookies), variables=dict(customer_id=customer_id))
     options = dict(extract_options=extract_options, transform_options=transform_options)
