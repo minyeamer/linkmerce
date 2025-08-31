@@ -71,7 +71,7 @@ with DAG(
                         product = conn.count_table(sources["product"]),
                     ),
                     status = dict(
-                        rank = client.load_table_from_duckdb(conn, sources["rank"], tables["data"]),
+                        rank = client.load_table_from_duckdb(conn, sources["rank"], tables["rank"]),
                         now = client.merge_into_table_from_duckdb(conn, sources["rank"], f'{tables["temp_now"]}_{customer_id}', tables["now"], **merge["now"]),
                         product = client.merge_into_table_from_duckdb(conn, sources["product"], f'{tables["temp_product"]}_{customer_id}', tables["product"], **merge["product"]),
                     )

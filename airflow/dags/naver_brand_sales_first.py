@@ -60,7 +60,7 @@ with DAG(
                         product = conn.count_table(sources["product"]),
                     ),
                     status = dict(
-                        sales = client.merge_into_table_from_duckdb(conn, sources["sales"], tables["temp_data"], tables["data"], where_clause=on, **merge["data"]),
+                        sales = client.merge_into_table_from_duckdb(conn, sources["sales"], tables["temp_sales"], tables["sales"], where_clause=on, **merge["sales"]),
                         product = client.merge_into_table_from_duckdb(conn, sources["product"], tables["temp_product"], tables["product"], **merge["product"]),
                     )
                 )

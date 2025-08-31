@@ -55,7 +55,7 @@ with DAG(
                         product = conn.count_table("naver_brand_product"),
                     ),
                     status = dict(
-                        price = client.load_table_from_duckdb(conn, sources["price"], tables["data"]),
+                        price = client.load_table_from_duckdb(conn, sources["price"], tables["price"]),
                         product = client.merge_into_table_from_duckdb(conn, sources["product"], tables["temp_product"], tables["product"], **merge["product"]),
                     )
                 )
