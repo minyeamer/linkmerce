@@ -41,45 +41,39 @@ class SearchAdManager(Extractor):
         def wrapper(self: SearchAdManager, *args, **kwargs):
             self.validate()
             self.authorize()
-            self.link_customer()
             return func(self, *args, **kwargs)
         return wrapper
 
     def validate(self):
         from urllib.parse import quote
-        url = self.auth_url + "/local/naver-cookie/exist"
-        redirect_url = f"{self.origin}/login?autoLogin=true&returnUrl={quote(self.main_url + '/front')}&returnMethod=get"
-        headers = dict(self.get_request_headers(), referer=redirect_url, origin=self.origin)
-        response = self.get_session().get(url, headers=headers).text
-        if response.strip() != "true":
+        url = self.auth_url + f"/local/naver-cookie/ads-accounts/{self.customer_id}"
+        referer = f"{self.origin}/membership/select-account?redirectUrl={quote(self.main_url)}"
+        headers = dict(self.get_request_headers(), referer=referer, origin=self.origin)
+        response = self.get_session().get(url, headers=headers).json()
+        if (not isinstance(response, dict)) or (response.get("status") == 403):
             from linkmerce.common.exceptions import AuthenticationError
-            raise AuthenticationError("Authentication failed: cookies are invalid.")
+            raise AuthenticationError("You don't have permission to access this account.")
 
     def authorize(self):
         from urllib.parse import quote
         url = self.auth_url + "/local/naver-cookie"
-        redirect_url = f"{self.origin}/naver?returnUrl={quote(self.main_url + '/front')}&returnMethod=get"
-        headers = dict(self.get_request_headers(), referer=redirect_url, origin=self.origin, **{"content-type":"text/plain"})
-        response = self.get_session().post(url, headers=headers).json()
+        referer = f"{self.origin}/membership/select-account?redirectUrl={quote(self.main_url)}"
+        headers = dict(self.get_request_headers(), referer=referer, origin=self.origin)
+        response = self.get_session().post(url, headers=headers, params=dict(customerId=self.customer_id)).json()
         self.set_token(**response)
 
     def refresh(self, referer: str = str()):
+        from urllib.parse import quote
         url = self.auth_url + "/local/extend"
-        params = dict(refreshToken=self.refresh_token)
-        referer = referer or (self.main_url + "/front")
+        data = dict(refreshToken=self.refresh_token)
+        referer = f"{self.origin}/membership/select-account?redirectUrl={quote(referer or self.main_url)}"
         headers = dict(self.get_request_headers(), referer=referer, origin=self.main_url)
-        response = self.get_session().put(url, params=params, headers=headers).json()
+        response = self.get_session().put(url, json=data, headers=headers).json()
         self.set_token(**response)
 
     def set_token(self, token: str, refreshToken: str, **kwargs):
         self.access_token = token
         self.refresh_token = refreshToken
-
-    def link_customer(self, referer: str = str()):
-        url = f"{self.api_url}/customer-links/{self.customer_id}/token"
-        referer = referer or (self.main_url + "/front")
-        headers = dict(self.get_request_headers(), authorization=self.get_authorization(), referer=referer, origin=self.main_url)
-        self.access_token = self.get_session().get(url, headers=headers).json()["token"]
 
     def get_authorization(self) -> str:
         return "Bearer " + self.access_token

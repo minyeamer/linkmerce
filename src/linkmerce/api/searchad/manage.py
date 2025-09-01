@@ -24,6 +24,17 @@ def get_options(
         RequestEachLoop = dict(delay=request_delay))
 
 
+def validate_cookies(cookies: str) -> bool:
+    from linkmerce.utils.headers import build_headers
+    import requests
+    url = "https://gw.searchad.naver.com/auth/local/naver-cookie/exist"
+    origin = "https://searchad.naver.com"
+    referer = f"{origin}/membership/select-account?redirectUrl=https:%2F%2Fmanage.searchad.naver.com"
+    headers = build_headers(cookies=cookies, referer=referer, origin=origin)
+    with requests.get(url, headers=headers) as response:
+        return (response.text == "true")
+
+
 def adreport(
         customer_id: int | str,
         cookies: str,
