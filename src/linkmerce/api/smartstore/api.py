@@ -35,6 +35,7 @@ def product(
         period_type: Literal["PROD_REG_DAY","SALE_START_DAY","SALE_END_DAY","PROD_MOD_DAY"] = "PROD_REG_DAY",
         from_date: dt.date | str | None = None,
         to_date: dt.date | str | None = None,
+        channel_seq: int | str | None = None,
         retry_count: int = 5,
         request_delay: float | int = 1,
         connection: DuckDBConnection | None = None,
@@ -43,10 +44,10 @@ def product(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    from linkmerce.core.smartstore.api.product.extract import Product
-    from linkmerce.core.smartstore.api.product.transform import Product
+    # from linkmerce.core.smartstore.api.product.extract import Product
+    # from linkmerce.core.smartstore.api.product.transform import Product
     components = (get_module(".product"), "Product", "Product")
-    args = (search_keyword, keyword_type, status_type, period_type, from_date, to_date, retry_count)
+    args = (search_keyword, keyword_type, status_type, period_type, from_date, to_date, channel_seq, retry_count)
     extract_options = update_options(extract_options,
         options = get_options(request_delay),
         variables = get_variables(client_id, client_secret))

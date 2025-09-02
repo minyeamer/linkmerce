@@ -29,12 +29,13 @@ class Product(SmartstoreAPI):
             period_type: Literal["PROD_REG_DAY","SALE_START_DAY","SALE_END_DAY","PROD_MOD_DAY"] = "PROD_REG_DAY",
             from_date: dt.date | str | None = None,
             to_date: dt.date | str | None = None,
+            channel_seq: int | str | None = None,
             retry_count: int = 5,
             **kwargs
         ) -> JsonObject:
         return (self.paginate_all(self.request_json_until_success, counter=self.count_total, max_page_size=500, page_start=1)
-                .run(search_keyword=search_keyword, keyword_type=keyword_type, status_type=status_type,
-                    period_type=period_type, from_date=from_date, to_date=to_date, retry_count=retry_count))
+                .run(search_keyword=search_keyword, keyword_type=keyword_type, status_type=status_type, period_type=period_type,
+                    from_date=from_date, to_date=to_date, channel_seq=channel_seq, retry_count=retry_count))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         return response.get("totalElements") if isinstance(response, dict) else None

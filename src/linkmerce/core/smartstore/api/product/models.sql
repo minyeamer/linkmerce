@@ -1,8 +1,9 @@
 -- Product: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_no BIGINT NOT NULL
-  , product_id BIGINT PRIMARY KEY
+    product_id BIGINT PRIMARY KEY
+  , product_no BIGINT NOT NULL
   , catalog_id BIGINT
+  , channel_seq BIGINT NOT NULL
   -- , channel_type VARCHAR -- ['STOREFARM', 'WINDOW', 'AFFILIATE']
   , product_name VARCHAR
   -- , management_code VARCHAR
@@ -29,9 +30,10 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 
 -- Product: select
 SELECT
-    TRY_CAST(originProductNo AS BIGINT) AS product_no
-  , TRY_CAST(channelProductNo AS BIGINT) AS product_id
+    TRY_CAST(channelProductNo AS BIGINT) AS product_id
+  , TRY_CAST(originProductNo AS BIGINT) AS product_no
   , TRY_CAST(modelId AS BIGINT) AS catalog_id
+  , CAST($channel_seq AS BIGINT) AS channel_seq
   -- , channelServiceType AS channel_type
   , name AS product_name
   -- , sellerManagementCode AS management_code

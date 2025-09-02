@@ -19,11 +19,11 @@ class ProductList(JsonTransformer):
 class Product(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
-    def transform(self, obj: JsonObject, **kwargs):
+    def transform(self, obj: JsonObject, channel_seq: int | str | None = None, **kwargs):
         products = ProductList().transform(obj)
         if products:
             products[0] = self.validate_product(products[0])
-            self.insert_into_table(products)
+            self.insert_into_table(products, params=dict(channel_seq=channel_seq))
 
     def validate_product(self, product: dict) -> dict:
         for key in ["groupProductNo", "manufacturerName", "modelName", "modelId", "sellerManagementCode"]:
