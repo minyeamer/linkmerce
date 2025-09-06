@@ -39,12 +39,12 @@ class SearchAdManager(Extractor):
     def with_token(func):
         @functools.wraps(func)
         def wrapper(self: SearchAdManager, *args, **kwargs):
-            self.validate()
+            self.authenticate()
             self.authorize()
             return func(self, *args, **kwargs)
         return wrapper
 
-    def validate(self):
+    def authenticate(self):
         from urllib.parse import quote
         url = self.auth_url + f"/local/naver-cookie/ads-accounts/{self.customer_id}"
         referer = f"{self.origin}/membership/select-account?redirectUrl={quote(self.main_url)}"
