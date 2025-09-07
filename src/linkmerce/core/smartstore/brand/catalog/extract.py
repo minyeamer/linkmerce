@@ -61,7 +61,7 @@ class _CatalogExtractor(PartnerCenter):
                     name = self.object_type,
                     variables = {"param": list(param_types.keys())},
                     fields = self.fields,
-            )).generate_data(query_options = dict(
+            )).generate_body(query_options = dict(
                 selection = dict(variables=dict(linebreak=False, replace={"id: $id":"ids: $id"}), fields=dict(linebreak=True)),
                 suffix = '\n')))
 

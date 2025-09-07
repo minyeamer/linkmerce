@@ -7,6 +7,28 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from linkmerce.common.extract import Variables, JsonObject
+    from requests import Session
+
+
+def has_cookies(session: Session, cookies: str = str()) -> bool:
+    from linkmerce.utils.headers import build_headers
+    url = "https://gw.searchad.naver.com/auth/local/naver-cookie/exist"
+    origin = "https://searchad.naver.com"
+    referer = f"{origin}/membership/select-account?redirectUrl=https:%2F%2Fmanage.searchad.naver.com"
+    headers = build_headers(cookies=cookies, referer=referer, origin=origin)
+    with session.get(url, headers=headers) as response:
+        return (response.text == "true")
+
+
+def has_permission(session: Session, customer_id: int | str, cookies: str = str()) -> bool:
+    from linkmerce.utils.headers import build_headers
+    url = f"https://gw.searchad.naver.com/auth/local/naver-cookie/ads-accounts/{customer_id}"
+    origin = "https://searchad.naver.com"
+    referer = f"{origin}/membership/select-account?redirectUrl=https%3A//manage.searchad.naver.com"
+    headers = build_headers(cookies=cookies, referer=referer, origin=origin)
+    with session.get(url, headers=headers) as response:
+        json = response.json()
+        return isinstance(json, dict) and (json.get("status") != 403)
 
 
 class SearchAdManager(Extractor):
@@ -45,12 +67,8 @@ class SearchAdManager(Extractor):
         return wrapper
 
     def authenticate(self):
-        from urllib.parse import quote
-        url = self.auth_url + f"/local/naver-cookie/ads-accounts/{self.customer_id}"
-        referer = f"{self.origin}/membership/select-account?redirectUrl={quote(self.main_url)}"
-        headers = dict(self.get_request_headers(), referer=referer, origin=self.origin)
-        response = self.get_session().get(url, headers=headers).json()
-        if (not isinstance(response, dict)) or (response.get("status") == 403):
+        cookies = self.get_request_headers().get("cookies", str())
+        if not has_permission(self.get_session(), self.customer_id, cookies):
             from linkmerce.common.exceptions import AuthenticationError
             raise AuthenticationError("You don't have permission to access this account.")
 

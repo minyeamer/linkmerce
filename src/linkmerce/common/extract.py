@@ -511,3 +511,46 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         pairs = date_pairs(start_date, (start_date if end_date == ":start_date:" else end_date), freq, format)
         context = list(map(lambda values: dict(zip(["start_date","end_date"], values)), pairs))
         return context[0] if len(context) == 1 else context
+
+
+###################################################################
+########################### LoginHandler ##########################
+###################################################################
+
+class LoginHandler(Extractor):
+    cookies: dict = dict()
+
+    @abstractmethod
+    def login(self, **kwargs):
+        raise NotImplementedError("The 'login' method must be implemented.")
+
+    def extract(self, *args, **kwargs) -> Any:
+        raise NotImplementedError("Direct calls to extract method are not supported. Please use login method instead.")
+
+    def with_session(func):
+        @functools.wraps(func)
+        def wrapper(self: LoginHandler, *args, **kwargs):
+            if self.get_session() == "per_request":
+                try:
+                    return self._run_with_session(func, *args, **kwargs)
+                finally:
+                    cookies = self.get_cookies()
+                    self.set_session("per_request")
+                    self.set_cookies(cookies)
+            else:
+                return func(self, *args, **kwargs)
+        return wrapper
+
+    def set_cookies(self, cookies: str):
+        cookies = {kv.split('=')[0]: kv.split('=', 1)[1] for kv in cookies.split("; ")}
+        if self.get_session() == "per_request":
+            self.cookies.update(cookies)
+        else:
+            self.get_session().cookies.update(cookies)
+
+    def get_cookies(self) -> str:
+        if self.get_session() == "per_request":
+            cookies = self.cookies
+        else:
+            cookies = self.get_session().cookies
+        return "; ".join([f"{key}={value}" for key, value in cookies.items()])

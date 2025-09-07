@@ -113,7 +113,7 @@ class GraphQLFields(GraphQLObject):
             **kwargs
         ) -> str:
         formatted = self.format(self.fields, indent, step, linebreak, colons)
-        lspace, rspace = '\n', (' '*max(indent-step,0))
+        lspace, rspace = '\n', ('\n'+' '*max(indent-step,0))
         return prefix + _replace(_add_brackets(f"{lspace}{formatted}{rspace}", shape="curly"), replace) + suffix
 
     def format(self, object_: dict | list | str, indent: int=0, step: int=2, linebreak: bool=True, colons: bool=False) -> str:
@@ -218,7 +218,7 @@ class GraphQLOperation(GraphQLObject):
             return values
         self.fragments = extract_fragments(fields)
 
-    def generate_data(self, query_options: dict=dict()) -> dict:
+    def generate_body(self, query_options: dict=dict()) -> dict:
         data = dict(operationName=self.operation) if self.operation else dict()
         data["variables"] = self.variables
         data["query"] = self.generate_query(**query_options)

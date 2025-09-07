@@ -25,25 +25,17 @@ def get_options(
 
 
 def has_cookies(cookies: str) -> bool:
-    from linkmerce.utils.headers import build_headers
+    from linkmerce.core.searchad.manage.common import has_cookies
     import requests
-    url = "https://gw.searchad.naver.com/auth/local/naver-cookie/exist"
-    origin = "https://searchad.naver.com"
-    referer = f"{origin}/membership/select-account?redirectUrl=https:%2F%2Fmanage.searchad.naver.com"
-    headers = build_headers(cookies=cookies, referer=referer, origin=origin)
-    with requests.get(url, headers=headers) as response:
-        return (response.text == "true")
+    with requests.Session() as session:
+        return has_cookies(session, cookies)
 
 
 def has_permission(customer_id: int | str, cookies: str) -> bool:
-    from linkmerce.utils.headers import build_headers
+    from linkmerce.core.searchad.manage.common import has_permission
     import requests
-    url = f"https://gw.searchad.naver.com/auth/local/naver-cookie/ads-accounts/{customer_id}"
-    origin = "https://searchad.naver.com"
-    referer = f"{origin}/membership/select-account?redirectUrl=https%3A//manage.searchad.naver.com"
-    headers = build_headers(cookies=cookies, referer=referer, origin=origin)
-    with requests.get(url, headers=headers) as response:
-        return isinstance(response, dict) and (response.get("status") != 403)
+    with requests.Session() as session:
+        return has_permission(session, customer_id, cookies)
 
 
 def adreport(

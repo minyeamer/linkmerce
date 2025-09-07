@@ -32,14 +32,14 @@ def build_headers(
         **kwargs
     ) -> dict[str,str]:
     return {
-        **({"authority": authority} if authority else dict()),
+        **({"authority": get_hostname(authority)} if authority else dict()),
         **({"accept": accept} if accept else dict()),
         **({"accept-encoding": encoding} if encoding else dict()),
         **({"accept-language": _get_default_language(language)} if language else dict()),
         **({"connection": connection} if connection else dict()),
         **({"content-type": _get_content_type(contents)} if contents else dict()),
         **({"cookie": cookies} if cookies else dict()),
-        **({"host": _get_hostname(host)} if host else dict()),
+        **({"host": get_hostname(host)} if host else dict()),
         **({"origin": origin} if origin else dict()),
         **({"priority": priority} if priority else dict()),
         **({"referer": referer} if referer else dict()),
@@ -52,6 +52,16 @@ def build_headers(
         **({"X-Requested-With": "XMLHttpRequest"} if ajax else dict()),
         **kwargs
     }
+
+
+def get_hostname(url: str) -> str:
+    for prefix in ["://"]:
+        if prefix in url:
+            url = url.split(prefix, maxsplit=1)[1]
+    for suffix in ['/','?','#']:
+        if suffix in url:
+            url = url.split(suffix, maxsplit=1)[0]
+    return url
 
 
 def _get_default_language(value: Literal["ko","en"] | str = "ko") -> str:
@@ -87,16 +97,6 @@ def _get_content_type(contents: Literal["form", "javascript", "json", "text", "m
         raise TypeError("Invalid type for contents. A string or dictionary type is allowed.")
 
 
-def _get_hostname(url: str) -> str:
-    for prefix in ["://"]:
-        if prefix in url:
-            url = url.split(prefix, maxsplit=1)[1]
-    for suffix in ['/','?','#']:
-        if suffix in url:
-            url = url.split(suffix, maxsplit=1)[0]
-    return url
-
-
 def _get_default_client(version: int = CHROME_VERSION) -> str:
     return f'"Not)A;Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
 
@@ -123,3 +123,16 @@ def _get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str,str] = 
 
 def _get_user_agent(version: int = CHROME_VERSION) -> str:
     return f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36"
+
+
+def zip_headers(header_lines: str) -> dict[str,str]:
+    headers = dict()
+    lines = header_lines.split('\n')
+    for seq in range(len(lines)//2):
+        if str(lines[seq*2]).startswith(':'):
+            if lines[seq*2] != ":authority":
+                continue
+            else:
+                lines[seq*2] = "authority"
+        headers[lines[seq*2]] = lines[seq*2+1]
+    return headers

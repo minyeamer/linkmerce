@@ -88,7 +88,7 @@ class _SalesExtractor(PartnerCenter):
                     variables = ["queryRequest"],
                     fields = self.fields,
                 )
-            ).generate_data(query_options = dict(
+            ).generate_body(query_options = dict(
                 selection = dict(variables=dict(linebreak=False), fields=dict(linebreak=True)),
                 suffix = '\n')))
 
