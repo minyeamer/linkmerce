@@ -8,11 +8,29 @@ if TYPE_CHECKING:
     from typing import Iterable, Literal
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
+    from pathlib import Path
     import datetime as dt
 
 
 def get_module(name: str) -> str:
     return (".smartstore.brand" + name) if name.startswith('.') else name
+
+
+def login(
+        userid: str | None = None,
+        passwd: str | None = None,
+        channel_seq: int | str | None = None,
+        cookies: str | None = None,
+        save_to: str | Path | None = None,
+    ) -> str:
+    from linkmerce.core.smartstore.brand.common import PartnerCenterLogin
+    handler = PartnerCenterLogin()
+    handler.login(userid, passwd, channel_seq, cookies)
+    cookies = handler.get_cookies()
+    if cookies and save_to:
+        with open(save_to, 'w', encoding="utf-8") as file:
+            file.write(cookies)
+    return cookies
 
 
 def get_catalog_options(

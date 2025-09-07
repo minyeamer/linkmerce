@@ -27,62 +27,6 @@ def has_cookies(session: Session, cookies: str = str()) -> bool:
 
 
 ###################################################################
-######################### Login Components ########################
-###################################################################
-
-def query_valid_url() -> dict:
-    query = "query ValidUrl($reqType: String!, $url: String!) {\n  validUrl(reqType: $reqType, url: $url)\n}\n"
-    return {"operationName": "ValidUrl", "variables": {"reqType": "login", "url": callback_url()}, "query": query}
-
-
-def query_foreign_captcha() -> dict:
-    query = "query foreignCaptcha {\n  foreignCaptcha {\n    ip\n    isForeignIp\n    captchaKey\n    __typename\n  }\n}\n"
-    return {"operationName": "foreignCaptcha", "variables": {}, "query": query}
-
-
-def query_user_info() -> dict:
-    from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
-
-    return GraphQLOperation(
-        operation = "userInfo",
-        variables = {"userSelectRequest": {"fields": ["NAME", "MEMBER_TYPE", "EMAIL"], "maskingFields": ["id", "EMAIL", "NAME"]}},
-        types = {"userSelectRequest": "UserSelectRequest"},
-        selection = GraphQLSelection(
-            name = "userInfo",
-            variables = ["userSelectRequest"],
-            fields = [{"user": ["id", "idNo"]}, {"userInfos": ["key", "value"]}]
-        )
-    ).generate_body(query_options = dict(
-        selection = dict(variables=dict(linebreak=False)), fields=dict(linebreak=True),
-        suffix = '\n'))
-
-
-def query_nid_auth() -> dict:
-    query = "query nidAuth {\n  nidAuth {\n    nid\n    rawNid\n    nidNo\n    nidLoginStat\n    profileImageUrl\n    name\n    __typename\n  }\n}\n"
-    return {"operationName": "nidAuth", "variables": {}, "query": query}
-
-
-def main_url(return_url: bool = True) -> str:
-    from urllib.parse import urlencode
-    return '?'.join(["https://sell.smartstore.naver.com/login", urlencode(dict(url=callback_url(return_url)))])
-
-
-def login_url(return_url: bool = True) -> str:
-    from urllib.parse import urlencode
-    return '?'.join(["https://accounts.commerce.naver.com/login", urlencode(dict(url=callback_url(return_url)))])
-
-
-def callback_url(return_url: bool = True) -> str:
-    from urllib.parse import urlencode
-    url = "https://sell.smartstore.naver.com/#/login-callback"
-    if return_url:
-        dashboard_url = "https://sell.smartstore.naver.com/#/home/dashboard"
-        return '?'.join([url, urlencode(dict(returnUrl=dashboard_url))])
-    else:
-        return url
-
-
-###################################################################
 ######################### Smartstore Login ########################
 ###################################################################
 
@@ -98,14 +42,18 @@ class SmartstoreLogin(LoginHandler):
             channel_seq: int | str | None = None,
             cookies: str | None = None,
             **kwargs
-        ) -> str:
+        ) -> dict:
         if userid and passwd:
             self.seller_login(userid, passwd)
         else:
             self.oauth_login(cookies)
+
         login_info = self.two_factor_login()
+
         if channel_seq and (int(channel_seq) != login_info["channelNo"]):
-            self.switch_channel(channel_seq)
+            return self.switch_channel(channel_seq)
+        else:
+            return login_info
 
     def build_request_headers(self, authority: str, **kwargs: str) -> dict[str,str]:
         from linkmerce.utils.headers import build_headers, get_hostname
@@ -273,12 +221,13 @@ class SmartstoreLogin(LoginHandler):
 
     ########################## Switch Channel #########################
 
-    def switch_channel(self, channel_seq: int | str):
+    def switch_channel(self, channel_seq: int | str) -> dict:
         channel_info = self.select_channel(channel_seq)
         login_info = self.set_channel(**channel_info)
         url = login_info["redirectUrl"]
         headers = self.build_request_headers(url, https=True)
         self.request("GET", url, headers=headers)
+        return login_info
 
     def select_channel(self, channel_seq: int | str) -> dict:
         for channel in self.fetch_channels():
@@ -304,3 +253,59 @@ class SmartstoreLogin(LoginHandler):
         headers["x-current-statename"] = "work.channel-select"
         headers["x-to-statename"] = "work.channel-select"
         return headers
+
+
+###################################################################
+######################### Login Components ########################
+###################################################################
+
+def query_valid_url() -> dict:
+    query = "query ValidUrl($reqType: String!, $url: String!) {\n  validUrl(reqType: $reqType, url: $url)\n}\n"
+    return {"operationName": "ValidUrl", "variables": {"reqType": "login", "url": callback_url()}, "query": query}
+
+
+def query_foreign_captcha() -> dict:
+    query = "query foreignCaptcha {\n  foreignCaptcha {\n    ip\n    isForeignIp\n    captchaKey\n    __typename\n  }\n}\n"
+    return {"operationName": "foreignCaptcha", "variables": {}, "query": query}
+
+
+def query_user_info() -> dict:
+    from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
+
+    return GraphQLOperation(
+        operation = "userInfo",
+        variables = {"userSelectRequest": {"fields": ["NAME", "MEMBER_TYPE", "EMAIL"], "maskingFields": ["id", "EMAIL", "NAME"]}},
+        types = {"userSelectRequest": "UserSelectRequest"},
+        selection = GraphQLSelection(
+            name = "userInfo",
+            variables = ["userSelectRequest"],
+            fields = [{"user": ["id", "idNo"]}, {"userInfos": ["key", "value"]}]
+        )
+    ).generate_body(query_options = dict(
+        selection = dict(variables=dict(linebreak=False)), fields=dict(linebreak=True),
+        suffix = '\n'))
+
+
+def query_nid_auth() -> dict:
+    query = "query nidAuth {\n  nidAuth {\n    nid\n    rawNid\n    nidNo\n    nidLoginStat\n    profileImageUrl\n    name\n    __typename\n  }\n}\n"
+    return {"operationName": "nidAuth", "variables": {}, "query": query}
+
+
+def main_url(return_url: bool = True) -> str:
+    from urllib.parse import urlencode
+    return '?'.join(["https://sell.smartstore.naver.com/login", urlencode(dict(url=callback_url(return_url)))])
+
+
+def login_url(return_url: bool = True) -> str:
+    from urllib.parse import urlencode
+    return '?'.join(["https://accounts.commerce.naver.com/login", urlencode(dict(url=callback_url(return_url)))])
+
+
+def callback_url(return_url: bool = True) -> str:
+    from urllib.parse import urlencode
+    url = "https://sell.smartstore.naver.com/#/login-callback"
+    if return_url:
+        dashboard_url = "https://sell.smartstore.naver.com/#/home/dashboard"
+        return '?'.join([url, urlencode(dict(returnUrl=dashboard_url))])
+    else:
+        return url
