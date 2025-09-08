@@ -20,7 +20,7 @@ def get_options(
         request_delay: float | int = 1.01,
     ) -> dict:
     return dict(
-        RequestLoop = dict(count=retry_count, ignored_errors=ConnectionError),
+        RequestLoop = dict(count=retry_count, raise_errors=RuntimeError, ignored_errors=Exception),
         RequestEachLoop = dict(delay=request_delay))
 
 

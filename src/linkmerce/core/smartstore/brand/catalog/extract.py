@@ -111,7 +111,7 @@ class BrandCatalog(_CatalogExtractor):
             **kwargs
         ) -> JsonObject:
         partial, expand = self.split_map_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
-        return (self.request_each_pages(self.request_json)
+        return (self.request_each_pages(self.request_json_safe)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
@@ -128,7 +128,7 @@ class BrandCatalog(_CatalogExtractor):
             **kwargs
         ) -> JsonObject:
         partial, expand = self.split_map_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
-        return await (self.request_each_pages(self.request_async_json)
+        return await (self.request_each_pages(self.request_async_json_safe)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
@@ -197,7 +197,7 @@ class BrandProduct(_CatalogExtractor):
             **kwargs
         ) -> JsonObject:
         context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
-        return (self.request_each_pages(self.request_json, context)
+        return (self.request_each_pages(self.request_json_safe, context)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
@@ -215,7 +215,7 @@ class BrandProduct(_CatalogExtractor):
             **kwargs
         ) -> JsonObject:
         context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
-        return await (self.request_each_pages(self.request_async_json, context)
+        return await (self.request_each_pages(self.request_async_json_safe, context)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
@@ -300,7 +300,7 @@ class _BrandStoreProduct(BrandProduct):
             **kwargs
         ) -> JsonObject:
         context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
-        return (self.request_each_pages(self.request_json, context)
+        return (self.request_each_pages(self.request_json_safe, context)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
@@ -318,7 +318,7 @@ class _BrandStoreProduct(BrandProduct):
             **kwargs
         ) -> JsonObject:
         context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
-        return await (self.request_each_pages(self.request_async_json, context)
+        return await (self.request_each_pages(self.request_async_json_safe, context)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)

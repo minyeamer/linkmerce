@@ -15,7 +15,7 @@ class ExposureDiagnosis(SearchAdManager):
     @property
     def default_options(self) -> dict:
         return dict(
-            RequestLoop = dict(count=5, ignored_errors=ConnectionError),
+            RequestLoop = dict(count=5, raise_errors=RuntimeError, ignored_errors=Exception),
             RequestEachLoop = dict(delay=1.01))
 
     @SearchAdManager.with_session

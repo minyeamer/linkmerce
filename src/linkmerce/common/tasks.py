@@ -68,12 +68,14 @@ class RunLoop(Task):
             condition: Callable[...,bool],
             count: int | None = 1,
             delay: Literal["incremental"] | float | int | Sequence[int,int] = "incremental",
+            raise_errors: type | Sequence[type] = tuple(),
             ignored_errors: type | Sequence[type] = tuple(),
         ):
         self.func = func
         self.condition = condition
         self.count = count
         self.delay = delay
+        self.raise_errors = raise_errors
         self.ignored_errors = ignored_errors
 
     def run(self, *args, **kwargs) -> Any:
@@ -82,12 +84,14 @@ class RunLoop(Task):
         for count in range(1, self.count+1):
             try:
                 result = self.func(*args, **kwargs)
+                if self.condition(result):
+                    return result
+            except self.raise_errors as error:
+                raise error
             except self.ignored_errors:
-                continue
-            if self.condition(result):
-                return result
-            else:
-                self._sleep(count)
+                if count == self.count:
+                    return
+            self._sleep(count)
         self._raise_loop_error()
 
     async def run_async(self, *args, **kwargs) -> Any:
@@ -96,12 +100,14 @@ class RunLoop(Task):
         for count in range(1, self.count+1):
             try:
                 result = await self.func(*args, **kwargs)
+                if self.condition(result):
+                    return result
+            except self.raise_errors as error:
+                raise error
             except self.ignored_errors:
-                continue
-            if self.condition(result):
-                return result
-            else:
-                await self._sleep_async(count)
+                if count == self.count:
+                    return
+            await self._sleep_async(count)
         self._raise_loop_error()
 
     def _infinite_run(self, args: tuple = tuple(), kwargs: dict = dict()) -> Any:
@@ -142,38 +148,21 @@ class RequestLoop(RunLoop, Request):
             parser: Callable | None = None,
             count: int | None = 1,
             delay: Literal["incremental"] | float | int | Sequence[int,int] = "incremental",
+            raise_errors: type | Sequence[type] = tuple(),
             ignored_errors: type | Sequence[type] = tuple(),
         ):
-        RunLoop.__init__(self, func, condition, count, delay, ignored_errors)
+        RunLoop.__init__(self, func, condition, count, delay, raise_errors, ignored_errors)
         self.parser = parser
 
     def run(self, *args, **kwargs) -> Any:
-        if not isinstance(self.count, int):
-            return self._infinite_run(args, kwargs)
-        for count in range(1, self.count+1):
-            try:
-                result = self.func(*args, **kwargs)
-            except self.ignored_errors:
-                continue
-            if self.condition(result):
-                return self._parse(result, args, kwargs)
-            else:
-                self._sleep(count)
-        self._raise_loop_error()
+        result = super().run(*args, **kwargs)
+        if result is not None:
+            return self._parse(result, args, kwargs)
 
     async def run_async(self, *args, **kwargs) -> Any:
-        if not isinstance(self.count, int):
-            raise RuntimeError("Invalid loop count provided.")
-        for count in range(1, self.count+1):
-            try:
-                result = await self.func(*args, **kwargs)
-            except self.ignored_errors:
-                continue
-            if self.condition(result):
-                return self._parse(result, args, kwargs)
-            else:
-                await self._sleep_async(count)
-        self._raise_loop_error()
+        result = await super().run_async()
+        if result is not None:
+            return self._parse(result, args, kwargs)
 
     def parse(self, parser: Callable | None = None) -> RequestLoop:
         return self.setattr("parser", parser)
@@ -222,9 +211,14 @@ class ForEach(Task):
         return self.setattr("concat_how", how)
 
     def _concat_results(self, results: list) -> list:
-        if (self.concat_how == "always") or ((self.concat_how == "auto") and all(map(lambda x: isinstance(x, Sequence), results))):
+        def chain_list(iterable: list):
             from itertools import chain
-            return list(chain.from_iterable(results))
+            return list(chain.from_iterable(iterable))
+        if self.concat_how == "always":
+            return chain_list(results)
+        elif self.concat_how == "auto":
+            iterable = [result for result in results if isinstance(result, Sequence)]
+            return chain_list(iterable) if iterable else results
         else:
             return results
 

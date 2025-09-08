@@ -32,7 +32,7 @@ class _SalesExtractor(PartnerCenter):
             **kwargs
         ) -> JsonObject:
         context = self.generate_date_context(start_date, end_date, freq=date_type[0].upper(), format=self.date_format)
-        return (self.request_each(self.request_json, context=context)
+        return (self.request_each(self.request_json_safe, context=context)
                 .partial(date_type=date_type, page_size=page_size)
                 .expand(mall_seq=mall_seq, page=page)
                 .run())
@@ -49,7 +49,7 @@ class _SalesExtractor(PartnerCenter):
             **kwargs
         ) -> JsonObject:
         context = self.generate_date_context(start_date, end_date, freq=date_type[0].upper(), format=self.date_format)
-        return await (self.request_each(self.request_async_json, context=context)
+        return await (self.request_each(self.request_async_json_safe, context=context)
                 .partial(date_type=date_type, page_size=page_size)
                 .expand(mall_seq=mall_seq, page=page)
                 .run_async())

@@ -350,10 +350,11 @@ class TaskClient(Client):
             condition: Callable[...,bool],
             count: int | None = None,
             delay: Literal["incremental"] | float | int | Sequence[int,int] | None = None,
+            raise_errors: type | Sequence[type] | None = None,
             ignored_errors: type | Sequence[type] | None = None,
         ) -> RequestLoop:
         from linkmerce.common.tasks import RequestLoop
-        options = self.build_options("RequestLoop", count=count, delay=delay, ignored_errors=ignored_errors)
+        options = self.build_options("RequestLoop", count=count, delay=delay, raise_errors=raise_errors, ignored_errors=ignored_errors)
         return RequestLoop(func, condition, parser=self.parse, **options)
 
     def request_each(
