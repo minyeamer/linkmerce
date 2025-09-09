@@ -35,23 +35,52 @@ def build_headers(
         **({"authority": get_hostname(authority)} if authority else dict()),
         **({"accept": accept} if accept else dict()),
         **({"accept-encoding": encoding} if encoding else dict()),
-        **({"accept-language": _get_default_language(language)} if language else dict()),
+        **({"accept-language": get_default_language(language)} if language else dict()),
         **({"connection": connection} if connection else dict()),
-        **({"content-type": _get_content_type(contents)} if contents else dict()),
+        **({"content-type": get_content_type(contents)} if contents else dict()),
         **({"cookie": cookies} if cookies else dict()),
         **({"host": get_hostname(host)} if host else dict()),
         **({"origin": origin} if origin else dict()),
         **({"priority": priority} if priority else dict()),
         **({"referer": referer} if referer else dict()),
-        "sec-ch-ua": (client or _get_default_client(version)),
+        "sec-ch-ua": (client or get_default_client(version)),
         "sec-ch-ua-mobile": f"?{int(mobile)}",
-        "sec-ch-ua-platform": (platform or _get_current_platform()),
-        **_get_fetch_metadata(metadata),
+        "sec-ch-ua-platform": (platform or get_current_platform()),
+        **get_fetch_metadata(metadata),
         **({"upgrade-insecure-requests": "1"} if https else dict()),
-        "user-agent": (user_agent or _get_user_agent(version)),
-        **({"X-Requested-With": "XMLHttpRequest"} if ajax else dict()),
+        "user-agent": (user_agent or get_user_agent(version)),
+        **({"x-requested-with": "XMLHttpRequest"} if ajax else dict()),
         **kwargs
     }
+
+
+def add_headers(headers: dict[str,str], **kwargs) -> dict[str,str]:
+    apply_map = dict(
+        authority = dict(key="authority", func=get_hostname),
+        encoding = dict(key="accept-encoding"),
+        language = dict(key="accept-encoding", func=get_default_language),
+        contents = dict(key="content-type", func=get_content_type),
+        cookies = dict(key="cookie"),
+        host = dict(key="host", func=get_hostname),
+        client = dict(key="sec-ch-ua"),
+        mobile = dict(key="sec-ch-ua-mobile", func=(lambda x: f"?{int(x)}")),
+        platform = dict(key="sec-ch-ua-platform"),
+        user_agent = dict(key="user-agent"),
+    )
+    for key, value in kwargs.items():
+        key_lower = key.lower()
+        if key_lower in apply_map:
+            apply = apply_map[key_lower]
+            headers[apply["key"]] = apply["func"](value) if "func" in apply else value
+        elif (key_lower == "https") and value:
+            headers["upgrade-insecure-requests"] = "1"
+        elif (key_lower == "ajax") and value:
+            headers["x-requested-with"] = "XMLHttpRequest"
+        elif key_lower == "metadata":
+            headers.update(get_fetch_metadata(value))
+        else:
+            headers[key] = value
+    return headers
 
 
 def get_hostname(url: str) -> str:
@@ -64,7 +93,7 @@ def get_hostname(url: str) -> str:
     return url
 
 
-def _get_default_language(value: Literal["ko","en"] | str = "ko") -> str:
+def get_default_language(value: Literal["ko","en"] | str = "ko") -> str:
     if value == "ko":
         return "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
     elif value == "en":
@@ -73,7 +102,7 @@ def _get_default_language(value: Literal["ko","en"] | str = "ko") -> str:
         return value
 
 
-def _get_content_type(contents: Literal["form", "javascript", "json", "text", "multipart"] | str | dict):
+def get_content_type(contents: Literal["form", "javascript", "json", "text", "multipart"] | str | dict):
     if isinstance(contents, str):
         if contents == "form":
             return "application/x-www-form-urlencoded"
@@ -88,7 +117,7 @@ def _get_content_type(contents: Literal["form", "javascript", "json", "text", "m
         else:
             return contents
     elif isinstance(contents, dict):
-        content_type = _get_content_type(contents["type"])
+        content_type = get_content_type(contents["type"])
         for key, value in contents.items(): # boundary, charset, ...
             if key != "type":
                 content_type += f"; {key}={value}"
@@ -97,17 +126,17 @@ def _get_content_type(contents: Literal["form", "javascript", "json", "text", "m
         raise TypeError("Invalid type for contents. A string or dictionary type is allowed.")
 
 
-def _get_default_client(version: int = CHROME_VERSION) -> str:
+def get_default_client(version: int = CHROME_VERSION) -> str:
     return f'"Not)A;Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
 
 
-def _get_current_platform() -> str:
+def get_current_platform() -> str:
     import platform
     os_name = platform.system()
     return "macOS" if os_name == "Darwin" else os_name
 
 
-def _get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str,str] = "navigate") -> dict[str,str]:
+def get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str,str] = "navigate") -> dict[str,str]:
     if isinstance(metadata, str):
         if metadata == "cors":
             return {"sec-fetch-dest": "empty", "sec-fetch-mode": "cors", "sec-fetch-site": "same-origin", "sec-fetch-user": "?1"}
@@ -121,7 +150,7 @@ def _get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str,str] = 
         return dict()
 
 
-def _get_user_agent(version: int = CHROME_VERSION) -> str:
+def get_user_agent(version: int = CHROME_VERSION) -> str:
     return f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36"
 
 

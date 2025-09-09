@@ -418,7 +418,7 @@ class PaginateAll(ForEach, Request):
 
     def _generate_next_pages(self, total_count: int) -> Iterable[int]:
         from math import ceil
-        return range(self.page_start + 1, ceil(total_count / self.max_page_size))
+        return range(self.page_start + 1, ceil(total_count / self.max_page_size) + 1)
 
     def _run_with_count(self, **kwargs) -> tuple[Any,int]:
         results = self.func(**kwargs)

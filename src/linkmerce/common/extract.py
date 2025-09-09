@@ -203,6 +203,11 @@ class RequestSessionClient(BaseSessionClient):
         from bs4 import BeautifulSoup
         return BeautifulSoup(response, features)
 
+    def request_excel(self, sheet_name: str | None = None, header: int = 1, warnings: bool = False, **kwargs) -> JsonObject:
+        response = self.request_content(**kwargs)
+        from linkmerce.utils.openpyxl import excel2json
+        return excel2json(response, sheet_name, header, warnings)
+
     def with_session(func):
         @functools.wraps(func)
         def wrapper(self: RequestSessionClient, *args, **kwargs):
@@ -281,6 +286,11 @@ class AiohttpSessionClient(BaseSessionClient):
         response = await self.request_async_text(**kwargs)
         from bs4 import BeautifulSoup
         return BeautifulSoup(response, features)
+
+    async def request_async_excel(self, sheet_name: str | None = None, header: int = 1, warnings: bool = False, **kwargs) -> JsonObject:
+        response = await self.request_async_content(**kwargs)
+        from linkmerce.utils.openpyxl import excel2json
+        return excel2json(response, sheet_name, header, warnings)
 
     def async_with_session(func):
         @functools.wraps(func)

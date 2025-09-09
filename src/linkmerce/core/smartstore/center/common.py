@@ -56,8 +56,8 @@ class SmartstoreLogin(LoginHandler):
             return login_info
 
     def build_request_headers(self, authority: str, **kwargs: str) -> dict[str,str]:
-        from linkmerce.utils.headers import build_headers, get_hostname
-        return build_headers(get_hostname(authority), **kwargs)
+        from linkmerce.utils.headers import build_headers
+        return build_headers(authority, **kwargs)
 
     ########################### Seller Login ##########################
 
