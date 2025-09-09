@@ -160,7 +160,7 @@ class RequestLoop(RunLoop, Request):
             return self._parse(result, args, kwargs)
 
     async def run_async(self, *args, **kwargs) -> Any:
-        result = await super().run_async()
+        result = await super().run_async(*args, **kwargs)
         if result is not None:
             return self._parse(result, args, kwargs)
 
