@@ -9,7 +9,7 @@ with DAG(
     start_date = pendulum.datetime(2025, 9, 3, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=5),
     catchup = False,
-    tags = ["priority:medium", "smartstore:product", "api:smartstore", "schedule:daily", "time:morning"],
+    tags = ["priority:high", "smartstore:product", "api:smartstore", "schedule:daily", "time:morning"],
 ) as dag:
 
     PATH = ["smartstore", "api", "smartstore_product"]
