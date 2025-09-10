@@ -18,13 +18,13 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_location VARCHAR
   , inflow_path VARCHAR
   , inflow_path_add VARCHAR
-  , delivery_type VARCHAR
   , order_quantity INTEGER
   , sales_price INTEGER
   , option_price INTEGER
-  , delivery_fee INTEGER
   , payment_amount INTEGER
   , supply_amount INTEGER
+  , delivery_type VARCHAR
+  , delivery_fee INTEGER
   , order_dt TIMESTAMP
   , payment_dt TIMESTAMP
   , dispatch_dt TIMESTAMP
@@ -53,13 +53,13 @@ SELECT
   , content.order.payLocationType AS payment_location
   , content.productOrder.inflowPath AS inflow_path
   , IF(content.productOrder.inflowPathAdd IN ('null','undefined'), NULL, content.productOrder.inflowPathAdd) AS inflow_path_add
-  , content.productOrder.deliveryAttributeType AS delivery_type
   , content.productOrder.quantity AS order_quantity
   , content.productOrder.unitPrice AS sales_price
   , content.productOrder.optionPrice AS option_price
-  , content.productOrder.deliveryFeeAmount AS delivery_fee
   , content.productOrder.totalPaymentAmount AS payment_amount
   , content.productOrder.expectedSettlementAmount AS supply_amount
+  , content.productOrder.deliveryAttributeType AS delivery_type
+  , content.productOrder.deliveryFeeAmount AS delivery_fee
   , TRY_STRPTIME(SUBSTR(content.order.orderDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS order_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
   , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS dispatch_dt
@@ -87,9 +87,28 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , order_quantity INTEGER
   , payment_amount INTEGER
   , supply_amount INTEGER
+  , delivery_type INTEGER
+  , delivery_fee INTEGER
   , order_dt TIMESTAMP
   , payment_dt TIMESTAMP NOT NULL
 );
+
+-- ProductOrder: delivery_type
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'NORMAL' AS code, '일반배송' AS name)
+  , STRUCT(1 AS seq, 'TODAY' AS code, '오늘출발' AS name)
+  , STRUCT(2 AS seq, 'OPTION_TODAY' AS code, '옵션별 오늘출발' AS name)
+  , STRUCT(3 AS seq, 'HOPE' AS code, '희망일배송' AS name)
+  , STRUCT(4 AS seq, 'TODAY_ARRIVAL' AS code, '당일배송' AS name)
+  , STRUCT(5 AS seq, 'DAWN_ARRIVAL' AS code, '새벽배송' AS name)
+  , STRUCT(6 AS seq, 'PRE_ORDER' AS code, '예약구매' AS name)
+  , STRUCT(7 AS seq, 'ARRIVAL_GUARANTEE' AS code, 'N배송' AS name)
+  , STRUCT(8 AS seq, 'SELLER_GUARANTEE' AS code, 'N판매자배송' AS name)
+  , STRUCT(9 AS seq, 'HOPE_SELLER_GUARANTEE' AS code, 'N희망일배송' AS name)
+  , STRUCT(10 AS seq, 'PICKUP' AS code, '픽업' AS name)
+  , STRUCT(11 AS seq, 'QUICK' AS code, '즉시배달' AS name)
+]);
 
 -- ProductOrder: select_order
 SELECT
@@ -101,7 +120,7 @@ SELECT
   , TRY_CAST(content.productOrder.optionCode AS BIGINT) AS option_id
   , (CASE
       WHEN content.productOrder.productClass = '단일상품' THEN 0
-      WHEN content.productOrder.productClass = '조합형옵션상품' THEN 1
+      WHEN content.productOrder.productClass IN ('옵션상품','조합형옵션상품') THEN 1
       WHEN content.productOrder.productClass = '추가구성상품' THEN 2
       ELSE NULL END) AS product_type
   , (CASE
@@ -113,6 +132,21 @@ SELECT
   , content.productOrder.quantity AS order_quantity
   , content.productOrder.totalPaymentAmount AS payment_amount
   , content.productOrder.expectedSettlementAmount AS supply_amount
+  , (CASE
+      WHEN content.productOrder.deliveryAttributeType = 'NORMAL' THEN 0
+      WHEN content.productOrder.deliveryAttributeType = 'TODAY' THEN 1
+      WHEN content.productOrder.deliveryAttributeType = 'OPTION_TODAY' THEN 2
+      WHEN content.productOrder.deliveryAttributeType = 'HOPE' THEN 3
+      WHEN content.productOrder.deliveryAttributeType = 'TODAY_ARRIVAL' THEN 4
+      WHEN content.productOrder.deliveryAttributeType = 'DAWN_ARRIVAL' THEN 5
+      WHEN content.productOrder.deliveryAttributeType = 'PRE_ORDER' THEN 6
+      WHEN content.productOrder.deliveryAttributeType = 'ARRIVAL_GUARANTEE' THEN 7
+      WHEN content.productOrder.deliveryAttributeType = 'SELLER_GUARANTEE' THEN 8
+      WHEN content.productOrder.deliveryAttributeType = 'HOPE_SELLER_GUARANTEE' THEN 9
+      WHEN content.productOrder.deliveryAttributeType = 'PICKUP' THEN 10
+      WHEN content.productOrder.deliveryAttributeType = 'QUICK' THEN 11
+      ELSE NULL END) AS delivery_type
+  , content.productOrder.deliveryFeeAmount AS delivery_fee
   , TRY_STRPTIME(SUBSTR(content.order.orderDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS order_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
 FROM {{ array }}
@@ -133,7 +167,6 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , option_name VARCHAR
   , sales_price INTEGER
   , option_price INTEGER
-  , delivery_fee INTEGER
   , update_date DATE
   , PRIMARY KEY (channel_seq, option_id)
 );
@@ -147,14 +180,13 @@ SELECT
   , content.productOrder.optionManageCode AS seller_option_code
   , (CASE
       WHEN content.productOrder.productClass = '단일상품' THEN 0
-      WHEN content.productOrder.productClass = '조합형옵션상품' THEN 1
+      WHEN content.productOrder.productClass IN ('옵션상품','조합형옵션상품') THEN 1
       WHEN content.productOrder.productClass = '추가구성상품' THEN 2
       ELSE NULL END) AS product_type
   , content.productOrder.productName AS product_name
   , content.productOrder.productOption AS option_name
   , content.productOrder.unitPrice AS sales_price
   , content.productOrder.optionPrice AS option_price
-  , content.productOrder.deliveryFeeAmount AS delivery_fee
   , TRY_CAST(content.order.paymentDate AS DATE) AS update_date
 FROM {{ array }}
 WHERE TRY_CAST(content.productOrder.optionCode AS BIGINT) IS NOT NULL
@@ -171,7 +203,6 @@ ON CONFLICT DO UPDATE SET
   , option_name = COALESCE(excluded.option_name, option_name)
   , sales_price = COALESCE(excluded.sales_price, sales_price)
   , option_price = COALESCE(excluded.option_price, option_price)
-  , delivery_fee = COALESCE(excluded.delivery_fee, delivery_fee)
   , update_date = GREATEST(excluded.update_date, update_date);
 
 
