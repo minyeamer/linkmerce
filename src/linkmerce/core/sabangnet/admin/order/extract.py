@@ -176,3 +176,31 @@ class OrderDownload(Order):
             "excelPassword": None,
             "opaExcelDownloadName": "주문서확인처리",
         })
+
+
+class OrderStatus(OrderDownload):
+
+    @property
+    def default_options(self) -> dict:
+        return dict(RequestEach = dict(delay=1))
+
+    @SabangnetAdmin.with_session
+    @SabangnetAdmin.with_token
+    def extract(
+            self,
+            excel_form: int,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            date_type: list[str] = ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"],
+            order_seq: list[int] = list(),
+            order_status_div: str = str(),
+            order_status: Sequence[str] = list(),
+            sort_type: str = "ord_no_asc",
+            **kwargs
+        ) -> dict[str,bytes]:
+        kwargs = dict(kwargs,
+            excel_form=excel_form, start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date),
+            order_seq=order_seq, order_status_div=order_status_div, order_status=order_status, sort_type=sort_type)
+
+        keys = [self.date_type[dt] for dt in date_type]
+        return dict(zip(keys, self.request_each(self.request_content).partial(**kwargs).expand(date_type=date_type).run()))

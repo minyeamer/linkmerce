@@ -189,6 +189,7 @@ class YearMonth:
         return self
 
     def __add__(self, other: int) -> YearMonth:
+        year = self.year
         month = self.month + other
         if month > 12:
             year += (month // 12)

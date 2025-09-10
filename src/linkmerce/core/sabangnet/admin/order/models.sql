@@ -77,10 +77,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , order_quantity INTEGER
   , sku_quantity INTEGER
   , payment_amount INTEGER
-  , commission_amount INTEGER
   , order_amount INTEGER
-  , org_price INTEGER
-  , delivery_fee INTEGER
   , order_dt TIMESTAMP
 );
 
@@ -93,7 +90,7 @@ SELECT
   , TRY_CAST("계정등록순번" AS INTEGER) AS account_no
   , "상품코드(사방넷)" AS product_id
   , "상품코드(쇼핑몰)" AS product_id_shop
-  , (CASE 
+  , (CASE
       WHEN "주문구분" = '주문(진행)' THEN 1
       WHEN "주문구분" = '주문(완료)' THEN 2
       WHEN "주문구분" = '교발(진행)' THEN 3
@@ -126,13 +123,41 @@ SELECT
   , TRY_CAST("수량" AS INTEGER) AS order_quantity
   , TRY_CAST("EA(확정)" AS INTEGER) AS sku_quantity
   , TRY_CAST("결제금액" AS INTEGER) AS payment_amount
-  , TRY_CAST("수수료액(결제금액)" AS INTEGER) AS commission_amount
   , TRY_CAST("주문금액" AS INTEGER) AS order_amount
-  , TRY_CAST("원가(상품)" AS INTEGER) AS org_price
-  , TRY_CAST("배송비(수집)" AS INTEGER) AS delivery_fee
   , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) AS order_dt
 FROM {{ array }}
 WHERE TRY_CAST("주문번호(사방넷)" AS BIGINT) IS NOT NULL;
 
 -- OrderDownload: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
+-- OrderStatus: create
+CREATE OR REPLACE TABLE {{ table }} (
+    order_seq BIGINT PRIMARY KEY
+  , order_status INTEGER
+  , order_dt TIMESTAMP
+  , update_date DATE
+);
+
+-- OrderStatus: select
+SELECT
+    TRY_CAST("주문번호(사방넷)" AS BIGINT) AS order_seq
+  , (CASE
+      WHEN '{{ date_type }}' = '출고완료일' THEN 4
+      WHEN '{{ date_type }}' = '취소접수일' THEN 7
+      WHEN '{{ date_type }}' = '교환접수일' THEN 8
+      WHEN '{{ date_type }}' = '반품접수일' THEN 9
+      WHEN '{{ date_type }}' = '취소완료일' THEN 10
+      WHEN '{{ date_type }}' = '교환완료일' THEN 11
+      WHEN '{{ date_type }}' = '반품완료일' THEN 12
+      ELSE NULL END
+    ) AS order_status
+  , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) AS order_dt
+  , TRY_CAST(STRPTIME("{{ date_type }}자({{ date_format }})", '{{ time_format }}') AS DATE) AS update_date
+FROM {{ array }}
+WHERE (TRY_CAST("주문번호(사방넷)" AS BIGINT) IS NOT NULL)
+  AND TRY_CAST(STRPTIME("{{ date_type }}자({{ date_format }})", '{{ time_format }}') AS DATE) IS NOT NULL;
+
+-- OrderStatus: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;

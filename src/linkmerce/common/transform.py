@@ -427,7 +427,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             **kwargs
         ) -> DuckDBPyConnection:
         if values is not None:
-            values = self.expr_values(values)
+            values = self.expr_values(values, render=render)
         render = self._put_items_into_render_kwargs(render, table=table, values=values)
         return self.insert_into(query, key, render, dict(obj=obj, **(params or dict())))
 
@@ -443,7 +443,7 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             **kwargs
         ) -> DuckDBPyConnection:
         if values is not None:
-            values = self.expr_values(values)
+            values = self.expr_values(values, render=render)
         render = self._put_items_into_render_kwargs(render, table=table, values=values)
         return self.upsert_into(query, key, render, dict(obj=obj, **(params or dict())))
 
@@ -477,12 +477,15 @@ class DuckDBTransformer(DBTransformer, metaclass=ABCMeta):
             self,
             values: Literal[":default:"] | Expression | QueryKey = ":default:",
             array: Literal[":default:"] | Expression | None = ":default:",
+            render: dict | None = None,
         ) -> str:
         if values.startswith(':') and values.endswith(':'):
             key = "select" if values == ":default:" else values[1:-1]
-            query = self.get_query(key, render=dict(array=array)).strip()
+            render = dict(render or dict(), array=array)
+            query = self.get_query(key, render=render).strip()
             return query[:-1] if query.endswith(';') else query
-        elif array is not None:
-            return self.render_query(values, array=array)
+        elif (render is not None) or (array is not None):
+            render = dict(render or dict(), array=array)
+            return self.render_query(values, **render)
         else:
             return values
