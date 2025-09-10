@@ -471,6 +471,7 @@ class BigQueryClient(Connection):
             not_matched: Clause | Columns | Literal[":insert_all:",":do_nothing:"] = ":insert_all:",
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
             where_clause: Clause | None = None,
+            if_not_found: Literal["create","errors","ignore"] = "errors",
             progress: bool = True,
             table_lock_wait_interval: float | int | None = None,
             table_lock_wait_timeout: float | int | None = 60.,
@@ -480,13 +481,13 @@ class BigQueryClient(Connection):
         if not connection.table_exists(source_table):
             return True
         elif not self.table_has_rows(target_table, where_clause):
-            return self.load_table_from_duckdb(connection, source_table, target_table, schema=schema, write="append")
+            return self.load_table_from_duckdb(connection, source_table, target_table, dict(), schema, "append", if_not_found, progress)
 
         try:
             self._wait_until_table_not_found(staging_table, table_lock_wait_interval, table_lock_wait_timeout)
             create_option = self._raise_error_if_table_exists(if_staging_table_exists)
             self.copy_table(target_table, staging_table, option=create_option)
-            self.load_table_from_duckdb(connection, source_table, staging_table, schema=schema, write="append", progress=progress)
+            self.load_table_from_duckdb(connection, source_table, staging_table, dict(), schema, "append", if_not_found, progress)
             self.merge_into_table(staging_table, target_table, on, matched, not_matched, where_clause)
             return True
         finally:
