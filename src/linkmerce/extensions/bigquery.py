@@ -434,7 +434,7 @@ class BigQueryClient(Connection):
             progress: bool = True,
         ) -> bool:
         from linkmerce.common.load import DuckDBIterator
-        from linkmerce.utils.tqdm import import_tqdm
+        from linkmerce.utils.progress import import_tqdm
         from io import BytesIO
 
         if not connection.table_exists(source_table):

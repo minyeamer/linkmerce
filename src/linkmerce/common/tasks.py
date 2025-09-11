@@ -125,7 +125,7 @@ class RunLoop(Task):
         if self.delay == "incremental":
             time.sleep(count)
         else:
-            from linkmerce.utils.tqdm import _get_seconds
+            from linkmerce.utils.progress import _get_seconds
             time.sleep(_get_seconds(self.delay))
 
     async def _sleep_async(self, count: int):
@@ -133,7 +133,7 @@ class RunLoop(Task):
         if self.delay == "incremental":
             await asyncio.sleep(count)
         else:
-            from linkmerce.utils.tqdm import _get_seconds
+            from linkmerce.utils.progress import _get_seconds
             await asyncio.sleep(_get_seconds(self.delay))
 
     def _raise_loop_error(self):
@@ -190,17 +190,17 @@ class ForEach(Task):
         self.concat_how = "auto"
 
     def run(self) -> list:
-        from linkmerce.utils.tqdm import gather
+        from linkmerce.utils.progress import gather
         results = gather(self.func, self.array, self.kwargs, self.delay, self.tqdm_options)
         return self._concat_results(results)
 
     async def run_async(self) -> list:
-        from linkmerce.utils.tqdm import gather_async
+        from linkmerce.utils.progress import gather_async
         results = await gather_async(self.func, self.array, self.kwargs, self.delay, self.limit, self.tqdm_options)
         return self._concat_results(results)
 
     def expand(self, **map_kwargs: Iterable[_VT]) -> ForEach:
-        from linkmerce.utils.tqdm import _expand_kwargs
+        from linkmerce.utils.progress import _expand_kwargs
         array = _expand_kwargs(**map_kwargs)
         return self.setattr("array", array)
 
@@ -252,7 +252,7 @@ class RequestEach(ForEach, Request):
 
     def run(self) -> list | Any:
         if isinstance(self.context, Sequence):
-            from linkmerce.utils.tqdm import gather
+            from linkmerce.utils.progress import gather
             results = gather(self.callable, self.context, self.kwargs, self.delay, self.tqdm_options)
             return self._concat_results(results)
         elif isinstance(self.context, dict):
@@ -262,7 +262,7 @@ class RequestEach(ForEach, Request):
 
     async def run_async(self) -> list | Any:
         if isinstance(self.context, Sequence):
-            from linkmerce.utils.tqdm import gather_async
+            from linkmerce.utils.progress import gather_async
             results = await gather_async(self.coroutine, self.context, self.kwargs, self.delay, self.limit, self.tqdm_options)
             return self._concat_results(results)
         elif isinstance(self.context, dict):
@@ -294,7 +294,7 @@ class RequestEach(ForEach, Request):
         return sequential, non_sequential
 
     def _expand_context(self, mapping: dict[_KT,Sequence]) -> Sequence[dict[_KT,_VT]]:
-        from linkmerce.utils.tqdm import _expand_kwargs
+        from linkmerce.utils.progress import _expand_kwargs
         context = self._get_sequential_context()
         if context:
             context = _expand_kwargs(context_=context, **mapping)
@@ -390,7 +390,7 @@ class PaginateAll(ForEach, Request):
         kwargs["page_size"] = self.max_page_size
         results, total_count = self._run_with_count(page=self.page_start, **kwargs)
         if isinstance(total_count, int) and (total_count > self.max_page_size):
-            from linkmerce.utils.tqdm import gather
+            from linkmerce.utils.progress import gather
             func = self._run_without_count
             pages = map(lambda page: dict(page=page), self._generate_next_pages(total_count))
             results = [results] + gather(func, pages, kwargs, self.delay, self.tqdm_options)
@@ -402,7 +402,7 @@ class PaginateAll(ForEach, Request):
         kwargs["page_size"] = self.max_page_size
         results, total_count = await self._run_async_with_count(page=self.page_start, **kwargs)
         if isinstance(total_count, int) and (total_count > self.max_page_size):
-            from linkmerce.utils.tqdm import gather_async
+            from linkmerce.utils.progress import gather_async
             func = self._run_async_without_count
             pages = map(lambda page: dict(page=page), self._generate_next_pages(total_count))
             results = [results] + (await gather_async(func, pages, kwargs, self.delay, self.limit, self.tqdm_options))

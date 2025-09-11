@@ -556,7 +556,7 @@ class DuckDBIterator(Task):
             where_clause: str | None = None,
             if_errors: Literal["ignore","raise"] = "raise",
         ) -> DuckDBIterator:
-        from linkmerce.utils.tqdm import _expand_kwargs
+        from linkmerce.utils.progress import _expand_kwargs
         map_partitions = dict()
         for expr in ([by] if isinstance(by, str) else by):
             if if_errors == "ignore":
