@@ -79,7 +79,7 @@ class Order(SabangnetAdmin):
         return add_headers(self.get_request_headers(), authorization=self.get_authorization(), **host)
 
     def set_request_headers(self, **kwargs: str):
-        super().set_request_headers(contents="json", metadata="cors", **kwargs)
+        super().set_request_headers(contents="json", **kwargs)
 
     @property
     def date_type(self) -> dict[str,str]:

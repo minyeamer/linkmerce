@@ -85,7 +85,7 @@ class PartnerCenterLogin(SmartstoreLogin):
 
         url = self.center_url + "/oauth2/login"
         body = self.build_login_data(pincode, pubkey, login_info)
-        headers = self.build_request_headers(url, contents=dict(type="form"), https=True, referer=(self.center_url + "/v1/slogin2/login"), origin=self.center_url)
+        headers = self.build_request_headers(url, contents="form", https=True, referer=(self.center_url + "/v1/slogin2/login"), origin=self.center_url)
         with self.request("POST", url, data=body, headers=headers, allow_redirects=False) as response:
             self.celogin_redirect(response.headers["location"])
 
@@ -97,7 +97,7 @@ class PartnerCenterLogin(SmartstoreLogin):
             "redirectUri": (self.center_url + "/login/redirect"),
             "state": "xyz",
         }
-        headers = self.build_request_headers(url, contents=dict(type="json"), origin=self.center_url, referer=(self.center_url + "/v1/slogin2/login"))
+        headers = self.build_request_headers(url, contents="json", origin=self.center_url, referer=(self.center_url + "/v1/slogin2/login"))
         with self.request("POST", url, json=body, headers=headers) as response:
             return response.json()
 

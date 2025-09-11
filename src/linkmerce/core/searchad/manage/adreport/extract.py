@@ -70,7 +70,7 @@ class AdvancedReport(SearchAdManager):
 
     @SearchAdManager.cookies_required
     def set_request_headers(self, **kwargs: str):
-        super().set_request_headers(contents="json", origin=self.main_url, metadata="cors", **kwargs)
+        super().set_request_headers(contents="json", origin=self.main_url, **kwargs)
 
 
 class DailyReport(AdvancedReport):

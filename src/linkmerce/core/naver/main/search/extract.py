@@ -74,7 +74,7 @@ class ShoppingProduct(Extractor):
 
     def set_request_headers(self, mobile: bool = True, **kwargs: str):
         origin = "https://m.search.naver.com" if mobile else "https://search.naver.com"
-        super().set_request_headers(contents="json", origin=origin, referer=origin, metadata="cors", **kwargs)
+        super().set_request_headers(contents="json", origin=origin, referer=origin, **kwargs)
 
     def generate_page_id(self) -> str:
         import random
