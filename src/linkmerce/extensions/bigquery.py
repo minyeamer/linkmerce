@@ -1,4 +1,5 @@
 from __future__ import annotations
+import functools
 
 from linkmerce.common.load import Connection, concat_sql, where
 
@@ -85,9 +86,31 @@ class BigQueryClient(Connection):
         except:
             pass
 
+    def retry_on_concurrent_update(max_retries: int = 5, delay: float | int = 1):
+        # BadRequest: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/{{ project-id }}/queries? \
+        # prettyPrint=false:Could not serialize access to table {{ project-id }}:{{ table }} due to concurrent update
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(self, *args, **kwargs):
+                from google.api_core.exceptions import BadRequest
+                import time
+
+                for count in range(1, max_retries+1):
+                    try:
+                        return func(self, *args, **kwargs)
+                    except BadRequest as error:
+                        if (count < max_retries) and ("concurrent update" in str(error)):
+                            time.sleep(delay)
+                            continue
+                        raise error
+            return wrapper
+        return decorator
+
+    @retry_on_concurrent_update(max_retries=5, delay=1)
     def execute(self, query: str, **kwargs) -> QueryJob:
         return self.conn.query(query, **kwargs)
 
+    @retry_on_concurrent_update(max_retries=5, delay=1)
     def execute_job(self, query: str, **kwargs) -> RowIterator:
         return self.conn.query_and_wait(query, **kwargs)
 
