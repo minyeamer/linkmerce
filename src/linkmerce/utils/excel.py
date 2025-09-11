@@ -17,12 +17,12 @@ def excel2json(
         header: int = 1,
         warnings: bool = True
     ) -> list[dict]:
+    from openpyxl import load_workbook
     from io import BytesIO
-    import openpyxl
     if not warnings:
         filter_warnings()
 
-    wb = openpyxl.load_workbook(BytesIO(io) if isinstance(io, bytes) else io)
+    wb = load_workbook(BytesIO(io) if isinstance(io, bytes) else io)
     ws = wb.active if sheet_name is None else wb[sheet_name]
 
     headers = [cell.value for cell in next(ws.iter_rows(min_row=header, max_row=header))]

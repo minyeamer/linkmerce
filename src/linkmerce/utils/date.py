@@ -28,11 +28,7 @@ def strptime(
     if isinstance(datetime, dt.datetime):
         return datetime
     datetime = dt.datetime.strptime(str(datetime), format)
-    if tzinfo:
-        datetime = datetime.replace(tzinfo=get_timezone(tzinfo))
-        if astimezone:
-            datetime = datetime.astimezone(get_timezone(astimezone))
-    return datetime.replace(tzinfo=None) if droptz else datetime
+    return set_timezone(datetime, tzinfo, astimezone, droptz)
 
 
 def safe_strptime(
@@ -146,10 +142,9 @@ def set_timezone(
         astimezone: BaseTzInfo | str | None = None,
         droptz: bool = False
     ) -> dt.datetime:
-    tzinfo = get_timezone(tzinfo)
-    if tzinfo:
-        datetime = datetime.astimezone(tzinfo) if datetime.tzinfo else tzinfo.localize(datetime)
-    if astimezone:
+    if tzinfo and (tz := get_timezone(tzinfo)):
+        datetime = datetime.astimezone(tz) if datetime.tzinfo else tz.localize(datetime)
+    if astimezone and datetime.tzinfo:
         datetime = datetime.astimezone(get_timezone(astimezone))
     return datetime.replace(tzinfo=None) if droptz else datetime
 

@@ -19,6 +19,12 @@ def get_options(request_delay: float | int = 1) -> dict:
     return dict(PaginateAll = dict(delay=request_delay), RequestEachPages = dict(delay=request_delay))
 
 
+def login(userid: str, passwd: str) -> dict[str,str]:
+    from linkmerce.core.sabangnet.admin.common import SabangnetLogin
+    auth = SabangnetLogin()
+    return auth.login(userid, passwd)
+
+
 def order(
         userid: str,
         passwd: str,
@@ -35,6 +41,7 @@ def order(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
     # from linkmerce.core.sabangnet.admin.order.extract import Order
     # from linkmerce.core.sabangnet.admin.order.transform import Order
     components = (get_module(".order"), "Order", "Order")
@@ -63,6 +70,7 @@ def order_download(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> dict[str,bytes]:
+    """`tables = {'default': 'data'}`"""
     # from linkmerce.core.sabangnet.admin.order.extract import OrderDownload
     # from linkmerce.core.sabangnet.admin.order.transform import OrderDownload
     components = (get_module(".order"), "OrderDownload", "OrderDownload")
@@ -90,6 +98,7 @@ def order_status(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
     # from linkmerce.core.sabangnet.admin.order.extract import OrderStatus
     # from linkmerce.core.sabangnet.admin.order.transform import OrderStatus
     components = (get_module(".order"), "OrderStatus", "OrderStatus")
