@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , sales_price INTEGER
   , option_price INTEGER
   , payment_amount INTEGER
+  , payment_commission INTEGER
   , supply_amount INTEGER
   , delivery_type VARCHAR
   , delivery_fee INTEGER
@@ -57,6 +58,7 @@ SELECT
   , content.productOrder.unitPrice AS sales_price
   , content.productOrder.optionPrice AS option_price
   , content.productOrder.totalPaymentAmount AS payment_amount
+  , content.productOrder.paymentCommission AS payment_commission
   , content.productOrder.expectedSettlementAmount AS supply_amount
   , content.productOrder.deliveryAttributeType AS delivery_type
   , content.productOrder.deliveryFeeAmount AS delivery_fee

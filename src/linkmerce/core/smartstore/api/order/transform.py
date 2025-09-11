@@ -40,7 +40,7 @@ class Order(DuckDBTransformer):
         keys = ["merchantChannelId", "productId", "optionCode", "sellerProductCode", "optionManageCode", "productOrderStatus",
                 "claimStatus", "productClass", "productName", "productOption", "inflowPath", "inflowPathAdd", "inflowPathAdd",
                 "deliveryAttributeType", "quantity", "unitPrice", "optionPrice", "deliveryFeeAmount",
-                "totalPaymentAmount", "expectedSettlementAmount", "decisionDate"]
+                "totalPaymentAmount", "paymentCommission", "expectedSettlementAmount", "decisionDate"]
         for key in keys:
             if key not in product_order:
                 product_order[key] = product_order.get(key)
