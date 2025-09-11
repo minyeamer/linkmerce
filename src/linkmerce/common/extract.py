@@ -122,7 +122,7 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
             client: str = str(),
             mobile: bool = False,
             platform: str = str(),
-            metadata: Literal["cors", "navigate"] | dict[str,str] = "navigate",
+            metadata: Literal["cors", "navigate"] | dict[str,str] = "cors",
             https: bool = False,
             user_agent: str = str(),
             ajax: bool = False,
@@ -205,7 +205,7 @@ class RequestSessionClient(BaseSessionClient):
 
     def request_excel(self, sheet_name: str | None = None, header: int = 1, warnings: bool = False, **kwargs) -> JsonObject:
         response = self.request_content(**kwargs)
-        from linkmerce.utils.openpyxl import excel2json
+        from linkmerce.utils.excel import excel2json
         return excel2json(response, sheet_name, header, warnings)
 
     def with_session(func):
@@ -289,7 +289,7 @@ class AiohttpSessionClient(BaseSessionClient):
 
     async def request_async_excel(self, sheet_name: str | None = None, header: int = 1, warnings: bool = False, **kwargs) -> JsonObject:
         response = await self.request_async_content(**kwargs)
-        from linkmerce.utils.openpyxl import excel2json
+        from linkmerce.utils.excel import excel2json
         return excel2json(response, sheet_name, header, warnings)
 
     def async_with_session(func):

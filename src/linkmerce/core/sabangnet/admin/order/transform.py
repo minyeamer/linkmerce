@@ -26,7 +26,7 @@ class OrderDownload(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
     def transform(self, obj: bytes, **kwargs):
-        from linkmerce.utils.openpyxl import excel2json
+        from linkmerce.utils.excel import excel2json
         orders = excel2json(obj, warnings=False)
         if orders:
             return self.insert_into_table(orders)
@@ -36,7 +36,7 @@ class OrderStatus(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
     def transform(self, obj: bytes, date_type: str, **kwargs):
-        from linkmerce.utils.openpyxl import excel2json
+        from linkmerce.utils.excel import excel2json
         orders = excel2json(obj, warnings=False)
         if orders:
             date_format = self.date_format[date_type]
