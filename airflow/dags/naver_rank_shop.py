@@ -52,7 +52,7 @@ with DAG(
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             options = dict(transform_options = dict(tables = sources))
-            rank_shop(client_id, client_secret, keyword, start=[1,101,201], sort="sim", connection=conn, how="async", return_type="none", **options)
+            rank_shop(client_id, client_secret, keyword, start=[1,101,201], sort="sim", connection=conn, how="async", progress=False, return_type="none", **options)
 
             with BigQueryClient(service_account) as client:
                 return dict(

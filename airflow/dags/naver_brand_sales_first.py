@@ -44,7 +44,7 @@ with DAG(
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             options = dict(transform_options = dict(tables = sources))
-            aggregated_sales(cookies, mall_seq, start_date, end_date, connection=conn, how="async", return_type="none", **options)
+            aggregated_sales(cookies, mall_seq, start_date, end_date, connection=conn, how="async", progress=False, return_type="none", **options)
 
             with BigQueryClient(service_account) as client:
                 on = f"payment_date BETWEEN '{start_date}' AND '{end_date}'"

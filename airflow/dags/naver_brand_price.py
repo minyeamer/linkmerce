@@ -41,7 +41,7 @@ with DAG(
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             options = dict(transform_options = dict(tables = sources))
-            brand_price(cookies, brand_ids, mall_seq, sort_type="recent", page=None, connection=conn, how="async", return_type="none", **options)
+            brand_price(cookies, brand_ids, mall_seq, sort_type="recent", page=None, connection=conn, how="async", progress=False, return_type="none", **options)
 
             with BigQueryClient(service_account) as client:
                 return dict(

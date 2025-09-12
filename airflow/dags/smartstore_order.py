@@ -47,8 +47,8 @@ with DAG(
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             options = dict(transform_options = dict(tables = sources))
-            product_order(client_id, client_secret, date, range_type="PAYED_DATETIME", connection=conn, return_type="none", **options)
-            aggregated_order_status(client_id, client_secret, date, connection=conn, return_type="none")
+            product_order(client_id, client_secret, date, range_type="PAYED_DATETIME", connection=conn, progress=False, return_type="none", **options)
+            aggregated_order_status(client_id, client_secret, date, connection=conn, progress=False, return_type="none")
 
             with BigQueryClient(service_account) as client:
                 return dict(

@@ -53,7 +53,7 @@ with DAG(
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             start_time = time.time()
             options = dict(transform_options = dict(tables = sources))
-            rank_exposure(customer_id, cookies, keyword, domain="search", mobile=True, connection=conn, return_type="none", **options)
+            rank_exposure(customer_id, cookies, keyword, domain="search", mobile=True, connection=conn, progress=False, return_type="none", **options)
             end_time = time.time()
             minutes, seconds = map(int, divmod(end_time - start_time, 60))
             logging.info(f"[{seq}] API request completed for searching {len(keyword)} keywords in {minutes:02d}:{seconds:02d}")

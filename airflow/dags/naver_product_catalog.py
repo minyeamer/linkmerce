@@ -39,7 +39,7 @@ with DAG(
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            product_catalog(cookies, brand_ids, mall_seq, sort_type="recent", page=None, connection=conn, how="async", return_type="none")
+            product_catalog(cookies, brand_ids, mall_seq, sort_type="recent", page=None, connection=conn, how="async", progress=False, return_type="none")
 
             with BigQueryClient(service_account) as client:
                 return dict(
