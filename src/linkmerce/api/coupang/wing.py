@@ -5,7 +5,7 @@ from linkmerce.common.api import run, run_with_duckdb
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal, Sequence
+    from typing import Literal
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
     import datetime as dt
@@ -68,6 +68,7 @@ def rocket_settlement_download(
         locale: str = "ko",
         wait_seconds: int = 60,
         wait_interval: int = 1,
+        progress: bool = True,
         connection: DuckDBConnection | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -77,7 +78,7 @@ def rocket_settlement_download(
     # from linkmerce.core.coupang.wing.settlement.extract import RocketSettlementDownload
     # from linkmerce.core.coupang.wing.settlement.transform import RocketSettlementDownload
     components = (get_module(".settlement"), "RocketSettlementDownload", "RocketSettlementDownload")
-    args = (start_date, end_date, date_type, locale, wait_seconds, wait_interval)
+    args = (start_date, end_date, date_type, locale, wait_seconds, wait_interval, progress)
     extract_options = dict(extract_options, variables = dict(userid=userid, passwd=passwd, vendor_id=vendor_id))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args, **options)

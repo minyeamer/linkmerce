@@ -15,8 +15,15 @@ def get_module(name: str) -> str:
     return (".smartstore.api" + name) if name.startswith('.') else name
 
 
-def get_options(request_delay: float | int = 1) -> dict:
-    return dict(CursorAll = dict(delay=request_delay))
+def get_product_options(request_delay: float | int = 1, progress: bool = True) -> dict:
+    return dict(PaginateAll = dict(delay=request_delay, tqdm_options=dict(disable=(not progress))))
+
+
+def get_order_options(request_delay: float | int = 1, progress: bool = True) -> dict:
+    return dict(
+        CursorAll = dict(delay=request_delay),
+        RequestEachCursor = dict(tqdm_options=dict(disable=(not progress)))
+    )
 
 
 def get_variables(
@@ -38,6 +45,7 @@ def product(
         channel_seq: int | str | None = None,
         retry_count: int = 5,
         request_delay: float | int = 1,
+        progress: bool = True,
         connection: DuckDBConnection | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -49,7 +57,7 @@ def product(
     components = (get_module(".product"), "Product", "Product")
     args = (search_keyword, keyword_type, status_type, period_type, from_date, to_date, channel_seq, retry_count)
     extract_options = update_options(extract_options,
-        options = get_options(request_delay),
+        options = get_product_options(request_delay, progress),
         variables = get_variables(client_id, client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
@@ -66,6 +74,7 @@ def order(
         place_order_status: str = list(),
         page_start: int = 1,
         retry_count: int = 5,
+        progress: bool = True,
         request_delay: float | int = 1,
         connection: DuckDBConnection | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -78,7 +87,7 @@ def order(
     components = (get_module(".order"), "Order", "Order")
     args = (start_date, end_date, range_type, product_order_status, claim_status, place_order_status, page_start, retry_count)
     extract_options = update_options(extract_options,
-        options = get_options(request_delay),
+        options = get_order_options(request_delay, progress),
         variables = get_variables(client_id, client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
@@ -96,6 +105,7 @@ def product_order(
         page_start: int = 1,
         retry_count: int = 5,
         request_delay: float | int = 1,
+        progress: bool = True,
         connection: DuckDBConnection | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -107,7 +117,7 @@ def product_order(
     components = (get_module(".order"), "ProductOrder", "ProductOrder")
     args = (start_date, end_date, range_type, product_order_status, claim_status, place_order_status, page_start, retry_count)
     extract_options = update_options(extract_options,
-        options = get_options(request_delay),
+        options = get_order_options(request_delay, progress),
         variables = get_variables(client_id, client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
@@ -121,6 +131,7 @@ def order_status(
         last_changed_type: str | None = None,
         retry_count: int = 5,
         request_delay: float | int = 1,
+        progress: bool = True,
         connection: DuckDBConnection | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -132,7 +143,7 @@ def order_status(
     components = (get_module(".order"), "OrderStatus", "OrderStatus")
     args = (start_date, end_date, last_changed_type, retry_count)
     extract_options = update_options(extract_options,
-        options = get_options(request_delay),
+        options = get_order_options(request_delay, progress),
         variables = get_variables(client_id, client_secret))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
@@ -145,6 +156,7 @@ def aggregated_order_status(
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         retry_count: int = 5,
         request_delay: float | int = 1,
+        progress: bool = True,
         connection: DuckDBConnection | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -155,7 +167,7 @@ def aggregated_order_status(
     # from linkmerce.core.smartstore.api.order.transform import OrderTime
     components = (get_module(".order"), "OrderTime", "OrderTime")
     extract_options = update_options(extract_options,
-        options = get_options(request_delay),
+        options = get_order_options(request_delay, progress),
         variables = get_variables(client_id, client_secret))
     options = dict(kwargs=dict(retry_count=retry_count), extract_options=extract_options, transform_options=transform_options)
     return dict(

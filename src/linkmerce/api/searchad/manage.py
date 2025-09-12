@@ -18,10 +18,12 @@ def get_module(name: str) -> str:
 def get_options(
         retry_count: int = 5,
         request_delay: float | int = 1.01,
+        progress: bool = True,
     ) -> dict:
     return dict(
         RequestLoop = dict(count=retry_count, raise_errors=RuntimeError, ignored_errors=Exception),
-        RequestEachLoop = dict(delay=request_delay))
+        RequestEachLoop = dict(delay=request_delay, tqdm_options=dict(disable=(not progress)))
+    )
 
 
 def has_cookies(cookies: str) -> bool:
@@ -93,6 +95,7 @@ def diagnose_exposure(
         connection: DuckDBConnection | None = None,
         retry_count: int = 5,
         request_delay: float | int = 1.01,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -103,7 +106,7 @@ def diagnose_exposure(
     components = (get_module(".exposure"), "ExposureDiagnosis", "ExposureDiagnosis")
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_options(retry_count, request_delay),
+        options = get_options(retry_count, request_delay, progress),
         variables = dict(customer_id=customer_id))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args=(keyword, domain, mobile, is_own), **options)
@@ -119,6 +122,7 @@ def rank_exposure(
         connection: DuckDBConnection | None = None,
         retry_count: int = 5,
         request_delay: float | int = 1.01,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -129,7 +133,7 @@ def rank_exposure(
     components = (get_module(".exposure"), "ExposureRank", "ExposureRank")
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_options(retry_count, request_delay),
+        options = get_options(retry_count, request_delay, progress),
         variables = dict(customer_id=customer_id))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args=(keyword, domain, mobile, is_own), **options)

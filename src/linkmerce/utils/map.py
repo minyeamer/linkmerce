@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Hashable, TypeVar
+    from typing import Any, Callable, Hashable, Literal, TypeVar
     _KT = TypeVar("_KT", Hashable)
     _VT = TypeVar("_VT", Any)
 
@@ -46,6 +46,31 @@ def hier_get(__m: dict[_KT,_VT], path: Sequence[_KT], default: _VT | None = None
         except:
             return default
     return cur
+
+
+def hier_set(
+        __m: dict[_KT,_VT],
+        if_exists_: Literal["update","ignore"] = "update",
+        copy_: Literal["copy","deepcopy"] | None = None,
+        **kwargs
+    ) -> dict[_KT,_VT]:
+    if copy_ == "copy":
+        __m = __m.copy()
+    elif copy_ == "deepcopy":
+        from copy import deepcopy
+        __m = deepcopy(__m)
+
+    def recursive(left: dict[_KT,_VT], right: dict[_KT,_VT]) -> dict[_KT,_VT]:
+        for key, value in right.items():
+            if isinstance(value, dict) and isinstance(left.get(key), dict):
+                left[key] = recursive(left[key], value)
+            elif (key in left) and (if_exists_ == "ignore"):
+                continue
+            else:
+                left[key] = value
+        return left
+
+    return recursive(__m, kwargs)
 
 
 ###################################################################

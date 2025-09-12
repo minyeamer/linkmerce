@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 
 def update_options(__m: dict, **options) -> dict:
     if options:
-        return dict(__m, **{key: value for key, value in options.items() if key not in __m})
+        from linkmerce.utils.map import hier_set
+        return hier_set(__m, "ignore", **options)
     else:
         return __m
 

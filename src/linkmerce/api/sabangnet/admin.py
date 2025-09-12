@@ -15,8 +15,11 @@ def get_module(name: str) -> str:
     return (".sabangnet.admin" + name) if name.startswith('.') else name
 
 
-def get_options(request_delay: float | int = 1) -> dict:
-    return dict(PaginateAll = dict(delay=request_delay), RequestEachPages = dict(delay=request_delay))
+def get_options(request_delay: float | int = 1, progress: bool = True) -> dict:
+    return dict(
+        PaginateAll = dict(delay=request_delay),
+        RequestEachPages = dict(delay=request_delay, tqdm_options=dict(disable=(not progress)))
+    )
 
 
 def login(userid: str, passwd: str) -> dict[str,str]:
@@ -37,6 +40,7 @@ def order(
         sort_type: str = "ord_no_asc",
         connection: DuckDBConnection | None = None,
         request_delay: float | int = 1,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -47,7 +51,7 @@ def order(
     components = (get_module(".order"), "Order", "Order")
     args = (start_date, end_date, date_type, order_status_div, order_status, sort_type)
     extract_options = update_options(extract_options,
-        options = get_options(request_delay),
+        options = get_options(request_delay, progress),
         variables = dict(userid=userid, passwd=passwd, domain=domain))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
@@ -94,6 +98,7 @@ def order_status(
         sort_type: str = "ord_no_asc",
         connection: DuckDBConnection | None = None,
         request_delay: float | int = 1,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -104,7 +109,7 @@ def order_status(
     components = (get_module(".order"), "OrderStatus", "OrderStatus")
     args = (excel_form, start_date, end_date, date_type, order_seq, order_status_div, order_status, sort_type)
     extract_options = update_options(extract_options,
-        options = get_options(request_delay),
+        options = get_options(request_delay, progress),
         variables = dict(userid=userid, passwd=passwd, domain=domain))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, "sync", return_type, args, **options)

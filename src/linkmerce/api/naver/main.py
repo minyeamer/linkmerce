@@ -18,10 +18,12 @@ def get_options(
         retry_count: int = 5,
         request_delay: float | int = 1.01,
         async_limit: int = 3,
+        progress: bool = True,
     ) -> dict:
     return dict(
         RequestLoop = dict(count=retry_count, ignored_errors=ConnectionError),
-        RequestEachLoop = dict(delay=request_delay, limit=async_limit))
+        RequestEachLoop = dict(delay=request_delay, limit=async_limit, tqdm_options=dict(disable=(not progress)))
+    )
 
 
 def shopping_page(
@@ -32,6 +34,7 @@ def shopping_page(
         request_delay: float | int = 1.01,
         async_limit: int = 3,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        progress: bool = True,
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
@@ -39,6 +42,7 @@ def shopping_page(
     # from linkmerce.core.naver.main.search.extract import ShoppingProduct
     # from linkmerce.core.naver.main.search.transform import ShoppingProduct
     components = (get_module(".search"), "ShoppingPage", "ShoppingPage")
-    extract_options = update_options(extract_options, options=get_options(retry_count, request_delay, async_limit))
+    extract_options = update_options(extract_options,
+        options=get_options(retry_count, request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args=(query,), **options)

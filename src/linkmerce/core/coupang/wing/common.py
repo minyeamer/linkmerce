@@ -48,9 +48,9 @@ class CoupangWing(Extractor):
         # login_url = "http://wing.coupang.com/login?ui_locales=ko-KR&service_cmdb_role=wing&sxauth_sdk_version={version}.RELEASE&returnUrl=http%3A%2F%2Fwing.coupang.com%2F"
         redirect_url = self.login_redirect(login_url)
         # redirect_url = "https://wing.coupang.com/sso/login?returnUrl=http%3A%2F%2Fwing.coupang.com%2F&max_age=&ui_locales=ko-KR&scope="
-        auth_url = self.login_begin(redirect_url)
-        # auth_url = "https://xauth.coupang.com/auth/realms/seller/login-actions/authenticate?session_code={session_code}&execution={execution}&client_id=wing&tab_id={tab_id}&kc_locale=ko-KR"
-        redirect_url = self.login_action(auth_url, userid, passwd)
+        xauth_url = self.login_begin(redirect_url)
+        # xauth_url = "https://xauth.coupang.com/auth/realms/seller/login-actions/authenticate?session_code={session_code}&execution={execution}&client_id=wing&tab_id={tab_id}&kc_locale=ko-KR"
+        redirect_url = self.login_action(xauth_url, userid, passwd)
         # redirect_url = "https://wing.coupang.com/sso/login?returnUrl=http%3A%2F%2Fwing.coupang.com%2F&state={state}&session_state={session_state}&code={code}"
         self.login_redirect(redirect_url, allow_redirects=True)
         self.fetch_main(allow_redirects=True)
@@ -67,16 +67,19 @@ class CoupangWing(Extractor):
         with self.request("GET", url, headers=headers, allow_redirects=allow_redirects) as response:
             return response.headers.get("Location")
 
-    def login_begin(self, sso_url: str) -> str:
+    def login_begin(self, redirect_url: str) -> str:
         from linkmerce.utils.headers import build_headers
         from bs4 import BeautifulSoup
-        headers = build_headers(sso_url, https=True)
-        with self.request("GET", sso_url, headers=headers) as response:
+        headers = build_headers(redirect_url, https=True)
+        with self.request("GET", redirect_url, headers=headers) as response:
             source = BeautifulSoup(response.text, "html.parser")
             try:
                 return source.select_one("form").attrs["action"]
             except:
-                return self.get_login_action_from_script(str(source.select_one("script")))
+                try:
+                    return self.get_login_action_from_script(str(source.select_one("script")))
+                except:
+                    raise ConnectionError("Unable to find the xauth address.")
 
     def get_login_action_from_script(self, script: str) -> str:
         from linkmerce.utils.regex import regexp_extract, regexp_replace_map
@@ -85,11 +88,11 @@ class CoupangWing(Extractor):
         raw_json = regexp_replace_map({r"/\*.*\*/": '', r",\s*\}": '}', r",\s*\]": ']'}, raw_json)
         return json.loads(raw_json)["url"]["loginAction"]
 
-    def login_action(self, auth_url: str, userid: str, passwd: str) -> str:
+    def login_action(self, xauth_url: str, userid: str, passwd: str) -> str:
         from linkmerce.utils.headers import build_headers
         body = dict(username=userid, password=passwd)
-        headers = build_headers(auth_url, contents="form", https=True)
-        with self.request("POST", auth_url, data=body, headers=headers, allow_redirects=False) as response:
+        headers = build_headers(xauth_url, contents="form", https=True)
+        with self.request("POST", xauth_url, data=body, headers=headers, allow_redirects=False) as response:
             return response.headers.get("Location")
 
     def fetch_xsrf_token(self):

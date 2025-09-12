@@ -36,17 +36,19 @@ def login(
 def get_catalog_options(
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
     ) -> dict:
     return dict(
         PaginateAll = dict(delay=request_delay, limit=async_limit),
-        RequestEachPages = dict(delay=request_delay, limit=async_limit))
+        RequestEachPages = dict(delay=request_delay, limit=async_limit, tqdm_options=dict(disable=(not progress))))
 
 
 def get_sales_options(
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
     ) -> dict:
-    return dict(RequestEach = dict(delay=request_delay, limit=async_limit))
+    return dict(RequestEach = dict(delay=request_delay, limit=async_limit, tqdm_options=dict(disable=(not progress))))
 
 
 def brand_catalog(
@@ -60,18 +62,19 @@ def brand_catalog(
         how: Literal["sync","async","async_loop"] = "sync",
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.smartstore.brand.catalog.extract import BrandCatalog
+    from linkmerce.core.smartstore.brand.catalog.extract import BrandCatalog
     # from linkmerce.core.smartstore.brand.catalog.transform import BrandCatalog
     components = (get_module(".catalog"), "BrandCatalog", "BrandCatalog")
     args = (brand_ids, sort_type, is_brand_catalog, page, page_size)
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_catalog_options(request_delay, async_limit))
+        options = get_catalog_options(request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args, **options)
 
@@ -88,6 +91,7 @@ def brand_product(
         how: Literal["sync","async","async_loop"] = "sync",
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -99,7 +103,7 @@ def brand_product(
     args = (brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_catalog_options(request_delay, async_limit))
+        options = get_catalog_options(request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args, **options)
 
@@ -116,6 +120,7 @@ def brand_price(
         how: Literal["sync","async","async_loop"] = "sync",
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -127,7 +132,7 @@ def brand_price(
     args = (brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_catalog_options(request_delay, async_limit))
+        options = get_catalog_options(request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args, **options)
 
@@ -144,6 +149,7 @@ def product_catalog(
         how: Literal["sync","async","async_loop"] = "sync",
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -155,7 +161,7 @@ def product_catalog(
     args = (brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_catalog_options(request_delay, async_limit))
+        options = get_catalog_options(request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args, **options)
 
@@ -172,6 +178,7 @@ def store_sales(
         how: Literal["sync","async","async_loop"] = "sync",
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -183,7 +190,7 @@ def store_sales(
     args = (mall_seq, start_date, end_date, date_type, page, page_size)
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_sales_options(request_delay, async_limit))
+        options = get_sales_options(request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args, **options)
 
@@ -200,6 +207,7 @@ def category_sales(
         how: Literal["sync","async","async_loop"] = "sync",
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -211,7 +219,7 @@ def category_sales(
     args = (mall_seq, start_date, end_date, date_type, page, page_size)
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_sales_options(request_delay, async_limit))
+        options = get_sales_options(request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args, **options)
 
@@ -228,6 +236,7 @@ def product_sales(
         how: Literal["sync","async","async_loop"] = "sync",
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -239,7 +248,7 @@ def product_sales(
     args = (mall_seq, start_date, end_date, date_type, page, page_size)
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_sales_options(request_delay, async_limit))
+        options = get_sales_options(request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args, **options)
 
@@ -256,6 +265,7 @@ def aggregated_sales(
         how: Literal["sync","async","async_loop"] = "sync",
         request_delay: float | int = 1,
         async_limit: int = 3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -267,6 +277,6 @@ def aggregated_sales(
     args = (mall_seq, start_date, end_date, date_type, page, page_size)
     extract_options = update_options(extract_options,
         headers = dict(cookies=cookies),
-        options = get_sales_options(request_delay, async_limit))
+        options = get_sales_options(request_delay, async_limit, progress))
     options = dict(extract_options=extract_options, transform_options=transform_options)
     return run_with_duckdb(*components, connection, how, return_type, args, **options)
