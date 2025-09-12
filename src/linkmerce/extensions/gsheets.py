@@ -54,7 +54,7 @@ def worksheet2py(
             elif value == "FALSE":
                 return False
             elif re.match(r"^\d+(\.\d*)?%$", value):
-                return float(value) / 100
+                return float(value[:-1]) / 100
             elif re.match(r"^\d{4}-\d{2}-\d{2}$", value):
                 return dt.datetime.strptime(value, "%Y-%m-%d").date()
             elif re.match(r"^\d{4}-\d{2}-\d{2}$ \d{2}:\d{2}:\d{2}", value):
