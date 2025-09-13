@@ -96,7 +96,7 @@ def _get_seconds(value: Real | Sequence[Real,Real]) -> Real:
     elif isinstance(value, Sequence) and (len(value) > 1):
         import random
         start, end = value[0] * 1000, value[1] * 1000
-        return random.randrange(int(start), int(end), step=1) / 1000
+        return random.uniform(float(start), float(end))
     else: return 0.
 
 

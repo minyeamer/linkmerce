@@ -88,6 +88,8 @@ x-airflow-common:
       condition: service_healthy
     postgres:
       condition: service_healthy
+    playwright:
+      condition: service_healthy
 
 services:
   postgres:
@@ -126,6 +128,25 @@ services:
       interval: 10s
       timeout: 30s
       retries: 50
+      start_period: 30s
+    restart: always
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.55.0-noble
+    networks:
+      airflow-local:
+        ipv4_address: 172.28.0.50
+    working_dir: /home/pwuser
+    user: pwuser
+    command: >
+      /bin/sh -c "npx -y playwright@1.55.0 run-server --port 3000 --host 0.0.0.0"
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: always
 
