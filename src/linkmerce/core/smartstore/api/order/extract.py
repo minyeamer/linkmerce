@@ -17,7 +17,7 @@ class Order(SmartstoreAPI):
 
     @property
     def default_options(self) -> dict:
-        return dict(CursorAll = dict(delay=1))
+        return dict(CursorAll = dict(request_delay=1))
 
     @SmartstoreAPI.with_session
     @SmartstoreAPI.with_token
@@ -30,11 +30,11 @@ class Order(SmartstoreAPI):
             claim_status: Iterable[str] = list(),
             place_order_status: str = list(),
             page_start: int = 1,
-            retry_count: int = 5,
+            max_retries: int = 5,
             **kwargs
         ) -> JsonObject:
         partial = dict(range_type=range_type, product_order_status=product_order_status,
-            claim_status=claim_status, place_order_status=place_order_status, retry_count=retry_count)
+            claim_status=claim_status, place_order_status=place_order_status, max_retries=max_retries)
 
         return (self.request_each_cursor(self.request_json_until_success)
                 .partial(**partial)
@@ -118,7 +118,7 @@ class OrderStatus(SmartstoreAPI):
 
     @property
     def default_options(self) -> dict:
-        return dict(CursorAll = dict(delay=1))
+        return dict(CursorAll = dict(request_delay=1))
 
     @SmartstoreAPI.with_session
     @SmartstoreAPI.with_token
@@ -127,11 +127,11 @@ class OrderStatus(SmartstoreAPI):
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             last_changed_type: str | None = None,
-            retry_count: int = 5,
+            max_retries: int = 5,
             **kwargs
         ) -> JsonObject:
         return (self.request_each_cursor(self.request_json_until_success)
-                .partial(last_changed_type=last_changed_type, retry_count=retry_count)
+                .partial(last_changed_type=last_changed_type, max_retries=max_retries)
                 .expand(date=self.generate_date_range(start_date, end_date, freq='D'))
                 .all_cursor(self.get_next_cursor, next_cursor=dict())
                 .run())

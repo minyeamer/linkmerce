@@ -18,7 +18,10 @@ class Order(SabangnetAdmin):
 
     @property
     def default_options(self) -> dict:
-        return dict(PaginateAll = dict(delay=1), RequestEachPages = dict(delay=1))
+        return dict(
+            PaginateAll = dict(request_delay=1),
+            RequestEachPages = dict(request_delay=1),
+        )
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
@@ -182,7 +185,7 @@ class OrderStatus(OrderDownload):
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(delay=1))
+        return dict(RequestEach = dict(request_delay=1))
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token

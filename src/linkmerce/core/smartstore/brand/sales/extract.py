@@ -18,7 +18,7 @@ class _SalesExtractor(PartnerCenter):
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(delay=1, limit=3))
+        return dict(RequestEach = dict(request_delay=1, max_concurrent=3))
 
     @PartnerCenter.with_session
     def extract(

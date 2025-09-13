@@ -30,16 +30,28 @@ def _master_report(
         report_type: Literal["Campaign", "Adgroup", "Ad"],
         from_date: dt.date | str | None = None,
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.searchad.api.adreport.extract import _MasterReport
-    components = (get_module(".adreport"), report_type, report_type)
-    extract_options = dict(extract_options, variables=get_variables(api_key, secret_key, customer_id))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args=(from_date,), **options)
+    return run_with_duckdb(
+        module = get_module(".adreport"),
+        extractor = report_type,
+        transformer = report_type,
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (from_date,),
+        extract_options = dict(
+            extract_options,
+            variables = get_variables(api_key, secret_key, customer_id),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def campaign(
@@ -48,6 +60,7 @@ def campaign(
         customer_id: int | str,
         from_date: dt.date | str | None = None,
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -57,7 +70,7 @@ def campaign(
     # from linkmerce.core.searchad.api.adreport.transform import Campaign
     return _master_report(
         api_key, secret_key, customer_id, "Campaign", from_date,
-        connection, return_type, extract_options, transform_options)
+        connection, tables, return_type, extract_options, transform_options)
 
 
 def adgroup(
@@ -66,6 +79,7 @@ def adgroup(
         customer_id: int | str,
         from_date: dt.date | str | None = None,
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -75,7 +89,7 @@ def adgroup(
     # from linkmerce.core.searchad.api.adreport.transform import Adgroup
     return _master_report(
         api_key, secret_key, customer_id, "Adgroup", from_date,
-        connection, return_type, extract_options, transform_options)
+        connection, tables, return_type, extract_options, transform_options)
 
 
 def ad(
@@ -84,6 +98,7 @@ def ad(
         customer_id: int | str,
         from_date: dt.date | str | None = None,
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -93,4 +108,4 @@ def ad(
     # from linkmerce.core.searchad.api.adreport.transform import Ad
     return _master_report(
         api_key, secret_key, customer_id, "Ad", from_date,
-        connection, return_type, extract_options, transform_options)
+        connection, tables, return_type, extract_options, transform_options)

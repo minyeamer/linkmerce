@@ -19,7 +19,7 @@ class MobileSearch(Extractor):
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach=dict(delay=1.01))
+        return dict(RequestEach = dict(request_delay=1.01))
 
     @Extractor.with_session
     def extract(self, query: str | Iterable[str]) -> JsonObject | BeautifulSoup:
@@ -42,8 +42,9 @@ class ShoppingProduct(Extractor):
     @property
     def default_options(self) -> dict:
         return dict(
-            RequestLoop = dict(count=5, ignored_errors=ConnectionError),
-            RequestEachLoop = dict(delay=1.01, limit=3))
+            RequestLoop = dict(max_retries=5, ignored_errors=ConnectionError),
+            RequestEachLoop = dict(request_delay=1.01, max_concurrent=3),
+        )
 
     @Extractor.with_session
     def extract(self, query: str | Iterable[str], mobile: bool = True, **kwargs) -> JsonObject:

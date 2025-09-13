@@ -66,22 +66,22 @@ class RunLoop(Task):
             self,
             func: Callable | Coroutine,
             condition: Callable[...,bool],
-            count: int | None = 1,
+            max_retries: int | None = 1,
             delay: Literal["incremental"] | float | int | Sequence[int,int] = "incremental",
             raise_errors: type | Sequence[type] = tuple(),
             ignored_errors: type | Sequence[type] = tuple(),
         ):
         self.func = func
         self.condition = condition
-        self.count = count
+        self.max_retries = max_retries
         self.delay = delay
         self.raise_errors = raise_errors
         self.ignored_errors = ignored_errors
 
     def run(self, *args, **kwargs) -> Any:
-        if not isinstance(self.count, int):
+        if not isinstance(self.max_retries, int):
             return self._infinite_run(args, kwargs)
-        for count in range(1, self.count+1):
+        for retry_count in range(1, self.max_retries+1):
             try:
                 result = self.func(*args, **kwargs)
                 if self.condition(result):
@@ -89,15 +89,15 @@ class RunLoop(Task):
             except self.raise_errors as error:
                 raise error
             except self.ignored_errors:
-                if count == self.count:
+                if retry_count == self.max_retries:
                     return
-            self._sleep(count)
+            self._sleep(retry_count)
         self._raise_loop_error()
 
     async def run_async(self, *args, **kwargs) -> Any:
-        if not isinstance(self.count, int):
-            raise RuntimeError("Invalid loop count provided.")
-        for count in range(1, self.count+1):
+        if not isinstance(self.max_retries, int):
+            raise RuntimeError("Invalid max_retries value provided.")
+        for retry_count in range(1, self.max_retries+1):
             try:
                 result = await self.func(*args, **kwargs)
                 if self.condition(result):
@@ -105,33 +105,33 @@ class RunLoop(Task):
             except self.raise_errors as error:
                 raise error
             except self.ignored_errors:
-                if count == self.count:
+                if retry_count == self.max_retries:
                     return
-            await self._sleep_async(count)
+            await self._sleep_async(retry_count)
         self._raise_loop_error()
 
     def _infinite_run(self, args: tuple = tuple(), kwargs: dict = dict()) -> Any:
-        count = 1
+        retry_count = 1
         while True:
             result = self.func(*args, **kwargs)
             if self.condition(result):
                 return result
             else:
-                self._sleep(count)
-                count += 1
+                self._sleep(retry_count)
+                retry_count += 1
 
-    def _sleep(self, count: int):
+    def _sleep(self, retry_count: int):
         import time
         if self.delay == "incremental":
-            time.sleep(count)
+            time.sleep(retry_count)
         else:
             from linkmerce.utils.progress import _get_seconds
             time.sleep(_get_seconds(self.delay))
 
-    async def _sleep_async(self, count: int):
+    async def _sleep_async(self, retry_count: int):
         import asyncio
         if self.delay == "incremental":
-            await asyncio.sleep(count)
+            await asyncio.sleep(retry_count)
         else:
             from linkmerce.utils.progress import _get_seconds
             await asyncio.sleep(_get_seconds(self.delay))
@@ -146,12 +146,12 @@ class RequestLoop(RunLoop, Request):
             func: Callable | Coroutine,
             condition: Callable[...,bool],
             parser: Callable | None = None,
-            count: int | None = 1,
-            delay: Literal["incremental"] | float | int | Sequence[int,int] = "incremental",
+            max_retries: int | None = 1,
+            request_delay: Literal["incremental"] | float | int | Sequence[int,int] = "incremental",
             raise_errors: type | Sequence[type] = tuple(),
             ignored_errors: type | Sequence[type] = tuple(),
         ):
-        RunLoop.__init__(self, func, condition, count, delay, raise_errors, ignored_errors)
+        RunLoop.__init__(self, func, condition, max_retries, request_delay, raise_errors, ignored_errors)
         self.parser = parser
 
     def run(self, *args, **kwargs) -> Any:
@@ -178,13 +178,13 @@ class ForEach(Task):
             func: Callable | Coroutine,
             array: Sequence[tuple[_VT,...] | dict[_KT,_VT]] = list(),
             delay: float | int | tuple[int,int] = 0.,
-            limit: int | None = None,
+            max_concurrent: int | None = None,
             tqdm_options: dict = dict(),
         ):
         self.func = func
         self.array = array
         self.delay = delay
-        self.limit = limit
+        self.max_concurrent = max_concurrent
         self.tqdm_options = tqdm_options
         self.kwargs = dict()
         self.concat_how = "auto"
@@ -196,7 +196,7 @@ class ForEach(Task):
 
     async def run_async(self) -> list:
         from linkmerce.utils.progress import gather_async
-        results = await gather_async(self.func, self.array, self.kwargs, self.delay, self.limit, self.tqdm_options)
+        results = await gather_async(self.func, self.array, self.kwargs, self.delay, self.max_concurrent, self.tqdm_options)
         return self._concat_results(results)
 
     def expand(self, **map_kwargs: Iterable[_VT]) -> ForEach:
@@ -229,15 +229,15 @@ class RequestEach(ForEach, Request):
             func: Callable | Coroutine,
             context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] | dict[_KT,_VT] = list(),
             parser: Callable | None = None,
-            delay: float | int | tuple[int,int] = 0.,
-            limit: int | None = None,
+            request_delay: float | int | tuple[int,int] = 0.,
+            max_concurrent: int | None = None,
             tqdm_options: dict = dict(),
         ):
         self.func = func
         self.context = context
         self.parser = parser
-        self.delay = delay
-        self.limit = limit
+        self.delay = request_delay
+        self.max_concurrent = max_concurrent
         self.tqdm_options = tqdm_options
         self.kwargs = dict()
         self.concat_how = "auto"
@@ -263,7 +263,7 @@ class RequestEach(ForEach, Request):
     async def run_async(self) -> list | Any:
         if isinstance(self.context, Sequence):
             from linkmerce.utils.progress import gather_async
-            results = await gather_async(self.coroutine, self.context, self.kwargs, self.delay, self.limit, self.tqdm_options)
+            results = await gather_async(self.coroutine, self.context, self.kwargs, self.delay, self.max_concurrent, self.tqdm_options)
             return self._concat_results(results)
         elif isinstance(self.context, dict):
             return await self.coroutine(**self.context, **self.kwargs)
@@ -321,12 +321,12 @@ class RequestEachLoop(RequestEach):
             func: Callable | Coroutine,
             context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] | dict[_KT,_VT] = list(),
             parser: Callable | None = None,
-            delay: float | int | tuple[int,int] = 0.,
-            limit: int | None = None,
+            request_delay: float | int | tuple[int,int] = 0.,
+            max_concurrent: int | None = None,
             tqdm_options: dict = dict(),
             loop_options: dict = dict(),
         ):
-        super().__init__(func, context, parser, delay, limit, tqdm_options)
+        super().__init__(func, context, parser, request_delay, max_concurrent, tqdm_options)
         self.loop_options = loop_options
 
     @property
@@ -372,17 +372,17 @@ class PaginateAll(ForEach, Request):
             max_page_size: int,
             page_start: int = 1,
             parser: Callable | None = None,
-            delay: float | int | tuple[int,int] = 0.,
-            limit: int | None = None,
+            request_delay: float | int | tuple[int,int] = 0.,
+            max_concurrent: int | None = None,
             tqdm_options: dict = dict(),
         ):
         self.func = func
-        self.counter = counter
+        self.max_retrieser = counter
         self.max_page_size = max_page_size
         self.page_start = page_start
         self.parser = parser
-        self.delay = delay
-        self.limit = limit
+        self.delay = request_delay
+        self.max_concurrent = max_concurrent
         self.tqdm_options = tqdm_options
         self.concat_how = "never"
 
@@ -405,7 +405,7 @@ class PaginateAll(ForEach, Request):
             from linkmerce.utils.progress import gather_async
             func = self._run_async_without_count
             pages = map(lambda page: dict(page=page), self._generate_next_pages(total_count))
-            results = [results] + (await gather_async(func, pages, kwargs, self.delay, self.limit, self.tqdm_options))
+            results = [results] + (await gather_async(func, pages, kwargs, self.delay, self.max_concurrent, self.tqdm_options))
             return self._concat_results(results)
         else:
             return [results]
@@ -422,7 +422,7 @@ class PaginateAll(ForEach, Request):
 
     def _run_with_count(self, **kwargs) -> tuple[Any,int]:
         results = self.func(**kwargs)
-        return self._parse(results, kwargs=kwargs), self.counter(results, **kwargs)
+        return self._parse(results, kwargs=kwargs), self.max_retrieser(results, **kwargs)
 
     def _run_without_count(self, **kwargs) -> Any:
         results = self.func(**kwargs)
@@ -430,7 +430,7 @@ class PaginateAll(ForEach, Request):
 
     async def _run_async_with_count(self, **kwargs) -> tuple[Any,int]:
         results = await self.func(**kwargs)
-        return self._parse(results, kwargs=kwargs), self.counter(results, **kwargs)
+        return self._parse(results, kwargs=kwargs), self.max_retrieser(results, **kwargs)
 
     async def _run_async_without_count(self, **kwargs) -> Any:
         results = await self.func(**kwargs)
@@ -443,12 +443,12 @@ class RequestEachPages(RequestEach):
             func: Callable | Coroutine,
             context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] | dict[_KT,_VT] = list(),
             parser: Callable | None = None,
-            delay: float | int | tuple[int,int] = 0.,
-            limit: int | None = None,
+            request_delay: float | int | tuple[int,int] = 0.,
+            max_concurrent: int | None = None,
             tqdm_options: dict = dict(),
             page_options: dict = dict(tqdm_options=dict(disable=True)),
         ):
-        super().__init__(func, context, parser, delay, limit, tqdm_options)
+        super().__init__(func, context, parser, request_delay, max_concurrent, tqdm_options)
         self.page_options = page_options
 
     @property
@@ -499,13 +499,13 @@ class CursorAll(RunLoop, ForEach, Request):
             get_next_cursor: Callable[...,Any],
             next_cursor: Any | None = None,
             parser: Callable | None = None,
-            delay: float | int | tuple[int,int] = 0.,
+            request_delay: float | int | tuple[int,int] = 0.,
         ):
         self.func = func
         self.get_next_cursor = get_next_cursor
         self.next_cursor = next_cursor
         self.parser = parser
-        self.delay = delay
+        self.delay = request_delay
         self.concat_how = "never"
 
     def run(self, next_cursor: _SKIPPED = None, **kwargs) -> list:
@@ -536,11 +536,11 @@ class RequestEachCursor(RequestEach):
             func: Callable | Coroutine,
             context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] | dict[_KT,_VT] = list(),
             parser: Callable | None = None,
-            delay: float | int | tuple[int,int] = 0.,
+            request_delay: float | int | tuple[int,int] = 0.,
             tqdm_options: dict = dict(),
             cursor_options: dict = dict(tqdm_options=dict(disable=True)),
         ):
-        super().__init__(func, context, parser, delay, None, tqdm_options)
+        super().__init__(func, context, parser, request_delay, None, tqdm_options)
         self.cursor_options = cursor_options
 
     @property

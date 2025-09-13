@@ -16,13 +16,13 @@ def get_module(name: str) -> str:
 
 
 def get_options(
-        retry_count: int = 5,
+        max_retries: int = 5,
         request_delay: float | int = 1.01,
         progress: bool = True,
     ) -> dict:
     return dict(
-        RequestLoop = dict(count=retry_count, raise_errors=RuntimeError, ignored_errors=Exception),
-        RequestEachLoop = dict(delay=request_delay, tqdm_options=dict(disable=(not progress)))
+        RequestLoop = dict(max_retries=max_retries, raise_errors=RuntimeError, ignored_errors=Exception),
+        RequestEachLoop = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
     )
 
 
@@ -55,11 +55,19 @@ def adreport(
     ) -> Sequence:
     # from linkmerce.core.searchad.manage.adreport.extract import AdvancedReport
     # from linkmerce.core.searchad.manage.adreport.transform import AdvancedReport
-    components = (get_module(".adreport"), "AdvancedReport", "AdvancedReport")
-    args = (report_id, report_name, userid, attributes, fields, start_date, end_date)
-    extract_options = dict(extract_options, headers = dict(cookies=cookies), variables = dict(customer_id=customer_id))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run(*components, "sync", args, **options)
+    return run(
+        module = get_module(".adreport"),
+        extractor = "AdvancedReport",
+        transformer = "AdvancedReport",
+        how = "sync",
+        args = (report_id, report_name, userid, attributes, fields, start_date, end_date),
+        extract_options = dict(
+            extract_options,
+            headers = dict(cookies=cookies),
+            variables = dict(customer_id=customer_id),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def daily_report(
@@ -71,6 +79,7 @@ def daily_report(
         start_date: dt.date | str,
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -78,11 +87,22 @@ def daily_report(
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.searchad.manage.adreport.extract import DailyReport
     # from linkmerce.core.searchad.manage.adreport.transform import DailyReport
-    components = (get_module(".adreport"), "DailyReport", "DailyReport")
-    args = (report_id, report_name, userid, start_date, end_date)
-    extract_options = dict(extract_options, headers=dict(cookies=cookies), variables=dict(customer_id=customer_id))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
+    return run_with_duckdb(
+        module = get_module(".adreport"),
+        extractor = "DailyReport",
+        transformer = "DailyReport",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (report_id, report_name, userid, start_date, end_date),
+        extract_options = dict(
+            extract_options,
+            headers = dict(cookies=cookies),
+            variables = dict(customer_id=customer_id),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def diagnose_exposure(
@@ -93,7 +113,8 @@ def diagnose_exposure(
         mobile: bool = True,
         is_own: bool | None = None,
         connection: DuckDBConnection | None = None,
-        retry_count: int = 5,
+        tables: dict | None = None,
+        max_retries: int = 5,
         request_delay: float | int = 1.01,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -103,13 +124,23 @@ def diagnose_exposure(
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.searchad.manage.exposure.extract import ExposureDiagnosis
     # from linkmerce.core.searchad.manage.exposure.transform import ExposureDiagnosis
-    components = (get_module(".exposure"), "ExposureDiagnosis", "ExposureDiagnosis")
-    extract_options = update_options(extract_options,
-        headers = dict(cookies=cookies),
-        options = get_options(retry_count, request_delay, progress),
-        variables = dict(customer_id=customer_id))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args=(keyword, domain, mobile, is_own), **options)
+    return run_with_duckdb(
+        module = get_module(".exposure"),
+        extractor = "ExposureDiagnosis",
+        transformer = "ExposureDiagnosis",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (keyword, domain, mobile, is_own),
+        extract_options = update_options(
+            extract_options,
+            headers = dict(cookies=cookies),
+            options = get_options(max_retries, request_delay, progress),
+            variables = dict(customer_id=customer_id),
+        ),
+        transform_options=transform_options, 
+    )
 
 
 def rank_exposure(
@@ -120,7 +151,8 @@ def rank_exposure(
         mobile: bool = True,
         is_own: bool | None = None,
         connection: DuckDBConnection | None = None,
-        retry_count: int = 5,
+        tables: dict | None = None,
+        max_retries: int = 5,
         request_delay: float | int = 1.01,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -130,10 +162,20 @@ def rank_exposure(
     """`tables = {'rank': 'naver_rank_ad', 'product': 'naver_product'}`"""
     # from linkmerce.core.searchad.manage.exposure.extract import ExposureRank
     # from linkmerce.core.searchad.manage.exposure.transform import ExposureRank
-    components = (get_module(".exposure"), "ExposureRank", "ExposureRank")
-    extract_options = update_options(extract_options,
-        headers = dict(cookies=cookies),
-        options = get_options(retry_count, request_delay, progress),
-        variables = dict(customer_id=customer_id))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args=(keyword, domain, mobile, is_own), **options)
+    return run_with_duckdb(
+        module = get_module(".exposure"),
+        extractor = "ExposureRank",
+        transformer = "ExposureRank",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (keyword, domain, mobile, is_own),
+        extract_options = update_options(
+            extract_options,
+            headers = dict(cookies=cookies),
+            options = get_options(max_retries, request_delay, progress),
+            variables = dict(customer_id=customer_id),
+        ),
+        transform_options=transform_options, 
+    )

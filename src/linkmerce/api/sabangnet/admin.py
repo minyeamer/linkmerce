@@ -17,8 +17,8 @@ def get_module(name: str) -> str:
 
 def get_options(request_delay: float | int = 1, progress: bool = True) -> dict:
     return dict(
-        PaginateAll = dict(delay=request_delay),
-        RequestEachPages = dict(delay=request_delay, tqdm_options=dict(disable=(not progress)))
+        PaginateAll = dict(request_delay=request_delay),
+        RequestEachPages = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
     )
 
 
@@ -39,6 +39,7 @@ def order(
         order_status: Sequence[str] = list(),
         sort_type: str = "ord_no_asc",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         request_delay: float | int = 1,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -48,13 +49,21 @@ def order(
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.sabangnet.admin.order.extract import Order
     # from linkmerce.core.sabangnet.admin.order.transform import Order
-    components = (get_module(".order"), "Order", "Order")
-    args = (start_date, end_date, date_type, order_status_div, order_status, sort_type)
-    extract_options = update_options(extract_options,
-        options = get_options(request_delay, progress),
-        variables = dict(userid=userid, passwd=passwd, domain=domain))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
+    return run_with_duckdb(
+        module = get_module(".order"),
+        extractor = "Order",
+        transformer = "Order",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (start_date, end_date, date_type, order_status_div, order_status, sort_type),
+        extract_options = update_options(
+            extract_options,
+            options = get_options(request_delay, progress),
+            variables = dict(userid=userid, passwd=passwd, domain=domain)),
+        transform_options = transform_options,
+    )
 
 
 def order_download(
@@ -70,6 +79,7 @@ def order_download(
         order_status: Sequence[str] = list(),
         sort_type: str = "ord_no_asc",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -77,11 +87,21 @@ def order_download(
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.sabangnet.admin.order.extract import OrderDownload
     # from linkmerce.core.sabangnet.admin.order.transform import OrderDownload
-    components = (get_module(".order"), "OrderDownload", "OrderDownload")
-    args = (excel_form, start_date, end_date, date_type, order_seq, order_status_div, order_status, sort_type)
-    extract_options = dict(extract_options, variables = dict(userid=userid, passwd=passwd, domain=domain))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
+    return run_with_duckdb(
+        module = get_module(".order"),
+        extractor = "OrderDownload",
+        transformer = "OrderDownload",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type =  return_type,
+        args = (excel_form, start_date, end_date, date_type, order_seq, order_status_div, order_status, sort_type),
+        extract_options = dict(
+            extract_options,
+            variables = dict(userid=userid, passwd=passwd, domain=domain),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def order_status(
@@ -97,6 +117,7 @@ def order_status(
         order_status: Sequence[str] = list(),
         sort_type: str = "ord_no_asc",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         request_delay: float | int = 1,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -106,10 +127,18 @@ def order_status(
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.sabangnet.admin.order.extract import OrderStatus
     # from linkmerce.core.sabangnet.admin.order.transform import OrderStatus
-    components = (get_module(".order"), "OrderStatus", "OrderStatus")
-    args = (excel_form, start_date, end_date, date_type, order_seq, order_status_div, order_status, sort_type)
-    extract_options = update_options(extract_options,
-        options = get_options(request_delay, progress),
-        variables = dict(userid=userid, passwd=passwd, domain=domain))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
+    return run_with_duckdb(
+        module = get_module(".order"),
+        extractor = "OrderStatus",
+        transformer = "OrderStatus",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type =  return_type,
+        args = (excel_form, start_date, end_date, date_type, order_seq, order_status_div, order_status, sort_type),
+        extract_options = update_options(
+            extract_options,
+            options = get_options(request_delay, progress),
+            variables = dict(userid=userid, passwd=passwd, domain=domain)),
+        transform_options = transform_options,
+    )

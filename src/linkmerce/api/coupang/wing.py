@@ -30,10 +30,18 @@ def summary(
         transform_options: dict = dict(),
     ) -> JsonObject:
     # from linkmerce.core.coupang.wing.settlement.extract import Summary
-    components = (get_module(".settlement"), "Summary", None)
-    extract_options = dict(extract_options, variables = dict(userid=userid, passwd=passwd))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run(*components, "sync", args=(start_from, end_to), **options)
+    return run(
+        module = get_module(".settlement"),
+        extractor = "Summary",
+        transformer = None,
+        how = "sync",
+        args = (start_from, end_to),
+        extract_options = dict(
+            extract_options,
+            variables = dict(userid=userid, passwd=passwd),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def rocket_settlement(
@@ -44,6 +52,7 @@ def rocket_settlement(
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         date_type: Literal["PAYMENT","SALES"] = "SALES",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -51,11 +60,21 @@ def rocket_settlement(
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.coupang.wing.settlement.extract import RocketSettlement
     # from linkmerce.core.coupang.wing.settlement.transform import RocketSettlement
-    components = (get_module(".settlement"), "RocketSettlement", "RocketSettlement")
-    args = (start_date, end_date, date_type)
-    extract_options = dict(extract_options, variables = dict(userid=userid, passwd=passwd, vendor_id=vendor_id))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
+    return run_with_duckdb(
+        module = get_module(".settlement"),
+        extractor = "RocketSettlement",
+        transformer = "RocketSettlement",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (start_date, end_date, date_type),
+        extract_options = dict(
+            extract_options,
+            variables=dict(userid=userid, passwd=passwd, vendor_id=vendor_id),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def rocket_settlement_download(
@@ -70,6 +89,7 @@ def rocket_settlement_download(
         wait_interval: int = 1,
         progress: bool = True,
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -77,8 +97,18 @@ def rocket_settlement_download(
     """`tables = {'sales': 'coupang_rocket_sales', 'shipping': 'coupang_rocket_shipping'}`"""
     # from linkmerce.core.coupang.wing.settlement.extract import RocketSettlementDownload
     # from linkmerce.core.coupang.wing.settlement.transform import RocketSettlementDownload
-    components = (get_module(".settlement"), "RocketSettlementDownload", "RocketSettlementDownload")
-    args = (start_date, end_date, date_type, locale, wait_seconds, wait_interval, progress)
-    extract_options = dict(extract_options, variables = dict(userid=userid, passwd=passwd, vendor_id=vendor_id))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, "sync", return_type, args, **options)
+    return run_with_duckdb(
+        module = get_module(".settlement"),
+        extractor = "RocketSettlementDownload",
+        transformer = "RocketSettlementDownload",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (start_date, end_date, date_type, locale, wait_seconds, wait_interval, progress),
+        extract_options = dict(
+            extract_options,
+            variables=dict(userid=userid, passwd=passwd, vendor_id=vendor_id),
+        ),
+        transform_options = transform_options,
+    )

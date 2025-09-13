@@ -15,22 +15,15 @@ def get_module(name: str) -> str:
 
 
 def get_options(
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
     ) -> dict:
     return dict(
-        RequestLoop = dict(count=retry_count),
-        RequestEachLoop = dict(delay=request_delay, limit=async_limit, tqdm_options=dict(disable=(not progress)))
+        RequestLoop = dict(max_retries=max_retries),
+        RequestEachLoop = dict(request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=dict(disable=(not progress))),
     )
-
-
-def get_variables(
-        client_id: str,
-        client_secret: str,
-    ) -> dict:
-    return dict(client_id=client_id, client_secret=client_secret)
 
 
 def _search(
@@ -39,10 +32,11 @@ def _search(
         content_type: Literal["Blog", "News", "Book", "Cafe", "KiN", "Image", "Shopping"],
         args: tuple,
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -51,12 +45,22 @@ def _search(
     """`tables = {'default': 'data'}`"""
     # from linkmerce.core.naver.openapi.search.extract import _SearchExtractor
     # from linkmerce.core.naver.openapi.search.transform import _SearchTransformer
-    components = (get_module(".search"), f"{content_type}Search", f"{content_type}Search")
-    extract_options = update_options(extract_options,
-        options = get_options(retry_count, request_delay, async_limit, progress),
-        variables = get_variables(client_id, client_secret))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, how, return_type, args=args, **options)
+    return run_with_duckdb(
+        module = get_module(".search"),
+        extractor = f"{content_type}Search",
+        transformer = f"{content_type}Search",
+        connection = connection,
+        tables = tables,
+        how = how,
+        return_type = return_type,
+        args = args,
+        extract_options = update_options(
+            extract_options,
+            options = get_options(max_concurrent, max_retries, request_delay, progress),
+            variables = dict(client_id=client_id, client_secret=client_secret),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def search_blog(
@@ -67,10 +71,11 @@ def search_blog(
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -80,8 +85,8 @@ def search_blog(
     # from linkmerce.core.naver.openapi.search.extract import BlogSearch
     # from linkmerce.core.naver.openapi.search.transform import BlogSearch
     return _search(
-        client_id, client_secret, "Blog", (query, start, display, sort), connection,
-        how, retry_count, request_delay, async_limit, progress, return_type, extract_options, transform_options)
+        client_id, client_secret, "Blog", (query, start, display, sort), connection, tables,
+        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
 
 
 def search_news(
@@ -92,10 +97,11 @@ def search_news(
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -105,8 +111,8 @@ def search_news(
     # from linkmerce.core.naver.openapi.search.extract import NewsSearch
     # from linkmerce.core.naver.openapi.search.transform import NewsSearch
     return _search(
-        client_id, client_secret, "News", (query, start, display, sort), connection,
-        how, retry_count, request_delay, async_limit, progress, return_type, extract_options, transform_options)
+        client_id, client_secret, "News", (query, start, display, sort), connection, tables,
+        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
 
 
 def search_book(
@@ -117,10 +123,11 @@ def search_book(
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -130,8 +137,8 @@ def search_book(
     # from linkmerce.core.naver.openapi.search.extract import BookSearch
     # from linkmerce.core.naver.openapi.search.transform import BookSearch
     return _search(
-        client_id, client_secret, "Book", (query, start, display, sort), connection,
-        how, retry_count, request_delay, async_limit, progress, return_type, extract_options, transform_options)
+        client_id, client_secret, "Book", (query, start, display, sort), connection, tables,
+        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
 
 
 def search_cafe(
@@ -142,10 +149,11 @@ def search_cafe(
         display: int = 100,
         sort: Literal["sim","date"] = "sim",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -155,8 +163,8 @@ def search_cafe(
     # from linkmerce.core.naver.openapi.search.extract import CafeSearch
     # from linkmerce.core.naver.openapi.search.transform import CafeSearch
     return _search(
-        client_id, client_secret, "Cafe", (query, start, display, sort), connection,
-        how, retry_count, request_delay, async_limit, progress, return_type, extract_options, transform_options)
+        client_id, client_secret, "Cafe", (query, start, display, sort), connection, tables,
+        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
 
 
 def search_kin(
@@ -167,10 +175,11 @@ def search_kin(
         display: int = 100,
         sort: Literal["sim","date","point"] = "sim",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -180,8 +189,8 @@ def search_kin(
     # from linkmerce.core.naver.openapi.search.extract import KiNSearch
     # from linkmerce.core.naver.openapi.search.transform import KiNSearch
     return _search(
-        client_id, client_secret, "KiN", (query, start, display, sort), connection,
-        how, retry_count, request_delay, async_limit, progress, return_type, extract_options, transform_options)
+        client_id, client_secret, "KiN", (query, start, display, sort), connection, tables,
+        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
 
 
 def search_image(
@@ -193,10 +202,11 @@ def search_image(
         sort: Literal["sim","date"] = "sim",
         filter: Literal["all","large","medium","small"] = "all",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -206,8 +216,8 @@ def search_image(
     # from linkmerce.core.naver.openapi.search.extract import ImageSearch
     # from linkmerce.core.naver.openapi.search.transform import ImageSearch
     return _search(
-        client_id, client_secret, "Image", (query, start, display, sort, filter), connection,
-        how, retry_count, request_delay, async_limit, progress, return_type, extract_options, transform_options)
+        client_id, client_secret, "Image", (query, start, display, sort, filter), connection, tables,
+        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
 
 
 def search_shop(
@@ -218,10 +228,11 @@ def search_shop(
         display: int = 100,
         sort: Literal["sim","date","asc","dsc"] = "sim",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -231,8 +242,8 @@ def search_shop(
     # from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
     # from linkmerce.core.naver.openapi.search.transform import ShoppingSearch
     return _search(
-        client_id, client_secret, "Shopping", (query, start, display, sort), connection,
-        how, retry_count, request_delay, async_limit, progress, return_type, extract_options, transform_options)
+        client_id, client_secret, "Shopping", (query, start, display, sort), connection, tables,
+        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
 
 
 def rank_shop(
@@ -243,10 +254,11 @@ def rank_shop(
         display: int = 100,
         sort: Literal["sim","date","asc","dsc"] = "sim",
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
-        retry_count: int = 5,
+        max_concurrent: int = 3,
+        max_retries: int = 5,
         request_delay: float | int = 0.3,
-        async_limit: int = 3,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
@@ -255,9 +267,19 @@ def rank_shop(
     """`tables = {'rank': 'naver_rank_shop', 'product': 'naver_product'}`"""
     # from linkmerce.core.naver.openapi.search.extract import ShoppingRank
     # from linkmerce.core.naver.openapi.search.transform import ShoppingRank
-    components = (get_module(".search"), "ShoppingRank", "ShoppingRank")
-    extract_options = update_options(extract_options,
-        options = get_options(retry_count, request_delay, async_limit, progress),
-        variables = get_variables(client_id, client_secret))
-    options = dict(extract_options=extract_options, transform_options=transform_options)
-    return run_with_duckdb(*components, connection, how, return_type, args=(query, start, display, sort), **options)
+    return run_with_duckdb(
+        module = get_module(".search"),
+        extractor = "ShoppingRank",
+        transformer = "ShoppingRank",
+        connection = connection,
+        tables = tables,
+        how = how,
+        return_type = return_type,
+        args = (query, start, display, sort),
+        extract_options = update_options(
+            extract_options,
+            options = get_options(max_concurrent, max_retries, request_delay, progress),
+            variables = dict(client_id=client_id, client_secret=client_secret),
+        ),
+        transform_options = transform_options,
+    )

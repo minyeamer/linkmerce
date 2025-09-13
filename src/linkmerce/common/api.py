@@ -17,6 +17,12 @@ def update_options(__m: dict, **options) -> dict:
         return __m
 
 
+def update_tables(__m: dict, tables: dict | None = None) -> dict:
+    if ("tables" not in __m) and isinstance(tables, dict):
+        __m["tables"] = tables
+    return __m
+
+
 ###################################################################
 ############################## Import #############################
 ###################################################################
@@ -68,6 +74,7 @@ def run_with_connection(
         module: str,
         extractor: str,
         transformer: str | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
         args: tuple = tuple(),
         kwargs: dict = dict(),
@@ -76,7 +83,7 @@ def run_with_connection(
     ) -> Any:
     if (not transformer) or ("parser" in extract_options):
         return run(module, extractor, transformer, how, args, kwargs, extract_options, transform_options)
-    with import_dbt(module, transformer)(**transform_options) as transformer_:
+    with import_dbt(module, transformer)(**update_tables(transform_options, tables)) as transformer_:
         extractor_ = import_extractor(module, extractor)(parser=transformer_.transform, **extract_options)
         return extract(extractor_, how, args, kwargs)
 
@@ -111,6 +118,7 @@ def run_with_duckdb(
         extractor: str,
         transformer: str | None = None,
         connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         args: tuple = tuple(),
@@ -121,12 +129,12 @@ def run_with_duckdb(
     if (not transformer) or (return_type == "raw") or ("parser" in extract_options):
         return run(module, extractor, None, how, args, kwargs, extract_options, transform_options)
     elif (connection is None) or ("db_info" in transform_options):
-        with import_dbt(module, transformer)(**transform_options) as transformer_:
+        with import_dbt(module, transformer)(**update_tables(transform_options, tables)) as transformer_:
             extractor_ = import_extractor(module, extractor)(parser=transformer_.transform, **extract_options)
             extract(extractor_, how, args, kwargs)
             return fetch_all_from_duckdb_table(transformer_, return_type)
     else:
-        transformer_ = import_dbt(module, transformer)(db_info=dict(conn=connection), **transform_options)
+        transformer_ = import_dbt(module, transformer)(db_info=dict(conn=connection), **update_tables(transform_options, tables))
         extractor_ = import_extractor(module, extractor)(parser=transformer_.transform, **extract_options)
         extract(extractor_, how, args, kwargs)
         return fetch_all_from_duckdb_table(transformer_, return_type)

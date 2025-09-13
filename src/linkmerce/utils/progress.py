@@ -61,7 +61,7 @@ async def gather_async(
         arr_args: Iterable[tuple[_VT,...] | dict[_KT,_VT]],
         partial: dict[_KT,_VT] = dict(),
         delay: Real | Sequence[Real,Real] = 0.,
-        limit: int | None = None,
+        max_concurrent: int | None = None,
         tqdm_options: dict = dict(),
     ) -> list:
     import asyncio
@@ -79,15 +79,15 @@ async def gather_async(
                 return await func(*args, **partial)
         finally: await asyncio.sleep(_get_seconds(delay))
 
-    async def run_with_delay_and_limit(semaphore, args: tuple[_VT,...] | dict[_KT,_VT]) -> Any:
+    async def run_with_delay_and_lock(semaphore, args: tuple[_VT,...] | dict[_KT,_VT]) -> Any:
         if semaphore is not None:
             async with semaphore:
                 return await run_with_delay(args)
         else:
             return await run_with_delay(args)
 
-    semaphore = asyncio.Semaphore(limit) if isinstance(limit, int) else None
-    return await tqdm_asyncio.gather(*[run_with_delay_and_limit(semaphore, args) for args in arr_args], **tqdm_options)
+    semaphore = asyncio.Semaphore(max_concurrent) if isinstance(max_concurrent, int) else None
+    return await tqdm_asyncio.gather(*[run_with_delay_and_lock(semaphore, args) for args in arr_args], **tqdm_options)
 
 
 def _get_seconds(value: Real | Sequence[Real,Real]) -> Real:
@@ -119,10 +119,10 @@ async def expand_async(
         mapping: dict[_KT,Iterable[_VT]],
         partial: dict[_KT,_VT] = dict(),
         delay: Real | Sequence[Real,Real] = 0.,
-        limit: int | None = None,
+        max_concurrent: int | None = None,
         tqdm_options: dict = dict()
     ) -> list:
-    return await gather_async(func, _expand_kwargs(**mapping), partial, delay, limit, tqdm_options)
+    return await gather_async(func, _expand_kwargs(**mapping), partial, delay, max_concurrent, tqdm_options)
 
 
 def _expand_kwargs(**map_kwargs: Iterable[_VT]) -> list[dict[_KT,_VT]]:

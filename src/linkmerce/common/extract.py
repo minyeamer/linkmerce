@@ -358,38 +358,41 @@ class TaskClient(Client):
             self,
             func: Callable | Coroutine,
             condition: Callable[...,bool],
-            count: int | None = None,
-            delay: Literal["incremental"] | float | int | Sequence[int,int] | None = None,
+            max_retries: int | None = None,
+            request_delay: Literal["incremental"] | float | int | Sequence[int,int] | None = None,
             raise_errors: type | Sequence[type] | None = None,
             ignored_errors: type | Sequence[type] | None = None,
         ) -> RequestLoop:
         from linkmerce.common.tasks import RequestLoop
-        options = self.build_options("RequestLoop", count=count, delay=delay, raise_errors=raise_errors, ignored_errors=ignored_errors)
+        input_options = dict(max_retries=max_retries, request_delay=request_delay, raise_errors=raise_errors, ignored_errors=ignored_errors)
+        options = self.build_options("RequestLoop", **input_options)
         return RequestLoop(func, condition, parser=self.parse, **options)
 
     def request_each(
             self,
             func: Callable | Coroutine,
             context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] = list(),
-            delay: float | int | tuple[int,int] | None = None,
-            limit: int | None = None,
+            request_delay: float | int | tuple[int,int] | None = None,
+            max_concurrent: int | None = None,
             tqdm_options: dict | None = None,
         ) -> RequestEach:
         from linkmerce.common.tasks import RequestEach
-        options = self.build_options("RequestEach", delay=delay, limit=limit, tqdm_options=tqdm_options)
+        input_options = dict(request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=tqdm_options)
+        options = self.build_options("RequestEach", **input_options)
         return RequestEach(func, context, parser=self.parse, **options)
 
     def request_each_loop(
             self,
             func: Callable | Coroutine,
             context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] = list(),
-            delay: float | int | tuple[int,int] | None = None,
-            limit: int | None = None,
+            request_delay: float | int | tuple[int,int] | None = None,
+            max_concurrent: int | None = None,
             tqdm_options: dict | None = None,
             loop_options: dict = dict(),
         ) -> RequestEachLoop:
         from linkmerce.common.tasks import RequestEachLoop
-        options = self.build_options("RequestEachLoop", delay=delay, limit=limit, tqdm_options=tqdm_options)
+        input_options = dict(request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=tqdm_options)
+        options = self.build_options("RequestEachLoop", **input_options)
         if "loop_options" not in options:
             options["loop_options"] = self.build_options("RequestLoop", **loop_options)
         return RequestEachLoop(func, context, parser=self.parse, **options)
@@ -400,26 +403,27 @@ class TaskClient(Client):
             counter: Callable[...,int],
             max_page_size: int,
             page_start: int | None = None,
-            delay: float | int | tuple[int,int] | None = None,
-            limit: int | None = None,
+            request_delay: float | int | tuple[int,int] | None = None,
+            max_concurrent: int | None = None,
             tqdm_options: dict | None = None,
         ) -> PaginateAll:
         from linkmerce.common.tasks import PaginateAll
-        options = self.build_options("PaginateAll",
-            page_start=page_start, delay=delay, limit=limit, tqdm_options=tqdm_options)
+        input_options = dict(page_start=page_start, request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=tqdm_options)
+        options = self.build_options("PaginateAll", **input_options)
         return PaginateAll(func, counter, max_page_size, parser=self.parse, **options)
 
     def request_each_pages(
             self,
             func: Callable | Coroutine,
             context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] | dict[_KT,_VT] = list(),
-            delay: float | int | tuple[int,int] | None = None,
-            limit: int | None = None,
+            request_delay: float | int | tuple[int,int] | None = None,
+            max_concurrent: int | None = None,
             tqdm_options: dict | None = None,
             page_options: dict = dict(),
         ) -> RequestEachPages:
         from linkmerce.common.tasks import RequestEachPages
-        options = self.build_options("RequestEachPages", delay=delay, limit=limit, tqdm_options=tqdm_options)
+        input_options = dict(request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=tqdm_options)
+        options = self.build_options("RequestEachPages", **input_options)
         if "page_options" not in options:
             options["page_options"] = self.build_options("PaginateAll", **page_options)
         return RequestEachPages(func, context, parser=self.parse, **options)
@@ -429,22 +433,24 @@ class TaskClient(Client):
             func: Callable,
             get_next_cursor: Callable[...,Any],
             next_cursor: Any | None = None,
-            delay: float | int | tuple[int,int] | None = None,
+            request_delay: float | int | tuple[int,int] | None = None,
         ) -> CursorAll:
         from linkmerce.common.tasks import CursorAll
-        options = self.build_options("CursorAll", next_cursor=next_cursor, delay=delay)
+        input_options = dict(next_cursor=next_cursor, request_delay=request_delay)
+        options = self.build_options("CursorAll", **input_options)
         return CursorAll(func, get_next_cursor, parser=self.parse, **options)
 
     def request_each_cursor(
             self,
             func: Callable | Coroutine,
             context: Sequence[tuple[_VT,...] | dict[_KT,_VT]] | dict[_KT,_VT] = list(),
-            delay: float | int | tuple[int,int] | None = None,
+            request_delay: float | int | tuple[int,int] | None = None,
             tqdm_options: dict | None = None,
             cursor_options: dict = dict(),
         ) -> RequestEachCursor:
         from linkmerce.common.tasks import RequestEachCursor
-        options = self.build_options("RequestEachCursor", delay=delay, tqdm_options=tqdm_options)
+        input_options = dict(request_delay=request_delay, tqdm_options=tqdm_options)
+        options = self.build_options("RequestEachCursor", **input_options)
         if "cursor_options" not in options:
             options["cursor_options"] = self.build_options("CursorAll", **cursor_options)
         return RequestEachCursor(func, context, parser=self.parse, **options)

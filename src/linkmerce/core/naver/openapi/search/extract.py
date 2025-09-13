@@ -37,8 +37,9 @@ class _SearchExtractor(NaverOpenAPI):
     @property
     def default_options(self) -> dict:
         return dict(
-            RequestLoop = dict(count=5),
-            RequestEachLoop = dict(delay=0.3, limit=3))
+            RequestLoop = dict(max_retries=5),
+            RequestEachLoop = dict(request_delay=0.3, max_concurrent=3),
+        )
 
     @NaverOpenAPI.with_session
     def extract(

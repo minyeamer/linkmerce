@@ -24,8 +24,8 @@ class _CatalogExtractor(PartnerCenter):
     @property
     def default_options(self) -> dict:
         return dict(
-            PaginateAll = dict(delay=1, limit=3),
-            RequestEachPages = dict(delay=1, limit=3))
+            PaginateAll = dict(request_delay=1, max_concurrent=3),
+            RequestEachPages = dict(request_delay=1, max_concurrent=3))
 
     def split_map_kwargs(
             self,
