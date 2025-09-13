@@ -48,7 +48,14 @@ with DAG(
         extract = getattr(import_module("linkmerce.api.searchad.api"), api_type)
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            extract(api_key, secret_key, customer_id, from_date, connection=conn, return_type="none")
+            extract(
+                api_key = api_key,
+                secret_key = secret_key,
+                customer_id = customer_id,
+                from_date = from_date,
+                connection = conn,
+                return_type = "none",
+            )
             logging.info(f"[{customer_id}] API request completed for downloading the {api_type} master report")
 
             with BigQueryClient(service_account) as client:
@@ -61,8 +68,15 @@ with DAG(
                         data = conn.count_table("data"),
                     ),
                     status = dict(
-                        data = client.merge_into_table_from_duckdb(conn, "data", f'{tables[f"temp_{api_type}"]}_{customer_id}', tables[api_type], **merge[api_type]),
-                    )
+                        data = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = "data",
+                            staging_table = f'{tables[f"temp_{api_type}"]}_{customer_id}',
+                            target_table = tables[api_type],
+                            **merge[api_type],
+                            progress = False,
+                        ),
+                    ),
                 )
 
 

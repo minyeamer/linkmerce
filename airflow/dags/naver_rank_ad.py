@@ -23,7 +23,16 @@ with DAG(
     def read_queries() -> list:
         from variables import read, split_by_credentials
         variables = read(PATH, credentials=True, tables=True, sheets=True)
-        return split_by_credentials(variables["credentials"], keyword=variables["keyword"])
+        credentials = filter_valid_accounts(variables["credentials"])
+        return split_by_credentials(credentials, keyword=variables["keyword"])
+
+    def filter_valid_accounts(credentials: list[dict]) -> list[dict]:
+        from linkmerce.api.searchad.manage import has_permission
+        accounts = [credential for credential in credentials if has_permission(**credential)]
+        if credentials and (not accounts):
+            from airflow.exceptions import AirflowFailException
+            raise AirflowFailException("At least one account does not have permissions")
+        return accounts
 
 
     CHUNK = 100
@@ -52,8 +61,17 @@ with DAG(
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             start_time = time.time()
-            options = dict(transform_options = dict(tables = sources))
-            rank_exposure(customer_id, cookies, keyword, domain="search", mobile=True, connection=conn, progress=False, return_type="none", **options)
+            rank_exposure(
+                customer_id = customer_id,
+                cookies = cookies,
+                keyword = keyword,
+                domain = "search",
+                mobile = True,
+                connection = conn,
+                tables = sources,
+                progress = False,
+                return_type = "none",
+            )
             end_time = time.time()
             minutes, seconds = map(int, divmod(end_time - start_time, 60))
             logging.info(f"[{seq}] API request completed for searching {len(keyword)} keywords in {minutes:02d}:{seconds:02d}")
@@ -71,10 +89,29 @@ with DAG(
                         product = conn.count_table(sources["product"]),
                     ),
                     status = dict(
-                        rank = client.load_table_from_duckdb(conn, sources["rank"], tables["rank"]),
-                        now = client.merge_into_table_from_duckdb(conn, sources["rank"], f'{tables["temp_now"]}_{customer_id}', tables["now"], **merge["now"]),
-                        product = client.merge_into_table_from_duckdb(conn, sources["product"], f'{tables["temp_product"]}_{customer_id}', tables["product"], **merge["product"]),
-                    )
+                        rank = client.load_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["rank"],
+                            target_table = tables["rank"],
+                            progress = False,
+                        ),
+                        now = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["rank"],
+                            staging_table = f'{tables["temp_now"]}_{customer_id}',
+                            target_table = tables["now"],
+                            **merge["now"],
+                            progress = False,
+                        ),
+                        product = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["product"],
+                            staging_table = f'{tables["temp_product"]}_{customer_id}',
+                            target_table = tables["product"],
+                            **merge["product"],
+                            progress = False,
+                        ),
+                    ),
                 )
 
 

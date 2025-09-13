@@ -40,8 +40,18 @@ with DAG(
         sources = dict(price="naver_brand_price", product="naver_brand_product")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            options = dict(transform_options = dict(tables = sources))
-            brand_price(cookies, brand_ids, mall_seq, sort_type="recent", page=None, connection=conn, how="async", progress=False, return_type="none", **options)
+            brand_price(
+                cookies = cookies,
+                brand_ids = brand_ids,
+                mall_seq = mall_seq,
+                sort_type = "recent",
+                page = None,
+                connection = conn,
+                tables = sources,
+                how = "async",
+                progress = False,
+                return_type = "none",
+            )
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -55,9 +65,21 @@ with DAG(
                         product = conn.count_table("naver_brand_product"),
                     ),
                     status = dict(
-                        price = client.load_table_from_duckdb(conn, sources["price"], tables["price"]),
-                        product = client.merge_into_table_from_duckdb(conn, sources["product"], tables["temp_product"], tables["product"], **merge["product"]),
-                    )
+                        price = client.load_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["price"],
+                            target_table = tables["price"],
+                            progress = False,
+                        ),
+                        product = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["product"],
+                            staging_table = tables["temp_product"],
+                            target_table = tables["product"],
+                            **merge["product"],
+                            progress = False,
+                        ),
+                    ),
                 )
 
 

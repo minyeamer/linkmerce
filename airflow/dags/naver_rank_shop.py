@@ -51,14 +51,24 @@ with DAG(
         sources = dict(rank="naver_rank_shop", product="naver_product")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            options = dict(transform_options = dict(tables = sources))
-            rank_shop(client_id, client_secret, keyword, start=[1,101,201], sort="sim", connection=conn, how="async", progress=False, return_type="none", **options)
+            rank_shop(
+                client_id = client_id,
+                client_secret = client_secret,
+                query = keyword,
+                start = [1, 101, 201],
+                sort = "sim",
+                connection = conn,
+                tables = sources,
+                how = "async",
+                progress = False,
+                return_type = "none",
+            )
 
             with BigQueryClient(service_account) as client:
                 return dict(
                     params = dict(
                         query = len(keyword),
-                        start = [1,101,201],
+                        start = [1, 101, 201],
                         sort = "sim",
                     ),
                     count = dict(
@@ -66,10 +76,29 @@ with DAG(
                         product = conn.count_table(sources["product"]),
                     ),
                     status = dict(
-                        rank = client.load_table_from_duckdb(conn, sources["rank"], tables["rank"]),
-                        now = client.merge_into_table_from_duckdb(conn, sources["rank"], f'{tables["temp_now"]}_{seq}', tables["now"], **merge["now"]),
-                        product = client.merge_into_table_from_duckdb(conn, sources["product"], f'{tables["temp_product"]}_{seq}', tables["product"], **merge["product"]),
-                    )
+                        rank = client.load_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["rank"],
+                            target_table = tables["rank"],
+                            progress = False,
+                        ),
+                        now = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["rank"],
+                            staging_table = f'{tables["temp_now"]}_{seq}',
+                            target_table = tables["now"],
+                            **merge["now"],
+                            progress = False,
+                        ),
+                        product = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["product"],
+                            staging_table = f'{tables["temp_product"]}_{seq}',
+                            target_table = tables["product"],
+                            **merge["product"],
+                            progress = False,
+                        ),
+                    ),
                 )
 
 

@@ -43,7 +43,15 @@ with DAG(
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            product(client_id, client_secret, status_type=["ALL"], channel_seq=channel_seq, connection=conn, progress=False, return_type="none")
+            product(
+                client_id = client_id,
+                client_secret = client_secret,
+                status_type = ["ALL"],
+                channel_seq = channel_seq,
+                connection = conn,
+                progress = False,
+                return_type = "none",
+            )
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -55,8 +63,15 @@ with DAG(
                         product = conn.count_table("data"),
                     ),
                     status = dict(
-                        option = client.merge_into_table_from_duckdb(conn, "data", f'{tables["temp_product"]}_{channel_seq}', tables["product"], **merge["product"]),
-                    )
+                        option = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = "data",
+                            staging_table = f'{tables["temp_product"]}_{channel_seq}',
+                            target_table = tables["product"],
+                            **merge["product"],
+                            progress = False,
+                        ),
+                    ),
                 )
 
 

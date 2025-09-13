@@ -46,9 +46,24 @@ with DAG(
         sources = dict(order="smartstore_order", option="smartstore_option")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            options = dict(transform_options = dict(tables = sources))
-            product_order(client_id, client_secret, date, range_type="PAYED_DATETIME", connection=conn, progress=False, return_type="none", **options)
-            aggregated_order_status(client_id, client_secret, date, connection=conn, progress=False, return_type="none")
+            product_order(
+                client_id = client_id,
+                client_secret = client_secret,
+                start_date = date,
+                range_type = "PAYED_DATETIME",
+                connection = conn,
+                tables = sources,
+                progress = False,
+                return_type = "none",)
+
+            aggregated_order_status(
+                client_id = client_id,
+                client_secret = client_secret,
+                start_date = date,
+                connection = conn,
+                progress = False,
+                return_type = "none",
+            )
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -62,10 +77,27 @@ with DAG(
                         status = conn.count_table("data"),
                     ),
                     status = dict(
-                        order = client.load_table_from_duckdb(conn, sources["order"], tables["order"]),
-                        option = client.merge_into_table_from_duckdb(conn, sources["option"], f'{tables["temp_option"]}_{channel_seq}', tables["option"], **merge["option"]),
-                        status = client.load_table_from_duckdb(conn, "data", tables["order_status"]),
-                    )
+                        order = client.load_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["order"],
+                            target_table = tables["order"],
+                            progress = False,
+                        ),
+                        option = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["option"],
+                            staging_table = f'{tables["temp_option"]}_{channel_seq}',
+                            target_table = tables["option"],
+                            **merge["option"],
+                            progress = False,
+                        ),
+                        status = client.load_table_from_duckdb(
+                            connection = conn,
+                            source_table = "data",
+                            target_table = tables["order_status"],
+                            progress = False,
+                        ),
+                    ),
                 )
 
 

@@ -41,7 +41,16 @@ with DAG(
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            order_download(userid, passwd, domain, excel_form, date, date_type="ord_dt", connection=conn, return_type="none")
+            order_download(
+                userid = userid,
+                passwd = passwd,
+                domain = domain,
+                excel_form = excel_form,
+                start_date = date,
+                date_type = "ord_dt",
+                connection = conn,
+                return_type = "none",
+            )
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -54,8 +63,13 @@ with DAG(
                         order = conn.count_table("data"),
                     ),
                     status = dict(
-                        order = client.load_table_from_duckdb(conn, "data", tables["order"]),
-                    )
+                        order = client.load_table_from_duckdb(
+                            connection = conn,
+                            source_table = "data",
+                            target_table = tables["order"],
+                            progress = False,
+                        ),
+                    ),
                 )
 
 

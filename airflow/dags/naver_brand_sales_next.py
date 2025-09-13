@@ -41,12 +41,18 @@ with DAG(
         sources = dict(sales="naver_brand_sales", product="naver_brand_product")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            options = dict(transform_options = dict(tables = sources))
-            aggregated_sales(cookies, mall_seq, date, connection=conn, how="async", progress=False, return_type="none", **options)
+            aggregated_sales(
+                cookies = cookies,
+                mall_seq = mall_seq,
+                start_date = date,
+                connection = conn,
+                tables = sources,
+                how = "async",
+                progress = False,
+                return_type = "none",
+            )
 
             with BigQueryClient(service_account) as client:
-                on = f"payment_date = '{date}'"
-
                 return dict(
                     params = dict(
                         mall_seq = len(mall_seq),
@@ -57,9 +63,24 @@ with DAG(
                         product = conn.count_table(sources["product"]),
                     ),
                     status = dict(
-                        sales = client.merge_into_table_from_duckdb(conn, sources["sales"], tables["temp_sales"], tables["sales"], where_clause=on, **merge["sales"]),
-                        product = client.merge_into_table_from_duckdb(conn, sources["product"], tables["temp_product"], tables["product"], **merge["product"]),
-                    )
+                        sales = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["sales"],
+                            staging_table = tables["temp_sales"],
+                            target_table = tables["sales"],
+                            where_clause = f"payment_date = '{date}'",
+                            **merge["sales"],
+                            progress = False,
+                        ),
+                        product = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["product"],
+                            staging_table = tables["temp_product"],
+                            target_table = tables["product"],
+                            **merge["product"],
+                            progress = False,
+                        ),
+                    ),
                 )
 
 
