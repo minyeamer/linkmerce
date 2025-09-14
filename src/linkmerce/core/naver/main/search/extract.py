@@ -56,7 +56,7 @@ class ShoppingProduct(Extractor):
 
     @Extractor.async_with_session
     async def extract_async(self, query: str | Iterable[str], mobile: bool = True, **kwargs) -> JsonObject:
-        return await (self.request_each(self.request_async_json_safe)
+        return await (self.request_each_loop(self.request_async_json_safe)
                 .partial(mobile=mobile)
                 .expand(query=query)
                 .run_async())

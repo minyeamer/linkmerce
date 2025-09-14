@@ -180,18 +180,17 @@ class RequestSessionClient(BaseSessionClient):
             return response.text
 
     def request_json(self, **kwargs) -> JsonObject:
-        message = self.build_request_message(**kwargs)
-        with self.get_session().request(**message) as response:
-            return response.json()
+        response = self.request_text(**kwargs)
+        import json
+        return json.loads(response)
 
     def request_json_safe(self, **kwargs) -> JsonObject:
-        message = self.build_request_message(**kwargs)
-        with self.get_session().request(**message) as response:
-            from json import JSONDecodeError
-            try:
-                return response.json()
-            except JSONDecodeError:
-                return None
+        response = self.request_text(**kwargs)
+        import json
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            return None
 
     def request_headers(self, **kwargs) -> dict[str,str]:
         message = self.build_request_message(**kwargs)
@@ -264,18 +263,17 @@ class AiohttpSessionClient(BaseSessionClient):
             return await response.text()
 
     async def request_async_json(self, **kwargs) -> JsonObject:
-        message = self.build_request_message(**kwargs)
-        async with self.get_session().request(**message) as response:
-            return await response.json()
+        response = await self.request_async_text(**kwargs)
+        import json
+        return json.loads(response)
 
     async def request_async_json_safe(self, **kwargs) -> JsonObject:
-        message = self.build_request_message(**kwargs)
-        async with self.get_session().request(**message) as response:
-            from json import JSONDecodeError
-            try:
-                return await response.json()
-            except JSONDecodeError:
-                return None
+        response = await self.request_async_text(**kwargs)
+        import json
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            return None
 
     async def request_async_headers(self, **kwargs) -> dict[str,str]:
         message = self.build_request_message(**kwargs)

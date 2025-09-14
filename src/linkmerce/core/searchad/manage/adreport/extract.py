@@ -96,8 +96,10 @@ class DailyReport(AdvancedReport):
 
     @property
     def attributes(self) -> list[str]:
+        # ["소재", "매체이름", "PC/모바일 매체", "검색/콘텐츠 매체", "일별"]
         return ["nccAdId", "mediaNm", "pcMblTp", "ntwkTp", "ymd"]
 
     @property
     def fields(self) -> list[str]:
+        # ["노출수", "클릭수", "총비용(VAT포함,원)", "전환수", "직접전환수", "전환매출액(원)", "직접전환매출액(원)", "평균노출순위", "방문당 평균페이지뷰", "방문당 평균체류시간(초)"]
         return ["impCnt", "clkCnt", "salesAmt", "ccnt", "drtCcnt", "convAmt", "drtConvAmt", "avgRnk", "pv", "stayTm"]
