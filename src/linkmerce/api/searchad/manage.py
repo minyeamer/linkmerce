@@ -26,18 +26,25 @@ def get_options(
     )
 
 
-def has_cookies(cookies: str) -> bool:
+def has_cookies(cookies: str, **kwargs) -> bool:
     from linkmerce.core.searchad.manage.common import has_cookies
     import requests
     with requests.Session() as session:
         return has_cookies(session, cookies)
 
 
-def has_permission(customer_id: int | str, cookies: str) -> bool:
+def has_permission(customer_id: int | str, cookies: str, **kwargs) -> bool:
     from linkmerce.core.searchad.manage.common import has_permission
     import requests
     with requests.Session() as session:
         return has_permission(session, customer_id, cookies)
+
+
+def whoami(customer_id: int | str, cookies: str, **kwargs) -> dict | None:
+    from linkmerce.core.searchad.manage.common import whoami
+    import requests
+    with requests.Session() as session:
+        return whoami(session, customer_id, cookies)
 
 
 def adreport(

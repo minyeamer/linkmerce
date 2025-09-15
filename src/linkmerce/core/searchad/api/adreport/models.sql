@@ -3,12 +3,13 @@ CREATE OR REPLACE TABLE {{ table }} (
     campaign_id VARCHAR PRIMARY KEY
   , campaign_name VARCHAR
   , campaign_type TINYINT -- Campaign: campaign_type
-  , customer_id INTEGER NOT NULL
+  , customer_id BIGINT NOT NULL
   -- , delivery_method TINYINT -- {1: '일반 노출', 2: '균등 노출'}
   -- , using_period TINYINT -- {0: '캠페인 집행 기간 제한 없음', 1: '캠페인 집행 기간 제한 있음'}
   -- , period_start_date TIMESTAMP
   -- , period_end_date TIMESTAMP
   , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
   -- , shared_budget_id VARCHAR
@@ -35,6 +36,7 @@ SELECT
   -- , "Period Start Date" AS period_start_date
   -- , "Period End Date" AS period_end_date
   , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
   , "regTm" AS created_at
   , "delTm" AS deleted_at
   -- , NULLIF("Shared budget id", 'null') AS shared_budget_id
@@ -50,8 +52,9 @@ CREATE OR REPLACE TABLE {{ table }} (
   , campaign_id VARCHAR NOT NULL
   , adgroup_name VARCHAR
   , adgroup_type TINYINT -- Adgroup: adgroup_type
-  , customer_id INTEGER NOT NULL
+  , customer_id BIGINT NOT NULL
   , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
   , bid_amount INTEGER
   -- , using_network_bid TINYINT -- {0: '사용하지 않음', 1: '사용함'}
   -- , network_bid INTEGER
@@ -90,6 +93,7 @@ SELECT
   , "Ad group type" AS adgroup_type
   , "Customer ID" AS customer_id
   , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
   , "Ad Group Bid amount" AS bid_amount
   -- , "Using contents network bid" AS using_network_bid
   -- , "Contents network bid" AS network_bid
@@ -113,7 +117,7 @@ CREATE OR REPLACE TABLE {{ table }} (
     ad_id VARCHAR PRIMARY KEY
   , adgroup_id VARCHAR NOT NULL
   , ad_type TINYINT -- Ad: ad_type
-  , customer_id INTEGER NOT NULL
+  , customer_id BIGINT NOT NULL
   , title VARCHAR
   , description VARCHAR
   , landing_url_pc VARCHAR
@@ -122,6 +126,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , product_id BIGINT
   , category_id INTEGER
   , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
   , bid_amount INTEGER
   , sales_price INTEGER
   , created_at TIMESTAMP
@@ -140,6 +145,7 @@ FROM UNNEST([
   , STRUCT(7 AS type, '쇼핑검색-카탈로그형 소재' AS name)
   , STRUCT(9 AS type, '쇼핑검색-쇼핑 브랜드형 소재' AS name)
   , STRUCT(10 AS type, '플레이스-플레이스 검색 소재' AS name)
+  , STRUCT(11 AS type, '브랜드검색-신제품검색형 소재' AS name)
   , STRUCT(12 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 섬네일형 소재' AS name)
   , STRUCT(13 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 배너형 소재' AS name)
 ]);
@@ -147,7 +153,7 @@ FROM UNNEST([
 
 -- Ad: create_power_link_ad
 CREATE OR REPLACE TABLE {{ table }} (
-    customer_id INTEGER NOT NULL
+    customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
@@ -156,6 +162,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , landing_url_pc VARCHAR
   , landing_url_mobile VARCHAR
   , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
 );
@@ -171,6 +178,7 @@ SELECT
   , "Landing URL(PC)" AS landing_url_pc
   , "Landing URL(Mobile)" AS landing_url_mobile
   , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
   , "regTm" AS created_at
   , "delTm" AS deleted_at
 FROM {{ array }};
@@ -189,6 +197,7 @@ INSERT INTO {{ table }} (
   , landing_url_pc
   , landing_url_mobile
   , is_enabled
+  , is_deleted
   , created_at
   , deleted_at
 )
@@ -202,6 +211,7 @@ SELECT
   , landing_url_pc
   , landing_url_mobile
   , is_enabled
+  , is_deleted
   , created_at
   , deleted_at
 FROM power_link_ad
@@ -210,7 +220,7 @@ ON CONFLICT DO NOTHING;
 
 -- Ad: create_power_contents_ad
 CREATE OR REPLACE TABLE {{ table }} (
-    customer_id INTEGER NOT NULL
+    customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
@@ -223,6 +233,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , contents_issue_date TIMESTAMP
   , contents_release_date TIMESTAMP
   , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
 );
@@ -242,6 +253,7 @@ SELECT
   , "Contents Issue Date" AS contents_issue_date
   , "Release Date" AS contents_release_date
   , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
   , "regTm" AS created_at
   , "delTm" AS deleted_at
 FROM {{ array }};
@@ -260,6 +272,7 @@ INSERT INTO {{ table }} (
   , landing_url_pc
   , landing_url_mobile
   , is_enabled
+  , is_deleted
   , created_at
   , deleted_at
 )
@@ -273,6 +286,7 @@ SELECT
   , landing_url_pc
   , landing_url_mobile
   , is_enabled
+  , is_deleted
   , created_at
   , deleted_at
 FROM power_contents_ad
@@ -281,11 +295,12 @@ ON CONFLICT DO NOTHING;
 
 -- Ad: create_shopping_product_ad
 CREATE OR REPLACE TABLE {{ table }} (
-    customer_id INTEGER NOT NULL
+    customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
   , bid_amount INTEGER
   , using_adgroup_bid BOOLEAN
   , ad_link_status TINYINT -- {0: '연동 되고 있지 않음', 1: '연동 중'}
@@ -317,6 +332,7 @@ SELECT
   , "Ad ID" AS ad_id
   , "Ad Creative Inspect Status" AS inspect_status
   , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
   , "Bid" AS bid_amount
   , "Using Ad Group Bid Amount" AS using_adgroup_bid
   , "Ad Link Status" AS ad_link_status
@@ -357,6 +373,7 @@ INSERT INTO {{ table }} (
   , product_id
   , category_id
   , is_enabled
+  , is_deleted
   , bid_amount
   , sales_price
   , created_at
@@ -374,6 +391,7 @@ SELECT
   , product_id
   , COALESCE(category_id4, category_id3, category_id2, category_id1) AS category_id
   , is_enabled
+  , is_deleted
   , bid_amount
   , sales_price
   , created_at
@@ -384,7 +402,7 @@ ON CONFLICT DO NOTHING;
 
 -- Ad: create_product_group
 CREATE OR REPLACE TABLE {{ table }} (
-    customer_id INTEGER NOT NULL
+    customer_id BIGINT NOT NULL
   , product_group_id VARCHAR PRIMARY KEY
   , business_channel_id VARCHAR
   , product_group_name VARCHAR
@@ -414,7 +432,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- Ad: create_product_group_rel
 CREATE OR REPLACE TABLE {{ table }} (
-    customer_id INTEGER NOT NULL
+    customer_id BIGINT NOT NULL
   , relation_id VARCHAR PRIMARY KEY
   , product_group_id VARCHAR NOT NULL
   , adgroup_id VARCHAR NOT NULL
@@ -438,12 +456,13 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- Ad: create_brand_thumbnail_ad
 CREATE OR REPLACE TABLE {{ table }} (
-    customer_id INTEGER NOT NULL
+    customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , is_enabled BOOLEAN
-  , headline VARCHAR
+  , is_deleted BOOLEAN
+  , title VARCHAR
   , description VARCHAR
   , extra_description VARCHAR
   , logo_image_path VARCHAR
@@ -460,7 +479,8 @@ SELECT
   , "Ad ID" AS ad_id
   , "Ad Creative Inspect Status" AS inspect_status
   , ("ON/OFF" = 0) AS is_enabled
-  , "Headline" AS headline
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "Headline" AS title
   , "description" AS description
   , "extra Description" AS extra_description
   , "Logo image path" AS logo_image_path
@@ -476,12 +496,13 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- Ad: create_brand_banner_ad
 CREATE OR REPLACE TABLE {{ table }} (
-    customer_id INTEGER NOT NULL
+    customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , is_enabled BOOLEAN
-  , headline VARCHAR
+  , is_deleted BOOLEAN
+  , title VARCHAR
   , description VARCHAR
   , logo_image_path VARCHAR
   , link_url VARCHAR
@@ -497,7 +518,8 @@ SELECT
   , "Ad ID" AS ad_id
   , "Ad Creative Inspect Status" AS inspect_status
   , ("ON/OFF" = 0) AS is_enabled
-  , "Headline" AS headline
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "Headline" AS title
   , "description" AS description
   , "Logo image path" AS logo_image_path
   , "Link URL" AS link_url
@@ -512,12 +534,13 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- Ad: create_brand_ad
 CREATE OR REPLACE TABLE {{ table }} (
-    customer_id INTEGER NOT NULL
+    customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , is_enabled BOOLEAN
-  , headline VARCHAR
+  , is_deleted BOOLEAN
+  , title VARCHAR
   , description VARCHAR
   , logo_image_path VARCHAR
   , link_url VARCHAR
@@ -533,7 +556,8 @@ SELECT
   , "Ad ID" AS ad_id
   , "Ad Creative Inspect Status" AS inspect_status
   , ("ON/OFF" = 0) AS is_enabled
-  , "Headline" AS headline
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "Headline" AS title
   , "description" AS description
   , "Logo image path" AS logo_image_path
   , "Link URL" AS link_url
@@ -555,19 +579,20 @@ INSERT INTO {{ table }} (
   , description
   , landing_url_pc
   , is_enabled
+  , is_deleted
   , created_at
   , deleted_at
   -- , nv_mid
 )
 SELECT ad.* --, grp.nv_mid
 FROM (
-  SELECT ad_id, adgroup_id, 9 AS ad_type, customer_id, headline AS title, description, link_url AS landing_url_pc, is_enabled, created_at, deleted_at
+  SELECT ad_id, adgroup_id, 9 AS ad_type, customer_id, title, description, link_url AS landing_url_pc, is_enabled, is_deleted, created_at, deleted_at
   FROM brand_ad
   UNION ALL
-  SELECT ad_id, adgroup_id, 12 AS ad_type, customer_id, headline AS title, description, link_url AS landing_url_pc, is_enabled, created_at, deleted_at
+  SELECT ad_id, adgroup_id, 12 AS ad_type, customer_id, title, description, link_url AS landing_url_pc, is_enabled, is_deleted, created_at, deleted_at
   FROM brand_thumbnail_ad
   UNION ALL
-  SELECT ad_id, adgroup_id, 13 AS ad_type, customer_id, headline AS title, description, link_url AS landing_url_pc, is_enabled, created_at, deleted_at
+  SELECT ad_id, adgroup_id, 13 AS ad_type, customer_id, title, description, link_url AS landing_url_pc, is_enabled, is_deleted, created_at, deleted_at
   FROM brand_banner_ad
 ) AS ad
 -- LEFT JOIN product_group_rel AS rel

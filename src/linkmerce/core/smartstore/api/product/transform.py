@@ -28,5 +28,5 @@ class Product(DuckDBTransformer):
     def validate_product(self, product: dict) -> dict:
         for key in ["groupProductNo", "manufacturerName", "modelName", "modelId", "sellerManagementCode"]:
             if key not in product:
-                product[key] = product.get(key)
+                product[key] = None
         return product

@@ -21,14 +21,19 @@ def has_cookies(session: Session, cookies: str = str()) -> bool:
 
 
 def has_permission(session: Session, customer_id: int | str, cookies: str = str()) -> bool:
+    return bool(whoami(session, customer_id, cookies))
+
+
+def whoami(session: Session, customer_id: int | str, cookies: str = str()) -> dict | None:
     from linkmerce.utils.headers import build_headers
+    import json
     url = f"https://gw.searchad.naver.com/auth/local/naver-cookie/ads-accounts/{customer_id}"
     origin = "https://searchad.naver.com"
     referer = f"{origin}/membership/select-account?redirectUrl=https%3A//manage.searchad.naver.com"
     headers = build_headers(cookies=cookies, referer=referer, origin=origin)
     with session.get(url, headers=headers) as response:
-        json = response.json()
-        return isinstance(json, dict) and (json.get("status") != 403)
+        body = json.loads(response.text)
+        return body.get("customer") if isinstance(body, dict) else None
 
 
 class SearchAdManager(Extractor):
@@ -67,7 +72,7 @@ class SearchAdManager(Extractor):
         return wrapper
 
     def authenticate(self):
-        cookies = self.get_request_headers().get("cookies", str())
+        cookies = self.get_request_headers().get("cookie", str())
         if not has_permission(self.get_session(), self.customer_id, cookies):
             from linkmerce.common.exceptions import AuthenticationError
             raise AuthenticationError("You don't have permission to access this account.")

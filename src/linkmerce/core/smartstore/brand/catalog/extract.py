@@ -139,7 +139,7 @@ class BrandCatalog(_CatalogExtractor):
             brand_ids: str,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
-            page: int | None = 0,
+            page: int = 0,
             page_size: int = 100,
             **kwargs
         ) -> dict:
@@ -248,7 +248,7 @@ class BrandProduct(_CatalogExtractor):
             mall_seq: int | str | None = None,
             sort_type: Literal["popular","recent","price"] = "poular",
             is_brand_catalog: bool | None = None,
-            page: int | None = 0,
+            page: int = 0,
             page_size: int = 100,
             **kwargs
         ) -> dict:

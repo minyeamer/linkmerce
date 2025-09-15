@@ -39,7 +39,7 @@ def get_catalog_options(
         progress: bool = True,
     ) -> dict:
     return dict(
-        PaginateAll = dict(max_concurrent=max_concurrent, request_delay=request_delay),
+        PaginateAll = dict(max_concurrent=max_concurrent, request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
         RequestEachPages = dict(max_concurrent=max_concurrent, request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
     )
 

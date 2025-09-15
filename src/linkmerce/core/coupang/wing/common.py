@@ -106,8 +106,10 @@ class CoupangWing(Extractor):
         return self.get_request_headers(with_token)
 
     def get_request_headers(self, with_token: bool = True) -> dict[str,str]:
-        appendix = {"x-xsrf-token": self.token} if with_token else dict()
-        return dict(super().get_request_headers(), **appendix)
+        if with_token:
+            return dict(super().get_request_headers(), **{"x-xsrf-token": self.token})
+        else:
+            return super().get_request_headers()
 
 
 class CoupangSupplierHub(CoupangWing):

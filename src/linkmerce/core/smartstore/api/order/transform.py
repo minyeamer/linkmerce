@@ -33,7 +33,7 @@ class Order(DuckDBTransformer):
     def validate_order(self, order: dict) -> dict:
         for key in ["orderId", "ordererNo", "ordererId", "ordererName", "payLocationType", "orderDate", "paymentDate"]:
             if key not in order:
-                order[key] = order.get(key)
+                order[key] = None
         return order
 
     def validate_product_order(self, product_order: dict) -> dict:
@@ -43,19 +43,19 @@ class Order(DuckDBTransformer):
                 "totalPaymentAmount", "paymentCommission", "expectedSettlementAmount", "decisionDate"]
         for key in keys:
             if key not in product_order:
-                product_order[key] = product_order.get(key)
+                product_order[key] = None
         return product_order
 
     def validate_delivery(self, delivery: dict) -> dict:
         for key in ["sendDate", "deliveredDate"]:
             if key not in delivery:
-                delivery[key] = delivery.get(key)
+                delivery[key] = None
         return delivery
 
     def validate_completed_claim(self, completed_claim: dict) -> dict:
         for key in ["claimType", "claimRequestAdmissionDate"]:
             if key not in completed_claim:
-                completed_claim[key] = completed_claim.get(key)
+                completed_claim[key] = None
         return completed_claim
 
 
@@ -98,5 +98,5 @@ class OrderStatus(DuckDBTransformer):
                 "receiverAddressChanged", "giftReceivingStatus", "paymentDate", "lastChangedDate"]
         for key in keys:
             if key not in change_status:
-                change_status[key] = change_status.get(key)
+                change_status[key] = None
         return change_status

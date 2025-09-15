@@ -17,7 +17,7 @@ def get_module(name: str) -> str:
 
 def get_options(request_delay: float | int = 1, progress: bool = True) -> dict:
     return dict(
-        PaginateAll = dict(request_delay=request_delay),
+        PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
         RequestEachPages = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
     )
 
