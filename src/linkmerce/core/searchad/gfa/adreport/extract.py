@@ -189,8 +189,7 @@ class PerformanceReport(SearchAdGFA):
     @property
     def default_options(self) -> dict:
         return dict(
-            Request = dict(request_delay=0.3),
-            RequestEach = dict(request_delay=0.3),
+            Request = dict(request_delay=1.01),
         )
 
     @property
@@ -203,60 +202,117 @@ class PerformanceReport(SearchAdGFA):
             self,
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+            columns: list[str] | Literal[":default:"] = ":default:",
+            wait_seconds: int = 60,
+            wait_interval: int = 1,
+            progress: bool = True,
             **kwargs
-        ) -> JsonObject:
-        """분석 기간 단위가 '일'인 경우, 조회 기간은 최대 62일을 선택할 수 있습니다."""
-        dates = dict(start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date))
-        return (self.request_each(self.request_json_safe)
-                .partial(**dates)
-                .expand(creative_no=self.fetch_creative(**dates))
-                .run())
+        ) -> dict[str,bytes]:
+        columns = self.db_columns if columns == ":default:" else columns
+        dates = self.generate_date_range(start_date, end_date=(start_date if end_date == ":start_date:" else end_date))
+        return self.download(columns, dates, date_type, wait_seconds, wait_interval, progress)
 
-    def fetch_creative(self, start_date: dt.date | str, end_date: dt.date | str) -> list[int]:
-        import json
-        import time
-        creative, current_page, total_page = list(), 1, 1
-        url = self.origin + f"/apis/stats/v1/adAccounts/{self.account_no}/stats/reportPerformance"
-        while current_page <= total_page:
-            params = {
-                "startDate": str(start_date),
-                "endDate": str(end_date),
-                "reportAdUnit": "CREATIVE",
-                "reportFilterListString": [],
-                "pageNumber": current_page,
-                "pageSize": 100,
-            }
-            headers = self.build_request_headers(start_date, end_date)
-            with self.request("GET", url, params=params, headers=headers) as response:
-                body = json.loads(response.text)
-                creative += [row["creativeNo"] for row in body["reportPerformanceDetailResponseList"]]
-                current_page += 1
-                total_page = int(body["totalPage"])
-            time.sleep(self.get_options("Request").get("request_delay") or 1)
-        return creative
-
-    def build_request_params(
+    def download(
             self,
-            creative_no: int,
-            start_date: dt.date | str,
-            end_date: dt.date | str,
+            columns: list[str],
+            dates: list[tuple[dt.date,dt.date]],
+            date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+            wait_seconds: int = 60,
+            wait_interval: int = 1,
+            progress: bool = True,
+        ) -> dict[str,bytes]:
+        from linkmerce.utils.progress import import_tqdm
+        import time
+        tqdm = import_tqdm()
+
+        status = [False] * len(dates)
+        for index, (start_date, end_date) in enumerate(tqdm(dates, desc="Requesting performance reports", disable=(not progress))):
+            kwargs = dict(start_date=start_date, end_date=end_date, date_type=date_type, columns=columns)
+            status[index] = self.request_download(**kwargs)
+            time.sleep(wait_interval)
+
+        indices = [i for i, status in enumerate(status[::-1]) if status]
+        downloads = self.wait_downloads(indices, wait_seconds, wait_interval, **kwargs)
+
+        results = dict()
+        for report in tqdm(downloads, desc="Downloading performance reports", disable=(not progress)):
+            file_name = self.query_to_filename(report["reportQuery"])
+            content = self.url_download(report["no"], **kwargs)
+            if report["fileSize"] > 0:
+                results[file_name] = self.parse(content, account_no=self.account_no)
+                time.sleep(wait_interval)
+            else:
+                results[file_name] = None
+        return results
+
+    def generate_date_range(self, start_date: dt.date | str, end_date: dt.date | str) -> list[tuple[dt.date,dt.date]]:
+        """분석 기간 단위가 '일'인 경우, 조회 기간은 최대 62일을 선택할 수 있습니다."""
+        from linkmerce.utils.date import date_split
+        return date_split(start_date, end_date, delta=dict(days=60), format=self.date_format)
+
+    def request_download(self, **kwargs) -> bool:
+        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads"
+        body = self.build_download_json(**kwargs)
+        headers = self.build_request_headers(**kwargs)
+        headers["content-type"] = "application/json"
+        with self.request("POST", url, json=body, headers=headers) as response:
+            return response.json()["success"]
+
+    def wait_downloads(self, indices: list[int], wait_seconds: int = 60, wait_interval: int = 1, **kwargs) -> list[dict]:
+        from linkmerce.common.exceptions import RequestError
+        import time
+        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads?reportType=PERFORMANCE"
+        headers = self.build_request_headers(**kwargs)
+        for _ in range(0, max(wait_seconds, 1), max(wait_interval, 1)):
+            time.sleep(wait_interval)
+            with self.request("GET", url, headers=headers) as response:
+                downloads = response.json()
+                for index in indices:
+                    if downloads[index]["status"] != "COMPLETED":
+                        continue
+                return [downloads[index] for index in indices]
+        raise RequestError("Download was not completed within the waiting seconds.")
+
+    def url_download(self, download_no: int, **kwargs) -> bytes:
+        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads/{download_no}/download"
+        headers = self.build_request_headers(**kwargs)
+        with self.request("GET", url, headers=headers) as response:
+            return response.content
+
+    def query_to_filename(self, report_query: dict) -> str:
+        start_date = str(report_query["startDate"]).replace('-', '')
+        end_date = str(report_query["endDate"]).replace('-', '')
+        return f"ReportDownload_aa_{self.account_no}_PERFORMANCE_{start_date}_{end_date}.csv"
+
+    def build_download_json(
+            self,
+            columns: list[str],
+            start_date: dt.date,
+            end_date: dt.date,
+            date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
             **kwargs
         ) -> dict:
         return {
-            "adUnitNo": creative_no,
-            "startDate": str(start_date),
-            "endDate": str(end_date),
-            "reportAdUnit": "CREATIVE",
-            "reportDateUnit": "DAY",
-            "placeUnit": str(),
-            "reportDimension": "TOTAL",
+            "needToNoti": False,
+            "reportQuery": {
+                "startDate": str(start_date),
+                "endDate": str(end_date),
+                "reportDateUnit": date_type,
+                "placeUnit": "TOTAL",
+                "reportAdUnit": "CREATIVE",
+                "reportDimension": "TOTAL",
+                "colList": columns,
+                "adAccountNo": self.account_no,
+                "reportFilterList": []
+            },
+            "reportType": "PERFORMANCE"
         }
 
-    def build_request_headers(self, start_date: dt.date | str, end_date: dt.date | str, **kwargs: str) -> dict[str,str]:
-        return dict(self.get_request_headers(with_token=True), referer=self.referer(start_date, end_date))
+    def build_request_headers(self, **kwargs: str) -> dict[str,str]:
+        return dict(self.get_request_headers(with_token=True), origin=self.origin, referer=self.referer(**kwargs))
 
-    def referer(self, start_date: dt.date | str, end_date: dt.date | str) -> str:
-        columns = ["result", "sales_per_result", "sales", "imp_count", "cpm", "click_count", "cpc", "ctr", "cvr", "roas"]
+    def referer(self, start_date: dt.date, end_date: dt.date, columns: list[str] = list(), **kwargs) -> str:
         params = '&'.join([f"{key}={value}" for key, value in {
             "startDate": str(start_date),
             "endDate": str(end_date),
@@ -267,7 +323,11 @@ class PerformanceReport(SearchAdGFA):
             "currentPage": 1,
             "pageSize": 100,
             "filterList": "%5B%5D",
-            "showColList": ("%5B%22" + "%22,%22".join(columns) + "%22%5D"),
+            "showColList": ("%5B%22" + "%22,%22".join(columns if columns else self.db_columns) + "%22%5D"),
             "accessAdAccountNo": self.account_no,
         }.items()])
         return "{}/adAccount/accounts/{}/report/performance?{}".format(self.origin, self.account_no, params)
+
+    @property
+    def db_columns(self) -> list[str]:
+        return ["sales", "impCount", "clickCount", "reachCount", "convCount", "convSales"]

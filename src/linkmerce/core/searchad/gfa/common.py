@@ -55,6 +55,7 @@ class SearchAdGFA(Extractor):
         def wrapper(self: SearchAdGFA, *args, **kwargs):
             self.authenticate()
             self.authorize()
+            self.set_request_headers(cookies=self.get_cookies())
             return func(self, *args, **kwargs)
         return wrapper
 
@@ -63,10 +64,12 @@ class SearchAdGFA(Extractor):
         if not logged_in(self.get_session(), cookies):
             from linkmerce.common.exceptions import AuthenticationError
             raise AuthenticationError("You don't have valid cookies.")
+        self.set_cookies(cookies)
 
     def authorize(self):
         url = self.origin + "/apis/gfa/anonymous/v1/regulations/downtime.notice/entire"
-        headers = dict(self.get_request_headers(with_token=False), referer=(self.origin + "/adAccount/accounts/73418"))
+        referer = self.origin + f"/adAccount/accounts/{self.account_no}"
+        headers = dict(self.get_request_headers(with_token=False), referer=referer)
         self.get_session().post(url, headers=headers)
 
     def build_request_headers(self, with_token: bool = True, **kwargs: str) -> dict[str,str]:

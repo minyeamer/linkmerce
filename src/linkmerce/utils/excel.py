@@ -11,6 +11,27 @@ def filter_warnings():
     warnings.filterwarnings("ignore", module="openpyxl.*")
 
 
+def csv2json(
+        io: _ZipFileFileProtocol,
+        header: int = 0,
+        delimiter: str = ",",
+        lineterminator: str = "\r\n",
+        encoding: str | None = "utf-8",
+    ) -> list[dict]:
+    import os
+    if isinstance(io, str) and os.path.exists(io):
+        with open(io, 'r', encoding=encoding) as file:
+            csv2json(file, header)
+
+    import csv
+    if isinstance(io, bytes):
+        from io import BytesIO, TextIOWrapper
+        io = TextIOWrapper(BytesIO(io), encoding=encoding)
+    rows = list(csv.reader(io, delimiter=delimiter, lineterminator=lineterminator))
+    header_row = rows[header]
+    return [dict(zip(header_row, row)) for row in rows[(header+1):]]
+
+
 def excel2json(
         io: _ZipFileFileProtocol,
         sheet_name: str | None = None,

@@ -126,6 +126,7 @@ with DAG(
                     account_no = account_no,
                     cookies = cookies,
                     start_date = date,
+                    date_type = "DAY",
                     connection = conn,
                     progress = False,
                     return_type = "none",
@@ -136,6 +137,7 @@ with DAG(
                         params = dict(
                             account_no = account_no,
                             date = date,
+                            date_type = "DAY",
                         ),
                         count = dict(
                             data = conn.count_table("data"),

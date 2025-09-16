@@ -39,32 +39,19 @@ class Creative(DuckDBTransformer):
             self.insert_into_table(adsets, params=dict(account_no=account_no))
 
 
-class PerformanceDetail(JsonTransformer):
-    path = ["reportPerformanceDetailResponseList"]
-
-    def transform(self, obj: JsonObject, **kwargs) -> JsonObject:
-        report = [row for row in obj["reportPerformanceDetailResponseList"]]
-        if report:
-            self.validate_row(report[0])
-        return report
-
-    def validate_row(self, row: dict):
-        for key in ["reachCount", "impCount", "clickCount", "spend"]:
-            if key not in row:
-                row.update({key: None})
-        row.update(conversion=self.validate_conversion(row.get("conversion") or dict()))
-
-    def validate_conversion(self, conversion: dict) -> dict:
-        for key in ["convCount", "convSalesKRW"]:
-            if key not in conversion:
-                conversion[key] = None
-        return conversion
-
-
 class PerformanceReport(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
-    def transform(self, obj: JsonObject, **kwargs):
-        report_json = PerformanceDetail().transform(obj)
+    def transform(self, obj: bytes, account_no: int | str, **kwargs):
+        from linkmerce.utils.excel import csv2json
+        report_json = csv2json(self.unzip(obj), header=0, encoding="utf-8-sig")
         if report_json:
-            self.insert_into_table(report_json)
+            self.insert_into_table(report_json, params=dict(account_no=account_no))
+
+    def unzip(self, obj: bytes) -> bytes:
+        from io import BytesIO
+        import zipfile
+        with zipfile.ZipFile(BytesIO(obj)) as zf:
+            for name in zf.namelist():
+                if name.endswith(".csv"):
+                    return zf.read(name)

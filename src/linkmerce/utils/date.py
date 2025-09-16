@@ -227,6 +227,27 @@ def date_pairs(
         return [(ranges[i], ranges[i+1] - dt.timedelta(days=1)) for i in range(len(ranges)-1)]
 
 
+def date_split(
+        start: dt.date | str,
+        end: dt.date | str,
+        delta: int | dict = 1,
+        format: str = "%Y-%m-%d",
+    ) -> list[tuple[dt.date,dt.date]]:
+    if isinstance(delta, int):
+        delta = dict(days=delta)
+
+    if delta.get("days") == 1:
+        return date_pairs(start, end, freq="D", format=format)
+    else:
+        ranges, start, end = list(), strpdate(start, format), strpdate(end, format)
+        cur = start
+        while cur <= end:
+            next = cur + dt.timedelta(**delta)
+            ranges.append((cur, min(next, end)))
+            cur = next + dt.timedelta(days=1)
+        return ranges
+
+
 def _generate_date_range(
         start: dt.date | str,
         end: dt.date | str,

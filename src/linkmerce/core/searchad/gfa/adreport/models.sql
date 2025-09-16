@@ -1,5 +1,5 @@
 -- Campaign: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     campaign_id VARCHAR PRIMARY KEY
   , campaign_name VARCHAR
   , campaign_type TINYINT -- Campaign: campaign_type
@@ -38,14 +38,15 @@ SELECT
   , adAccountNo AS customer_id
   , activated AS is_enabled
   , deleted AS is_deleted
-FROM {{ array }};
+FROM {{ array }}
+WHERE no IS NOT NULL;
 
 -- Campaign: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- AdSet: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     adgroup_id VARCHAR PRIMARY KEY
   , campaign_id VARCHAR NOT NULL
   , adgroup_name VARCHAR
@@ -80,14 +81,15 @@ SELECT
   , activated AS is_enabled
   , (status = 'DELETED') AS is_deleted
   , bidPrice AS bid_amount
-FROM {{ array }};
+FROM {{ array }}
+WHERE no IS NOT NULL;
 
 -- AdSet: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- Creative: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     ad_id VARCHAR PRIMARY KEY
   , adgroup_id VARCHAR NOT NULL
   , ad_type TINYINT -- Creative: creative_type
@@ -103,17 +105,17 @@ CREATE OR REPLACE TABLE {{ table }} (
 -- Creative: creative_type
 SELECT *
 FROM UNNEST([
-    STRUCT(101 AS type, 'SINGLE_IMAGE' AS code, '네이티브 이미지' AS name)
-  , STRUCT(102 AS type, 'MULTIPLE_IMAGE' AS code, '컬렉션' AS name)
-  , STRUCT(103 AS type, 'SINGLE_VIDEO' AS code, '동영상' AS name)
-  , STRUCT(104 AS type, 'IMAGE_BANNER' AS code, '이미지 배너' AS name)
-  , STRUCT(105 AS type, 'CATALOG' AS code, '카탈로그' AS name)
-  , STRUCT(106 AS type, 'COMPOSITION' AS code, 'ADVoost 소재' AS name)
+    STRUCT(101 AS type, 'SINGLE_IMAGE' AS code, '성과형-네이티브 이미지' AS name)
+  , STRUCT(102 AS type, 'MULTIPLE_IMAGE' AS code, '성과형-컬렉션' AS name)
+  , STRUCT(103 AS type, 'SINGLE_VIDEO' AS code, '성과형-동영상' AS name)
+  , STRUCT(104 AS type, 'IMAGE_BANNER' AS code, '성과형-이미지 배너' AS name)
+  , STRUCT(105 AS type, 'CATALOG' AS code, '성과형-카탈로그' AS name)
+  , STRUCT(106 AS type, 'COMPOSITION' AS code, '성과형-ADVoost 소재' AS name)
 ]);
 
 -- Creative: select
 SELECT
-    CAST(no AS VARCHAR) AS ad_id
+    CAST(COALESCE(realCreativeNo, no) AS VARCHAR) AS ad_id
   , CAST(adSetNo AS VARCHAR) AS adgroup_id
   , (CASE
       WHEN creativeType = 'SINGLE_IMAGE' THEN 101
@@ -130,21 +132,22 @@ SELECT
   , TRY_CAST(REGEXP_EXTRACT(medias[1].content.linkUrl, '(\d+)$', 1) AS BIGINT) AS product_id
   , activated AS is_enabled
   , (status = 'DELETED') AS is_deleted
-FROM {{ array }};
+FROM {{ array }}
+WHERE no IS NOT NULL;
 
 -- Creative: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- PerformanceReport: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     creative_no BIGINT
   , account_no BIGINT
   , campaign_no BIGINT
   , adset_no BIGINT
-  , reach_count INTEGER
   , impression_count INTEGER
   , click_count INTEGER
+  , reach_count INTEGER
   , ad_cost INTEGER
   , conv_count INTEGER
   , conv_amount INTEGER
@@ -154,21 +157,20 @@ CREATE OR REPLACE TABLE {{ table }} (
 
 -- PerformanceReport: select
 SELECT
-    creativeNo AS creative_no
-  , adAccountNo AS account_no
-  , campaignNo AS campaign_no
-  , adSetNo AS adset_no
-  , reachCount AS reach_count
-  , impCount AS impression_count
-  , clickCount AS click_count
-  , CAST(spend / 100000 AS INTEGER) AS ad_cost
-  , conversion.convCount AS conv_count
-  , conversion.convSalesKRW AS conv_amount
-  , CAST(STRPTIME(targetDate, '%Y.%m.%d.') AS DATE) AS ymd
+    TRY_CAST("광고 소재 ID" AS BIGINT) AS creative_no
+  , TRY_CAST($account_no AS BIGINT) AS account_no
+  , TRY_CAST("캠페인 ID" AS BIGINT) AS campaign_no
+  , TRY_CAST("광고 그룹 ID" AS BIGINT) AS adset_no
+  , TRY_CAST("노출" AS BIGINT) AS impression_count
+  , TRY_CAST("클릭" AS BIGINT) AS click_count
+  , TRY_CAST("도달" AS BIGINT) AS reach_count
+  , TRY_CAST("총 비용" AS BIGINT) AS ad_cost
+  , TRY_CAST("총 전환수" AS BIGINT) AS conv_count
+  , TRY_CAST("총 전환 매출액" AS BIGINT) AS conv_amount
+  , TRY_CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) AS ymd
 FROM {{ array }}
-WHERE (creativeNo IS NOT NULL)
-  AND (adAccountNo IS NOT NULL)
-  AND (CAST(STRPTIME(targetDate, '%Y.%m.%d.') AS DATE) IS NOT NULL);
+WHERE (TRY_CAST("광고 소재 ID" AS BIGINT) IS NOT NULL)
+  AND (TRY_CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) IS NOT NULL);
 
 -- PerformanceReport: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;

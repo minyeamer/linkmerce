@@ -73,6 +73,14 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
     def set_session(self, session: Literal["per_request"] | Session | ClientSession = "per_request"):
         self.__session = session
 
+    def set_cookies(self, cookies: str):
+        cookies = {kv.split('=')[0]: kv.split('=', 1)[1] for kv in cookies.split("; ")}
+        self.get_session().cookies.update(cookies)
+
+    def get_cookies(self) -> str:
+        cookies = self.get_session().cookies
+        return "; ".join([f"{key}={value}" for key, value in cookies.items()])
+
     ########################## Request Params #########################
 
     def build_request_params(self, **kwargs) -> dict | list[tuple] | bytes | None:
@@ -557,15 +565,15 @@ class LoginHandler(Extractor):
         return wrapper
 
     def set_cookies(self, cookies: str):
-        cookies = {kv.split('=')[0]: kv.split('=', 1)[1] for kv in cookies.split("; ")}
         if self.get_session() == "per_request":
+            cookies = {kv.split('=')[0]: kv.split('=', 1)[1] for kv in cookies.split("; ")}
             self.cookies.update(cookies)
         else:
-            self.get_session().cookies.update(cookies)
+            super().set_cookies(cookies)
 
     def get_cookies(self) -> str:
         if self.get_session() == "per_request":
             cookies = self.cookies
+            return "; ".join([f"{key}={value}" for key, value in cookies.items()])
         else:
-            cookies = self.get_session().cookies
-        return "; ".join([f"{key}={value}" for key, value in cookies.items()])
+            return super().get_cookies()
