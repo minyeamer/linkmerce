@@ -55,10 +55,15 @@ def worksheet2py(
                 return False
             elif re.match(r"^\d+(\.\d*)?%$", value):
                 return float(value[:-1]) / 100
-            elif re.match(r"^\d{4}-\d{2}-\d{2}$", value):
-                return dt.datetime.strptime(value, "%Y-%m-%d").date()
-            elif re.match(r"^\d{4}-\d{2}-\d{2}$ \d{2}:\d{2}:\d{2}", value):
-                return dt.datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+            elif re.match(r"^\d{4}-\d{2}-\d{2}", value):
+                if re.match(r"^\d{4}-\d{2}-\d{2}$", value):
+                    return dt.datetime.strptime(value, "%Y-%m-%d").date()
+                elif re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", value):
+                    return dt.datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+                elif re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}", value):
+                    return dt.datetime.strptime(value, "%Y-%m-%d %H:%M")
+                elif re.match(r"^\d{4}-\d{2}-\d{2} \d{2}", value):
+                    return dt.datetime.strptime(value, "%Y-%m-%d %H")
         return value
 
     return list_apply(records, func=to_python_object, keys=keys)
