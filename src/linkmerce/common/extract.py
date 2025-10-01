@@ -57,8 +57,8 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
 
     def build_request_message(self, **kwargs) -> dict:
         return dict(filter(lambda x: x[1] is not None, [
-                ("method", self.method or kwargs["method"]),
-                ("url", self.url or kwargs["url"]),
+                ("method", kwargs["method"] if "method" in kwargs else self.method),
+                ("url", kwargs["url"] if "url" in kwargs else self.url),
                 ("params", self.build_request_params(**kwargs)),
                 ("data", self.build_request_data(**kwargs)),
                 ("json", self.build_request_json(**kwargs)),
