@@ -161,6 +161,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , description VARCHAR
   , landing_url_pc VARCHAR
   , landing_url_mobile VARCHAR
+  , product_id BIGINT
   , is_enabled BOOLEAN
   , is_deleted BOOLEAN
   , created_at TIMESTAMP
@@ -177,6 +178,14 @@ SELECT
   , "Description" AS description
   , "Landing URL(PC)" AS landing_url_pc
   , "Landing URL(Mobile)" AS landing_url_mobile
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES(
+            COALESCE("Landing URL(PC)", "Landing URL(Mobile)")
+          , '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT(
+            COALESCE("Landing URL(PC)", "Landing URL(Mobile)")
+          , '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
   , ("ON/OFF" = 0) AS is_enabled
   , ("delTm" IS NOT NULL) AS is_deleted
   , "regTm" AS created_at
@@ -196,6 +205,7 @@ INSERT INTO {{ table }} (
   , description
   , landing_url_pc
   , landing_url_mobile
+  , product_id
   , is_enabled
   , is_deleted
   , created_at
@@ -210,6 +220,7 @@ SELECT
   , description
   , landing_url_pc
   , landing_url_mobile
+  , product_id
   , is_enabled
   , is_deleted
   , created_at
@@ -467,6 +478,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , extra_description VARCHAR
   , logo_image_path VARCHAR
   , link_url VARCHAR
+  , product_id BIGINT
   , thumbnail_image_path VARCHAR
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
@@ -485,6 +497,10 @@ SELECT
   , "extra Description" AS extra_description
   , "Logo image path" AS logo_image_path
   , "Link URL" AS link_url
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
   , "Thumbnail Image path" AS thumbnail_image_path
   , "regTm" AS created_at
   , "delTm" AS deleted_at
@@ -506,6 +522,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , description VARCHAR
   , logo_image_path VARCHAR
   , link_url VARCHAR
+  , product_id BIGINT
   , thumbnail_image_path VARCHAR
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
@@ -523,6 +540,10 @@ SELECT
   , "description" AS description
   , "Logo image path" AS logo_image_path
   , "Link URL" AS link_url
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
   , "Thumbnail Image path" AS thumbnail_image_path
   , "regTm" AS created_at
   , "delTm" AS deleted_at
@@ -544,6 +565,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , description VARCHAR
   , logo_image_path VARCHAR
   , link_url VARCHAR
+  , product_id BIGINT
   , image_path VARCHAR
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
@@ -561,6 +583,10 @@ SELECT
   , "description" AS description
   , "Logo image path" AS logo_image_path
   , "Link URL" AS link_url
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
   , "Image path" AS image_path
   , "regTm" AS created_at
   , "delTm" AS deleted_at
@@ -578,6 +604,7 @@ INSERT INTO {{ table }} (
   , title
   , description
   , landing_url_pc
+  , product_id
   , is_enabled
   , is_deleted
   , created_at
@@ -586,13 +613,19 @@ INSERT INTO {{ table }} (
 )
 SELECT ad.* --, grp.nv_mid
 FROM (
-  SELECT ad_id, adgroup_id, 9 AS ad_type, customer_id, title, description, link_url AS landing_url_pc, is_enabled, is_deleted, created_at, deleted_at
+  SELECT
+      ad_id, adgroup_id, 9 AS ad_type, customer_id, title, description
+    , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
   FROM brand_ad
   UNION ALL
-  SELECT ad_id, adgroup_id, 12 AS ad_type, customer_id, title, description, link_url AS landing_url_pc, is_enabled, is_deleted, created_at, deleted_at
+  SELECT
+      ad_id, adgroup_id, 12 AS ad_type, customer_id, title, description
+    , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
   FROM brand_thumbnail_ad
   UNION ALL
-  SELECT ad_id, adgroup_id, 13 AS ad_type, customer_id, title, description, link_url AS landing_url_pc, is_enabled, is_deleted, created_at, deleted_at
+  SELECT
+      ad_id, adgroup_id, 13 AS ad_type, customer_id, title, description
+    , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
   FROM brand_banner_ad
 ) AS ad
 -- LEFT JOIN product_group_rel AS rel

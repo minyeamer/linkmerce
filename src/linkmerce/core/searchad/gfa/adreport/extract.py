@@ -239,7 +239,7 @@ class PerformanceReport(SearchAdGFA):
         for report in tqdm(downloads, desc="Downloading performance reports", disable=(not progress)):
             file_name = self.query_to_filename(report["reportQuery"])
             content = self.url_download(report["no"], **kwargs)
-            if report["fileSize"] > 0:
+            if isinstance(report["fileSize"], int) and (report["fileSize"] > 0):
                 results[file_name] = self.parse(content, account_no=self.account_no)
                 time.sleep(wait_interval)
             else:
