@@ -60,10 +60,10 @@ with DAG(
                         excel_form = excel_form,
                     ),
                     count = dict(
-                        order = conn.count_table("data"),
+                        data = conn.count_table("data"),
                     ),
                     status = dict(
-                        order = client.load_table_from_duckdb(
+                        data = client.load_table_from_duckdb(
                             connection = conn,
                             source_table = "data",
                             target_table = tables["order"],
