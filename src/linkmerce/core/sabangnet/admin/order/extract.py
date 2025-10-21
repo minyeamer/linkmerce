@@ -149,11 +149,12 @@ class OrderDownload(Order):
         return {file_name: self.parse(response.content)}
 
     def get_file_name(self, content_disposition: str) -> str:
+        default = "주문서확인처리.xlsx"
         if not isinstance(content_disposition, str):
-            return "주문서확인처리.xlsx"
+            return default
         from linkmerce.utils.regex import regexp_extract
         from urllib.parse import unquote
-        return regexp_extract(r"(\d{8}_.*\.xlsx)", unquote(content_disposition)) or "주문서확인처리.xlsx"
+        return regexp_extract(r"(\d{8}_.*\.xlsx)", unquote(content_disposition)) or default
 
     def build_request_json(
             self,
