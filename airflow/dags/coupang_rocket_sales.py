@@ -39,8 +39,8 @@ with DAG(
         return str(start_date.date()), str(end_date.date())
 
     def main(
-            userid: str,
-            passwd: str,
+            cookies: str,
+            xsrf_token: str,
             vendor_id: str,
             start_date: str,
             end_date: str,
@@ -55,8 +55,8 @@ with DAG(
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             rocket_settlement_download(
-                userid = userid,
-                passwd = passwd,
+                cookies = cookies,
+                xsrf_token = xsrf_token,
                 vendor_id = vendor_id,
                 start_date = start_date,
                 end_date = end_date,

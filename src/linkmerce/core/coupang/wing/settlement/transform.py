@@ -38,7 +38,7 @@ class RocketSettlementList(JsonTransformer):
 class RocketSettlement(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
-    def transform(self, obj: JsonObject, vendor_id: str, **kwargs):
+    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
         reports = RocketSettlementList().transform(obj)
         if reports:
             return self.insert_into_table(reports, params=dict(vendor_id=vendor_id))
@@ -55,19 +55,19 @@ class RocketSettlementDownload(DuckDBTransformer):
         super().create_table(key="create_sales", table=":sales:")
         super().create_table(key="create_shipping", table=":shipping:")
 
-    def transform(self, obj: bytes, report_type: Literal["CATEGORY_TR","WAREHOUSING_SHIPPING"], vendor_id: str, **kwargs):
+    def transform(self, obj: bytes, report_type: Literal["CATEGORY_TR","WAREHOUSING_SHIPPING"], vendor_id: str | None = None, **kwargs):
         if report_type == "CATEGORY_TR":
             return self.insert_into_sales_table(obj, vendor_id)
         else:
             return self.insert_into_shipping_table(obj, vendor_id)
 
-    def insert_into_sales_table(self, obj: bytes, vendor_id: str):
+    def insert_into_sales_table(self, obj: bytes, vendor_id: str | None = None):
         from linkmerce.utils.excel import excel2json
         reports = excel2json(obj, header=2, warnings=False)
         if reports:
             return self.insert_into_table(reports, key="insert_sales", table=":sales:", values=":select_sales:", params=dict(vendor_id=vendor_id))
 
-    def insert_into_shipping_table(self, obj: bytes, vendor_id: str):
+    def insert_into_shipping_table(self, obj: bytes, vendor_id: str | None = None):
         from linkmerce.utils.excel import filter_warnings
         from io import BytesIO
         import openpyxl

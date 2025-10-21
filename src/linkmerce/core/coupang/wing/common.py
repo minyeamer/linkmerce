@@ -1,49 +1,58 @@
 from __future__ import annotations
 
 from linkmerce.common.extract import Extractor, LoginHandler
-import functools
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Variables
+    from typing import Literal
 
 
 class CoupangWing(Extractor):
     method: str | None = None
     origin = "https://wing.coupang.com"
     path: str | None = None
-    token: str = str()
-
-    def set_variables(self, variables: Variables = dict()):
-        try:
-            self.set_account(**variables)
-        except TypeError:
-            raise TypeError("Coupang requires variables for userid and passwd to authenticate.")
-
-    def set_account(self, userid: str, passwd: str, **variables):
-        super().set_variables(dict(userid=userid, passwd=passwd, **variables))
+    token_required: bool = False
 
     @property
     def url(self) -> str:
         return self.concat_path(self.origin, self.path)
 
-    def with_cookies(func):
-        @functools.wraps(func)
-        def wrapper(self: CoupangWing, *args, **kwargs):
-            self.login(self.get_variable("userid"), self.get_variable("passwd"))
-            return func(self, *args, **kwargs)
-        return wrapper
+    @Extractor.cookies_required
+    def set_request_headers(self, xsrf_token: str | None = None, **kwargs):
+        if self.token_required:
+            if xsrf_token:
+                kwargs["x-xsrf-token"] = xsrf_token
+            else:
+                raise ValueError("XSRF-TOKEN is required.")
+        super().set_request_headers(**kwargs)
 
-    def with_token(func):
-        @functools.wraps(func)
-        def wrapper(self: CoupangWing, *args, **kwargs):
-            self.login(self.get_variable("userid"), self.get_variable("passwd"))
-            self.fetch_xsrf_token()
-            return func(self, *args, **kwargs)
-        return wrapper
 
-    def login(self, userid: str, passwd: str):
+class CoupangSupplierHub(CoupangWing):
+    origin = "https://supplier.coupang.com"
+
+
+class CoupangLogin(LoginHandler):
+    origin = "https://wing.coupang.com"
+
+    @LoginHandler.with_session
+    def login(
+            self,
+            userid: str,
+            passwd: str,
+            domain: Literal["wing","supplier"] = "wing",
+            with_token: bool = False,
+            **kwargs
+        ) -> dict:
+        self.origin = f"https://{domain}.coupang.com"
+        self.vendor_login(userid, passwd)
+        if with_token:
+            xsrf_token = self.fetch_xsrf_token()
+            return dict(cookies=self.get_cookies(), xsrf_token=xsrf_token)
+        else:
+            return dict(cookies=self.get_cookies())
+
+    def vendor_login(self, userid: str, passwd: str):
         login_url = self.fetch_main(allow_redirects=False)
         # login_url = "http://wing.coupang.com/login?ui_locales=ko-KR&service_cmdb_role=wing&sxauth_sdk_version={version}.RELEASE&returnUrl=http%3A%2F%2Fwing.coupang.com%2F"
         redirect_url = self.login_redirect(login_url)
@@ -95,37 +104,9 @@ class CoupangWing(Extractor):
         with self.request("POST", xauth_url, data=body, headers=headers, allow_redirects=False) as response:
             return response.headers.get("Location")
 
-    def fetch_xsrf_token(self):
+    def fetch_xsrf_token(self) -> str:
         from linkmerce.utils.headers import build_headers
         url = self.origin + "/tenants/sfl-portal/card/cre/resource"
         headers = build_headers(url, referer=self.origin, ajax=True)
         self.request("GET", url, headers=headers)
-        self.token = self.get_session().cookies.get("XSRF-TOKEN")
-
-    def build_request_headers(self, with_token: bool = True, **kwargs: str) -> dict[str,str]:
-        return self.get_request_headers(with_token)
-
-    def get_request_headers(self, with_token: bool = True) -> dict[str,str]:
-        if with_token:
-            return dict(super().get_request_headers(), **{"x-xsrf-token": self.token})
-        else:
-            return super().get_request_headers()
-
-
-class CoupangSupplierHub(CoupangWing):
-    origin = "https://supplier.coupang.com"
-
-
-class CoupangLogin(LoginHandler, CoupangWing):
-
-    def set_variables(self, variables: Variables = dict()):
-        LoginHandler.set_variables(self, variables)
-
-    @LoginHandler.with_session
-    def login(self, userid: str, passwd: str, with_token: bool = False, **kwargs) -> dict:
-        CoupangWing.login(self, userid, passwd)
-        if with_token:
-            self.fetch_xsrf_token()
-            return dict(cookies=self.get_cookies(), token=self.token)
-        else:
-            return dict(cookies=self.get_cookies())
+        return self.get_session().cookies.get("XSRF-TOKEN")

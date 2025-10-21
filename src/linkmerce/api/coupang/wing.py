@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from typing import Literal
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
+    from pathlib import Path
     import datetime as dt
 
 
@@ -15,15 +16,28 @@ def get_module(name: str) -> str:
     return (".coupang.wing" + name) if name.startswith('.') else name
 
 
-def login(userid: str, passwd: str) -> dict[str,str]:
+def login(
+        userid: str,
+        passwd: str,
+        domain: Literal["wing","supplier"] = "wing",
+        save_to: str | Path | None = None,
+        token_to: str | Path | None = None,
+    ) -> dict[str,str]:
     from linkmerce.core.coupang.wing.common import CoupangLogin
     auth = CoupangLogin()
-    return auth.login(userid, passwd)
+    credentials = auth.login(userid, passwd, domain, with_token=bool(token_to))
+    if credentials.get("cookies") and save_to:
+        with open(save_to, 'w', encoding="utf-8") as file:
+            file.write(credentials["cookies"])
+    if credentials.get("xsrf_token") and token_to:
+        with open(token_to, 'w', encoding="utf-8") as file:
+            file.write(credentials["xsrf_token"])
+    return credentials
 
 
 def summary(
-        userid: str,
-        passwd: str,
+        cookies: str,
+        xsrf_token: str,
         start_from: str,
         end_to: str,
         extract_options: dict = dict(),
@@ -38,19 +52,19 @@ def summary(
         args = (start_from, end_to),
         extract_options = dict(
             extract_options,
-            variables = dict(userid=userid, passwd=passwd),
+            headers = dict(cookies=cookies, xsrf_token=xsrf_token),
         ),
         transform_options = transform_options,
     )
 
 
 def rocket_settlement(
-        userid: str,
-        passwd: str,
-        vendor_id: str,
+        cookies: str,
+        xsrf_token: str,
         start_date: dt.date | str, 
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         date_type: Literal["PAYMENT","SALES"] = "SALES",
+        vendor_id: str | None = None,
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -68,23 +82,22 @@ def rocket_settlement(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        args = (start_date, end_date, date_type),
+        args = (start_date, end_date, date_type, vendor_id),
         extract_options = dict(
             extract_options,
-            variables=dict(userid=userid, passwd=passwd, vendor_id=vendor_id),
+            headers = dict(cookies=cookies, xsrf_token=xsrf_token),
         ),
         transform_options = transform_options,
     )
 
 
 def rocket_settlement_download(
-        userid: str,
-        passwd: str,
-        vendor_id: str,
+        cookies: str,
+        xsrf_token: str,
         start_date: dt.date | str, 
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         date_type: Literal["PAYMENT","SALES"] = "SALES",
-        locale: str = "ko",
+        vendor_id: str | None = None,
         wait_seconds: int = 60,
         wait_interval: int = 1,
         progress: bool = True,
@@ -105,10 +118,10 @@ def rocket_settlement_download(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        args = (start_date, end_date, date_type, locale, wait_seconds, wait_interval, progress),
+        args = (start_date, end_date, date_type, vendor_id, wait_seconds, wait_interval, progress),
         extract_options = dict(
             extract_options,
-            variables=dict(userid=userid, passwd=passwd, vendor_id=vendor_id),
+            headers = dict(cookies=cookies, xsrf_token=xsrf_token),
         ),
         transform_options = transform_options,
     )

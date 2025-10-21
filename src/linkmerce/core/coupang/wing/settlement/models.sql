@@ -1,7 +1,7 @@
 -- RocketSettlement: create
 CREATE OR REPLACE TABLE {{ table }} (
     group_key VARCHAR PRIMARY KEY
-  , vendor_id VARCHAR NOT NULL
+  , vendor_id VARCHAR
   , settlement_ratio INTEGER
   , settlement_amount INTEGER
   , sales_amount INTEGER
