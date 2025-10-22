@@ -6,7 +6,7 @@ import pendulum
 with DAG(
     dag_id = "coupang_rocket_sales",
     schedule = "30 9 * * *",
-    start_date = pendulum.datetime(2025, 9, 15, tz="Asia/Seoul"),
+    start_date = pendulum.datetime(2025, 10, 22, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
     tags = ["priority:high", "coupang:rocket", "login:coupang", "schedule:daily", "time:morning"],
@@ -40,7 +40,6 @@ with DAG(
 
     def main(
             cookies: str,
-            xsrf_token: str,
             vendor_id: str,
             start_date: str,
             end_date: str,
@@ -56,7 +55,6 @@ with DAG(
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             rocket_settlement_download(
                 cookies = cookies,
-                xsrf_token = xsrf_token,
                 vendor_id = vendor_id,
                 start_date = start_date,
                 end_date = end_date,

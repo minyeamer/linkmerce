@@ -18,14 +18,14 @@ class CoupangWing(Extractor):
     def url(self) -> str:
         return self.concat_path(self.origin, self.path)
 
-    @Extractor.cookies_required
-    def set_request_headers(self, xsrf_token: str | None = None, **kwargs):
+    def set_request_headers(self, cookies: str, **kwargs):
         if self.token_required:
-            if xsrf_token:
-                kwargs["x-xsrf-token"] = xsrf_token
-            else:
-                raise ValueError("XSRF-TOKEN is required.")
-        super().set_request_headers(**kwargs)
+            try:
+                cookies_map = dict([kv.split('=', maxsplit=1) for kv in str(cookies).split("; ")])
+                kwargs["x-xsrf-token"] = cookies_map["XSRF-TOKEN"]
+            except:
+                raise ValueError("Missing XSRF-TOKEN in cookies.")
+        super().set_request_headers(cookies=cookies, **kwargs)
 
 
 class CoupangSupplierHub(CoupangWing):

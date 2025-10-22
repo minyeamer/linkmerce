@@ -74,7 +74,7 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
         self.__session = session
 
     def set_cookies(self, cookies: str):
-        cookies = {kv.split('=')[0]: kv.split('=', 1)[1] for kv in cookies.split("; ")}
+        cookies = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ")])
         self.get_session().cookies.update(cookies)
 
     def get_cookies(self) -> str:
@@ -566,7 +566,7 @@ class LoginHandler(Extractor):
 
     def set_cookies(self, cookies: str):
         if self.get_session() == "per_request":
-            cookies = {kv.split('=')[0]: kv.split('=', 1)[1] for kv in cookies.split("; ")}
+            cookies = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ")])
             self.cookies.update(cookies)
         else:
             super().set_cookies(cookies)

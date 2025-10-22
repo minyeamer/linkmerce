@@ -13,6 +13,8 @@ with DAG(
     tags = ["priority:high", "all:cookies", "login:partnercenter", "login:searchad", "schedule:daily", "time:night"],
 ) as dag:
 
+    LOGIN_RETRIES = 3
+
     def preview(cookies: str, size: int = 100) -> str:
         return (cookies[:size] + "...") if len(cookies) > size else cookies
 
@@ -28,7 +30,7 @@ with DAG(
         return regexp_extract(r"Path\(([^)]+)\)", cookies)
 
 
-    @task(task_id="login_partner_center")
+    @task(task_id="login_partner_center", retries=LOGIN_RETRIES)
     def login_partner_center(ti: TaskInstance, **kwargs) -> str:
         from linkmerce.api.smartstore.brand import login
         from typing import Sequence
@@ -76,8 +78,9 @@ with DAG(
             for _ in range(wait_seconds // wait_interval):
                 time.sleep(wait_interval)
                 cookies = page.context.cookies()
-                if len([cookie for cookie in cookies if cookie["name"] == "NID_AUT"]) > 0:
-                    return
+                for cookie in cookies:
+                    if cookie["name"] == "NID_AUT":
+                        return
 
         def save_cookies(page: Page, save_to: str) -> str:
             cookies = '; '.join([f"{cookie['name']}={cookie['value']}" for cookie in page.context.cookies()])
@@ -93,22 +96,33 @@ with DAG(
         cookies_map = {cookie["customer_id"]: cookie["cookies"] for cookie in cookies_arr}
 
         users = users if isinstance((users := credentials["searchad"]["users"]), Sequence) else [users]
-        exceptions = list()
         results = {user["customer_id"]: None for user in users if user["customer_id"] in cookies_map}
         random.shuffle(users)
+
+        exceptions = list()
 
         for user in users:
             customer_id = user["customer_id"]
             if customer_id in cookies_map:
-                with sync_playwright() as playwright:
-                    try:
-                        cookies = login_naver(playwright, user["userid"], user["passwd"], save_to=extract_path(cookies_map[customer_id]))
-                        logging.info(f"{customer_id}: SUCCESS")
-                        results[customer_id] = preview(cookies)
-                    except Exception as exception:
-                        exceptions.append(exception)
-                        logging.error(f"{customer_id}: FAILED - {exception}")
-                        results[customer_id] = preview(str(exception))
+                for i in range(LOGIN_RETRIES):
+                    with sync_playwright() as playwright:
+                        try:
+                            cookies = login_naver(
+                                playwright = playwright,
+                                userid = user["userid"],
+                                passwd = user["passwd"],
+                                save_to = extract_path(cookies_map[customer_id]),
+                            )
+                            logging.info(f"[{customer_id}] SUCCESS ({i})")
+                            results[customer_id] = preview(cookies)
+                            break
+                        except Exception as exception:
+                            logging.error(f"[{customer_id}] FAILED ({i}) - [{exception.__class__.__name__}] {exception}")
+                            results[customer_id] = preview(str(exception))
+                            if i == (LOGIN_RETRIES-1):
+                                exceptions.append(exception)
+                            else:
+                                time.sleep(1)
                 time.sleep(1)
 
         if exceptions:

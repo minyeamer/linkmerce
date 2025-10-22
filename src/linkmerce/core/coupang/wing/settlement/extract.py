@@ -121,7 +121,8 @@ class RocketSettlementDownload(RocketSettlement):
         request_info = self.request_download(report_type, group_key, request_time)
         file_name = "{}-{}-{}-{}.xlsx".format(request_info["vendorId"], report_type, self.locale, request_info["requestId"])
         self.wait_download(request_info["requestId"], request_time, wait_seconds, wait_interval)
-        content = self.url_download(request_time)
+        download_url = self.get_download_url(request_time)
+        content = self.download_excel(download_url)
         return file_name, self.parse(content, report_type=report_type, vendor_id=vendor_id)
 
     def current_time(self) -> int:
@@ -153,9 +154,14 @@ class RocketSettlementDownload(RocketSettlement):
                             return True
         raise ValueError("Failed to create the settlement report.")
 
-    def url_download(self, request_time: int) -> bytes:
+    def get_download_url(self, request_time: int) -> str:
         url = self.origin + "/tenants/rfm/v2/settlements/download/api/v2"
         body = {"requestTime": str(request_time), "locale": self.locale}
         headers = self.build_request_headers()
         with self.request("POST", url, json=body, headers=headers) as response:
-            return self.request("GET", response.json()["url"], headers=headers).content
+            return response.json()["url"]
+
+    def download_excel(self, download_url: str) -> bytes:
+        from linkmerce.utils.headers import build_headers
+        headers = build_headers(host=download_url, referer=self.origin, metadata="navigate", https=True)
+        return self.request("GET", download_url, headers=headers).content
