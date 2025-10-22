@@ -6,7 +6,7 @@ import pendulum
 
 with DAG(
     dag_id = "sabangnet_order",
-    schedule = "50 8 * * *",
+    schedule = "15 9 * * *",
     start_date = pendulum.datetime(2025, 9, 11, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
@@ -23,15 +23,17 @@ with DAG(
 
     @task(task_id="etl_sabangnet_order")
     def etl_sabangnet_order(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
-        return main(date=date, **ti.xcom_pull(task_ids="read_variables"))
+        start_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=7).date())
+        end_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
+        return main(start_date=start_date, end_date=end_date, **ti.xcom_pull(task_ids="read_variables"))
 
     def main(
             userid: str,
             passwd: str,
             domain: int,
             excel_form: int,
-            date: str,
+            start_date: str,
+            end_date: str,
             service_account: dict,
             tables: dict[str,str],
             **kwargs
@@ -46,7 +48,8 @@ with DAG(
                 passwd = passwd,
                 domain = domain,
                 excel_form = excel_form,
-                start_date = date,
+                start_date = start_date,
+                end_date = end_date,
                 date_type = "ord_dt",
                 connection = conn,
                 return_type = "none",
@@ -55,7 +58,8 @@ with DAG(
             with BigQueryClient(service_account) as client:
                 return dict(
                     params = dict(
-                        date = date,
+                        start_date = start_date,
+                        end_date = end_date,
                         date_type = "ord_dt",
                         excel_form = excel_form,
                     ),
@@ -63,10 +67,11 @@ with DAG(
                         data = conn.count_table("data"),
                     ),
                     status = dict(
-                        data = client.load_table_from_duckdb(
+                        data = client.overwrite_table_from_duckdb(
                             connection = conn,
                             source_table = "data",
                             target_table = tables["order"],
+                            where_clause = f"DATE(order_dt) BETWEEN '{start_date}' AND '{end_date}'",
                             progress = False,
                         ),
                     ),

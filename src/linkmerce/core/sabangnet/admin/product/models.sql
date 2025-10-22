@@ -106,6 +106,14 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , register_dt TIMESTAMP
 );
 
+-- OptionDownload: option_status
+SELECT *
+FROM UNNEST([
+  , STRUCT(1 AS code, '판매' AS name)
+  , STRUCT(2 AS code, '품절' AS name)
+  , STRUCT(3 AS code, '미사용' AS name)
+]);
+
 -- OptionDownload: option_type
 SELECT *
 FROM UNNEST([
