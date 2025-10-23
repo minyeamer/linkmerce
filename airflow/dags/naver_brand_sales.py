@@ -5,12 +5,12 @@ import pendulum
 
 
 with DAG(
-    dag_id = "naver_brand_sales_next",
+    dag_id = "naver_brand_sales",
     schedule = "10,30,50 9,10 * * *",
-    start_date = pendulum.datetime(2025, 8, 15, tz="Asia/Seoul"),
+    start_date = pendulum.datetime(2025, 10, 24, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:high", "naver:sales", "naver:product", "login:partnercenter", "schedule:daily-incremental", "time:morning"],
+    tags = ["priority:high", "naver:sales", "naver:product", "login:partnercenter", "schedule:daily", "time:morning"],
 ) as dag:
 
     PATH = ["smartstore", "brand", "naver_brand_sales"]
@@ -21,15 +21,22 @@ with DAG(
         return read(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
 
 
+    FIRST_SCHEDULE = "09:10"
+    LAST_2_DAYS = 2
+    YESTERDAY = 1
+
     @task(task_id="etl_naver_brand_sales")
     def etl_naver_brand_sales(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
-        return main(date=date, **ti.xcom_pull(task_ids="read_variables"))
+        delta = LAST_2_DAYS if data_interval_end.strftime("%H:%M") == FIRST_SCHEDULE else YESTERDAY
+        start_date = data_interval_end.in_timezone("Asia/Seoul").subtract(days=delta)
+        end_date = data_interval_end.in_timezone("Asia/Seoul").subtract(days=YESTERDAY)
+        return main(start_date=start_date, end_date=end_date, **ti.xcom_pull(task_ids="read_variables"))
 
     def main(
-            mall_seq: list[int],
-            date: str,
             cookies: str,
+            mall_seq: list[int],
+            start_date: str,
+            end_date: str,
             service_account: dict,
             tables: dict[str,str],
             merge: dict[str,dict],
@@ -44,7 +51,8 @@ with DAG(
             aggregated_sales(
                 cookies = cookies,
                 mall_seq = mall_seq,
-                start_date = date,
+                start_date = start_date,
+                end_date = end_date,
                 connection = conn,
                 tables = sources,
                 how = "async",
@@ -56,7 +64,8 @@ with DAG(
                 return dict(
                     params = dict(
                         mall_seq = len(mall_seq),
-                        date = date,
+                        start_date = start_date,
+                        end_date = end_date,
                     ),
                     count = dict(
                         sales = conn.count_table(sources["sales"]),
@@ -68,8 +77,8 @@ with DAG(
                             source_table = sources["sales"],
                             staging_table = tables["temp_sales"],
                             target_table = tables["sales"],
-                            where_clause = f"payment_date = '{date}'",
                             **merge["sales"],
+                            where_clause = f"T.payment_date BETWEEN '{start_date}' AND '{end_date}'",
                             progress = False,
                         ),
                         product = client.merge_into_table_from_duckdb(

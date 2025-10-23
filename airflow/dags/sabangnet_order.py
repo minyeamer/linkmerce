@@ -1,16 +1,22 @@
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
+from airflow.timetables.trigger import MultipleCronTriggerTimetable
 from datetime import timedelta
 import pendulum
 
 
 with DAG(
     dag_id = "sabangnet_order",
-    schedule = "15 9 * * *",
+    schedule = MultipleCronTriggerTimetable(
+        "15 9 * * 1~5",
+        "30 10 * * 1~5",
+        "0 15 * * 1~5",
+        timezone = "Asia/Seoul",
+    ),
     start_date = pendulum.datetime(2025, 9, 11, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:high", "sabangnet:order", "login:sabangnet", "schedule:daily", "time:morning"],
+    tags = ["priority:high", "sabangnet:order", "sabangnet:invoice", "login:sabangnet", "schedule:weekdays", "time:daytime"],
 ) as dag:
 
     PATH = ["sabangnet", "admin", "sabangnet_order"]
@@ -21,10 +27,15 @@ with DAG(
         return read(PATH, credentials="expand", tables=True, service_account=True)
 
 
-    @task(task_id="etl_sabangnet_order")
+    FIRST_SCHEDULE = "09:15"
+    LAST_7_DAYS = 7
+    YESTERDAY = 1
+
+    @task(task_id="etl_sabangnet_order", pool="sabangnet_pool")
     def etl_sabangnet_order(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        start_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=7).date())
-        end_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
+        delta = LAST_7_DAYS if data_interval_end.strftime("%H:%M") == FIRST_SCHEDULE else YESTERDAY
+        start_date = data_interval_end.in_timezone("Asia/Seoul").subtract(days=delta)
+        end_date = data_interval_end.in_timezone("Asia/Seoul").subtract(days=YESTERDAY)
         return main(start_date=start_date, end_date=end_date, **ti.xcom_pull(task_ids="read_variables"))
 
     def main(
@@ -36,6 +47,7 @@ with DAG(
             end_date: str,
             service_account: dict,
             tables: dict[str,str],
+            merge: dict[str,dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
@@ -67,11 +79,13 @@ with DAG(
                         data = conn.count_table("data"),
                     ),
                     status = dict(
-                        data = client.overwrite_table_from_duckdb(
+                        data = client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = "data",
+                            staging_table = tables["temp_order"],
                             target_table = tables["order"],
-                            where_clause = f"DATE(order_dt) BETWEEN '{start_date}' AND '{end_date}'",
+                            **merge["order"],
+                            where_clause = f"DATE(T.order_dt) BETWEEN '{start_date}' AND '{end_date}'",
                             progress = False,
                         ),
                     ),

@@ -1,5 +1,4 @@
 from airflow.sdk import DAG, task
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
 from typing import Literal
@@ -8,11 +7,11 @@ import pendulum
 
 with DAG(
     dag_id = "sabangnet_product",
-    schedule = "20 8 * * *",
+    schedule = "20 23 * * 1~5",
     start_date = pendulum.datetime(2025, 10, 22, tz="Asia/Seoul"),
-    dagrun_timeout = timedelta(minutes=30),
+    dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:high", "sabangnet:product", "login:sabangnet", "schedule:daily", "time:morning"],
+    tags = ["priority:high", "sabangnet:product", "sabangnet:option", "login:sabangnet", "schedule:weekdays", "time:night"],
 ) as dag:
 
     PATH = ["sabangnet", "admin", "sabangnet_product"]
@@ -23,12 +22,12 @@ with DAG(
         return read(PATH, credentials="expand", tables=True, service_account=True)
 
 
-    @task(task_id="etl_sabangnet_product")
+    @task(task_id="etl_sabangnet_product", pool="sabangnet_pool")
     def etl_sabangnet_product(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
         date = str(data_interval_end.in_timezone("Asia/Seoul").date())
         return main(api_type="product", date=date, **ti.xcom_pull(task_ids="read_variables"))
 
-    @task(task_id="etl_sabangnet_option", trigger_rule=TriggerRule.ALWAYS)
+    @task(task_id="etl_sabangnet_option", pool="sabangnet_pool")
     def etl_sabangnet_option(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
         date = str(data_interval_end.in_timezone("Asia/Seoul").date())
         return main(api_type="option", date=date, **ti.xcom_pull(task_ids="read_variables"))
@@ -87,4 +86,4 @@ with DAG(
                 )
 
 
-    read_variables() >> etl_sabangnet_product() >> etl_sabangnet_option()
+    read_variables() >> [etl_sabangnet_product(), etl_sabangnet_option()]

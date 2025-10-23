@@ -299,7 +299,8 @@ class BigQueryClient(Connection):
             not_matched: Clause | Columns | Literal[":insert_all:",":do_nothing:"] = ":insert_all:",
             where_clause: Clause | None = None,
         ) -> LoadJob:
-        where = [f"T.{where_clause}"] if where_clause else list()
+        """When using where_clause, reference target table columns with \"T.\" and source table columns with \"S.\""""
+        where = [where_clause] if where_clause else list()
         on = " AND ".join([f"T.{col} = S.{col}" for col in ([on] if isinstance(on, str) else on)]+where)
         query = f"MERGE INTO `{self.project_id}.{target_table}` AS T USING `{self.project_id}.{source_table}` AS S ON {on}"
         query = concat_sql(query, self._merge_update(matched, on), self._merge_insert(not_matched, target_table))
@@ -363,6 +364,7 @@ class BigQueryClient(Connection):
             table_lock_wait_timeout: float | int | None = 60.,
             drop_stage_after_merge: bool = True,
         ) -> LoadJob:
+        """When using where_clause, reference target table columns with \"T.\" and source table columns with \"S.\""""
         try:
             self._wait_until_table_not_found(stage_table, table_lock_wait_interval, table_lock_wait_timeout)
             self.load_table_from_file(source_file, stage_table, source_format, schema, write, if_not_found)
@@ -505,6 +507,7 @@ class BigQueryClient(Connection):
             if_staging_table_exists: Literal["errors","ignore","replace"] = "replace",
             drop_stage_after_merge: bool = True,
         ) -> bool:
+        """When using where_clause, reference target table columns with \"T.\" and source table columns with \"S.\""""
         if not connection.table_exists(source_table):
             return True
         elif not self.table_has_rows(target_table, where_clause):

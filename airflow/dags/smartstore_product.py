@@ -5,11 +5,11 @@ import pendulum
 
 with DAG(
     dag_id = "smartstore_product",
-    schedule = "25 8 * * *",
+    schedule = "30 23 * * 1~5",
     start_date = pendulum.datetime(2025, 9, 3, tz="Asia/Seoul"),
-    dagrun_timeout = timedelta(minutes=5),
+    dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:high", "smartstore:product", "api:smartstore", "schedule:daily", "time:morning"],
+    tags = ["priority:high", "smartstore:product", "api:smartstore", "schedule:weekdays", "time:night"],
 ) as dag:
 
     PATH = ["smartstore", "api", "smartstore_product"]
