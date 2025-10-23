@@ -127,12 +127,12 @@ SELECT
       ELSE NULL END) AS ad_type
   , TRY_CAST($account_no AS BIGINT) AS customer_id
   , name AS title
-  , message AS description
-  , medias[1].content.linkUrl AS landing_url_pc
-  , TRY_CAST(REGEXP_EXTRACT(medias[1].content.linkUrl, '(\d+)$', 1) AS BIGINT) AS product_id
+  , json_value(item, '$.message') AS description
+  , json_value(item, '$.medias[1].content.linkUrl') AS landing_url_pc
+  , TRY_CAST(REGEXP_EXTRACT(json_value(item, '$.medias[1].content.linkUrl'), '(\d+)$', 1) AS BIGINT) AS product_id
   , activated AS is_enabled
   , (status = 'DELETED') AS is_deleted
-FROM {{ array }}
+FROM {{ array }} AS item
 WHERE no IS NOT NULL;
 
 -- Creative: insert
