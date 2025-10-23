@@ -1,5 +1,5 @@
 -- Order: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     order_seq BIGINT PRIMARY KEY
   , order_seq_org BIGINT
   , order_no VARCHAR
@@ -64,21 +64,24 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- OrderDownload: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     order_seq BIGINT PRIMARY KEY
   , order_seq_org BIGINT
   , order_no VARCHAR
   , order_no_dup VARCHAR
   , account_no INTEGER
-  , product_id VARCHAR
+  , product_id VARCHAR NOT NULL
   , product_id_shop VARCHAR
+  , invoice_no VARCHAR
+  , delivery_company VARCHAR
   , order_status_div INTEGER
   , order_status INTEGER
   , order_quantity INTEGER
   , sku_quantity INTEGER
   , payment_amount INTEGER
   , order_amount INTEGER
-  , order_dt TIMESTAMP
+  , order_dt TIMESTAMP NOT NULL
+  , invoice_date DATE
 );
 
 -- OrderDownload: select
@@ -90,6 +93,8 @@ SELECT
   , TRY_CAST("계정등록순번" AS INTEGER) AS account_no
   , "상품코드(사방넷)" AS product_id
   , "상품코드(쇼핑몰)" AS product_id_shop
+  , "송장번호" AS invoice_no
+  , "택배사" AS delivery_company
   , (CASE
       WHEN "주문구분" = '주문(진행)' THEN 1
       WHEN "주문구분" = '주문(완료)' THEN 2
@@ -125,19 +130,23 @@ SELECT
   , TRY_CAST("결제금액" AS INTEGER) AS payment_amount
   , TRY_CAST("주문금액" AS INTEGER) AS order_amount
   , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) AS order_dt
+  , TRY_CAST("송장등록일자(YYYY-MM-DD)" AS DATE) AS invoice_date
 FROM {{ array }}
-WHERE TRY_CAST("주문번호(사방넷)" AS BIGINT) IS NOT NULL;
+WHERE (TRY_CAST("주문번호(사방넷)" AS BIGINT) IS NOT NULL)
+  AND ("상품코드(사방넷)" IS NOT NULL)
+  AND (TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) IS NOT NULL);
 
 -- OrderDownload: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- OrderStatus: create
-CREATE OR REPLACE TABLE {{ table }} (
-    order_seq BIGINT PRIMARY KEY
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    order_seq BIGINT
   , order_status INTEGER
-  , order_dt TIMESTAMP
+  , order_dt TIMESTAMP NOT NULL
   , update_date DATE
+  , PRIMARY KEY (order_seq, order_status)
 );
 
 -- OrderStatus: select
@@ -157,6 +166,7 @@ SELECT
   , TRY_CAST(STRPTIME("{{ date_type }}자({{ date_format }})", '{{ time_format }}') AS DATE) AS update_date
 FROM {{ array }}
 WHERE (TRY_CAST("주문번호(사방넷)" AS BIGINT) IS NOT NULL)
+  AND (TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) IS NOT NULL)
   AND TRY_CAST(STRPTIME("{{ date_type }}자({{ date_format }})", '{{ time_format }}') AS DATE) IS NOT NULL;
 
 -- OrderStatus: insert

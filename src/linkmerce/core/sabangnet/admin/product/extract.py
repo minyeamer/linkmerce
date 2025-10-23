@@ -167,10 +167,6 @@ class OptionDownload(SabangnetAdmin):
     method = "POST"
     path = "/prod-api/customer/product/getSkuBulkModifyExcel"
 
-    @property
-    def default_options(self) -> dict:
-        return dict()
-
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
     def extract(
@@ -248,4 +244,11 @@ class OptionDownload(SabangnetAdmin):
         return {
             "prdNo": "품번코드", "skuNo": "사방넷상품코드", "onsfPrdCd": "자체상품코드", "modlNm": "모델명",
             "prdNm": "상품명", "fstRegsDt": "등록일", "fnlChgDt": "수정일"
+        }
+
+    @property
+    def product_status(self) -> dict[str,str]:
+        return {
+            "001": "대기중", "002": "공급중", "003": "일시중지", "004": "완전품절", "005": "미사용",
+            "006": "삭제", "007": "자료없음", "008": "비노출"
         }
