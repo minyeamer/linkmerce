@@ -8,9 +8,9 @@ import pendulum
 with DAG(
     dag_id = "sabangnet_order",
     schedule = MultipleCronTriggerTimetable(
-        "15 9 * * 1~5",
-        "30 10 * * 1~5",
-        "0 15 * * 1~5",
+        "15 9 * * 1-5",
+        "30 10 * * 1-5",
+        "0 15 * * 1-5",
         timezone = "Asia/Seoul",
     ),
     start_date = pendulum.datetime(2025, 9, 11, tz="Asia/Seoul"),
@@ -33,9 +33,10 @@ with DAG(
 
     @task(task_id="etl_sabangnet_order", pool="sabangnet_pool")
     def etl_sabangnet_order(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        delta = LAST_7_DAYS if data_interval_end.strftime("%H:%M") == FIRST_SCHEDULE else YESTERDAY
-        start_date = data_interval_end.in_timezone("Asia/Seoul").subtract(days=delta)
-        end_date = data_interval_end.in_timezone("Asia/Seoul").subtract(days=YESTERDAY)
+        current_schedule = data_interval_end.in_timezone("Asia/Seoul").strftime("%H:%M")
+        delta = LAST_7_DAYS if current_schedule == FIRST_SCHEDULE else YESTERDAY
+        start_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=delta).date())
+        end_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=YESTERDAY).date())
         return main(start_date=start_date, end_date=end_date, **ti.xcom_pull(task_ids="read_variables"))
 
     def main(

@@ -7,7 +7,7 @@ import pendulum
 
 with DAG(
     dag_id = "sabangnet_product",
-    schedule = "20 23 * * 1~5",
+    schedule = "20 23 * * 1-5",
     start_date = pendulum.datetime(2025, 10, 22, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,

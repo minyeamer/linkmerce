@@ -54,7 +54,8 @@ with DAG(
                 connection = conn,
                 tables = sources,
                 progress = False,
-                return_type = "none",)
+                return_type = "none",
+            )
 
             aggregated_order_status(
                 client_id = client_id,

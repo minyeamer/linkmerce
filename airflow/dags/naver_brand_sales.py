@@ -28,8 +28,8 @@ with DAG(
     @task(task_id="etl_naver_brand_sales")
     def etl_naver_brand_sales(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
         delta = LAST_2_DAYS if data_interval_end.strftime("%H:%M") == FIRST_SCHEDULE else YESTERDAY
-        start_date = data_interval_end.in_timezone("Asia/Seoul").subtract(days=delta)
-        end_date = data_interval_end.in_timezone("Asia/Seoul").subtract(days=YESTERDAY)
+        start_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=delta).date())
+        end_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=YESTERDAY).date())
         return main(start_date=start_date, end_date=end_date, **ti.xcom_pull(task_ids="read_variables"))
 
     def main(

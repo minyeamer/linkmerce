@@ -5,7 +5,7 @@ import pendulum
 
 with DAG(
     dag_id = "smartstore_product",
-    schedule = "30 23 * * 1~5",
+    schedule = "30 23 * * 1-5",
     start_date = pendulum.datetime(2025, 9, 3, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
