@@ -65,7 +65,8 @@ class RocketSettlementDownload(DuckDBTransformer):
         from linkmerce.utils.excel import excel2json
         reports = excel2json(obj, header=2, warnings=False)
         if reports:
-            return self.insert_into_table(reports, key="insert_sales", table=":sales:", values=":select_sales:", params=dict(vendor_id=vendor_id))
+            return self.insert_into_table(
+                reports, key="insert_sales", table=":sales:", values=":select_sales:", params=dict(vendor_id=vendor_id))
 
     def insert_into_shipping_table(self, obj: bytes, vendor_id: str | None = None):
         from linkmerce.utils.excel import filter_warnings
@@ -73,11 +74,17 @@ class RocketSettlementDownload(DuckDBTransformer):
         import openpyxl
         filter_warnings()
 
-        ws = openpyxl.load_workbook(BytesIO(obj)).active
-        headers1 = [cell.value for cell in next(ws.iter_rows(min_row=7, max_row=7))]
-        headers2 = [cell.value for cell in next(ws.iter_rows(min_row=8, max_row=8))]
-        headers = [(header2 if header2 else header1) for header1, header2 in zip(headers1, headers2)]
+        wb = openpyxl.load_workbook(BytesIO(obj))
+        results = list()
 
-        reports = [dict(zip(headers, row)) for row in ws.iter_rows(min_row=9, values_only=True)]
-        if reports:
-            return self.insert_into_table(reports, key="insert_shipping", table=":shipping:", values=":select_shipping:", params=dict(vendor_id=vendor_id))
+        for sheet_name in ["입출고비", "배송비"]:
+            ws = wb[sheet_name]
+            headers1 = [cell.value for cell in next(ws.iter_rows(min_row=7, max_row=7))]
+            headers2 = [cell.value for cell in next(ws.iter_rows(min_row=8, max_row=8))]
+            headers = [(header2 if header2 else header1) for header1, header2 in zip(headers1, headers2)]
+
+            reports = [dict(zip(headers, row)) for row in ws.iter_rows(min_row=9, values_only=True)]
+            if reports:
+                results.append(self.insert_into_table(
+                    reports, key="insert_shipping", table=":shipping:", values=":select_shipping:", params=dict(vendor_id=vendor_id)))
+        return results
