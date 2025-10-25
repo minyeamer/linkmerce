@@ -303,18 +303,19 @@ class BigQueryClient(Connection):
         where = [where_clause] if where_clause else list()
         on = " AND ".join([f"T.{col} = S.{col}" for col in ([on] if isinstance(on, str) else on)]+where)
         query = f"MERGE INTO `{self.project_id}.{target_table}` AS T USING `{self.project_id}.{source_table}` AS S ON {on}"
-        query = concat_sql(query, self._merge_update(matched, on), self._merge_insert(not_matched, target_table))
+        query = concat_sql(query, self._merge_update(matched, target_table, on), self._merge_insert(not_matched, target_table))
         return self.execute_job(query)
 
     def _merge_update(
             self,
             matched: Clause | dict[str,Literal["replace","ignore","greatest","least","source_first","target_first"]] | Literal[":replace_all:",":do_nothing:"] = ":replace_all:",
+            target_table: str = str(),
             on: str | Sequence[str] = list(),
         ) -> str:
         prefix = "WHEN MATCHED THEN UPDATE SET "
         if matched == ":replace_all:":
             on = [on] if isinstance(on, str) else on
-            return self._merge_update({col: "replace" for col in self.get_columns() if col not in on})
+            return self._merge_update({col: "replace" for col in self.get_columns(target_table) if col not in on})
         elif matched == ":do_nothing:":
             return None
         elif isinstance(matched, dict):
@@ -508,9 +509,10 @@ class BigQueryClient(Connection):
             drop_stage_after_merge: bool = True,
         ) -> bool:
         """When using where_clause, reference target table columns with \"T.\" and source table columns with \"S.\""""
+        import re
         if not connection.table_exists(source_table):
             return True
-        elif not self.table_has_rows(target_table, where_clause):
+        elif not self.table_has_rows(target_table, (re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause) if where_clause else None)):
             return self.load_table_from_duckdb(connection, source_table, target_table, dict(), schema, "append", if_not_found, progress)
 
         try:

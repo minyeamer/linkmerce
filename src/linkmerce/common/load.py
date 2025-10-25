@@ -406,12 +406,14 @@ class DuckDBConnection(Connection):
             self,
             source_table: str,
             target_table: str,
-            limit: int | None = 0,
+            columns: list[str] | str = "*",
+            limit: int | None = None,
             option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
         ) -> DuckDBPyConnection:
+        columns_ = ", ".join(columns) if isinstance(columns, list) else columns
         limit_ = f"LIMIT {limit}" if isinstance(limit, int) else None
-        query = concat_sql(f"{self.expr_create(option, temp)} {target_table} AS SELECT * FROM {source_table}", limit_)
+        query = concat_sql(f"{self.expr_create(option, temp)} {target_table} AS SELECT {columns_} FROM {source_table}", limit_)
         return self.conn.execute(query)
 
     ############################## Insert #############################

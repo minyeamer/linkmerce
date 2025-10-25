@@ -59,7 +59,7 @@ def read_models_by_line(path: str, name: str, keys: Sequence[str]) -> dict[str,s
 
     key_set, key = set(keys), None
     def init_key(line: str) -> str:
-        if line.startswith(f"-- {name}"):
+        if line.startswith(f"-- {name}:"):
             key = line[len(f"-- {name}:"):].strip()
             if key in key_set:
                 return key
