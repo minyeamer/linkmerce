@@ -41,12 +41,18 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.smartstore.api import product_order, aggregated_order_status
+        from linkmerce.api.smartstore.api import order as smartstore_order
+        from linkmerce.api.smartstore.api import aggregated_order_status
         from linkmerce.extensions.bigquery import BigQueryClient
-        sources = dict(order="smartstore_order", option="smartstore_option")
+        sources = dict(
+            order = "smartstore_order",
+            product_order = "smartstore_product_order",
+            delivery = "smartstore_delivery",
+            option = "smartstore_option",
+        )
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            product_order(
+            smartstore_order(
                 client_id = client_id,
                 client_secret = client_secret,
                 start_date = date,
@@ -71,9 +77,12 @@ with DAG(
                     params = dict(
                         channel_seq = channel_seq,
                         date = date,
+                        range_type = "PAYED_DATETIME",
                     ),
                     count = dict(
                         order = conn.count_table(sources["order"]),
+                        product_order = conn.count_table(sources["product_order"]),
+                        delivery = conn.count_table(sources["delivery"]),
                         option = conn.count_table(sources["option"]),
                         status = conn.count_table("data"),
                     ),
@@ -82,6 +91,18 @@ with DAG(
                             connection = conn,
                             source_table = sources["order"],
                             target_table = tables["order"],
+                            progress = False,
+                        ),
+                        product_order = client.load_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["product_order"],
+                            target_table = tables["product_order"],
+                            progress = False,
+                        ),
+                        delivery = client.load_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["delivery"],
+                            target_table = tables["delivery"],
                             progress = False,
                         ),
                         option = client.merge_into_table_from_duckdb(

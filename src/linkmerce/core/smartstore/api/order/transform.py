@@ -12,15 +12,11 @@ class OrderList(JsonTransformer):
     dtype = dict
     path = ["data","contents"]
 
-
-class Order(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
     def transform(self, obj: JsonObject, **kwargs):
-        orders = OrderList().transform(obj)
+        orders = super().transform(obj, **kwargs)
         if orders:
             self.validate_content(orders[0]["content"])
-            self.insert_into_table(orders)
+        return orders
 
     def validate_content(self, content: dict):
         from linkmerce.utils.map import hier_get
@@ -39,7 +35,7 @@ class Order(DuckDBTransformer):
     def validate_product_order(self, product_order: dict) -> dict:
         keys = ["merchantChannelId", "productId", "optionCode", "sellerProductCode", "optionManageCode", "productOrderStatus",
                 "claimStatus", "productClass", "productName", "productOption", "inflowPath", "inflowPathAdd", "inflowPathAdd",
-                "deliveryAttributeType", "quantity", "unitPrice", "optionPrice", "deliveryFeeAmount",
+                "deliveryAttributeType", "deliveryTagType", "quantity", "unitPrice", "optionPrice", "deliveryFeeAmount",
                 "totalPaymentAmount", "paymentCommission", "expectedSettlementAmount", "decisionDate"]
         for key in keys:
             if key not in product_order:
@@ -47,7 +43,7 @@ class Order(DuckDBTransformer):
         return product_order
 
     def validate_delivery(self, delivery: dict) -> dict:
-        for key in ["sendDate", "deliveredDate"]:
+        for key in ["trackingNumber", "deliveryCompany", "deliveryMethod", "pickupDate", "sendDate", "deliveredDate"]:
             if key not in delivery:
                 delivery[key] = None
         return delivery
@@ -59,24 +55,36 @@ class Order(DuckDBTransformer):
         return completed_claim
 
 
-class ProductOrder(Order):
-    queries = ["create_order", "select_order", "insert_order", "create_option", "select_option", "upsert_option"]
+ORDER_TABLES = ["order", "product_order", "delivery", "option"]
+
+class Order(DuckDBTransformer):
+    queries = [f"{keyword}_{table}"
+        for table in ORDER_TABLES
+        for keyword in ["create", "select", "insert"]
+    ]
 
     def set_tables(self, tables: dict | None = None):
-        base = dict(order="smartstore_order", option="smartstore_option")
+        base = {table: f"smartstore_{table}" for table in ORDER_TABLES}
         super().set_tables(dict(base, **(tables or dict())))
 
     def create_table(self, **kwargs):
-        super().create_table(key="create_order", table=":order:")
-        super().create_table(key="create_option", table=":option:")
+        for table in ORDER_TABLES:
+            super().create_table(key=f"create_{table}", table=f":{table}:")
 
-    def insert_into_table(self, obj: list[dict], **kwargs):
-        super().insert_into_table(obj, key="insert_order", table=":order:", values=":select_order:")
-        super().insert_into_table(obj, key="upsert_option", table=":option:", values=":select_option:")
+    def transform(self, obj: JsonObject, **kwargs):
+        orders = OrderList().transform(obj)
+        if orders:
+            for table in ORDER_TABLES:
+                self.insert_into_table(orders, key=f"insert_{table}", table=f":{table}:", values=f":select_{table}:")
 
 
-class OrderTime(Order):
+class OrderTime(DuckDBTransformer):
     queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, **kwargs):
+        orders = OrderList().transform(obj)
+        if orders:
+            self.insert_into_table(orders)
 
 
 class OrderStatusList(JsonTransformer):

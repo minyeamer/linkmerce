@@ -87,7 +87,13 @@ def order(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
+    """```python
+    tables = {
+        'order': 'smartstore_order',
+        'product_order': 'smartstore_product_order',
+        'delivery': 'smartstore_delivery',
+        'option': 'smartstore_option'
+    }"""
     # from linkmerce.core.smartstore.api.order.extract import Order
     # from linkmerce.core.smartstore.api.order.transform import Order
     return run_with_duckdb(
@@ -103,46 +109,6 @@ def order(
             extract_options,
             options = get_order_options(request_delay, progress),
             variables = dict(client_id=client_id, client_secret=client_secret)),
-        transform_options = transform_options,
-    )
-
-
-def product_order(
-        client_id: str,
-        client_secret: str,
-        start_date: dt.date | str,
-        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-        range_type: str = "PAYED_DATETIME",
-        product_order_status: Iterable[str] = list(),
-        claim_status: Iterable[str] = list(),
-        place_order_status: str = list(),
-        page_start: int = 1,
-        connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        max_retries: int = 5,
-        request_delay: float | int = 1,
-        progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
-    ) -> dict[str,JsonObject]:
-    """`tables = {'order': 'smartstore_order', 'option': 'smartstore_option'}`"""
-    # from linkmerce.core.smartstore.api.order.extract import ProductOrder
-    # from linkmerce.core.smartstore.api.order.transform import ProductOrder
-    return run_with_duckdb(
-        module = get_module(".order"),
-        extractor = "ProductOrder",
-        transformer = "ProductOrder",
-        connection = connection,
-        tables = tables,
-        how = "sync",
-        return_type = return_type,
-        args = (start_date, end_date, range_type, product_order_status, claim_status, place_order_status, page_start, max_retries),
-        extract_options = update_options(
-            extract_options,
-            options = get_order_options(request_delay, progress),
-            variables = dict(client_id=client_id, client_secret=client_secret),
-        ),
         transform_options = transform_options,
     )
 

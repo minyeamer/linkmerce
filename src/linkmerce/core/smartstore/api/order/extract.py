@@ -102,10 +102,6 @@ class Order(SmartstoreAPI):
         return {"NOT_YET": "발주 미확인", "OK": "발주 확인", "CANCEL": "발주 확인 해제"}
 
 
-class ProductOrder(Order):
-    ...
-
-
 class OrderTime(Order):
     ...
 
