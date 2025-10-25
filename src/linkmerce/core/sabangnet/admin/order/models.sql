@@ -2,15 +2,15 @@
 CREATE TABLE IF NOT EXISTS {{ table }} (
     order_seq BIGINT PRIMARY KEY
   , order_seq_org BIGINT
-  , order_no VARCHAR
+  , order_id VARCHAR
   , order_status_div INTEGER
   , order_status INTEGER
   , shop_id VARCHAR
   , shop_name VARCHAR
   , login_id VARCHAR
   , account_no INTEGER
-  , product_no VARCHAR
-  , sku_no VARCHAR
+  , product_id VARCHAR
+  , sku_id VARCHAR
   , product_code VARCHAR
   , product_status VARCHAR
   , product_name VARCHAR
@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , option_name VARCHAR
   , option_name_decided VARCHAR
   , model_name VARCHAR
+  , invoice_no VARCHAR
+  , delivery_company VARCHAR
   , order_quantity INTEGER
   , sku_quantity INTEGER
   , order_amount INTEGER
@@ -26,21 +28,22 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , cost_amount INTEGER
   , register_dt TIMESTAMP
   , ship_hope_date DATE
+  , invoice_date DATE
 );
 
 -- Order: select
 SELECT
     ordNo AS order_seq
   , NULLIF(orgnOrdNo, 0) AS order_seq_org
-  , shmaOrdNo AS order_no
+  , shmaOrdNo AS order_id
   , TRY_CAST(ordStsTpDivCd AS INTEGER) AS order_status_div
   , TRY_CAST(ordStsCd AS INTEGER) AS order_status
   , shmaId AS shop_id
   , shmaNm AS shop_name
   , shmaCnctnLoginId AS login_id
   , acntRegsSrno AS account_no
-  , prdNo AS product_no
-  , skuNo AS sku_no
+  , prdNo AS product_id
+  , skuNo AS sku_id
   , onsfPrdCd AS product_code
   , prdSplyStsNm AS product_status
   , clctPrdNm AS product_name
@@ -49,6 +52,8 @@ SELECT
   , clctSkuNm AS option_name
   , dcdSkuNm AS option_name_decided
   , modlNm AS model_name
+  , wyblNo AS invoice_no
+  , pcscpNm AS delivery_company
   , ordQt AS order_quantity
   , skuQt AS sku_quantity
   , ordSumAmt AS order_amount
@@ -56,6 +61,7 @@ SELECT
   , cprcSumAmt AS cost_amount
   , TRY_CAST(fstRegsDt AS TIMESTAMP) AS register_dt
   , TRY_CAST(shpmtHopeYmd AS DATE) AS ship_hope_date
+  , TRY_CAST(wyblTrnmDt AS DATE) AS invoice_date
 FROM {{ array }}
 WHERE ordNo IS NOT NULL;
 
@@ -67,8 +73,8 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 CREATE TABLE IF NOT EXISTS {{ table }} (
     order_seq BIGINT PRIMARY KEY
   , order_seq_org BIGINT
-  , order_no VARCHAR
-  , order_no_dup VARCHAR
+  , order_id VARCHAR
+  , order_id_dup VARCHAR
   , account_no INTEGER
   , product_id VARCHAR NOT NULL
   , product_id_shop VARCHAR
@@ -88,8 +94,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 SELECT
     TRY_CAST("주문번호(사방넷)" AS BIGINT) AS order_seq
   , NULLIF(TRY_CAST("원주문번호(사방넷)" AS BIGINT), 0) AS order_seq_org
-  , "주문번호(쇼핑몰)" AS order_no
-  , "부주문번호" AS order_no_dup
+  , "주문번호(쇼핑몰)" AS order_id
+  , "부주문번호" AS order_id_dup
   , TRY_CAST("계정등록순번" AS INTEGER) AS account_no
   , "상품코드(사방넷)" AS product_id
   , "상품코드(쇼핑몰)" AS product_id_shop
