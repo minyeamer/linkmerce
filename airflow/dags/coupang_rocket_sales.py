@@ -65,6 +65,11 @@ with DAG(
                 return_type = "none",
             )
 
+            def make_where_clause(table: str) -> str:
+                query = f"SELECT MIN(sales_date), MAX(sales_date) from {table}"
+                start_date, end_date = conn.execute(query).fetchall()[0]
+                return f"(sales_date BETWEEN '{start_date}' AND '{end_date}') AND (vendor_id = '{vendor_id}')"
+
             with BigQueryClient(service_account) as client:
                 return dict(
                     params = dict(
@@ -82,14 +87,14 @@ with DAG(
                             connection = conn,
                             source_table = sources["sales"],
                             target_table = tables["sales"],
-                            where_clause = f"(sales_date BETWEEN '{start_date}' AND '{end_date}') AND (vendor_id = '{vendor_id}')",
+                            where_clause = make_where_clause(sources["sales"]),
                             progress = False,
                         ),
                         shipping = client.overwrite_table_from_duckdb(
                             connection = conn,
                             source_table = sources["shipping"],
                             target_table = tables["shipping"],
-                            where_clause = f"(sales_date BETWEEN '{start_date}' AND '{end_date}') AND (vendor_id = '{vendor_id}')",
+                            where_clause = make_where_clause(sources["shipping"]),
                             progress = False,
                         ),
                     ),
