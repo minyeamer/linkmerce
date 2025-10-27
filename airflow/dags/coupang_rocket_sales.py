@@ -65,10 +65,11 @@ with DAG(
                 return_type = "none",
             )
 
-            def make_where_clause(table: str) -> str:
-                query = f"SELECT MIN(sales_date), MAX(sales_date) from {table}"
-                start_date, end_date = conn.execute(query).fetchall()[0]
-                return f"(sales_date BETWEEN '{start_date}' AND '{end_date}') AND (vendor_id = '{vendor_id}')"
+            query_for_sales = "SELECT MIN(sales_date), MAX(sales_date) FROM {}".format(sources["sales"])
+            sales_date_from, sales_date_to = conn.execute(query_for_sales).fetchall()[0]
+
+            query_for_shipping = "SELECT MIN(sales_date), MAX(sales_date) FROM {}".format(sources["shipping"])
+            shipping_date_from, shipping_date_to = conn.execute(query_for_shipping).fetchall()[0]
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -83,20 +84,20 @@ with DAG(
                         shipping = conn.count_table(sources["shipping"]),
                     ),
                     status = dict(
-                        sales = client.overwrite_table_from_duckdb(
+                        sales = (client.overwrite_table_from_duckdb(
                             connection = conn,
                             source_table = sources["sales"],
                             target_table = tables["sales"],
-                            where_clause = make_where_clause(sources["sales"]),
+                            where_clause = f"(sales_date BETWEEN '{sales_date_from}' AND '{sales_date_to}') AND (vendor_id = '{vendor_id}')",
                             progress = False,
-                        ),
-                        shipping = client.overwrite_table_from_duckdb(
+                        ) if sales_date_from is not None else True),
+                        shipping = (client.overwrite_table_from_duckdb(
                             connection = conn,
                             source_table = sources["shipping"],
                             target_table = tables["shipping"],
-                            where_clause = make_where_clause(sources["shipping"]),
+                            where_clause = f"(sales_date BETWEEN '{shipping_date_from}' AND '{shipping_date_to}') AND (vendor_id = '{vendor_id}')",
                             progress = False,
-                        ),
+                        ) if shipping_date_from is not None else True),
                     ),
                 )
 
