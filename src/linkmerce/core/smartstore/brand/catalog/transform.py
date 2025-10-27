@@ -5,7 +5,6 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal
     from linkmerce.common.transform import JsonObject
 
 
@@ -20,29 +19,25 @@ class CatalogItems(JsonTransformer):
         return True
 
 
-class _CatalogTransformer(DuckDBTransformer):
-    object_type: Literal["catalogs","products"]
-    queries: list[str] = ["create", "select", "insert"]
+class BrandCatalog(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, **kwargs):
+        items = CatalogItems(path=["items"]).transform(obj)
+        if items:
+            self.insert_into_table(items)
+
+
+class BrandProduct(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
 
     def transform(self, obj: JsonObject, mall_seq: int | str | None = None, **kwargs):
-        items = CatalogItems(path=["data",self.object_type,"items"]).transform(obj)
+        items = CatalogItems(path=["items"]).transform(obj)
         if items:
-            params = dict(mall_seq=mall_seq) if self.object_type == "products" else None
-            self.insert_into_table(items, params=params)
-
-
-class BrandCatalog(_CatalogTransformer):
-    object_type = "catalogs"
-    queries = ["create", "select", "insert"]
-
-
-class BrandProduct(_CatalogTransformer):
-    object_type = "products"
-    queries = ["create", "select", "insert"]
+            self.insert_into_table(items, params=dict(mall_seq=mall_seq))
 
 
 class BrandPrice(BrandProduct):
-    object_type = "products"
     queries = ["create_price", "select_price", "insert_price", "create_product", "select_product", "upsert_product"]
 
     def set_tables(self, tables: dict | None = None):
@@ -59,7 +54,6 @@ class BrandPrice(BrandProduct):
 
 
 class ProductCatalog(BrandProduct):
-    object_type = "products"
     queries = ["create", "select", "insert"]
 
     def insert_into_table(self, obj: list[dict], table: str = ":default:", **kwargs):

@@ -17,7 +17,10 @@ CREATE OR REPLACE TABLE {{ table }} (
   , category_id4 INTEGER
   , category_name4 VARCHAR
   , image_url VARCHAR
-  , sales_price INTEGER
+  , official_price INTEGER
+  , official_price_with_fee INTEGER
+  , lowest_price INTEGER
+  , lowest_price_with_fee INTEGER
   , product_count INTEGER
   , review_count INTEGER
   , review_rating TINYINT
@@ -26,30 +29,33 @@ CREATE OR REPLACE TABLE {{ table }} (
 
 -- BrandCatalog: select
 SELECT
-    TRY_CAST(id AS BIGINT) AS id
-  , name AS catalog_name
-  , TRY_CAST(NULLIF(makerSeq, '0') AS BIGINT) AS maker_id
+    identifier AS id
+  , prodName AS catalog_name
+  , NULLIF(makerSeq, 0) AS maker_id
   , makerName AS maker_name
-  , TRY_CAST(brandSeq AS BIGINT) AS brand_id
+  , brandSeq AS brand_id
   , brandName AS brand_name
-  , TRY_CAST(categoryId AS INTEGER) AS category_id
-  , categoryName AS category_name
-  , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 1) AS INTEGER) AS category_id1
-  , NULLIF(SPLIT_PART(fullCategoryName, '>', 1), '') AS category_name1
-  , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 2) AS INTEGER) AS category_id2
-  , NULLIF(SPLIT_PART(fullCategoryName, '>', 2), '') AS category_name2
-  , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 3) AS INTEGER) AS category_id3
-  , NULLIF(SPLIT_PART(fullCategoryName, '>', 3), '') AS category_name3
-  , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 4) AS INTEGER) AS category_id4
-  , NULLIF(SPLIT_PART(fullCategoryName, '>', 4), '') AS category_name4
-  , image.SRC AS image_url
-  , TRY_CAST(lowestPrice AS INTEGER) AS sales_price
+  , TRY_CAST(category.identifier AS INTEGER) AS category_id
+  , category.name AS category_name
+  , TRY_CAST(SPLIT_PART(category.fullId, '>', 1) AS INTEGER) AS category_id1
+  , NULLIF(SPLIT_PART(category.fullName, '>', 1), '') AS category_name1
+  , TRY_CAST(SPLIT_PART(category.fullId, '>', 2) AS INTEGER) AS category_id2
+  , NULLIF(SPLIT_PART(category.fullName, '>', 2), '') AS category_name2
+  , TRY_CAST(SPLIT_PART(category.fullId, '>', 3) AS INTEGER) AS category_id3
+  , NULLIF(SPLIT_PART(category.fullName, '>', 3), '') AS category_name3
+  , TRY_CAST(SPLIT_PART(category.fullId, '>', 4) AS INTEGER) AS category_id4
+  , NULLIF(SPLIT_PART(category.fullName, '>', 4), '') AS category_name4
+  , image.src AS image_url
+  , officialAuthLowestPriceRatio.lowestPrice AS official_price
+  , officialAuthLowestPriceRatioWithFee.lowestPrice AS official_price_with_fee
+  , lowestPrice AS lowest_price
+  , allLowestPriceWithFee.lowestPrice AS lowest_price_with_fee
   , productCount AS product_count
   , totalReviewCount AS review_count
   , TRY_CAST(reviewRating AS INT8) AS review_rating
-  , DATE_TRUNC('SECOND', TRY_CAST(registerDate AS TIMESTAMP)) AS register_dt
+  , TRY_STRPTIME(SUBSTR(registerDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
 FROM {{ array }}
-WHERE TRY_CAST(id AS BIGINT) IS NOT NULL;
+WHERE identifier IS NOT NULL;
 
 -- BrandCatalog: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
@@ -80,18 +86,21 @@ CREATE OR REPLACE TABLE {{ table }} (
   , product_url VARCHAR
   , image_url VARCHAR
   , sales_price INTEGER
+  , delivery_fee INTEGER
+  , click_count INTEGER
+  , review_count INTEGER
   , register_dt TIMESTAMP
 );
 
 -- BrandProduct: select
 SELECT
-    TRY_CAST(id AS BIGINT) AS id
+    identifier AS id
   , mallProductId AS product_id
-  , TRY_CAST(catalogId AS BIGINT) AS catalog_id
+  , catalogId AS catalog_id
   , name AS product_name
-  , TRY_CAST(NULLIF(makerSeq, '0') AS BIGINT) AS maker_id
+  , NULLIF(makerSeq, 0) AS maker_id
   , makerName AS maker_name
-  , TRY_CAST(brandSeq AS BIGINT) AS brand_id
+  , brandSeq AS brand_id
   , brandName AS brand_name
   , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
   , mallName AS mall_name
@@ -106,11 +115,14 @@ SELECT
   , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 4) AS INTEGER) AS category_id4
   , NULLIF(SPLIT_PART(fullCategoryName, '>', 4), '') AS category_name4
   , outLinkUrl AS product_url
-  , image.SRC AS image_url
-  , TRY_CAST(lowestPrice AS INTEGER) AS sales_price
-  , DATE_TRUNC('SECOND', TRY_CAST(registerDate AS TIMESTAMP)) AS register_dt
+  , imageInfo.src AS image_url
+  , lowestPrice AS sales_price
+  , TRY_CAST(deliveryFee AS INTEGER) AS delivery_fee
+  , clickCount AS click_count
+  , totalReviewCount AS review_count
+  , TRY_STRPTIME(SUBSTR(registerDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
 FROM {{ array }}
-WHERE (TRY_CAST(id AS BIGINT) IS NOT NULL)
+WHERE (identifier IS NOT NULL)
   AND (mallProductId IS NOT NULL);
 
 -- BrandProduct: insert
@@ -131,11 +143,11 @@ SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
   , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
   , TRY_CAST(categoryId AS INTEGER) AS category_id
-  , TRY_CAST(lowestPrice AS INTEGER) AS sales_price
+  , lowestPrice AS sales_price
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
 FROM {{ array }}
 WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST(lowestPrice AS INTEGER) IS NOT NULL);
+  AND (lowestPrice IS NOT NULL);
 
 -- BrandPrice: insert_price
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
@@ -159,7 +171,7 @@ SELECT
   , TRY_CAST(categoryId AS INTEGER) AS category_id
   , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 3) AS INTEGER) AS category_id3
   , name AS product_name
-  , TRY_CAST(lowestPrice AS INTEGER) AS sales_price
+  , lowestPrice AS sales_price
   , TRY_CAST(registerDate AS DATE) AS register_date
   , CURRENT_DATE AS update_date
 FROM {{ array }}
@@ -186,11 +198,11 @@ CREATE OR REPLACE TABLE {{ table }} (
 -- ProductCatalog: select
 SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
-  , TRY_CAST(catalogId AS BIGINT) AS catalog_id
+  , catalogId AS catalog_id
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
 FROM {{ array }}
 WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST(catalogId AS BIGINT) IS NOT NULL);
+  AND (catalogId IS NOT NULL);
 
 -- ProductCatalog: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;

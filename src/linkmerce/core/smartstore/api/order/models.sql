@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- Order: create_delivery
 CREATE TABLE IF NOT EXISTS {{ table }} (
     product_order_id BIGINT PRIMARY KEY
+  , order_id BIGINT NOT NULL
   , invoice_no VARCHAR NOT NULL
   , delivery_company VARCHAR
   , delivery_method INTEGER
@@ -115,6 +116,7 @@ WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S'
 -- Order: select_delivery
 SELECT
     TRY_CAST(productOrderId AS BIGINT) AS product_order_id
+  , TRY_CAST(content.order.orderId AS BIGINT) AS order_id
   , content.delivery.trackingNumber AS invoice_no
   , content.delivery.deliveryCompany AS delivery_company
   , (CASE

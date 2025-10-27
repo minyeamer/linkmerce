@@ -57,7 +57,7 @@ def get_sales_options(
 def brand_catalog(
         cookies: str,
         brand_ids: str | Iterable[str],
-        sort_type: Literal["popular","recent","price"] = "poular",
+        sort_type: Literal["popular","recent","price"] = "recent",
         is_brand_catalog: bool | None = None,
         page: int | list[int] | None = 0,
         page_size: int = 100,
@@ -96,7 +96,7 @@ def brand_product(
         cookies: str,
         brand_ids: str | Iterable[str],
         mall_seq: int | str | Iterable[int | str] | None = None,
-        sort_type: Literal["popular","recent","price"] = "poular",
+        sort_type: Literal["popular","recent","price"] = "recent",
         is_brand_catalog: bool | None = None,
         page: int | list[int] | None = 0,
         page_size: int = 100,
