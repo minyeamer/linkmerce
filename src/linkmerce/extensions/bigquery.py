@@ -468,9 +468,10 @@ class BigQueryClient(Connection):
             if_not_found: Literal["create","errors","ignore"] = "errors",
             progress: bool = True,
             backup_table: DuckDBTable | None = TEMP_TABLE,
+            if_source_table_empty: Literal["break","continue"] = "break",
             if_backup_table_exists: Literal["errors","ignore","replace"] = "replace",
         ) -> bool:
-        if not connection.table_exists(source_table):
+        if not (connection.table_has_rows(source_table) if if_source_table_empty == "break" else connection.table_exists(source_table)):
             return True
         elif not self.table_has_rows(target_table, where_clause):
             return self.load_table_from_duckdb(connection, source_table, target_table, partition_by, schema, "append", if_not_found, progress)
@@ -505,12 +506,13 @@ class BigQueryClient(Connection):
             progress: bool = True,
             table_lock_wait_interval: float | int | None = None,
             table_lock_wait_timeout: float | int | None = 60.,
+            if_source_table_empty: Literal["break","continue"] = "break",
             if_staging_table_exists: Literal["errors","ignore","replace"] = "replace",
             drop_stage_after_merge: bool = True,
         ) -> bool:
         """When using where_clause, reference target table columns with \"T.\" and source table columns with \"S.\""""
         import re
-        if not connection.table_exists(source_table):
+        if not (connection.table_has_rows(source_table) if if_source_table_empty == "break" else connection.table_exists(source_table)):
             return True
         elif not self.table_has_rows(target_table, (re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause) if where_clause else None)):
             return self.load_table_from_duckdb(connection, source_table, target_table, dict(), schema, "append", if_not_found, progress)

@@ -104,8 +104,86 @@ def ad(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.api.adreport.extract import Ad
-    # from linkmerce.core.searchad.api.adreport.transform import Ad
+    # from linkmerce.core.searchad.api.contract.extract import Ad
+    # from linkmerce.core.searchad.api.contract.transform import Ad
     return _master_report(
         api_key, secret_key, customer_id, "Ad", from_date,
         connection, tables, return_type, extract_options, transform_options)
+
+
+def contract(
+        api_key: str,
+        secret_key: str,
+        customer_id: int | str,
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> dict[str,JsonObject]:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.searchad.api.contract.extract import TimeContract, BrandNewContract
+    # from linkmerce.core.searchad.api.contract.transform import TimeContract, BrandNewContract
+    args = (api_key, secret_key, customer_id, connection, tables, return_type, extract_options, transform_options)
+    return dict(
+        TimeContract = time_contract(*args),
+        BrandNewContract = brand_new_contract(*args),
+    )
+
+
+def time_contract(
+        api_key: str,
+        secret_key: str,
+        customer_id: int | str,
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.searchad.api.contract.extract import TimeContract
+    # from linkmerce.core.searchad.api.contract.transform import TimeContract
+    return run_with_duckdb(
+        module = get_module(".contract"),
+        extractor = "TimeContract",
+        transformer = "TimeContract",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        extract_options = dict(
+            extract_options,
+            variables = get_variables(api_key, secret_key, customer_id),
+        ),
+        transform_options = transform_options,
+    )
+
+
+def brand_new_contract(
+        api_key: str,
+        secret_key: str,
+        customer_id: int | str,
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.searchad.api.adreport.extract import BrandNewContract
+    # from linkmerce.core.searchad.api.adreport.transform import BrandNewContract
+    return run_with_duckdb(
+        module = get_module(".contract"),
+        extractor = "BrandNewContract",
+        transformer = "BrandNewContract",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        extract_options = dict(
+            extract_options,
+            variables = get_variables(api_key, secret_key, customer_id),
+        ),
+        transform_options = transform_options,
+    )
