@@ -104,10 +104,13 @@ with DAG(
                             target_table = tables["product_order"],
                             progress = False,
                         ),
-                        delivery = client.load_table_from_duckdb(
+                        delivery = client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["delivery"],
+                            staging_table = f'{tables["temp_delivery"]}_{channel_seq}',
                             target_table = tables["delivery"],
+                            **merge["delivery"],
+                            where_clause = f"DATE(T.payment_dt) = '{date}'",
                             progress = False,
                         ),
                         option = client.merge_into_table_from_duckdb(
