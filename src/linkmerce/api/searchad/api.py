@@ -104,8 +104,8 @@ def ad(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.api.contract.extract import Ad
-    # from linkmerce.core.searchad.api.contract.transform import Ad
+    # from linkmerce.core.searchad.api.adreport.extract import Ad
+    # from linkmerce.core.searchad.api.adreport.transform import Ad
     return _master_report(
         api_key, secret_key, customer_id, "Ad", from_date,
         connection, tables, return_type, extract_options, transform_options)
@@ -171,8 +171,8 @@ def brand_new_contract(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.api.adreport.extract import BrandNewContract
-    # from linkmerce.core.searchad.api.adreport.transform import BrandNewContract
+    # from linkmerce.core.searchad.api.contract.extract import BrandNewContract
+    # from linkmerce.core.searchad.api.contract.transform import BrandNewContract
     return run_with_duckdb(
         module = get_module(".contract"),
         extractor = "BrandNewContract",
