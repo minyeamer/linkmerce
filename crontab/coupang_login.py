@@ -1,3 +1,4 @@
+from typing import Literal
 import argparse
 import os
 
@@ -21,7 +22,12 @@ def preview(cookies: str, size: int = 100) -> str:
     return (cookies[:size] + "...") if len(cookies) > size else cookies
 
 
-def login_coupang(credentials: dict, ws_endpoint: str, log_file: str | None = None) -> dict[str,dict]:
+def login_coupang(
+        credentials: dict,
+        ws_endpoint: str,
+        domain: Literal["advertising","wing"],
+        log_file: str | None = None,
+    ) -> dict[str,dict]:
     from playwright.sync_api import Playwright, Page, sync_playwright
     from typing import Sequence
     import logging
@@ -35,14 +41,20 @@ def login_coupang(credentials: dict, ws_endpoint: str, log_file: str | None = No
         datefmt = "%Y-%m-%d, %H:%M:%S",
     )
 
-    def login_wing(playwright: Playwright, userid: str, passwd: str, save_to: str) -> str:
+    LOGIN_URL = {
+        "advertising": "https://advertising.coupang.com/user/login",
+        "wing": "https://wing.coupang.com/login?ui_locales=ko-KR&service_cmdb_role=wing",
+    }
+
+    def login(playwright: Playwright, userid: str, passwd: str, domain: Literal["advertising","wing"], save_to: str) -> str:
         # ws_endpoint = "ws://playwright:3000/"
         browser = playwright.chromium.connect(ws_endpoint)
-        login_url = "https://wing.coupang.com/"
 
         try:
             page = browser.new_page()
-            page.goto(login_url)
+            page.goto(LOGIN_URL[domain])
+            if domain == "advertising":
+                page.click('a[href="/user/wing/authorization"]')
             login_action(page, userid, passwd)
             return save_cookies(page, save_to)
         finally:
@@ -56,9 +68,11 @@ def login_coupang(credentials: dict, ws_endpoint: str, log_file: str | None = No
         time.sleep(random.uniform(0.3, 0.6))
 
         page.click('input[type="submit"]')
+        time.sleep(3)
         wait_cookies(page, wait_seconds, wait_interval)
 
     def wait_cookies(page: Page, wait_seconds: int = 10, wait_interval: int = 1):
+        page.wait_for_load_state("load")
         for _ in range(wait_seconds // wait_interval):
             time.sleep(wait_interval)
             cookies = page.context.cookies()
@@ -71,7 +85,7 @@ def login_coupang(credentials: dict, ws_endpoint: str, log_file: str | None = No
             file.write(cookies)
         return cookies
 
-    cookies_arr = cookies if isinstance((cookies := credentials["coupang"]["wing"]), Sequence) else [cookies]
+    cookies_arr = cookies if isinstance((cookies := credentials["coupang"][domain]), Sequence) else [cookies]
     cookies_map = {cookie["vendor_id"]: cookie["cookies"] for cookie in cookies_arr}
 
     users = users if isinstance((users := credentials["coupang"]["users"]), Sequence) else [users]
@@ -85,10 +99,11 @@ def login_coupang(credentials: dict, ws_endpoint: str, log_file: str | None = No
             for i in range(LOGIN_RETRIES):
                 with sync_playwright() as playwright:
                     try:
-                        result = login_wing(
+                        result = login(
                             playwright = playwright,
                             userid = user["userid"],
                             passwd = user["passwd"],
+                            domain = domain,
                             save_to = extract_path(cookies_map[vendor_id]),
                         )
                         logging.info(f"[{vendor_id}] SUCCESS ({i})")
@@ -114,7 +129,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--credentials", "-c", type=str, required=True, help="Credentials file path")
     parser.add_argument("--playwright", "-p", type=str, required=True, help="Browser websocket endpoint")
-    parser.add_argument("--chdir", "-d", type=str, default=None, help="Execution path (Optional)")
+    parser.add_argument("--domain", "-d", type=str, required=True, help="Coupang domain (advertising, wing)")
+    parser.add_argument("--chdir", "-r", type=str, default=None, help="Execution path (Optional)")
     parser.add_argument("--logfile", "-l", type=str, default=None, help="Log file path (Optional)")
     return parser.parse_args()
 
@@ -123,6 +139,7 @@ if __name__ == "__main__":
         args = parse_arguments()
         credentials_path = args.credentials
         ws_endpoint = args.playwright
+        domain = args.domain
         chdir = args.chdir
         log_file = args.logfile
     except:
@@ -139,4 +156,4 @@ if __name__ == "__main__":
     except:
         raise ValueError("Unable to read credentials.")
 
-    login_coupang(credentials, ws_endpoint, log_file)
+    login_coupang(credentials, ws_endpoint, domain, log_file)
