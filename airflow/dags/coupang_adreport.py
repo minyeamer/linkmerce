@@ -49,7 +49,6 @@ with DAG(
                 start_date = date,
                 date_type = "daily",
                 report_type = "vendorItem",
-                progress = False,
                 connection = conn,
                 return_type = "none",
             )
