@@ -11,6 +11,17 @@ def filter_warnings():
     warnings.filterwarnings("ignore", module="openpyxl.*")
 
 
+def to_unique_headers(headers: list[str]) -> list[str]:
+    unique = list()
+    for header in headers:
+        suffix = 1
+        while header in unique:
+            header = header + f'_{suffix}'
+            suffix += 1
+        unique.append(header)
+    return unique
+
+
 def csv2json(
         io: _ZipFileFileProtocol,
         header: int = 0,
@@ -28,7 +39,7 @@ def csv2json(
         from io import BytesIO, TextIOWrapper
         io = TextIOWrapper(BytesIO(io), encoding=encoding)
     rows = list(csv.reader(io, delimiter=delimiter, lineterminator=lineterminator))
-    header_row = rows[header]
+    header_row = to_unique_headers(rows[header])
     return [dict(zip(header_row, row)) for row in rows[(header+1):]]
 
 
@@ -46,5 +57,5 @@ def excel2json(
     wb = load_workbook(BytesIO(io) if isinstance(io, bytes) else io)
     ws = wb.active if sheet_name is None else wb[sheet_name]
 
-    headers = [cell.value for cell in next(ws.iter_rows(min_row=header, max_row=header))]
+    headers = to_unique_headers([cell.value for cell in next(ws.iter_rows(min_row=header, max_row=header))])
     return [dict(zip(headers, row)) for row in ws.iter_rows(min_row=header+1, values_only=True)]

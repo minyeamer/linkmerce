@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import run, run_with_duckdb
+from linkmerce.common.api import run_with_duckdb
 
 from typing import TYPE_CHECKING
 
@@ -23,6 +23,8 @@ def marketing_report(
         report_type: Literal["campaign","adGroup","vendorItem","keyword"] = "vendorItem",
         campaign_ids: Sequence[int | str] = list(),
         vendor_id: str | None = None,
+        wait_seconds: int = 60,
+        wait_interval: int = 1,
         domain: Literal["advertising","domain","wing"] = "advertising",
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
@@ -31,8 +33,8 @@ def marketing_report(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.coupang.wing.adreport.extract import MarketingReport
-    # from linkmerce.core.coupang.wing.adreport.transform import MarketingReport
+    # from linkmerce.core.coupang.advertising.adreport.extract import MarketingReport
+    # from linkmerce.core.coupang.advertising.adreport.transform import MarketingReport
     return run_with_duckdb(
         module = get_module(".adreport"),
         extractor = "MarketingReport",
@@ -41,7 +43,7 @@ def marketing_report(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        args = (start_date, end_date, date_type, report_type, campaign_ids, vendor_id),
+        args = (start_date, end_date, date_type, report_type, campaign_ids, vendor_id, wait_seconds, wait_interval),
         extract_options = dict(
             extract_options,
             headers = dict(cookies=cookies),

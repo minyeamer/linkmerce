@@ -32,6 +32,94 @@ def login(
     return credentials
 
 
+def product_option(
+        cookies: str,
+        is_deleted: bool = False,
+        see_more: bool = False,
+        domain: Literal["advertising","domain","wing"] = "advertising",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 0.1,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.coupang.wing.product.extract import ProductOption, ProductDetail
+    # from linkmerce.core.coupang.wing.product.transform import ProductOption, ProductDetail
+    common = dict(
+        module = get_module(".product"),
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        extract_options = dict(
+            extract_options,
+            headers = dict(cookies=cookies),
+            variables = dict(domain=domain),
+        ),
+        transform_options = transform_options,
+    )
+
+    product = run_with_duckdb(
+        extractor = "ProductOption",
+        transformer = "ProductOption",
+        args = (is_deleted,),
+        **common,
+    )
+
+    if see_more:
+        table = (tables or dict()).get("default", "data")
+        query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(table)
+        vendor_inventory_id = [row[0] for row in connection.execute(query).fetchall()]
+
+        common["extract_options"]["options"] = dict(RequestEach = dict(request_delay=request_delay))
+        return run_with_duckdb(
+            extractor = "ProductDetail",
+            transformer = "ProductDetail",
+            args = (vendor_inventory_id,),
+            **common,
+        )
+    else:
+        return product
+
+
+def product_download(
+        cookies: str,
+        request_type = "VENDOR_INVENTORY_ITEM",
+        fields: list[str] = list(),
+        is_deleted: bool = False,
+        vendor_id: str | None = None,
+        wait_seconds: int = 60,
+        wait_interval: int = 1,
+        domain: Literal["advertising","domain","wing"] = "advertising",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.coupang.wing.product.extract import ProductDownload
+    # from linkmerce.core.coupang.wing.product.transform import ProductDownload
+    return run_with_duckdb(
+        module = get_module(".product"),
+        extractor = "ProductDownload",
+        transformer = "ProductDownload",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (request_type, fields, is_deleted, vendor_id, wait_seconds, wait_interval),
+        extract_options = dict(
+            extract_options,
+            headers = dict(cookies=cookies),
+            variables = dict(domain=domain),
+        ),
+        transform_options = transform_options,
+    )
+
+
 def summary(
         cookies: str,
         start_from: str,

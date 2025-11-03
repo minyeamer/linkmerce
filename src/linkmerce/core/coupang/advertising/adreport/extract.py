@@ -23,6 +23,8 @@ class MarketingReport(CoupangAds):
             report_type: Literal["campaign","adGroup","vendorItem","keyword"] = "vendorItem",
             campaign_ids: Sequence[int | str] = list(),
             vendor_id: str | None = None,
+            wait_seconds: int = 60,
+            wait_interval: int = 1,
             **kwargs
         ) -> dict[str,bytes]:
         start_date = self.to_date(start_date)
@@ -39,7 +41,7 @@ class MarketingReport(CoupangAds):
         report = self.request_report(start_date, end_date, date_type, report_type, campaign_ids=campaign_ids)
         report_id = report["data"]["requestReport"]["id"]
 
-        self.wait_report(report_id)
+        self.wait_report(report_id, wait_seconds, wait_interval)
         file_name = f"{vendor_id or str()}_pa_{date_type}_{report_type}_{start_date}_{end_date}.xlsx"
         return {file_name: self.download_excel(report_id, vendor_id)}
 
@@ -51,22 +53,14 @@ class MarketingReport(CoupangAds):
         self.request("GET", url, headers=headers)
 
     def fetch_campaign_ids(self, start_date: int, end_date: int) -> list[str]:
-        headers = self.build_request_headers()
         body = self.build_campaign_body(start_date, end_date)
-        with self.request(self.method, self.url, json=body, headers=headers) as response:
+        with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
             return [row["id"] for row in response.json()[0]["data"]["getCampaignList"]]
 
     def request_report(self, start_date: int, end_date: int, date_type: str, report_type: str, campaign_ids: list[str]) -> dict:
-        headers = self.build_request_headers()
         body = self.build_mutation_body(start_date, end_date, date_type, report_type, campaign_ids)
-        with self.request(self.method, self.url, json=body, headers=headers) as response:
+        with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
             return reports[0] if (reports := response.json()) else dict()
-
-    def list_report(self, page: int = 1, page_size: int = 10, duration: int = 90) -> list[dict]:
-        headers = self.build_request_headers()
-        body = self.build_query_body(page=page, paege_size=page_size, duration=duration)
-        with self.request(self.method, self.url, json=body, headers=headers) as response:
-            return response.json()
 
     def wait_report(self, report_id: str, wait_seconds: int = 60, wait_interval: int = 1) -> bool:
         import time
@@ -78,10 +72,14 @@ class MarketingReport(CoupangAds):
                         return True
         raise ValueError("Failed to create the marketing report.")
 
+    def list_report(self, page: int = 1, page_size: int = 10, duration: int = 90) -> list[dict]:
+        body = self.build_query_body(page=page, paege_size=page_size, duration=duration)
+        with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
+            return response.json()
+
     def download_excel(self, report_id: str, vendor_id: str | None = None) -> bytes:
         url = self.origin + f"/marketing-reporting/v2/api/excel-report?id={report_id}"
-        headers = self.build_request_headers()
-        with self.request("GET", url, headers=headers) as response:
+        with self.request("GET", url, headers=self.build_request_headers()) as response:
             return self.parse(response.content, vendor_id=vendor_id)
 
     def build_mutation_body(
