@@ -77,7 +77,8 @@ class SearchAdGFA(Extractor):
 
     def get_request_headers(self, with_token: bool = True) -> dict[str,str]:
         if with_token and self.token:
-            return dict(super().get_request_headers(), **{"x-xsrf-token": self.token})
+            cookies = {"cookie": self.get_cookies(), "x-xsrf-token": self.token}
+            return dict(super().get_request_headers(), **cookies)
         else:
             return super().get_request_headers()
 

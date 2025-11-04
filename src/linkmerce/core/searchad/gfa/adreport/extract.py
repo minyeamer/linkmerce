@@ -229,21 +229,24 @@ class PerformanceReport(SearchAdGFA):
         status = [False] * len(dates)
         for index, (start_date, end_date) in enumerate(tqdm(dates, desc="Requesting performance reports", disable=(not progress))):
             kwargs = dict(start_date=start_date, end_date=end_date, date_type=date_type, columns=columns)
-            status[index] = self.request_download(**kwargs)
+            status[index] = self.request_report(**kwargs)
             time.sleep(wait_interval)
 
         indices = [i for i, status in enumerate(status[::-1]) if status]
-        downloads = self.wait_downloads(indices, wait_seconds, wait_interval, **kwargs)
+        downloads = self.wait_reports(indices, wait_seconds, wait_interval, **kwargs)
 
         results = dict()
         for report in tqdm(downloads, desc="Downloading performance reports", disable=(not progress)):
-            file_name = self.query_to_filename(report["reportQuery"])
-            content = self.url_download(report["no"], **kwargs)
-            if isinstance(report["fileSize"], int) and (report["fileSize"] > 0):
-                results[file_name] = self.parse(content, account_no=self.account_no)
-                time.sleep(wait_interval)
-            else:
-                results[file_name] = None
+            try:
+                file_name = self.query_to_filename(report["reportQuery"])
+                content = self.download_excel(report["no"], **kwargs)
+                if isinstance(report["fileSize"], int) and (report["fileSize"] > 0):
+                    results[file_name] = self.parse(content, account_no=self.account_no)
+                    time.sleep(wait_interval)
+                else:
+                    results[file_name] = None
+            finally:
+                self.delete_report(report["no"], **kwargs)
         return results
 
     def generate_date_range(self, start_date: dt.date | str, end_date: dt.date | str) -> list[tuple[dt.date,dt.date]]:
@@ -251,7 +254,7 @@ class PerformanceReport(SearchAdGFA):
         from linkmerce.utils.date import date_split
         return date_split(start_date, end_date, delta=dict(days=60), format=self.date_format)
 
-    def request_download(self, **kwargs) -> bool:
+    def request_report(self, **kwargs) -> bool:
         url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads"
         body = self.build_download_json(**kwargs)
         headers = self.build_request_headers(**kwargs)
@@ -259,14 +262,15 @@ class PerformanceReport(SearchAdGFA):
         with self.request("POST", url, json=body, headers=headers) as response:
             return response.json()["success"]
 
-    def wait_downloads(self, indices: list[int], wait_seconds: int = 60, wait_interval: int = 1, **kwargs) -> list[dict]:
+    def wait_reports(self, indices: list[int], wait_seconds: int = 60, wait_interval: int = 1, **kwargs) -> list[dict]:
         from linkmerce.common.exceptions import RequestError
         import time
-        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads?reportType=PERFORMANCE"
+        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads"
+        params = {"reportType": "PERFORMANCE"}
         headers = self.build_request_headers(**kwargs)
         for _ in range(0, max(wait_seconds, 1), max(wait_interval, 1)):
             time.sleep(wait_interval)
-            with self.request("GET", url, headers=headers) as response:
+            with self.request("GET", url, params=params, headers=headers) as response:
                 downloads = response.json()
                 for index in indices:
                     if downloads[index]["status"] != "COMPLETED":
@@ -274,11 +278,18 @@ class PerformanceReport(SearchAdGFA):
                 return [downloads[index] for index in indices]
         raise RequestError("Download was not completed within the waiting seconds.")
 
-    def url_download(self, download_no: int, **kwargs) -> bytes:
+    def download_excel(self, download_no: int, **kwargs) -> bytes:
         url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads/{download_no}/download"
         headers = self.build_request_headers(**kwargs)
         with self.request("GET", url, headers=headers) as response:
             return response.content
+
+    def delete_report(self, download_no: int, **kwargs) -> bool:
+        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads"
+        params = {"reportDownloadNos": download_no, "reportType": "PERFORMANCE"}
+        headers = self.build_request_headers(**kwargs)
+        with self.request("DELETE", url, params=params, headers=headers) as response:
+            return response.json()["success"]
 
     def query_to_filename(self, report_query: dict) -> str:
         start_date = str(report_query["startDate"]).replace('-', '')
