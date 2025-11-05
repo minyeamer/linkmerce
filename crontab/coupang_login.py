@@ -76,8 +76,9 @@ def login_coupang(
         for _ in range(wait_seconds // wait_interval):
             time.sleep(wait_interval)
             cookies = page.context.cookies()
-            if len([cookie for cookie in cookies if cookie["name"] == "XSRF-TOKEN"]) > 0:
-                return
+            for cookie in cookies:
+                if cookie["name"] == "XSRF-TOKEN":
+                    return
 
     def save_cookies(page: Page, save_to: str) -> str:
         cookies = '; '.join([f"{cookie['name']}={cookie['value']}" for cookie in page.context.cookies()])
