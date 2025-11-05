@@ -1,3 +1,53 @@
+-- Campaign: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    campaign_id BIGINT PRIMARY KEY
+  , campaign_name VARCHAR
+  , campaign_type VARCHAR -- {'PA': '상품광고'}
+  , vendor_id VARCHAR
+  , vendor_type VARCHAR -- {'3P': 'Wing', 'Retail': '서플라이어 허브'}
+  , group_id BIGINT
+  , goal_type VARCHAR
+  , is_active BOOLEAN
+  , is_deleted BOOLEAN
+  , roas_target INTEGER
+  -- , cap_type VARCHAR
+  -- , calculated_budget INTEGER
+  -- , spent_budget INTEGER
+  , created_at TIMESTAMP
+  , updated_at TIMESTAMP
+);
+
+-- Campaign: select
+SELECT
+    id AS campaign_id
+  , name AS campaign_name
+  , campaignType AS campaign_type
+  , $vendor_id AS vendor_id
+  , vendorType AS vendor_type
+  , TRY_CAST(groupId AS BIGINT) AS group_id
+  , goalType AS goal_type
+  , isActive AS is_active
+  , isDeleted AS is_deleted
+  , roasTarget AS roas_target
+  -- , capType AS cap_type
+  -- , calculatedBudget AS calculated_budget
+  -- , spentBudget AS spent_budget
+  , TRY_STRPTIME(SUBSTR(createdAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS created_at
+  , TRY_STRPTIME(SUBSTR(updatedAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS updated_at
+FROM {{ array }};
+
+-- Campaign: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+-- Campaign: goal_type
+SELECT *
+FROM UNNEST([
+  , STRUCT(0 AS seq, 'SALES' AS code, '매출 성장' AS name)
+  , STRUCT(1 AS seq, 'NCA' AS code, '신규 구매 고객 확보' AS name)
+  , STRUCT(2 AS seq, 'REACH' AS code, '인지도 상승' AS name)
+]);
+
+
 -- MarketingReport: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     campaign_id BIGINT

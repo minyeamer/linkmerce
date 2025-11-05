@@ -1,11 +1,25 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import DuckDBTransformer
+from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from linkmerce.common.transform import JsonObject
+
+
+class CampaignList(JsonTransformer):
+    dtype = dict
+    path = ["campaigns"]
+
+
+class Campaign(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
+        campaigns = CampaignList().transform(obj)
+        if campaigns:
+            return self.insert_into_table(campaigns, params=dict(vendor_id=vendor_id))
 
 
 class MarketingReport(DuckDBTransformer):

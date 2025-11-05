@@ -5,7 +5,50 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Sequence
+    from linkmerce.common.extract import JsonObject
     import datetime as dt
+
+
+class Campaign(CoupangAds):
+    method = "POST"
+    path = "/marketing/tetris-api/campaigns"
+    max_page_size = 20
+    page_start = 0
+    date_format = "%Y%m%d"
+
+    @property
+    def default_options(self) -> dict:
+        return dict(
+            PaginateAll = dict(request_delay=1),
+            RequestEachPages = dict(request_delay=1),
+        )
+
+    @CoupangAds.with_session
+    @CoupangAds.authorize
+    def extract(self, is_deleted: bool = False, vendor_id: str | None = None, **kwargs) -> dict[str,bytes]:
+        return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
+                .run(is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
+
+    def count_total(self, response: JsonObject, **kwargs) -> int:
+        from linkmerce.utils.map import hier_get
+        return hier_get(response, ["pageInfo","totalCount"])
+
+    def build_request_json(self, page: int = 0, size: int = 20, is_deleted: bool = False, **kwargs) -> dict:
+        return {
+            "isDeleted": is_deleted,
+            "pagination": {"page": page, "size": size},
+            "sortedBy": "ID",
+            "isSortDesc": "DESC",
+            "budgetTypes": None,
+            "isActive": None,
+            "name": "",
+            "creationContext": None,
+            "objective": None,
+            "primaryOrderBy": "DEFAULT",
+            "goalType": "SALES",
+            "targetCampaignId": None,
+            "vendorItemId": None
+        }
 
 
 class MarketingReport(CoupangAds):
