@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import run_with_duckdb
+from linkmerce.common.api import run_with_duckdb, update_options
 
 from typing import TYPE_CHECKING
 
@@ -13,6 +13,48 @@ if TYPE_CHECKING:
 
 def get_module(name: str) -> str:
     return (".coupang.advertising" + name) if name.startswith('.') else name
+
+
+def get_options(request_delay: float | int = 1, progress: bool = True) -> dict:
+    return dict(
+            PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
+            RequestEachPages = dict(request_delay=request_delay),
+        )
+
+
+def campaign(
+        cookies: str,
+        is_deleted: bool = False,
+        vendor_id: str | None = None,
+        domain: Literal["advertising","domain","wing"] = "advertising",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 1,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.coupang.advertising.adreport.extract import Campaign
+    # from linkmerce.core.coupang.advertising.adreport.transform import Campaign
+    return run_with_duckdb(
+        module = get_module(".adreport"),
+        extractor = "Campaign",
+        transformer = "Campaign",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (is_deleted, vendor_id),
+        extract_options = update_options(
+            extract_options,
+            headers = dict(cookies=cookies),
+            variables = dict(domain=domain),
+            options = get_options(request_delay, progress),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def marketing_report(
@@ -44,7 +86,7 @@ def marketing_report(
         how = "sync",
         return_type = return_type,
         args = (start_date, end_date, date_type, report_type, campaign_ids, vendor_id, wait_seconds, wait_interval),
-        extract_options = dict(
+        extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
             variables = dict(domain=domain),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import run, run_with_duckdb
+from linkmerce.common.api import run, run_with_duckdb, update_options
 
 from typing import TYPE_CHECKING
 
@@ -53,7 +53,7 @@ def product_option(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        extract_options = dict(
+        extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
             variables = dict(domain=domain),
@@ -111,7 +111,7 @@ def product_download(
         how = "sync",
         return_type = return_type,
         args = (request_type, fields, is_deleted, vendor_id, wait_seconds, wait_interval),
-        extract_options = dict(
+        extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
             variables = dict(domain=domain),
@@ -134,7 +134,7 @@ def summary(
         transformer = None,
         how = "sync",
         args = (start_from, end_to),
-        extract_options = dict(
+        extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
         ),
@@ -166,7 +166,7 @@ def rocket_settlement(
         how = "sync",
         return_type = return_type,
         args = (start_date, end_date, date_type, vendor_id),
-        extract_options = dict(
+        extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
         ),
@@ -201,7 +201,7 @@ def rocket_settlement_download(
         how = "sync",
         return_type = return_type,
         args = (start_date, end_date, date_type, vendor_id, wait_seconds, wait_interval, progress),
-        extract_options = dict(
+        extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
         ),
