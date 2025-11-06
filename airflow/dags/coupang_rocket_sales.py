@@ -25,7 +25,7 @@ with DAG(
         return read(PATH, credentials=True)["credentials"]
 
 
-    @task(task_id="etl_coupang_rocket_sales", map_index_template="{{ credentials['vendor_id'] }}")
+    @task(task_id="etl_coupang_rocket_sales", map_index_template="{{ credentials['vendor_id'] }}", pool="coupang_pool")
     def etl_coupang_rocket_sales(credentials: dict, variables: dict, **kwargs) -> dict:
         dates = dict(zip(["start_date", "end_date"], generate_sales_date(**kwargs)))
         return main(**credentials, **dates, **variables)

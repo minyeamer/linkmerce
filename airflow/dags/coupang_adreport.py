@@ -25,7 +25,7 @@ with DAG(
         return read(PATH, credentials=True)["credentials"]
 
 
-    @task(task_id="etl_coupang_adreport", map_index_template="{{ credentials['vendor_id'] }}")
+    @task(task_id="etl_coupang_adreport", map_index_template="{{ credentials['vendor_id'] }}", pool="coupang_pool")
     def etl_coupang_adreport(credentials: dict, variables: dict, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
         date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
         return main(**credentials, date=date, **variables)

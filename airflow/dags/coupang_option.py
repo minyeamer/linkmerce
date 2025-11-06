@@ -25,7 +25,7 @@ with DAG(
         return read(PATH, credentials=True)["credentials"]
 
 
-    @task(task_id="etl_coupang_option", map_index_template="{{ credentials['vendor_id'] }}")
+    @task(task_id="etl_coupang_option", map_index_template="{{ credentials['vendor_id'] }}", pool="coupang_pool")
     def etl_coupang_option(credentials: dict, variables: dict, **kwargs) -> dict:
         return main(**credentials, **variables)
 
