@@ -439,12 +439,13 @@ class BigQueryClient(Connection):
             write: Literal["append","empty","truncate","truncate_data"] = "append",
             if_not_found: Literal["create","errors","ignore"] = "errors",
             progress: bool = True,
+            if_source_table_empty: Literal["break","continue"] = "break",
         ) -> bool:
         from linkmerce.common.load import DuckDBIterator
         from linkmerce.utils.progress import import_tqdm
         from io import BytesIO
 
-        if not connection.table_exists(source_table):
+        if not (connection.table_has_rows(source_table) if if_source_table_empty == "break" else connection.table_exists(source_table)):
             return True
         schema = self._auto_detect_schema(target_table, schema)
 

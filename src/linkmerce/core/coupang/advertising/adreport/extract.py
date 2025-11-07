@@ -51,10 +51,11 @@ class Campaign(CoupangAds):
         }
 
 
-class MarketingReport(CoupangAds):
+class _AdReport(CoupangAds):
     method = "POST"
     path = "/marketing-reporting/v2/graphql"
     date_format = "%Y%m%d"
+    report_type: Literal["pa","nca"]
 
     @CoupangAds.with_session
     @CoupangAds.authorize
@@ -63,7 +64,7 @@ class MarketingReport(CoupangAds):
             start_date: dt.date | str, 
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             date_type: Literal["total","daily"] = "daily",
-            report_type: Literal["campaign","adGroup","vendorItem","keyword"] = "vendorItem",
+            report_level: Literal["campaign","adGroup","ad","vendorItem","keyword","creative"] = "campaign",
             campaign_ids: Sequence[int | str] = list(),
             vendor_id: str | None = None,
             wait_seconds: int = 60,
@@ -81,11 +82,11 @@ class MarketingReport(CoupangAds):
             print(f"No campaigns or data found for the period: '{start_date}' - '{end_date}'")
             return dict()
 
-        report = self.request_report(start_date, end_date, date_type, report_type, campaign_ids=campaign_ids)
+        report = self.request_report(start_date, end_date, date_type, report_level, campaign_ids=campaign_ids)
         report_id = report["data"]["requestReport"]["id"]
 
         self.wait_report(report_id, wait_seconds, wait_interval)
-        file_name = f"{vendor_id or str()}_pa_{date_type}_{report_type}_{start_date}_{end_date}.xlsx"
+        file_name = f"{vendor_id or str()}_{self.report_type}_{date_type}_{report_level}_{start_date}_{end_date}.xlsx"
         return {file_name: self.download_excel(report_id, vendor_id)}
 
     def fetch_dashboard(self):
@@ -100,8 +101,15 @@ class MarketingReport(CoupangAds):
         with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
             return [row["id"] for row in response.json()[0]["data"]["getCampaignList"]]
 
-    def request_report(self, start_date: int, end_date: int, date_type: str, report_type: str, campaign_ids: list[str]) -> dict:
-        body = self.build_mutation_body(start_date, end_date, date_type, report_type, campaign_ids)
+    def request_report(
+            self,
+            start_date: int,
+            end_date: int,
+            date_type: Literal["total","daily"] = "daily",
+            report_level: Literal["campaign","adGroup","vendorItem","keyword","ad","creative"] = "vendorItem",
+            campaign_ids: list[str] = list(),
+        ) -> dict:
+        body = self.build_mutation_body(start_date, end_date, date_type, report_level, campaign_ids)
         with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
             return reports[0] if (reports := response.json()) else dict()
 
@@ -130,7 +138,7 @@ class MarketingReport(CoupangAds):
             start_date: int,
             end_date: int,
             date_type: Literal["total","daily"] = "daily",
-            report_type: Literal["campaign","adGroup","vendorItem","keyword"] = "vendorItem",
+            report_level: Literal["campaign","adGroup","vendorItem","keyword","ad","creative"] = "vendorItem",
             campaign_ids: list[str] = list(),
         ) -> list[dict]:
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection, GraphQLFragment
@@ -139,10 +147,10 @@ class MarketingReport(CoupangAds):
             "startDate": start_date,
             "endDate": end_date,
             "campaignIds": campaign_ids,
-            "reportType": "pa",
+            "reportType": self.report_type,
             "dateGroup": date_type,
-            "granularity": report_type,
-            "excludeIfNoClickCount": False
+            "granularity": report_level,
+            "excludeIfNoClickCount": False,
         }
 
         types = {
@@ -172,8 +180,21 @@ class MarketingReport(CoupangAds):
     def build_query_body(self, page: int = 1, paege_size: int = 10, duration: int = 90) -> list[dict]:
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection, GraphQLFragment
 
-        variables = {"reportType": "pa", "page": page, "pageSize": paege_size, "duration": duration, "onlyScheduledReport": False}
-        types = {"reportType": "ReportType!", "page": "Int!", "pageSize": "Int!", "duration": "Int!", "onlyScheduledReport": "Boolean"}
+        variables = {
+            "reportType": self.report_type,
+            "page": page,
+            "pageSize": paege_size,
+            "duration": duration,
+            "onlyScheduledReport": False,
+        }
+
+        types = {
+            "reportType": "ReportType!",
+            "page": "Int!",
+            "pageSize": "Int!",
+            "duration": "Int!",
+            "onlyScheduledReport": "Boolean",
+        }
 
         return [GraphQLOperation(
             operation = str(),
@@ -192,7 +213,7 @@ class MarketingReport(CoupangAds):
     def build_campaign_body(self, start_date: int, end_date: int) -> list[dict]:
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
 
-        variables = {"startDate": start_date, "endDate": end_date, "reportType": "pa"}
+        variables = {"startDate": start_date, "endDate": end_date, "reportType": self.report_type}
         types = {"startDate": "Int!", "endDate": "Int!", "reportType": "ReportType!"}
 
         return [GraphQLOperation(
@@ -214,7 +235,7 @@ class MarketingReport(CoupangAds):
             authority = self.origin,
             contents = "json",
             origin = self.origin,
-            referer = self.origin + "/marketing-reporting/billboard/reports/pa",
+            referer = self.origin + f"/marketing-reporting/billboard/reports/{self.report_type}",
             **kwargs
         )
 
@@ -227,16 +248,28 @@ class MarketingReport(CoupangAds):
         return int(str(date).replace('-', ''))
 
     @property
+    def report_type(self) -> dict[str,str]:
+        return {"pa": "매출 성장 광고 보고서", "nca": "신규 구매 고객 확보 광고 보고서"}
+
+    @property
     def date_type(self) -> dict[str,str]:
         return {"total": "합계", "daily": "일별"}
 
     @property
-    def report_type(self) -> dict[str,str]:
+    def report_level(self) -> dict[str,dict[str,str]]:
         return {
-            "campaign": "캠페인",
-            "adGroup": "캠페인 > 광고그룹",
-            "vendorItem": "캠페인 > 광고그룹 > 상품",
-            "keyword": "캠페인 > 광고그룹 > 상품 > 키워드",
+            "pa": {
+                "campaign": "캠페인",
+                "adGroup": "캠페인 > 광고그룹",
+                "vendorItem": "캠페인 > 광고그룹 > 상품",
+                "keyword": "캠페인 > 광고그룹 > 상품 > 키워드",
+            },
+            "nca": {
+                "campaign": "캠페인",
+                "ad": "캠페인 > 광고",
+                "keyword": "캠페인 > 광고 > 키워드",
+                "creative": "캠페인 > 광고 > 키워드 > 소재",
+            },
         }
 
     @property
@@ -262,3 +295,11 @@ class MarketingReport(CoupangAds):
         schedule = ["title", "scheduleType", "createDay", "requestDate", "expireAt"]
         reports = self.report_fields[:-1] + [{"schedule": schedule}]
         return ["page", "pageSize", "total", "duration", "onlyScheduledReport", {"reports": reports}]
+
+
+class ProductAdReport(_AdReport):
+    report_type = "pa"
+
+
+class NewCustomerAdReport(_AdReport):
+    report_type = "nca"

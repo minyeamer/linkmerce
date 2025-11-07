@@ -48,7 +48,7 @@ FROM UNNEST([
 ]);
 
 
--- MarketingReport: create
+-- ProductAdReport: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     campaign_id BIGINT
   -- , campaign_name VARCHAR
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (ymd, vendor_id, campaign_id, option_id, option_conv_id, placement_group)
 );
 
--- MarketingReport: select
+-- ProductAdReport: select
 SELECT
     campaign_id
   , $vendor_id AS vendor_id
@@ -126,5 +126,81 @@ WHERE (campaign_id IS NOT NULL)
   AND (ymd IS NOT NULL)
 GROUP BY ymd, campaign_id, option_id, option_conv_id, placement_group;
 
--- MarketingReport: insert
+-- ProductAdReport: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
+-- NewCustomerAdReport: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    campaign_id BIGINT
+  -- , campaign_name VARCHAR
+  -- , adgroup_name VARCHAR
+  , vendor_id VARCHAR
+  , creative_id BIGINT
+  , creative_type TINYINT -- {0: '상품', 1: '동영상'}
+  -- , price_type VARCHAR -- {'cpc': '상품광고'}
+  -- , vendor_type VARCHAR -- {'3P': 'Wing', 'Retail': '서플라이어 허브'}
+  -- , target_type VARCHAR -- {'매출 최적화', '수동 성과형'}
+  , option_id BIGINT
+  -- , option_name VARCHAR
+  , placement_group TINYINT -- {0: '검색 영역', 1: '비검색 영역', 2: '리타겟팅%'}
+  , impression_count INTEGER
+  , click_count INTEGER
+  , ad_cost INTEGER
+  , view_count INTEGER
+  , stay_time DECIMAL(18, 2)
+  -- , campaign_start_date DATE
+  -- , campaign_end_date DATE
+  , ymd DATE
+  , PRIMARY KEY (ymd, vendor_id, campaign_id, creative_id, placement_group)
+);
+
+-- NewCustomerAdReport: select
+SELECT
+    campaign_id
+  , $vendor_id AS vendor_id
+  , creative_id
+  , MIN(creative_type) AS creative_type
+  , MIN(option_id) AS option_id
+  , placement_group
+  , SUM(impression_count) AS impression_count
+  , SUM(click_count) AS click_count
+  , SUM(ad_cost) AS ad_cost
+  , SUM(view_count) AS view_count
+  , AVG(stay_time) AS stay_time
+  , ymd
+FROM (
+  SELECT
+      TRY_CAST("캠페인 ID" AS BIGINT) AS campaign_id
+    -- , "캠페인명" AS campaign_name
+    -- , "광고그룹" AS adgroup_name
+    , TRY_CAST("소재 ID" AS BIGINT) AS creative_id
+    , (CASE WHEN "소재" = '상품' THEN 0 WHEN "소재" = '동영상' THEN 1 ELSE NULL END) AS creative_type
+    -- , "과금방식" AS price_type
+    -- , "판매방식" AS vendor_type
+    , NULLIF(TRY_CAST("광고집행 옵션 ID" AS BIGINT), 0) AS option_id
+    -- , "광고집행 상품명" AS option_name
+    -- , "광고 이름" AS title
+    , (CASE
+        WHEN "광고 노출 지면" = '검색 영역' THEN 0
+        WHEN "광고 노출 지면" = '비검색 영역' THEN 1
+        WHEN "광고 노출 지면" LIKE '리타겟팅%' THEN 2
+        ELSE NULL END) AS placement_group
+    , TRY_CAST("노출수" AS INTEGER) AS impression_count
+    , TRY_CAST("클릭수" AS INTEGER) AS click_count
+    , TRY_CAST("집행 광고비" AS INTEGER) AS ad_cost
+    , TRY_CAST("참여수" AS INTEGER) AS view_count
+    , TRY_CAST("평균 재생 시간" AS FLOAT) AS stay_time
+    -- , TRY_CAST(TRY_STRPTIME("캠페인 시작일", '%Y.%m.%d') AS DATE) AS campaign_start_date
+    -- , TRY_CAST(TRY_STRPTIME("캠페인 종료일", '%Y.%m.%d') AS DATE) AS campaign_end_date
+    , TRY_CAST(TRY_STRPTIME(CAST(CAST("날짜" AS BIGINT) AS VARCHAR), '%Y%m%d') AS DATE) AS ymd
+  FROM {{ array }}
+) AS row
+WHERE (campaign_id IS NOT NULL)
+  AND (creative_id IS NOT NULL)
+  AND (placement_group IS NOT NULL)
+  AND (ymd IS NOT NULL)
+GROUP BY ymd, campaign_id, creative_id, placement_group;
+
+-- NewCustomerAdReport: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;

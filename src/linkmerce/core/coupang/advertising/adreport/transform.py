@@ -22,7 +22,17 @@ class Campaign(DuckDBTransformer):
             return self.insert_into_table(campaigns, params=dict(vendor_id=vendor_id))
 
 
-class MarketingReport(DuckDBTransformer):
+class ProductAdReport(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
+        from linkmerce.utils.excel import excel2json
+        reports = excel2json(obj, warnings=False)
+        if reports:
+            return self.insert_into_table(reports, params=dict(vendor_id=vendor_id))
+
+
+class NewCustomerAdReport(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
     def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
