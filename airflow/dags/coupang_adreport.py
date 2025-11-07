@@ -48,7 +48,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.advertising import adreport
         from linkmerce.extensions.bigquery import BigQueryClient
-        report_level = "creative" if report_type == "pa" else "vendorItem"
+        report_level = "creative" if report_type == "nca" else "vendorItem"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             adreport(
