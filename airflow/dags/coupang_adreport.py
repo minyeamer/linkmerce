@@ -28,27 +28,36 @@ with DAG(
     @task(task_id="etl_coupang_adreport", map_index_template="{{ credentials['vendor_id'] }}", pool="coupang_pool")
     def etl_coupang_adreport(credentials: dict, variables: dict, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
         date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
-        return main(**credentials, date=date, **variables)
+        if credentials.get("nca"):
+            return dict(
+                pa = main(**credentials, report_type="pa", date=date, **variables),
+                nca = main(**credentials, report_type="nca", date=date, **variables),
+            )
+        else:
+            return main(**credentials, report_type="pa", date=date, **variables)
 
     def main(
             cookies: str,
             vendor_id: str,
+            report_type: str,
             date: str,
             service_account: dict,
             tables: dict[str,str],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.coupang.advertising import marketing_report
+        from linkmerce.api.coupang.advertising import adreport
         from linkmerce.extensions.bigquery import BigQueryClient
+        report_level = "creative" if report_type == "pa" else "vendorItem"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            marketing_report(
+            adreport(
                 cookies = cookies,
                 vendor_id = vendor_id,
                 start_date = date,
+                report_type = report_type,
                 date_type = "daily",
-                report_type = "vendorItem",
+                report_level = report_level,
                 connection = conn,
                 return_type = "none",
             )
@@ -58,8 +67,9 @@ with DAG(
                     params = dict(
                         vendor_id = vendor_id,
                         date = date,
+                        report_type = report_type,
                         date_type = "daily",
-                        report_type = "vendorItem",
+                        report_level = report_level,
                     ),
                     count = dict(
                         data = conn.count_table("data"),
@@ -68,7 +78,7 @@ with DAG(
                         data = client.load_table_from_duckdb(
                             connection = conn,
                             source_table = "data",
-                            target_table = tables["data"],
+                            target_table = tables[report_type],
                             progress = False,
                         ),
                     ),
