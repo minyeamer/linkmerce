@@ -82,13 +82,13 @@ class ProductDetail(CoupangWing):
 
     @CoupangWing.with_session
     def extract(self, vendor_inventory_id: Sequence[int | str], **kwargs) -> JsonObject:
-        return (self.request_each(self.request_items)
+        return (self.request_each(self.request_json_safe)
                 .expand(vendor_inventory_id=vendor_inventory_id)
                 .run(**kwargs))
 
-    def request_items(self, vendor_inventory_id: int | str, **kwargs) -> JsonObject:
-        url = self.url.format(vendor_inventory_id)
-        return self.request_json_safe(url=url, **kwargs)
+    def build_request_message(self, vendor_inventory_id: int | str, **kwargs) -> dict:
+        kwargs["url"] = self.url.format(vendor_inventory_id)
+        return super().build_request_message(**kwargs)
 
     def build_request_params(self, **kwargs) -> dict[str,str]:
         return {"hasProgressiveDiscountRule": "true", "queryNonVariationJustificationProof": "true"}

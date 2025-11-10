@@ -13,6 +13,7 @@ class AdvancedReport(SearchAdManager):
     method = "POST"
     path = "/advanced-report/downloads"
     date_format = "%Y-%m-%d"
+    days_limit = 731
 
     @SearchAdManager.with_session
     @SearchAdManager.with_token

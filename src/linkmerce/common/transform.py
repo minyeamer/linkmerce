@@ -59,7 +59,7 @@ class JsonTransformer(Transformer, metaclass=ABCMeta):
             else:
                 self.raise_request_error("HTTP response is not valid.")
         else:
-            self.raise_parse_error()
+            self.raise_parse_error("Could not parse the HTTP response.")
 
     def parse(self, obj: JsonObject, **kwargs) -> JsonObject:
         if self.path is not None:
@@ -70,9 +70,6 @@ class JsonTransformer(Transformer, metaclass=ABCMeta):
 
     def is_valid_response(self, obj: JsonObject) -> bool:
         return True
-
-    def raise_parse_error(self, msg: str | None = None):
-        self.raise_parse_error(msg if msg is not None else "Could not parse the HTTP response.")
 
 
 class HtmlTransformer(Transformer, metaclass=ABCMeta):

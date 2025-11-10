@@ -15,15 +15,9 @@ def get_module(name: str) -> str:
     return (".coupang.advertising" + name) if name.startswith('.') else name
 
 
-def get_options(request_delay: float | int = 1, progress: bool = True) -> dict:
-    return dict(
-            PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
-            RequestEachPages = dict(request_delay=request_delay),
-        )
-
-
 def campaign(
         cookies: str,
+        goal_type: Literal["SALES","NCA","REACH"] = "SALES",
         is_deleted: bool = False,
         vendor_id: str | None = None,
         domain: Literal["advertising","domain","wing"] = "advertising",
@@ -35,7 +29,7 @@ def campaign(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
+    """`tables = {'campagin': 'coupang_campaign', 'adgroup': 'coupang_adgroup'}`"""
     # from linkmerce.core.coupang.advertising.adreport.extract import Campaign
     # from linkmerce.core.coupang.advertising.adreport.transform import Campaign
     return run_with_duckdb(
@@ -46,12 +40,47 @@ def campaign(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        args = (is_deleted, vendor_id),
+        args = (goal_type, is_deleted, vendor_id),
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
             variables = dict(domain=domain),
-            options = get_options(request_delay, progress),
+            options = dict(PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
+        ),
+        transform_options = transform_options,
+    )
+
+
+def creative(
+        cookies: str,
+        campaign_ids: Sequence[int | str],
+        vendor_id: str | None = None,
+        domain: Literal["advertising","domain","wing"] = "advertising",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.coupang.advertising.adreport.extract import Creative
+    # from linkmerce.core.coupang.advertising.adreport.transform import Creative
+    return run_with_duckdb(
+        module = get_module(".adreport"),
+        extractor = "Creative",
+        transformer = "Creative",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (campaign_ids, vendor_id),
+        extract_options = update_options(
+            extract_options,
+            headers = dict(cookies=cookies),
+            variables = dict(domain=domain),
+            options = dict(RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
         ),
         transform_options = transform_options,
     )
@@ -75,6 +104,7 @@ def adreport(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ):
+    """`tables = {'default': 'data'}`"""
     args = (
         cookies, start_date, end_date, date_type, report_level, campaign_ids, vendor_id,
         wait_seconds, wait_interval, domain, connection, tables, return_type, extract_options, transform_options)

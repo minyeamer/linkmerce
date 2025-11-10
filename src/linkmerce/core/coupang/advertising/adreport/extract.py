@@ -18,22 +18,32 @@ class Campaign(CoupangAds):
 
     @property
     def default_options(self) -> dict:
-        return dict(
-            PaginateAll = dict(request_delay=1),
-            RequestEachPages = dict(request_delay=1),
-        )
+        return dict(PaginateAll = dict(request_delay=1))
 
     @CoupangAds.with_session
     @CoupangAds.authorize
-    def extract(self, is_deleted: bool = False, vendor_id: str | None = None, **kwargs) -> dict[str,bytes]:
+    def extract(
+            self,
+            goal_type: Literal["SALES","NCA","REACH"] = "SALES",
+            is_deleted: bool = False,
+            vendor_id: str | None = None,
+            **kwargs
+        ) -> dict[str,bytes]:
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
-                .run(is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
+                .run(goal_type=goal_type, is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["pageInfo","totalCount"])
 
-    def build_request_json(self, page: int = 0, size: int = 20, is_deleted: bool = False, **kwargs) -> dict:
+    def build_request_json(
+            self,
+            goal_type: Literal["SALES","NCA","REACH"] = "SALES",
+            page: int = 0,
+            size: int = 20,
+            is_deleted: bool = False,
+            **kwargs
+        ) -> dict:
         return {
             "isDeleted": is_deleted,
             "pagination": {"page": page, "size": size},
@@ -45,16 +55,49 @@ class Campaign(CoupangAds):
             "creationContext": None,
             "objective": None,
             "primaryOrderBy": "DEFAULT",
-            "goalType": "SALES",
+            "goalType": goal_type,
             "targetCampaignId": None,
             "vendorItemId": None
         }
+
+    @property
+    def goal_type(self) -> dict[str,str]:
+        return {"SALES": "매출 성장", "NCA": "신규 구매 고객 확보", "REACH": "인지도 상승"}
+
+
+class Creative(CoupangAds):
+    method = "GET"
+    path = "/marketing/tetris-api/nca/campaign/{}"
+    max_page_size = 20
+    page_start = 0
+    date_format = "%Y%m%d"
+
+    @property
+    def default_options(self) -> dict:
+        return dict(RequestEach = dict(request_delay=0.3))
+
+    @CoupangAds.with_session
+    @CoupangAds.authorize
+    def extract(self, campaign_ids: Sequence[int | str], vendor_id: str | None = None, **kwargs) -> JsonObject:
+        return (self.request_each(self.request_json_safe)
+                .partial(vendor_id=vendor_id)
+                .expand(campaign_id=campaign_ids)
+                .run())
+
+    def build_request_message(self, campaign_id: int | str, **kwargs) -> dict:
+        kwargs["url"] = self.url.format(campaign_id)
+        return super().build_request_message(**kwargs)
+
+    def set_request_headers(self, **kwargs):
+        referer = self.origin + "/marketing/dashboard/nca"
+        return super().set_request_headers(contents="json", origin=self.origin, referer=referer, **kwargs)
 
 
 class _AdReport(CoupangAds):
     method = "POST"
     path = "/marketing-reporting/v2/graphql"
     date_format = "%Y%m%d"
+    days_limit = 30
     report_type: Literal["pa","nca"]
 
     @CoupangAds.with_session
@@ -117,7 +160,7 @@ class _AdReport(CoupangAds):
         import time
         for _ in range(0, max(wait_seconds, 1), max(wait_interval, 1)):
             time.sleep(wait_interval)
-            for report in self.list_report()[0]["data"]["reportList"]["reports"]:
+            for report in self.list_report():
                 if isinstance(report, dict) and (report["id"] == report_id):
                     if report["status"] == "completed":
                         return True
@@ -126,7 +169,11 @@ class _AdReport(CoupangAds):
     def list_report(self, page: int = 1, page_size: int = 10, duration: int = 90) -> list[dict]:
         body = self.build_query_body(page=page, paege_size=page_size, duration=duration)
         with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
-            return response.json()
+            data = response.json()
+            try:
+                return data[0]["data"]["reportList"]["reports"]
+            except:
+                return list()
 
     def download_excel(self, report_id: str, vendor_id: str | None = None) -> bytes:
         url = self.origin + f"/marketing-reporting/v2/api/excel-report?id={report_id}"

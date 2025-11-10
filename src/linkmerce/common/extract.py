@@ -408,15 +408,15 @@ class TaskClient(Client):
             func: Callable | Coroutine,
             counter: Callable[...,int],
             max_page_size: int,
-            page_start: int | None = None,
+            page_start: int = 1,
             request_delay: float | int | tuple[int,int] | None = None,
             max_concurrent: int | None = None,
             tqdm_options: dict | None = None,
         ) -> PaginateAll:
         from linkmerce.common.tasks import PaginateAll
-        input_options = dict(page_start=page_start, request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=tqdm_options)
+        input_options = dict(request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=tqdm_options)
         options = self.build_options("PaginateAll", **input_options)
-        return PaginateAll(func, counter, max_page_size, parser=self.parse, **options)
+        return PaginateAll(func, counter, max_page_size, page_start, parser=self.parse, **options)
 
     def request_each_pages(
             self,
