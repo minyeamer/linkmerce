@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , channel_seq BIGINT NOT NULL
   , product_id BIGINT NOT NULL
   , option_id BIGINT NOT NULL
-  , product_type INTEGER
+  , product_type TINYINT -- {0: '단일상품', 1: '옵션상품', 2: '추가구성상품'}
   , delivery_type INTEGER
   , delivery_tag_type INTEGER
   , inflow_path VARCHAR
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , channel_seq BIGINT
   , seller_product_code VARCHAR
   , seller_option_code VARCHAR
-  , product_type INTEGER
+  , product_type TINYINT -- {0: '단일상품', 1: '옵션상품', 2: '추가구성상품'}
   , product_name VARCHAR
   , option_name VARCHAR
   , sales_price INTEGER

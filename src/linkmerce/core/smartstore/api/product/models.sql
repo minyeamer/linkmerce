@@ -90,3 +90,122 @@ FROM {{ array }};
 
 -- Product: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
+-- Option: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    option_id BIGINT PRIMARY KEY
+  , product_id BIGINT
+  , channel_seq BIGINT
+  , product_type INTEGER -- {0: '옵션상품(단독형)', 1: '옵션상품(조합형)', 2: '추가상품'}
+  , management_code VARCHAR
+  , option_group1 VARCHAR
+  , option_name1 VARCHAR
+  , option_group2 VARCHAR
+  , option_name2 VARCHAR
+  , option_group3 VARCHAR
+  , option_name3 VARCHAR
+  , status BOOLEAN
+  , option_price INTEGER
+  , stock_quantity INTEGER
+  , register_order INTEGER
+);
+
+-- Option: select_option
+SELECT
+    id AS option_id
+  , TRY_CAST($product_id AS BIGINT) AS product_id
+  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
+  , 0 AS product_type
+  , groupName AS option_group1
+  , name AS option_name1
+  , usable AS status
+  , price AS option_price
+  , stockQuantity AS stock_quantity
+  , ROW_NUMBER() OVER () AS register_order
+FROM {{ array }}
+WHERE id IS NOT NULL;
+
+-- Option: insert_option
+INSERT INTO {{ table }} (
+    option_id
+  , product_id
+  , channel_seq
+  , product_type
+  , option_group1
+  , option_name1
+  , status
+  , option_price
+  , stock_quantity
+  , register_order
+) {{ values }} ON CONFLICT DO NOTHING;
+
+-- Option: select_option_comb
+SELECT
+    id AS option_id
+  , TRY_CAST($product_id AS BIGINT) AS product_id
+  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
+  , 1 AS product_type
+  , json_value(item, '$.sellerManagerCode') AS management_code
+  , optionGroupName1 AS option_group1
+  , optionName1 AS option_name1
+  , json_value(item, '$.optionGroupName2') AS option_group2
+  , json_value(item, '$.optionName2') AS option_name2
+  , json_value(item, '$.optionGroupName3') AS option_group3
+  , json_value(item, '$.optionName3') AS option_name3
+  , usable AS status
+  , price AS option_price
+  , stockQuantity AS stock_quantity
+  , ROW_NUMBER() OVER () AS register_order
+FROM {{ array }} AS item
+WHERE id IS NOT NULL;
+
+-- Option: insert_option_comb
+INSERT INTO {{ table }} (
+    option_id
+  , product_id
+  , channel_seq
+  , product_type
+  , management_code
+  , option_group1
+  , option_name1
+  , option_group2
+  , option_name2
+  , option_group3
+  , option_name3
+  , status
+  , option_price
+  , stock_quantity
+  , register_order
+) {{ values }} ON CONFLICT DO NOTHING;
+
+-- Option: select_supplement
+SELECT
+    id AS option_id
+  , TRY_CAST($product_id AS BIGINT) AS product_id
+  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
+  , 2 AS product_type
+  , json_value(item, '$.sellerManagementCode') AS management_code
+  , groupName AS option_group1
+  , name AS option_name1
+  , usable AS status
+  , price AS option_price
+  , stockQuantity AS stock_quantity
+  , ROW_NUMBER() OVER () AS register_order
+FROM {{ array }} AS item
+WHERE id IS NOT NULL;
+
+-- Option: insert_supplement
+INSERT INTO {{ table }} (
+    option_id
+  , product_id
+  , channel_seq
+  , product_type
+  , management_code
+  , option_group1
+  , option_name1
+  , status
+  , option_price
+  , stock_quantity
+  , register_order
+) {{ values }} ON CONFLICT DO NOTHING;

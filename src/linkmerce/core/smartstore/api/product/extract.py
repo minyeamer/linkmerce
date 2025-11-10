@@ -85,3 +85,31 @@ class Product(SmartstoreAPI):
     @property
     def period_type(self) -> dict[str,str]:
         return {"PROD_REG_DAY": "상품 등록일", "SALE_START_DAY": "판매 시작일", "SALE_END_DAY": "판매 종료일", "PROD_MOD_DAY": "최종 수정일"}
+
+
+class Option(SmartstoreAPI):
+    method = "GET"
+    version = "v2"
+    path = "/products/channel-products/{}"
+
+    @property
+    def default_options(self) -> dict:
+        return dict(RequestEach = dict(request_delay=1))
+
+    @SmartstoreAPI.with_session
+    @SmartstoreAPI.with_token
+    def extract(
+            self,
+            product_id: Sequence[int | str],
+            channel_seq: int | str | None = None,
+            max_retries: int = 5,
+            **kwargs
+        ) -> JsonObject:
+        return (self.request_each(self.request_json_until_success)
+                .partial(channel_seq=channel_seq, max_retries=max_retries)
+                .expand(product_id=product_id)
+                .run())
+
+    def build_request_message(self, product_id: int | str, **kwargs) -> dict:
+        kwargs["url"] = self.url.format(product_id)
+        return super().build_request_message(**kwargs)

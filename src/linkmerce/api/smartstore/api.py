@@ -21,6 +21,12 @@ def get_product_options(request_delay: float | int = 1, progress: bool = True) -
     )
 
 
+def get_option_options(request_delay: float | int = 1, progress: bool = True) -> dict:
+    return dict(
+        RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
+    )
+
+
 def get_order_options(request_delay: float | int = 1, progress: bool = True) -> dict:
     return dict(
         CursorAll = dict(request_delay=request_delay),
@@ -62,6 +68,41 @@ def product(
         extract_options = update_options(
             extract_options,
             options = get_product_options(request_delay, progress),
+            variables = dict(client_id=client_id, client_secret=client_secret),
+        ),
+        transform_options = transform_options,
+    )
+
+
+def option(
+        client_id: str,
+        client_secret: str,
+        product_id: Sequence[int | str],
+        channel_seq: int | str | None = None,
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        max_retries: int = 5,
+        request_delay: float | int = 1,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.smartstore.api.product.extract import Option
+    # from linkmerce.core.smartstore.api.product.transform import Option
+    return run_with_duckdb(
+        module = get_module(".product"),
+        extractor = "Option",
+        transformer = "Option",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (product_id, channel_seq, max_retries),
+        extract_options = update_options(
+            extract_options,
+            options = get_option_options(request_delay, progress),
             variables = dict(client_id=client_id, client_secret=client_secret),
         ),
         transform_options = transform_options,
