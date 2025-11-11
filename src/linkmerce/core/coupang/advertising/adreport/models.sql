@@ -23,7 +23,7 @@ SELECT
   , campaignType AS campaign_type
   , $vendor_id AS vendor_id
   , (CASE
-      WHEN vendorType = 'Wing' THEN 0
+      WHEN vendorType = '3P' THEN 0
       WHEN vendorType = 'Retail' THEN 1
       ELSE NULL END) AS vendor_type
   , (CASE
@@ -33,7 +33,7 @@ SELECT
       ELSE NULL END) AS goal_type
   , isActive AS is_active
   , isDeleted AS is_deleted
-  , json_value(item, '$.roasTarget') AS roas_target
+  , item->'$.roasTarget' AS roas_target
   -- , capType AS cap_type
   -- , calculatedBudget AS calculated_budget
   -- , spentBudget AS spent_budget
@@ -81,7 +81,7 @@ SELECT
       ELSE NULL END) AS goal_type
   , isActive AS is_active
   , isDeleted AS is_deleted
-  , json_value(item, '$.roasTarget') AS roas_target
+  , item->'$.roasTarget' AS roas_target
   , TRY_STRPTIME(SUBSTR(createdAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS created_at
   , TRY_STRPTIME(SUBSTR(updatedAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS updated_at
 FROM {{ array }} AS item

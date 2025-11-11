@@ -185,7 +185,7 @@ SELECT
   -- , TRY_CAST("판매수량" AS INTEGER) AS order_quantity
   , TRY_CAST("발생비용(A)" AS INTEGER) AS warehousing_fee
   , TRY_CAST("할인가(B)" AS INTEGER) AS discount_amount
-  , TRY_CAST(json_value(item, '$.추가비용') AS INTEGER) AS extra_fee
+  , TRY_CAST(item->'$.추가비용' AS INTEGER) AS extra_fee
   , TRY_CAST("주문일" AS DATE) AS order_date
   , TRY_CAST("매출인식일" AS DATE) AS sales_date
   , TRY_CAST("정산주기(종료일)" AS DATE) AS settlement_date

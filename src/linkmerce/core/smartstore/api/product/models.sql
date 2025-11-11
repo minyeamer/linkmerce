@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , channel_seq BIGINT NOT NULL
   -- , channel_type VARCHAR -- ['STOREFARM', 'WINDOW', 'AFFILIATE']
   , product_name VARCHAR
-  -- , management_code VARCHAR
-  -- , model_name VARCHAR
+  , management_code VARCHAR
+  , model_name VARCHAR
   , brand_name VARCHAR
   -- , maker_name VARCHAR
   , category_id INTEGER
@@ -53,8 +53,8 @@ SELECT
   , CAST($channel_seq AS BIGINT) AS channel_seq
   -- , channelServiceType AS channel_type
   , name AS product_name
-  -- , sellerManagementCode AS management_code
-  -- , modelName AS model_name
+  , sellerManagementCode AS management_code
+  , modelName AS model_name
   , brandName AS brand_name
   -- , manufacturerName AS maker_name
   , TRY_CAST(categoryId AS INTEGER) AS category_id
@@ -98,13 +98,13 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , product_id BIGINT
   , channel_seq BIGINT
   , product_type INTEGER -- {0: '옵션상품(단독형)', 1: '옵션상품(조합형)', 2: '추가상품'}
-  , management_code VARCHAR
   , option_group1 VARCHAR
   , option_name1 VARCHAR
   , option_group2 VARCHAR
   , option_name2 VARCHAR
   , option_group3 VARCHAR
   , option_name3 VARCHAR
+  , management_code VARCHAR
   , status BOOLEAN
   , option_price INTEGER
   , stock_quantity INTEGER
@@ -146,13 +146,13 @@ SELECT
   , TRY_CAST($product_id AS BIGINT) AS product_id
   , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
   , 1 AS product_type
-  , json_value(item, '$.sellerManagerCode') AS management_code
   , optionGroupName1 AS option_group1
   , optionName1 AS option_name1
-  , json_value(item, '$.optionGroupName2') AS option_group2
-  , json_value(item, '$.optionName2') AS option_name2
-  , json_value(item, '$.optionGroupName3') AS option_group3
-  , json_value(item, '$.optionName3') AS option_name3
+  , item->>'$.optionGroupName2' AS option_group2
+  , item->>'$.optionName2' AS option_name2
+  , item->>'$.optionGroupName3' AS option_group3
+  , item->>'$.optionName3' AS option_name3
+  , item->>'$.sellerManagerCode' AS management_code
   , usable AS status
   , price AS option_price
   , stockQuantity AS stock_quantity
@@ -166,13 +166,13 @@ INSERT INTO {{ table }} (
   , product_id
   , channel_seq
   , product_type
-  , management_code
   , option_group1
   , option_name1
   , option_group2
   , option_name2
   , option_group3
   , option_name3
+  , management_code
   , status
   , option_price
   , stock_quantity
@@ -185,9 +185,9 @@ SELECT
   , TRY_CAST($product_id AS BIGINT) AS product_id
   , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
   , 2 AS product_type
-  , json_value(item, '$.sellerManagementCode') AS management_code
   , groupName AS option_group1
   , name AS option_name1
+  , item->>'$.sellerManagerCode' AS management_code
   , usable AS status
   , price AS option_price
   , stockQuantity AS stock_quantity
@@ -201,9 +201,9 @@ INSERT INTO {{ table }} (
   , product_id
   , channel_seq
   , product_type
-  , management_code
   , option_group1
   , option_name1
+  , management_code
   , status
   , option_price
   , stock_quantity
