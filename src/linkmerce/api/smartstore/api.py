@@ -15,18 +15,6 @@ def get_module(name: str) -> str:
     return (".smartstore.api" + name) if name.startswith('.') else name
 
 
-def get_product_options(request_delay: float | int = 1, progress: bool = True) -> dict:
-    return dict(
-        PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
-    )
-
-
-def get_option_options(request_delay: float | int = 1, progress: bool = True) -> dict:
-    return dict(
-        RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
-    )
-
-
 def get_order_options(request_delay: float | int = 1, progress: bool = True) -> dict:
     return dict(
         CursorAll = dict(request_delay=request_delay),
@@ -67,7 +55,7 @@ def product(
         args = (search_keyword, keyword_type, status_type, period_type, from_date, to_date, channel_seq, max_retries),
         extract_options = update_options(
             extract_options,
-            options = get_product_options(request_delay, progress),
+            options = dict(PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
             variables = dict(client_id=client_id, client_secret=client_secret),
         ),
         transform_options = transform_options,
@@ -102,7 +90,7 @@ def option(
         args = (product_id, channel_seq, max_retries),
         extract_options = update_options(
             extract_options,
-            options = get_option_options(request_delay, progress),
+            options = dict(RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
             variables = dict(client_id=client_id, client_secret=client_secret),
         ),
         transform_options = transform_options,

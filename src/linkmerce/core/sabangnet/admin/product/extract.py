@@ -36,10 +36,7 @@ class Product(SabangnetAdmin):
 
     @property
     def default_options(self) -> dict:
-        return dict(
-            PaginateAll = dict(request_delay=1),
-            RequestEachPages = dict(request_delay=1),
-        )
+        return dict(PaginateAll = dict(request_delay=1))
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
@@ -55,12 +52,9 @@ class Product(SabangnetAdmin):
             **kwargs
         ) -> JsonObject:
         start_date, end_date = get_product_date(start_date, end_date)
-        kwargs = dict(kwargs,
-            start_date=start_date, end_date=end_date, date_type=date_type, sort_type=sort_type, sort_asc=sort_asc,
-            is_deleted=is_deleted, product_status=product_status)
-
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
-                .run(**kwargs))
+                .run(start_date=start_date, end_date=end_date, date_type=date_type, sort_type=sort_type, sort_asc=sort_asc,
+                    is_deleted=is_deleted, product_status=product_status))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get

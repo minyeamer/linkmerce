@@ -18,10 +18,7 @@ class Order(SabangnetAdmin):
 
     @property
     def default_options(self) -> dict:
-        return dict(
-            PaginateAll = dict(request_delay=1),
-            RequestEachPages = dict(request_delay=1),
-        )
+        return dict(PaginateAll = dict(request_delay=1))
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
@@ -35,12 +32,9 @@ class Order(SabangnetAdmin):
             sort_type: str = "ord_no_asc",
             **kwargs
         ) -> JsonObject:
-        kwargs = dict(kwargs,
-            start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date),
-            date_type=date_type, order_status_div=order_status_div, order_status=order_status, sort_type=sort_type)
-
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
-                .run(**kwargs))
+                .run(start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date),
+                    date_type=date_type, order_status_div=order_status_div, order_status=order_status, sort_type=sort_type))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
