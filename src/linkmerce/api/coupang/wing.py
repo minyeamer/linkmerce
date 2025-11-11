@@ -5,7 +5,7 @@ from linkmerce.common.api import run, run_with_duckdb, update_options
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Literal, Sequence
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
     from pathlib import Path
@@ -39,7 +39,8 @@ def product_option(
         domain: Literal["advertising","domain","wing"] = "advertising",
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
-        request_delay: float | int = 0.1,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
@@ -56,6 +57,7 @@ def product_option(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
+            options = dict(PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
             variables = dict(domain=domain),
         ),
         transform_options = transform_options,
@@ -73,15 +75,51 @@ def product_option(
         query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(table)
         vendor_inventory_id = [row[0] for row in connection.execute(query).fetchall()]
 
-        common["extract_options"]["options"] = dict(RequestEach = dict(request_delay=request_delay))
+        common["extract_options"]["options"] = dict(
+            RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))))
         return run_with_duckdb(
             extractor = "ProductDetail",
             transformer = "ProductDetail",
             args = (vendor_inventory_id,),
+            kwargs = dict(referer="vendor"),
             **common,
         )
     else:
         return product
+
+
+def product_detail(
+        cookies: str,
+        vendor_inventory_id: Sequence[int | str],
+        domain: Literal["advertising","domain","wing"] = "advertising",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.coupang.wing.product.extract import ProductDetail
+    # from linkmerce.core.coupang.wing.product.transform import ProductDetail
+    return run_with_duckdb(
+        module = get_module(".product"),
+        extractor = "ProductDetail",
+        transformer = "ProductDetail",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (vendor_inventory_id,),
+        extract_options = update_options(
+            extract_options,
+            headers = dict(cookies=cookies),
+            options = dict(RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
+            variables = dict(domain=domain),
+        ),
+        transform_options = transform_options,
+    )
 
 
 def product_download(
@@ -118,6 +156,63 @@ def product_download(
         ),
         transform_options = transform_options,
     )
+
+
+def rocket_option(
+        cookies: str,
+        hidden_status: Literal["VISIBLE","HIDDEN"] | None = None, 
+        vendor_id: str | None = None,
+        see_more: bool = False,
+        domain: Literal["advertising","domain","wing"] = "advertising",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.coupang.wing.product.extract import RocketOption, ProductDetail
+    # from linkmerce.core.coupang.wing.product.transform import RocketOption, ProductDetail
+    common = dict(
+        module = get_module(".product"),
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        extract_options = update_options(
+            extract_options,
+            headers = dict(cookies=cookies),
+            options = dict(PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
+            variables = dict(domain=domain),
+        ),
+        transform_options = transform_options,
+    )
+
+    product = run_with_duckdb(
+        extractor = "RocketOption",
+        transformer = "RocketOption",
+        args = (hidden_status, vendor_id),
+        **common,
+    )
+
+    if see_more:
+        table = (tables or dict()).get("default", "data")
+        query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(table)
+        vendor_inventory_id = [row[0] for row in connection.execute(query).fetchall()]
+
+        common["extract_options"]["options"] = dict(
+            RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))))
+        return run_with_duckdb(
+            extractor = "ProductDetail",
+            transformer = "ProductDetail",
+            args = (vendor_inventory_id,),
+            kwargs = dict(referer="rfm"),
+            **common,
+        )
+    else:
+        return product
 
 
 def summary(

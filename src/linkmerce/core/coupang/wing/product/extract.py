@@ -4,7 +4,7 @@ from linkmerce.core.coupang.wing import CoupangWing
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from typing import Literal, Sequence
     from linkmerce.common.extract import JsonObject
     import datetime as dt
 
@@ -18,21 +18,18 @@ class ProductOption(CoupangWing):
 
     @property
     def default_options(self) -> dict:
-        return dict(
-            PaginateAll = dict(request_delay=1),
-            RequestEachPages = dict(request_delay=1),
-        )
+        return dict(PaginateAll = dict(request_delay=1))
 
     @CoupangWing.with_session
     def extract(self, is_deleted: bool = False, **kwargs) -> JsonObject:
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
-                .run(is_deleted=is_deleted, **kwargs))
+                .run(is_deleted=is_deleted))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["data","pagination","totalCount"])
 
-    def build_request_json(self, is_deleted: bool = False, **kwargs) -> dict:
+    def build_request_json(self, is_deleted: bool = False, page: int = 1, page_size: int = 500, **kwargs) -> dict:
         return {
             "searchKeywordType": "ALL",
             "searchKeywords": "",
@@ -49,8 +46,8 @@ class ProductOption(CoupangWing):
             "shippingMethod": "ALL",
             "exposureStatus": "ALL",
             "sortMethod": "SORT_BY_ITEM_LEVEL_UNIT_SOLD",
-            "countPerPage": 50,
-            "page": 1,
+            "countPerPage": page_size,
+            "page": page,
             "locale": "ko_KR",
             "coupangAttributeOptimized": False,
             "upBundleSearchOption": "ALL",
@@ -78,13 +75,14 @@ class ProductDetail(CoupangWing):
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=0.1))
+        return dict(RequestEach = dict(request_delay=0.3))
 
     @CoupangWing.with_session
     def extract(self, vendor_inventory_id: Sequence[int | str], **kwargs) -> JsonObject:
         return (self.request_each(self.request_json_safe)
+                .partial(referer=kwargs.get("referer")) # for Transformer
                 .expand(vendor_inventory_id=vendor_inventory_id)
-                .run(**kwargs))
+                .run())
 
     def build_request_message(self, vendor_inventory_id: int | str, **kwargs) -> dict:
         kwargs["url"] = self.url.format(vendor_inventory_id)
@@ -221,3 +219,58 @@ class ProductDownload(ProductOption):
             "MODEL_NO": "모델번호",
             "BARCODE": "바코드"
         }
+
+
+class RocketOption(CoupangWing):
+    method = "POST"
+    path = "/tenants/rfm-inventory/inventory-health-dashboard/search"
+    max_page_size = 100
+    page_start = 0
+    token_required = True
+
+    @property
+    def default_options(self) -> dict:
+        return dict(PaginateAll = dict(request_delay=1))
+
+    @CoupangWing.with_session
+    def extract(
+            self,
+            hidden_status: Literal["VISIBLE","HIDDEN"] | None = None, 
+            vendor_id: str | None = None,
+            **kwargs
+        ) -> JsonObject:
+        return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
+                .run(hidden_status=hidden_status, vendor_id=vendor_id, referer=kwargs.get("referer")))
+
+    def count_total(self, response: JsonObject, **kwargs) -> int:
+        from linkmerce.utils.map import hier_get
+        return hier_get(response, ["paginationResponse","totalNumberOfElements"])
+
+    def build_request_json(
+            self,
+            hidden_status: Literal["VISIBLE","HIDDEN"] | None = None,
+            page: int = 0,
+            page_size: int = 100,
+            **kwargs
+        ) -> dict:
+        return {
+            "paginationRequest": {
+                "pageSize": page_size,
+                "pageNumber": page,
+                "searchAfterSortValues": None
+            },
+            **({"hiddenStatus": hidden_status} if hidden_status in ("VISIBLE","HIDDEN") else {}),
+            "sort": [{
+                "sortParameter": "VENDOR_INVENTORY_ID",
+                "sortDirection": "ASCENDING"
+            }]
+        }
+
+    def set_request_headers(self, cookies: str, **kwargs) -> str:
+        return super().set_request_headers(
+            authority = self.origin,
+            contents = "json",
+            cookies = cookies,
+            origin = self.origin,
+            referer = (self.origin + "/tenants/rfm-inventory/management/list"),
+        )

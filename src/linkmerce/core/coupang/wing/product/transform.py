@@ -42,12 +42,12 @@ class OptionList(JsonTransformer):
 
 
 class ProductDetail(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
+    queries = ["create", "select", "insert", "insert_vendor", "insert_rfm"]
 
-    def transform(self, obj: JsonObject, **kwargs):
+    def transform(self, obj: JsonObject, referer: Literal["vendor","rfm"] | None = None, **kwargs):
         options = OptionList().transform(obj)
         if options:
-            return self.insert_into_table(options)
+            return self.insert_into_table(options, key=(f"insert_{referer}" if referer else "insert"))
 
 
 class ProductDownload(DuckDBTransformer):
@@ -81,3 +81,17 @@ class ProductDownload(DuckDBTransformer):
     @property
     def product_fields(self) -> list[str]:
         return ["등록상품ID", "등록상품명", "쿠팡 노출상품명", "카테고리", "제조사", "브랜드", "검색어", "성인상품여부(Y/N)"]
+
+
+class RocketOptionlist(JsonTransformer):
+    dtype = dict
+    path = ["viProperties"]
+
+
+class RocketOption(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
+        options = RocketOptionlist().transform(obj)
+        if options:
+            return self.insert_into_table(options, params=dict(vendor_id=vendor_id))

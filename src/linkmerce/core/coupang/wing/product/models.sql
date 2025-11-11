@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , vendor_inventory_item_id BIGINT
   , product_id BIGINT
   , option_id BIGINT PRIMARY KEY
+  , item_id BIGINT
   , barcode VARCHAR
   , vendor_id VARCHAR
   , product_name VARCHAR
@@ -13,7 +14,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , category_name VARCHAR
   , brand_name VARCHAR
   , maker_name VARCHAR
-  , product_status TINYINT  -- {0: '판매중', 1: '품절'}
+  , product_status TINYINT  -- {0: '판매중', 1: '품절', 2: '숨김상품'}
   , is_deleted BOOLEAN
   , price INTEGER
   , sales_price INTEGER
@@ -30,7 +31,8 @@ SELECT
   , vendorInventoryItemId AS vendor_inventory_item_id
   , NULL AS product_id
   , vendorItemId AS option_id
-  , barcode AS barcode
+  , NULL AS item_id
+  , barcode
   , vendorId AS vendor_id
   , productName AS product_name
   , itemName AS option_name
@@ -57,30 +59,81 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- ProductDetail: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    option_id BIGINT
+    vendor_inventory_id BIGINT
+  , vendor_inventory_item_id BIGINT
+  , option_id BIGINT PRIMARY KEY
   , product_id BIGINT
-  , product_status TINYINT
+  , item_id BIGINT
+  , barcode VARCHAR
+  , option_name VARCHAR
   , price INTEGER
+  , sales_price INTEGER
+  , stock_quantity INTEGER
 );
 
 -- ProductDetail: select
 SELECT
-    vendorItemId AS option_id
+    vendorInventoryId AS vendor_inventory_id
+  , vendorInventoryItemId AS vendor_inventory_item_id
+  , vendorItemId AS option_id
   , productId AS product_id
+  , itemId AS item_id
+  , barcode
+  , itemName AS option_name
   , originalPrice AS price
+  , salePrice AS sales_price
+  , stockQuantity AS stock_quantity
 FROM {{ array }}
 WHERE vendorItemId IS NOT NULL;
 
 -- ProductDetail: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+-- ProductDetail: insert_vendor
 INSERT INTO {{ table }} (
     option_id
   , product_id
+  , item_id
   , price
 )
-{{ values }}
+SELECT
+    option_id
+  , product_id
+  , item_id
+  , price
+FROM ({{ values }}) AS items
 ON CONFLICT (option_id) DO UPDATE SET
     product_id = EXCLUDED.product_id
+  , item_id = EXCLUDED.item_id
   , price = EXCLUDED.price;
+
+-- ProductDetail: insert_rfm
+INSERT INTO {{ table }} (
+    option_id
+  , vendor_inventory_item_id
+  , product_id
+  , item_id
+  , barcode
+  , price
+  , sales_price
+)
+SELECT
+    option_id
+  , vendor_inventory_item_id
+  , product_id
+  , item_id
+  , barcode
+  , price
+  , sales_price
+FROM ({{ values }}) AS items
+WHERE EXISTS (SELECT 1 FROM {{ table }} AS T WHERE T.option_id = items.option_id)
+ON CONFLICT (option_id) DO UPDATE SET
+    vendor_inventory_item_id = EXCLUDED.vendor_inventory_item_id
+  , product_id = EXCLUDED.product_id
+  , item_id = EXCLUDED.item_id
+  , barcode = EXCLUDED.barcode
+  , price = EXCLUDED.price
+  , sales_price = EXCLUDED.sales_price;
 
 
 -- ProductDownload: create
@@ -121,4 +174,43 @@ FROM {{ array }}
 WHERE TRY_CAST("옵션 ID" AS BIGINT) IS NOT NULL;
 
 -- ProductDownload: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
+-- RocketOption: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    vendor_inventory_id BIGINT
+  , vendor_inventory_item_id BIGINT
+  , product_id BIGINT
+  , option_id BIGINT PRIMARY KEY
+  , item_id BIGINT
+  , barcode VARCHAR
+  , vendor_id VARCHAR
+  , product_name VARCHAR
+  , product_status TINYINT  -- {0: '판매중', 1: '품절', 2: '숨김상품'}
+  , price INTEGER
+  , sales_price INTEGER
+);
+
+-- RocketOption: select
+SELECT
+    listingDetails.vendorInventoryId AS vendor_inventory_id
+  , NULL AS vendor_inventory_item_id
+  , NULL AS product_id
+  , vendorItemId AS option_id
+  , NULL AS item_id
+  , NULL AS barcode
+  , COALESCE(creturnConfigViewDto->>'$.vendorId', $vendor_id) AS vendor_id
+  , listingDetails.vendorInventoryName AS product_name
+  , (CASE
+      WHEN inventoryDetails.isHiddenByVendor THEN 2
+      WHEN creturnConfigViewDto IS NOT NULL
+        THEN IF(creturnConfigViewDto->'$.onSale', 0, 1)
+      ELSE NULL END) AS product_status
+  , NULL AS price
+  , NULL AS sales_price
+FROM {{ array }}
+WHERE vendorItemId IS NOT NULL;
+
+-- RocketOption: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
