@@ -38,7 +38,7 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.coupang.wing import product_option
+        from linkmerce.api.coupang.wing import product_option, rocket_option
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -48,8 +48,24 @@ with DAG(
                     is_deleted = is_deleted,
                     see_more = True,
                     connection = conn,
+                    tables = {"default": "vendor"},
+                    progress = False,
                     return_type = "none",
                 )
+
+            rocket_option(
+                cookies = cookies,
+                hidden_status = None,
+                vendor_id = vendor_id,
+                see_more = True,
+                connection = conn,
+                tables = {"default": "rfm"},
+                progress = False,
+                return_type = "none",
+            )
+
+            if conn.table_has_rows("rfm"):
+                conn.execute(RFM_INSERT_QUERY)
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -59,12 +75,13 @@ with DAG(
                         see_more = True,
                     ),
                     count = dict(
-                        data = conn.count_table("data"),
+                        vendor = conn.count_table("vendor"),
+                        rfm = conn.count_table("rfm"),
                     ),
                     status = dict(
                         data = client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "data",
+                            source_table = "vendor",
                             staging_table = f'{tables["temp_option"]}_{vendor_id}',
                             target_table = tables["option"],
                             **merge["option"],
@@ -73,5 +90,21 @@ with DAG(
                     ),
                 )
 
+    RFM_INSERT_QUERY = """
+    INSERT INTO vendor (
+        vendor_inventory_id,
+        vendor_inventory_item_id,
+        product_id,
+        option_id,
+        item_id,
+        barcode,
+        vendor_id,
+        product_name,
+        product_status,
+        price,
+        sales_price
+    )
+    SELECT * FROM rfm ON CONFLICT DO NOTHING;
+    """
 
     etl_coupang_option.partial(variables=read_variables()).expand(credentials=read_credentials())
