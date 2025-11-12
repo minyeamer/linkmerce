@@ -120,10 +120,10 @@ SELECT
   , groupName AS option_group1
   , name AS option_name1
   , usable AS status
-  , price AS option_price
-  , stockQuantity AS stock_quantity
+  , COALESCE(TRY_CAST(json_extract_path_text(item, 'price') AS INTEGER), 0) AS option_price
+  , TRY_CAST(json_extract_path_text(item, 'stockQuantity') AS INTEGER) AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
-FROM {{ array }}
+FROM {{ array }} AS item
 WHERE id IS NOT NULL;
 
 -- Option: insert_option
