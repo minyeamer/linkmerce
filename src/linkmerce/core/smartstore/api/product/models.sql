@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , option_group3 VARCHAR
   , option_name3 VARCHAR
   , management_code VARCHAR
-  , status BOOLEAN
+  , usable BOOLEAN
   , option_price INTEGER
   , stock_quantity INTEGER
   , register_order INTEGER
@@ -119,7 +119,7 @@ SELECT
   , 0 AS product_type
   , groupName AS option_group1
   , name AS option_name1
-  , usable AS status
+  , usable
   , COALESCE(TRY_CAST(json_extract_path_text(item, 'price') AS INTEGER), 0) AS option_price
   , TRY_CAST(json_extract_path_text(item, 'stockQuantity') AS INTEGER) AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
@@ -134,7 +134,7 @@ INSERT INTO {{ table }} (
   , product_type
   , option_group1
   , option_name1
-  , status
+  , usable
   , option_price
   , stock_quantity
   , register_order
@@ -153,7 +153,7 @@ SELECT
   , item->>'$.optionGroupName3' AS option_group3
   , item->>'$.optionName3' AS option_name3
   , item->>'$.sellerManagerCode' AS management_code
-  , usable AS status
+  , usable
   , price AS option_price
   , stockQuantity AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
@@ -173,7 +173,7 @@ INSERT INTO {{ table }} (
   , option_group3
   , option_name3
   , management_code
-  , status
+  , usable
   , option_price
   , stock_quantity
   , register_order
@@ -188,7 +188,7 @@ SELECT
   , groupName AS option_group1
   , name AS option_name1
   , item->>'$.sellerManagerCode' AS management_code
-  , usable AS status
+  , usable
   , price AS option_price
   , stockQuantity AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
@@ -204,7 +204,7 @@ INSERT INTO {{ table }} (
   , option_group1
   , option_name1
   , management_code
-  , status
+  , usable
   , option_price
   , stock_quantity
   , register_order
