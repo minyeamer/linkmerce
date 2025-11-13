@@ -71,6 +71,8 @@ def product_option(
     )
 
     if see_more:
+        if connection is None:
+            raise ValueError("DuckDBConnection is required.")
         table = (tables or dict()).get("default", "data")
         query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(table)
         vendor_inventory_id = [row[0] for row in connection.execute(query).fetchall()]
@@ -198,6 +200,8 @@ def rocket_option(
     )
 
     if see_more:
+        if connection is None:
+            raise ValueError("DuckDBConnection is required.")
         table = (tables or dict()).get("default", "data")
         query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(table)
         vendor_inventory_id = [row[0] for row in connection.execute(query).fetchall()]

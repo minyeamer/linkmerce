@@ -44,7 +44,7 @@ class CoupangAds(Extractor):
                 self.auth_callback(callback_url)
                 self.from_lnb()
                 self.to_home()
-            self.fetch_dashboard()
+            # self.fetch_dashboard()
             return func(self, *args, **kwargs)
         return wrapper
 

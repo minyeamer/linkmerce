@@ -29,12 +29,25 @@ class Campaign(CoupangAds):
             vendor_id: str | None = None,
             **kwargs
         ) -> dict[str,bytes]:
-        return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
+        return (self.paginate_all(self.request_json_with_timeout, self.count_total, self.max_page_size, self.page_start)
                 .run(goal_type=goal_type, is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["pageInfo","totalCount"])
+
+    def request_json_with_timeout(self, max_retries: int = 5, **kwargs) -> JsonObject:
+        from requests.exceptions import Timeout
+        import random
+        session = self.get_session()
+        message = self.build_request_message(**kwargs)
+        for retry_count in range(1, max_retries+1):
+            try:
+                with session.request(**message, timeout=random.randint(30, 60)) as response:
+                    return response.json()
+            except Timeout as error:
+                if retry_count == max_retries:
+                    raise error
 
     def build_request_json(
             self,
