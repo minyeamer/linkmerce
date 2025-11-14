@@ -68,17 +68,21 @@ class SmartstoreAPI(Extractor):
     def request_json_until_success(self, max_retries: int = 5, **kwargs) -> JsonObject:
         session = self.get_session()
         message = self.build_request_message(**kwargs)
-        for retry_count in range(max_retries):
-            with session.request(**message) as response:
-                response = response.json()
-                if self.is_valid_response(response, retry_count):
-                    return response
+        for retry_count in range(1, max_retries+1):
+            try:
+                with session.request(**message) as response:
+                    response = response.json()
+            except ConnectionError:
+                response = dict(code="GW.RATE_LIMIT")
+            if self.is_valid_response(response, (retry_count if retry_count != max_retries else None)):
+                return response
 
     def is_valid_response(self, response: JsonObject, retry_count: int | None = None) -> bool:
         if isinstance(response, dict) and response.get("code"):
-            if response["code"] == "GW.RATE_LIMIT":
+            if (response["code"] == "GW.RATE_LIMIT") and isinstance(retry_count, int):
                 import time
-                time.sleep(retry_count or 1)
+                time.sleep(retry_count)
                 return False
-            raise ConnectionError(response.get("message") or str())
+            else:
+                raise ConnectionError(response.get("message") or str())
         return True

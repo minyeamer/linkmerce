@@ -20,7 +20,12 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , inflow_path VARCHAR
   , inflow_path_add VARCHAR
   , order_quantity INTEGER
-  , payment_amount INTEGER
+  , unit_price INTEGER
+  , option_price INTEGER
+  -- , product_amount INTEGER
+  , discount_amount INTEGER
+  , seller_discount_amount INTEGER
+  -- , payment_amount INTEGER
   , supply_amount INTEGER
   , delivery_fee INTEGER
   , payment_dt TIMESTAMP NOT NULL
@@ -106,7 +111,12 @@ SELECT
     , NULL
     , content.productOrder.inflowPathAdd) AS inflow_path_add
   , content.productOrder.quantity AS order_quantity
-  , content.productOrder.totalPaymentAmount AS payment_amount
+  , content.productOrder.unitPrice AS unit_price
+  , content.productOrder.optionPrice AS option_price
+  -- , content.productOrder.totalProductAmount AS product_amount = unit_price + option_price
+  , content.productOrder.productDiscountAmount AS discount_amount
+  , content.productOrder.sellerBurdenDiscountAmount AS seller_discount_amount
+  -- , content.productOrder.totalPaymentAmount AS payment_amount = product_amount * order_quantity - discount_amount
   , content.productOrder.expectedSettlementAmount AS supply_amount
   , content.productOrder.deliveryFeeAmount AS delivery_fee
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
