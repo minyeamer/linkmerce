@@ -6,11 +6,11 @@ import pendulum
 
 with DAG(
     dag_id = "searchad_master",
-    schedule = "40 23 * * *",
+    schedule = "40 23 * * 1-5",
     start_date = pendulum.datetime(2025, 8, 30, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:medium", "searchad:report", "api:searchad", "login:gfa", "schedule:daily", "time:night"],
+    tags = ["priority:medium", "searchad:report", "api:searchad", "login:gfa", "schedule:weekdays", "time:night"],
 ) as dag:
 
     with TaskGroup(group_id="api_group") as api_group:

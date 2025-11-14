@@ -5,11 +5,11 @@ import pendulum
 
 with DAG(
     dag_id = "coupang_campaign",
-    schedule = "55 5 * * *",
+    schedule = "55 5 * * 1-5",
     start_date = pendulum.datetime(2025, 11, 6, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:low", "coupang:campaign", "login:coupang", "schedule:daily", "time:morning"],
+    tags = ["priority:low", "coupang:campaign", "login:coupang", "schedule:weekdays", "time:morning"],
 ) as dag:
 
     PATH = ["coupang", "advertising", "coupang_campaign"]
