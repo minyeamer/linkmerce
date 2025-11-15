@@ -66,6 +66,7 @@ with DAG(
             aggregated_order_status(
                 client_id = client_id,
                 client_secret = client_secret,
+                channel_seq = channel_seq,
                 start_date = date,
                 connection = conn,
                 progress = False,

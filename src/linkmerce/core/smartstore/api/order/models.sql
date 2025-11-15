@@ -1,6 +1,7 @@
 -- Order: create_order
 CREATE TABLE IF NOT EXISTS {{ table }} (
     order_id BIGINT PRIMARY KEY
+  , channel_seq BIGINT NOT NULL
   , orderer_no BIGINT
   , payment_location INTEGER
   , order_dt TIMESTAMP
@@ -35,9 +36,13 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 CREATE TABLE IF NOT EXISTS {{ table }} (
     product_order_id BIGINT PRIMARY KEY
   , order_id BIGINT NOT NULL
+  , channel_seq BIGINT NOT NULL
   , invoice_no VARCHAR NOT NULL
   , delivery_company VARCHAR
   , delivery_method INTEGER
+  , zip_code VARCHAR
+  , latitude VARCHAR
+  , longitude VARCHAR
   , pickup_dt TIMESTAMP
   , send_dt TIMESTAMP
   , payment_dt TIMESTAMP NOT NULL
@@ -47,7 +52,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT
   , option_id BIGINT
-  , channel_seq BIGINT
+  , channel_seq BIGINT NOT NULL
   , seller_product_code VARCHAR
   , seller_option_code VARCHAR
   , product_type TINYINT -- {0: '단일상품', 1: '옵션상품', 2: '추가구성상품'}
@@ -62,6 +67,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- Order: select_order
 SELECT
     TRY_CAST(content.order.orderId AS BIGINT) AS order_id
+  , TRY_CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , TRY_CAST(content.order.ordererNo AS BIGINT) AS orderer_no
   , (CASE
       WHEN content.order.payLocationType == 'PC' THEN 0
@@ -127,6 +133,7 @@ WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S'
 SELECT
     TRY_CAST(productOrderId AS BIGINT) AS product_order_id
   , TRY_CAST(content.order.orderId AS BIGINT) AS order_id
+  , TRY_CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , content.delivery.trackingNumber AS invoice_no
   , content.delivery.deliveryCompany AS delivery_company
   , (CASE
@@ -142,6 +149,9 @@ SELECT
       WHEN content.delivery.deliveryMethod = 'RETURN_MERCHANT' THEN 9
       WHEN content.delivery.deliveryMethod = 'UNKNOWN' THEN 10
       ELSE NULL END) AS delivery_method
+  , content.productOrder.shippingAddress.zipCode AS zip_code
+  , content.productOrder.shippingAddress.latitude AS latitude
+  , content.productOrder.shippingAddress.longitude AS longitude
   , TRY_STRPTIME(SUBSTR(content.delivery.pickupDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS pickup_dt
   , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS send_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
@@ -256,6 +266,7 @@ FROM UNNEST([
 CREATE TABLE IF NOT EXISTS {{ table }} (
     product_order_id BIGINT
   , order_id BIGINT NOT NULL
+  , channel_seq BIGINT
   , order_status TINYINT -- OrderStatus: order_status
   , payment_dt TIMESTAMP NOT NULL
   , updated_dt TIMESTAMP NOT NULL
@@ -268,6 +279,7 @@ FROM (
   SELECT
       product_order_id
     , order_id
+    , $channel_seq AS channel_seq
     , (CASE
         WHEN dt_column = 'dispatch_dt' THEN 2
         WHEN dt_column = 'delivery_dt' THEN 3
@@ -319,6 +331,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 CREATE TABLE IF NOT EXISTS {{ table }} (
     product_order_id BIGINT
   , order_id BIGINT NOT NULL
+  , channel_seq BIGINT
   -- , last_changed_type TINYINT -- OrderStatus: last_changed_type
   , order_status TINYINT -- OrderStatus: order_status
   -- , claim_type TINYINT -- OrderStatus: claim_type
@@ -336,6 +349,7 @@ FROM (
   SELECT
       TRY_CAST(productOrderId AS BIGINT) AS product_order_id
     , TRY_CAST(orderId AS BIGINT) AS order_id
+    , $channel_seq AS channel_seq
     -- , lastChangedType AS last_changed_type
     , (CASE
         WHEN productOrderStatus = 'PAYMENT_WAITING' THEN 0

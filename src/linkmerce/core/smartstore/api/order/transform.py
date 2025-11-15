@@ -40,6 +40,8 @@ class OrderList(JsonTransformer):
         for key in keys:
             if key not in product_order:
                 product_order[key] = None
+        product_order["shippingAddress"] = dict(
+            (product_order.get("shippingAddress") or dict()), zipCode=None, longitude=None, latitude=None)
         return product_order
 
     def validate_delivery(self, delivery: dict) -> dict:
@@ -81,10 +83,10 @@ class Order(DuckDBTransformer):
 class OrderTime(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
-    def transform(self, obj: JsonObject, **kwargs):
+    def transform(self, obj: JsonObject, channel_seq: int | str | None = None, **kwargs):
         orders = OrderList().transform(obj)
         if orders:
-            self.insert_into_table(orders)
+            self.insert_into_table(orders, params=dict(channel_seq=channel_seq))
 
 
 class OrderStatusList(JsonTransformer):
@@ -95,11 +97,11 @@ class OrderStatusList(JsonTransformer):
 class OrderStatus(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
-    def transform(self, obj: JsonObject, **kwargs):
+    def transform(self, obj: JsonObject, channel_seq: int | str | None = None, **kwargs):
         status = OrderStatusList().transform(obj)
         if status:
             status[0] = self.validate_change_status(status[0])
-            self.insert_into_table(status)
+            self.insert_into_table(status, params=dict(channel_seq=channel_seq))
 
     def validate_change_status(self, change_status: dict) -> dict:
         keys = ["productOrderId", "orderId", "lastChangedType", "productOrderStatus", "claimType", "claimStatus",

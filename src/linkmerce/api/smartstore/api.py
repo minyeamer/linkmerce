@@ -250,6 +250,7 @@ def order_status(
         start_date: dt.date | str,
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         last_changed_type: str | None = None,
+        channel_seq: int | str | None = None,
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         max_retries: int = 5,
@@ -270,7 +271,7 @@ def order_status(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        args = (start_date, end_date, last_changed_type, max_retries),
+        args = (start_date, end_date, last_changed_type, channel_seq, max_retries),
         extract_options = update_options(
             extract_options,
             options = get_order_options(request_delay, progress),
@@ -285,6 +286,7 @@ def aggregated_order_status(
         client_secret: str,
         start_date: dt.date | str,
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        channel_seq: int | str | None = None,
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         max_retries: int = 5,
@@ -303,7 +305,7 @@ def aggregated_order_status(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        kwargs = dict(max_retries=max_retries),
+        kwargs = dict(channel_seq=channel_seq, max_retries=max_retries),
         extract_options = update_options(
             extract_options,
             options = get_order_options(request_delay, progress),

@@ -72,8 +72,8 @@ class SmartstoreAPI(Extractor):
             try:
                 with session.request(**message) as response:
                     response = response.json()
-            except ConnectionError:
-                response = dict(code="GW.RATE_LIMIT")
+            except Exception as error:
+                response = dict(code="GW.RATE_LIMIT", message=f"{error.__class__.__name__}: {error}")
             if self.is_valid_response(response, (retry_count if retry_count != max_retries else None)):
                 return response
 
