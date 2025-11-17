@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- Order: create_option
 CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT
-  , option_id BIGINT
+  , option_id BIGINT PRIMARY KEY
   , channel_seq BIGINT NOT NULL
   , seller_product_code VARCHAR
   , seller_option_code VARCHAR
@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , sales_price INTEGER
   , option_price INTEGER
   , update_date DATE
-  , PRIMARY KEY (channel_seq, option_id)
 );
 
 -- Order: select_order
@@ -193,6 +192,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 INSERT INTO {{ table }} {{ values }}
 ON CONFLICT DO UPDATE SET
     product_id = COALESCE(excluded.product_id, product_id)
+  , channel_seq = COALESCE(excluded.channel_seq, channel_seq)
   , seller_product_code = COALESCE(excluded.seller_product_code, seller_product_code)
   , seller_option_code = COALESCE(excluded.seller_option_code, seller_option_code)
   , product_type = COALESCE(excluded.product_type, product_type)
