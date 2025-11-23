@@ -17,7 +17,7 @@ class CoupangAds(Extractor):
 
     def set_variables(self, variables: Variables = dict()):
         try:
-            enum = {"advertising", "domain", "wing"}
+            enum = {"advertising", "wing", "supplier"}
             domain = variables.get("domain", "advertising")
             super().set_variables(dict(domain=(domain if domain in enum else "advertising")))
         except:
