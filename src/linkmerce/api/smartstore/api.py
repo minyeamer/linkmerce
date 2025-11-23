@@ -159,7 +159,6 @@ def product_option(
         , "R.management_code AS seller_option_code"
         , "L.model_name"
         , "L.brand_name"
-        , "L.maker_name"
         , "L.category_id"
         , ("(CASE WHEN L.status_type = 'WAIT' THEN '판매대기' "
             + "WHEN L.status_type = 'SALE' THEN '판매중' "
@@ -183,8 +182,12 @@ def product_option(
         , "L.register_dt"
         , "L.modify_dt"
     ]
+    if connection.table_exists(merged_table):
+        keyword = f"INSERT INTO {merged_table} "
+    else:
+        keyword = f"CREATE TABLE IF NOT EXISTS {merged_table} AS "
     query = (
-        f"CREATE TABLE IF NOT EXISTS {merged_table} AS "
+        keyword
         + f"SELECT {', '.join(columns)} "
         + f"FROM {product_table} AS L "
         + f"LEFT JOIN {option_table} AS R "
