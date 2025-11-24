@@ -32,12 +32,16 @@ with DAG(
         date = str(data_interval_end.in_timezone("Asia/Seoul").date())
         return main(api_type="option", date=date, **ti.xcom_pull(task_ids="read_variables"))
 
+    @task(task_id="etl_sabangnet_sku", pool="sabangnet_pool")
+    def etl_sabangnet_sku(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
+        date = str(data_interval_end.in_timezone("Asia/Seoul").date())
+        return main(api_type="sku", date=date, **ti.xcom_pull(task_ids="read_variables"))
 
     def main(
             userid: str,
             passwd: str,
             domain: int,
-            api_type: Literal["product","option"],
+            api_type: Literal["product","option","sku"],
             date: str,
             service_account: dict,
             tables: dict[str,str],
@@ -47,18 +51,18 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.extensions.bigquery import BigQueryClient
         from importlib import import_module
-        module = "product" if api_type == "product" else "option_download"
+        module = dict(product="product", option="option_download", sku="sku_mapping")[api_type]
         extract = getattr(import_module("linkmerce.api.sabangnet.admin"), module)
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            for is_deleted in [False, True]:
+            for is_deleted in ([False, True] if api_type != "sku" else [None]):
                 extract(
                     userid = userid,
                     passwd = passwd,
                     domain = domain,
                     start_date = "2000-01-01",
                     end_date = date,
-                    is_deleted = is_deleted,
+                    **(dict(is_deleted = is_deleted) if api_type != "sku" else dict()),
                     connection = conn,
                     return_type = "none",
                 )
@@ -68,7 +72,7 @@ with DAG(
                     params = dict(
                         start_date = "2000-01-01",
                         end_date = date,
-                        is_deleted = [False, True],
+                        **(dict(is_deleted = [False, True]) if api_type != "sku" else dict()),
                     ),
                     count = dict(
                         data = conn.count_table("data"),
@@ -86,4 +90,4 @@ with DAG(
                 )
 
 
-    read_variables() >> [etl_sabangnet_product(), etl_sabangnet_option()]
+    read_variables() >> [etl_sabangnet_product(), etl_sabangnet_option(), etl_sabangnet_sku()]
