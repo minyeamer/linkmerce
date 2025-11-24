@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , model_code VARCHAR
   , model_id VARCHAR
   , product_name VARCHAR
+  , product_keyword VARCHAR
   , brand_name VARCHAR
   , maker_name VARCHAR
   , logistics_service VARCHAR
@@ -35,6 +36,7 @@ SELECT
   , modlNm AS model_code
   , onsfPrdCd AS model_id
   , prdNm AS product_name
+  , prdAbbrRmrk AS product_keyword
   , brndNm AS brand_name
   , mkcpNm AS maker_name
   , lgstscSvcAcntIdK AS logistics_service

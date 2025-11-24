@@ -6,7 +6,27 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Literal
     from linkmerce.common.extract import Variables
+    import datetime as dt
+
+
+def get_date_pair(
+        start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
+        end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+    ) -> tuple[dt.date,dt.date]:
+    import datetime as dt
+    if isinstance(start_date, str):
+        if start_date == ":base_date:":
+            start_date = dt.date(1986, 1, 9)
+        elif start_date == ":today:":
+            start_date = dt.date.today()
+    if isinstance(end_date, str):
+        if end_date == ":start_date:":
+            end_date = start_date
+        elif end_date == ":today:":
+            end_date = dt.date.today()
+    return start_date, end_date
 
 
 class SabangnetAdmin(Extractor):

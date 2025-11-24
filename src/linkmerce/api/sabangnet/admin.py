@@ -15,9 +15,15 @@ def get_module(name: str) -> str:
     return (".sabangnet.admin" + name) if name.startswith('.') else name
 
 
-def get_options(request_delay: float | int = 1, progress: bool = True) -> dict:
+def get_paginate_options(request_delay: float | int = 1, progress: bool = True) -> dict:
     return dict(
         PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
+    )
+
+
+def get_request_options(request_delay: float | int = 1, progress: bool = True) -> dict:
+    return dict(
+        RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
     )
 
 
@@ -59,7 +65,7 @@ def order(
         args = (start_date, end_date, date_type, order_status_div, order_status, sort_type),
         extract_options = update_options(
             extract_options,
-            options = get_options(request_delay, progress),
+            options = get_paginate_options(request_delay, progress),
             variables = dict(userid=userid, passwd=passwd, domain=domain)),
         transform_options = transform_options,
     )
@@ -137,7 +143,7 @@ def order_status(
         args = (excel_form, start_date, end_date, date_type, order_seq, order_status_div, order_status, sort_type),
         extract_options = update_options(
             extract_options,
-            options = get_options(request_delay, progress),
+            options = get_paginate_options(request_delay, progress),
             variables = dict(userid=userid, passwd=passwd, domain=domain)),
         transform_options = transform_options,
     )
@@ -176,7 +182,7 @@ def product(
         args = (start_date, end_date, date_type, sort_type, sort_asc, is_deleted, product_status),
         extract_options = update_options(
             extract_options,
-            options = get_options(request_delay, progress),
+            options = get_paginate_options(request_delay, progress),
             variables = dict(userid=userid, passwd=passwd, domain=domain)),
         transform_options = transform_options,
     )
@@ -209,7 +215,7 @@ def option(
         args = (product_id,),
         extract_options = update_options(
             extract_options,
-            options = get_options(request_delay, progress),
+            options = get_request_options(request_delay, progress),
             variables = dict(userid=userid, passwd=passwd, domain=domain)),
         transform_options = transform_options,
     )
@@ -248,4 +254,130 @@ def option_download(
             extract_options,
             variables = dict(userid=userid, passwd=passwd, domain=domain)),
         transform_options = transform_options,
+    )
+
+
+def sku_search(
+        userid: str,
+        passwd: str,
+        domain: int,
+        start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
+        end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+        shop_id: str = str(),
+        sort_type: str = "001",
+        sort_asc: bool = True,
+        sku_yn: bool | None = None,
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 1,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.sabangnet.admin.sku.extract import MappingSearch
+    # from linkmerce.core.sabangnet.admin.sku.transform import MappingSearch
+    return run_with_duckdb(
+        module = get_module(".sku"),
+        extractor = "MappingSearch",
+        transformer = "MappingSearch",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (start_date, end_date, shop_id, sort_type, sort_asc, sku_yn),
+        extract_options = update_options(
+            extract_options,
+            options = get_paginate_options(request_delay, progress),
+            variables = dict(userid=userid, passwd=passwd, domain=domain)),
+        transform_options = transform_options,
+    )
+
+
+def sku_list(
+        userid: str,
+        passwd: str,
+        domain: int,
+        query: Sequence[dict],
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.sabangnet.admin.sku.extract import MappingList
+    # from linkmerce.core.sabangnet.admin.sku.transform import MappingList
+    return run_with_duckdb(
+        module = get_module(".sku"),
+        extractor = "MappingList",
+        transformer = "MappingList",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (query,),
+        extract_options = update_options(
+            extract_options,
+            options = get_request_options(request_delay, progress),
+            variables = dict(userid=userid, passwd=passwd, domain=domain)),
+        transform_options = transform_options,
+    )
+
+
+def sku_mapping(
+        userid: str,
+        passwd: str,
+        domain: int,
+        query: Sequence[dict] = list(),
+        start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
+        end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+        shop_id: str = str(),
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data', 'query': 'query'}`"""
+    # from linkmerce.core.sabangnet.admin.sku.extract import MappingSearch, MappingList
+    # from linkmerce.core.sabangnet.admin.sku.transform import MappingSearch, MappingList
+    from copy import deepcopy
+
+    query = (run_with_duckdb(
+        module = get_module(".sku"),
+        extractor = "MappingSearch",
+        transformer = "MappingSearch",
+        connection = connection,
+        tables = {"default": (tables or dict()).get("query", "query")},
+        how = "sync",
+        return_type = "json",
+        args = (start_date, end_date, shop_id),
+        kwargs = dict(sku_yn=True),
+        extract_options = update_options(
+            deepcopy(extract_options),
+            options = get_paginate_options(request_delay, progress),
+            variables = dict(userid=userid, passwd=passwd, domain=domain)),
+        transform_options = deepcopy(transform_options),
+    ) if not query else query)
+
+    return run_with_duckdb(
+        module = get_module(".sku"),
+        extractor = "MappingList",
+        transformer = "MappingList",
+        connection = connection,
+        tables = {"default": (tables or dict()).get("default", "data")},
+        how = "sync",
+        return_type = return_type,
+        args = (query,),
+        extract_options = update_options(
+            deepcopy(extract_options),
+            options = get_request_options(request_delay, progress),
+            variables = dict(userid=userid, passwd=passwd, domain=domain)),
+        transform_options = deepcopy(transform_options),
     )

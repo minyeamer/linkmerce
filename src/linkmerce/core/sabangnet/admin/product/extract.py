@@ -9,25 +9,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def get_product_date(
-        start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
-        end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
-    ) -> tuple[dt.date,dt.date]:
-    import datetime as dt
-    if isinstance(start_date, str):
-        if start_date == ":base_date:":
-            start_date = dt.date(1986, 1, 9)
-        elif start_date == ":today:":
-            start_date = dt.date.today()
-    if isinstance(end_date, str):
-        if end_date == ":start_date:":
-            end_date = start_date
-        elif end_date == ":today:":
-            end_date = dt.date.today()
-    return start_date, end_date
-
-
-class Product(SabangnetAdmin):
+class Search(SabangnetAdmin):
     method = "POST"
     path = "/prod-api/customer/product/getProductInquirySearchList"
     max_page_size = 500
@@ -51,7 +33,8 @@ class Product(SabangnetAdmin):
             product_status: str | None = None,
             **kwargs
         ) -> JsonObject:
-        start_date, end_date = get_product_date(start_date, end_date)
+        from linkmerce.core.sabangnet.admin import get_date_pair
+        start_date, end_date = get_date_pair(start_date, end_date)
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(start_date=start_date, end_date=end_date, date_type=date_type, sort_type=sort_type, sort_asc=sort_asc,
                     is_deleted=is_deleted, product_status=product_status))
@@ -174,7 +157,8 @@ class OptionDownload(SabangnetAdmin):
             product_status: list[str] = list(),
             **kwargs
         ) -> dict[str,bytes]:
-        start_date, end_date = get_product_date(start_date, end_date)
+        from linkmerce.core.sabangnet.admin import get_date_pair
+        start_date, end_date = get_date_pair(start_date, end_date)
         headers = self.build_request_headers()
         body = self.build_request_json(start_date, end_date, date_type, sort_type, sort_asc, is_deleted, product_status)
         response = self.request(self.method, self.url, headers=headers, json=body)

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , shop_name VARCHAR
   , login_id VARCHAR
   , account_no INTEGER
-  , product_id VARCHAR
+  , option_id VARCHAR
   , sku_id VARCHAR
   , product_code VARCHAR
   , product_status VARCHAR
@@ -42,7 +42,7 @@ SELECT
   , shmaNm AS shop_name
   , shmaCnctnLoginId AS login_id
   , acntRegsSrno AS account_no
-  , prdNo AS product_id
+  , prdNo AS option_id
   , skuNo AS sku_id
   , onsfPrdCd AS product_code
   , prdSplyStsNm AS product_status
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , order_id VARCHAR
   , order_id_dup VARCHAR
   , account_no INTEGER
-  , product_id VARCHAR NOT NULL
+  , option_id VARCHAR NOT NULL
   , product_id_shop VARCHAR
   , invoice_no VARCHAR
   , delivery_company VARCHAR
@@ -97,7 +97,7 @@ SELECT
   , "주문번호(쇼핑몰)" AS order_id
   , "부주문번호" AS order_id_dup
   , TRY_CAST("계정등록순번" AS INTEGER) AS account_no
-  , "상품코드(사방넷)" AS product_id
+  , "상품코드(사방넷)" AS option_id
   , "상품코드(쇼핑몰)" AS product_id_shop
   , "송장번호" AS invoice_no
   , "택배사" AS delivery_company
