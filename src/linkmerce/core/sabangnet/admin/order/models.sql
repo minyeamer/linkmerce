@@ -177,3 +177,71 @@ WHERE (TRY_CAST("주문번호(사방넷)" AS BIGINT) IS NOT NULL)
 
 -- OrderStatus: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
+-- ProductMapping: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    product_id_shop VARCHAR
+  , product_id VARCHAR NOT NULL
+  , account_no INTEGER
+  , shop_id VARCHAR
+  -- , shop_name VARCHAR
+  -- , shop_login_id VARCHAR
+  , product_name VARCHAR
+  -- , model_id VARCHAR
+  , sales_price INTEGER
+  , mapping_count INTEGER
+  , PRIMARY KEY (account_no, product_id_shop)
+);
+
+-- ProductMapping: select
+SELECT
+    shmaPrdNo AS product_id_shop
+  , prdNo AS product_id
+  , TRY_CAST(acntRegsSrno AS INTEGER) AS account_no
+  , shmaId AS shop_id
+  -- , shmaNm AS shop_name
+  -- , shmaCnctnLoginId AS shop_login_id
+  , prdNm AS product_name
+  -- , onsfPrdCd AS model_id
+  , sepr AS sales_price
+  , COALESCE(mpngCnt, 0) AS mapping_count
+FROM {{ array }}
+WHERE (prdNo IS NOT NULL)
+  AND (shmaPrdNo IS NOT NULL)
+  AND (TRY_CAST(acntRegsSrno AS INTEGER) IS NOT NULL);
+
+-- ProductMapping: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
+-- SkuMapping: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    product_id_shop VARCHAR
+  , option_id VARCHAR NOT NULL
+  , shop_id VARCHAR
+  , product_name VARCHAR
+  , option_name VARCHAR
+  , sku_seq INTEGER
+  , sku_name VARCHAR
+  , register_dt TIMESTAMP
+  , PRIMARY KEY (shop_id, product_id_shop, sku_seq)
+);
+
+-- SkuMapping: select
+SELECT
+    shmaPrdNo AS product_id_shop
+  , CONCAT(prdNo, '-', COALESCE(skuNo, '0001')) AS option_id
+  , $shop_id AS shop_id
+  , prdNm AS product_name
+  , optDtlNm AS option_name
+  , rn AS sku_seq
+  , skuDscr AS sku_name
+  , TRY_CAST(fstRegsDt AS TIMESTAMP) AS register_dt
+FROM {{ array }}
+WHERE (prdNo IS NOT NULL)
+  AND (shmaPrdNo IS NOT NULL)
+  AND (rn IS NOT NULL);
+
+-- SkuMapping: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;

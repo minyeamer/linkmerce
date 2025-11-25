@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class Search(SabangnetAdmin):
+class Product(SabangnetAdmin):
     method = "POST"
     path = "/prod-api/customer/product/getProductInquirySearchList"
     max_page_size = 500
@@ -72,14 +72,6 @@ class Search(SabangnetAdmin):
             "prdSplyStsCd": ("006" if is_deleted else product_status),
         }
 
-    def build_request_headers(self, **kwargs: str) -> dict[str,str]:
-        from linkmerce.utils.headers import add_headers
-        host = dict(host=self.origin, referer=self.origin, origin=self.origin)
-        return add_headers(self.get_request_headers(), authorization=self.get_authorization(), **host)
-
-    def set_request_headers(self, **kwargs: str):
-        super().set_request_headers(contents="json", **kwargs)
-
     @property
     def date_type(self) -> dict[str,str]:
         return {"001": "상품등록일", "002": "상품수정일", "003": "상품삭제일", "004": "상품상태변경일"}
@@ -126,14 +118,6 @@ class Option(SabangnetAdmin):
 
     def build_request_json(self, product_id: str, **kwargs) -> dict:
         return {"prdNo": product_id,"skuNo": None,"optDivCd": "basic"}
-
-    def build_request_headers(self, **kwargs: str) -> dict[str,str]:
-        from linkmerce.utils.headers import add_headers
-        host = dict(host=self.origin, referer=self.origin, origin=self.origin)
-        return add_headers(self.get_request_headers(), authorization=self.get_authorization(), **host)
-
-    def set_request_headers(self, **kwargs: str):
-        super().set_request_headers(contents="json", **kwargs)
 
     @property
     def option_type(self) -> dict[str,str]:
@@ -202,14 +186,6 @@ class OptionDownload(SabangnetAdmin):
             "prdNoSkuNoList": []
         }
 
-    def build_request_headers(self, **kwargs: str) -> dict[str,str]:
-        from linkmerce.utils.headers import add_headers
-        host = dict(host=self.origin, referer=self.origin, origin=self.origin)
-        return add_headers(self.get_request_headers(), authorization=self.get_authorization(), **host)
-
-    def set_request_headers(self, **kwargs: str):
-        super().set_request_headers(contents="json", **kwargs)
-
     @property
     def date_type(self) -> dict[str,str]:
         return {
@@ -229,4 +205,86 @@ class OptionDownload(SabangnetAdmin):
         return {
             "001": "대기중", "002": "공급중", "003": "일시중지", "004": "완전품절", "005": "미사용",
             "006": "삭제", "007": "자료없음", "008": "비노출"
+        }
+
+
+class AddProductGroup(SabangnetAdmin):
+    method = "POST"
+    path = "/prod-api/customer/product/getAddProductList"
+    max_page_size = 500
+    page_start = 1
+    date_format = "%Y%m%d"
+
+    @property
+    def default_options(self) -> dict:
+        return dict(PaginateAll = dict(request_delay=1))
+
+    @SabangnetAdmin.with_session
+    @SabangnetAdmin.with_token
+    def extract(
+            self,
+            start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
+            end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+            shop_id: str = str(),
+            **kwargs
+        ) -> JsonObject:
+        from linkmerce.core.sabangnet.admin import get_date_pair
+        start_date, end_date = get_date_pair(start_date, end_date)
+        return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
+                .run(start_date=start_date, end_date=end_date, shop_id=shop_id))
+
+    def count_total(self, response: JsonObject, **kwargs) -> int:
+        from linkmerce.utils.map import hier_get
+        return hier_get(response, ["data",0,"total"])
+
+    def build_request_json(
+            self,
+            start_date: dt.date | str,
+            end_date: dt.date | str,
+            shop_id: str = str(),
+            page: int = 1,
+            size: int = 500,
+            **kwargs
+        ) -> dict:
+        return {
+            "dayOption": "FST_REGS_DT",
+            "startDate": str(start_date).replace('-',''),
+            "endDate": str(end_date).replace('-',''),
+            "pageSize": size,
+            "shmaId": shop_id,
+            "sortOption": "ADD_PRD_GRP_ID",
+            "sort": "ASC",
+            "searchCondition": "",
+            "searchKeyword": "",
+            "currentPage": page,
+        }
+
+
+class AddProduct(SabangnetAdmin):
+    method = "POST"
+    path = "/prod-api/customer/product/getAddProductListInGroup"
+
+    @property
+    def default_options(self) -> dict:
+        return dict(RequestEach = dict(request_delay=0.3))
+
+    @SabangnetAdmin.with_session
+    @SabangnetAdmin.with_token
+    def extract(self, group_id: Sequence[str], **kwargs) -> JsonObject:
+        return (self.request_each(self.request_json_safe)
+                .expand(group_id=group_id)
+                .run())
+
+    def build_request_json(self, group_id: str, **kwargs) -> dict:
+        return {
+            "addPrdGrpId": group_id,
+            "addPrdGrpNm": None,
+            "dayOption": "FST_REGS_DT",
+            "startDate": None,
+            "endDate": None,
+            "pageSize": 25,
+            "sortOption": "ADD_PRD_GRP_ID",
+            "sort": "ASC",
+            "currentPage": 1,
+            "excelDownYn": "N",
         }

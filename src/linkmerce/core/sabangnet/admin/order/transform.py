@@ -61,3 +61,31 @@ class OrderStatus(DuckDBTransformer):
             "delivery_confirm_date": "YYYYMMDD", "chng_rcv_dt": "YYYY-MM-DD", "chng_dt": "YYYY-MM-DD",
             # "dlvery_rcv_dt": "YYYYMMDD", "inv_send_dm": "YYYYMMDD"
         }
+
+
+class ProductList(JsonTransformer):
+    dtype = dict
+    path = ["data", "list"]
+
+
+class ProductMapping(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, **kwargs):
+        mapping = ProductList().transform(obj)
+        if mapping:
+            return self.insert_into_table(mapping)
+
+
+class SkuList(JsonTransformer):
+    dtype = dict
+    path = ["data"]
+
+
+class SkuMapping(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, query: dict, **kwargs):
+        mapping = SkuList().transform(obj)
+        if mapping:
+            return self.insert_into_table(mapping, params=dict(shop_id=query["shop_id"]))

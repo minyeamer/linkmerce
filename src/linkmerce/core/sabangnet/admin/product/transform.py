@@ -56,3 +56,22 @@ class OptionDownload(DuckDBTransformer):
             if key not in options[0]:
                 options[0][key] = None
         return options
+
+
+class AddProductGroup(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, **kwargs):
+        groups = obj["data"]
+        if groups:
+            return self.insert_into_table(groups)
+
+
+class AddProduct(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, **kwargs):
+        products = ProductList().transform(obj)
+        if products:
+            meta = obj["data"]["meta"]
+            return self.insert_into_table(products, params=dict(meta=meta))

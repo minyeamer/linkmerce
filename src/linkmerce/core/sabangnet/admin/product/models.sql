@@ -141,3 +141,54 @@ WHERE "사방넷상품코드" IS NOT NULL;
 
 -- OptionDownload: insert
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
+-- AddProductGroup: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    group_id VARCHAR PRIMARY KEY
+  , group_name VARCHAR
+  -- , register_dt TIMESTAMP
+  -- , modify_dt TIMESTAMP
+);
+
+-- AddProductGroup: select
+SELECT
+    addPrdGrpId AS group_id
+  , addPrdGrpNm AS group_name
+  -- , TRY_STRPTIME(SUBSTR(fstRegsDt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
+  -- , TRY_STRPTIME(SUBSTR(fnlChgDt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS modify_dt
+FROM {{ array }};
+
+-- AddProductGroup: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
+-- AddProduct: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    group_id VARCHAR
+  , group_name VARCHAR
+  , shop_id VARCHAR
+  , option_seq INTEGER
+  , option_id VARCHAR NOT NULL
+  , option_name VARCHAR
+  , sales_price INTEGER
+  , register_dt TIMESTAMP
+  , modify_dt TIMESTAMP
+  , PRIMARY KEY (group_id, option_seq)
+);
+
+-- AddProduct: select
+SELECT
+    addPrdGrpId AS group_id
+  , $meta.addPrdGrpNm AS group_name
+  , $meta.shmaId AS shop_id
+  , addPrdSkuCnfgSrno AS option_seq
+  , CONCAT(prdNo, '-', skuNo) AS option_id
+  , addPrdSkuCnfgNm AS option_name
+  , sepr AS sales_price
+  , TRY_STRPTIME(SUBSTR($meta.fstRegsDt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
+  , TRY_STRPTIME(SUBSTR($meta.fnlChgDt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS modify_dt
+FROM {{ array }};
+
+-- AddProduct: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
