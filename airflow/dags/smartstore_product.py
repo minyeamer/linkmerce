@@ -9,7 +9,7 @@ with DAG(
     start_date = pendulum.datetime(2025, 9, 3, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:high", "smartstore:product", "api:smartstore", "schedule:weekdays", "time:night"],
+    tags = ["priority:high", "smartstore:product", "smartstore:option", "api:smartstore", "schedule:weekdays", "time:night"],
 ) as dag:
 
     PATH = ["smartstore", "api", "smartstore_product"]
@@ -39,16 +39,33 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.smartstore.api import product
+        from linkmerce.api.smartstore.api import product as product_api
+        from linkmerce.api.smartstore.api import option as option_api
         from linkmerce.extensions.bigquery import BigQueryClient
+        sources = dict(product="smartstore_product", option="smartstore_option")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            product(
+            product_api(
                 client_id = client_id,
                 client_secret = client_secret,
                 status_type = ["ALL"],
                 channel_seq = channel_seq,
                 connection = conn,
+                tables = dict(default=sources["product"]),
+                progress = False,
+                return_type = "none",
+            )
+
+            query = "SELECT product_id FROM {} WHERE channel_seq = {}".format(sources["product"], channel_seq)
+            product_id = [row[0] for row in conn.execute(query).fetchall()]
+
+            option_api(
+                client_id = client_id,
+                client_secret = client_secret,
+                product_id = product_id,
+                channel_seq = channel_seq,
+                connection = conn,
+                tables = dict(default=sources["option"]),
                 progress = False,
                 return_type = "none",
             )
@@ -60,15 +77,24 @@ with DAG(
                         status_type = ["ALL"],
                     ),
                     count = dict(
-                        product = conn.count_table("data"),
+                        product = conn.count_table(sources["product"]),
+                        option = conn.count_table(sources["option"]),
                     ),
                     status = dict(
-                        option = client.merge_into_table_from_duckdb(
+                        product = client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "data",
+                            source_table = sources["product"],
                             staging_table = f'{tables["temp_product"]}_{channel_seq}',
                             target_table = tables["product"],
                             **merge["product"],
+                            progress = False,
+                        ),
+                        option = client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["option"],
+                            staging_table = f'{tables["temp_option"]}_{channel_seq}',
+                            target_table = tables["option"],
+                            **merge["option"],
                             progress = False,
                         ),
                     ),
