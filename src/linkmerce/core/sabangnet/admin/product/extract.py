@@ -33,11 +33,13 @@ class Product(SabangnetAdmin):
             product_status: str | None = None,
             **kwargs
         ) -> JsonObject:
-        from linkmerce.core.sabangnet.admin import get_date_pair
-        start_date, end_date = get_date_pair(start_date, end_date)
+        from linkmerce.core.sabangnet.admin import get_product_date_pair
+        kwargs = dict(
+            dict(zip(["start_date","end_date"], get_product_date_pair(start_date, end_date))),
+            date_type=date_type, sort_type=sort_type, sort_asc=sort_asc, is_deleted=is_deleted, product_status=product_status)
+
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
-                .run(start_date=start_date, end_date=end_date, date_type=date_type, sort_type=sort_type, sort_asc=sort_asc,
-                    is_deleted=is_deleted, product_status=product_status))
+                .run(**kwargs))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
@@ -45,8 +47,8 @@ class Product(SabangnetAdmin):
 
     def build_request_json(
             self,
-            start_date: dt.date | str,
-            end_date: dt.date | str,
+            start_date: str,
+            end_date: str,
             date_type: str = "001",
             sort_type: str = "001",
             sort_asc: bool = True,
@@ -58,8 +60,8 @@ class Product(SabangnetAdmin):
         ) -> dict:
         return {
             "dayOption": date_type,
-            "startDate": str(start_date).replace('-',''),
-            "endDate": str(end_date).replace('-',''),
+            "startDate": start_date,
+            "endDate": end_date,
             "pageSize": size,
             "sortOption": sort_type,
             "sort": ("ASC" if sort_asc else "DESC"),
@@ -141,10 +143,10 @@ class OptionDownload(SabangnetAdmin):
             product_status: list[str] = list(),
             **kwargs
         ) -> dict[str,bytes]:
-        from linkmerce.core.sabangnet.admin import get_date_pair
-        start_date, end_date = get_date_pair(start_date, end_date)
+        from linkmerce.core.sabangnet.admin import get_product_date_pair
+        dates = get_product_date_pair(start_date, end_date)
         headers = self.build_request_headers()
-        body = self.build_request_json(start_date, end_date, date_type, sort_type, sort_asc, is_deleted, product_status)
+        body = self.build_request_json(*dates, date_type, sort_type, sort_asc, is_deleted, product_status)
         response = self.request(self.method, self.url, headers=headers, json=body)
         file_name = self.get_file_name(response.headers.get("Content-Disposition"))
         return {file_name: self.parse(response.content)}
@@ -160,8 +162,8 @@ class OptionDownload(SabangnetAdmin):
 
     def build_request_json(
             self,
-            start_date: dt.date | str,
-            end_date: dt.date | str,
+            start_date: str,
+            end_date: str,
             date_type: str = "prdFstRegsDt",
             sort_type: str = "prdNo",
             sort_asc: bool = True,
@@ -171,8 +173,8 @@ class OptionDownload(SabangnetAdmin):
         ) -> dict:
         return {
             "dayOption": date_type,
-            "startDate": str(start_date).replace('-',''),
-            "endDate": str(end_date).replace('-',''),
+            "startDate": start_date,
+            "endDate": end_date,
             "pageSize": 25,
             "currentPage": 1,
             "sortOption": sort_type,
@@ -228,8 +230,8 @@ class AddProductGroup(SabangnetAdmin):
             shop_id: str = str(),
             **kwargs
         ) -> JsonObject:
-        from linkmerce.core.sabangnet.admin import get_date_pair
-        start_date, end_date = get_date_pair(start_date, end_date)
+        from linkmerce.core.sabangnet.admin import get_product_date_pair
+        start_date, end_date = get_product_date_pair(start_date, end_date)
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(start_date=start_date, end_date=end_date, shop_id=shop_id))
 
@@ -239,8 +241,8 @@ class AddProductGroup(SabangnetAdmin):
 
     def build_request_json(
             self,
-            start_date: dt.date | str,
-            end_date: dt.date | str,
+            start_date: str,
+            end_date: str,
             shop_id: str = str(),
             page: int = 1,
             size: int = 500,
@@ -248,8 +250,8 @@ class AddProductGroup(SabangnetAdmin):
         ) -> dict:
         return {
             "dayOption": "FST_REGS_DT",
-            "startDate": str(start_date).replace('-',''),
-            "endDate": str(end_date).replace('-',''),
+            "startDate": start_date,
+            "endDate": end_date,
             "pageSize": size,
             "shmaId": shop_id,
             "sortOption": "ADD_PRD_GRP_ID",

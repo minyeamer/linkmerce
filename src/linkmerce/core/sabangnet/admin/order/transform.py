@@ -5,6 +5,7 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Literal
     from linkmerce.common.transform import JsonObject
 
 
@@ -23,13 +24,29 @@ class Order(DuckDBTransformer):
 
 
 class OrderDownload(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
+    download_type: Literal["order","option","invoice","dispatch"]
+    queries = [f"{keyword}_{type}"
+        for type in ["order", "option", "invoice", "dispatch"]
+            for keyword in ["create", "select", "insert"]]
+
+    def __init__(
+            self,
+            download_type: Literal["order","option","invoice","dispatch"],
+            db_info: dict = dict(),
+            model_path: Literal["this"] | str = "this",
+            tables: dict | None = None,
+            create_options: dict | None = dict(),
+        ):
+        if isinstance(create_options, dict):
+            create_options["key"] = create_options["key"] if "key" in create_options else f"create_{download_type}"
+        super().__init__(db_info, model_path, tables, create_options)
+        self.download_type = download_type
 
     def transform(self, obj: bytes, **kwargs):
         from linkmerce.utils.excel import excel2json
         orders = excel2json(obj, warnings=False)
         if orders:
-            return self.insert_into_table(orders)
+            return self.insert_into_table(orders, key=f"insert_{self.download_type}", values=f":select_{self.download_type}:")
 
 
 class OrderStatus(DuckDBTransformer):

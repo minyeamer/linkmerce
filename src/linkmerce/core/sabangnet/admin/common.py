@@ -11,24 +11,6 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def get_date_pair(
-        start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
-        end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
-    ) -> tuple[dt.date,dt.date]:
-    import datetime as dt
-    if isinstance(start_date, str):
-        if start_date == ":base_date:":
-            start_date = dt.date(1986, 1, 9)
-        elif start_date == ":today:":
-            start_date = dt.date.today()
-    if isinstance(end_date, str):
-        if end_date == ":start_date:":
-            end_date = start_date
-        elif end_date == ":today:":
-            end_date = dt.date.today()
-    return start_date, end_date
-
-
 class SabangnetAdmin(Extractor):
     method: str | None = None
     main_url: str = "https://www.sabangnet.co.kr"
@@ -67,7 +49,7 @@ class SabangnetAdmin(Extractor):
         from linkmerce.utils.headers import build_headers
         url = self.main_url + "/hp-prod/users/login"
         referer = self.main_url + "/login/login-main"
-        body = {"username": self.get_variable("userid"),"password": self.get_variable("passwd")}
+        body = {"username": self.get_variable("userid"), "password": self.get_variable("passwd")}
         headers = build_headers(host=url, contents="json", referer=referer, origin=self.main_url)
         headers["program-name"] = "login-main"
         with self.request("POST", url, json=body, headers=headers) as response:
@@ -88,6 +70,14 @@ class SabangnetAdmin(Extractor):
     def get_authorization(self) -> str:
         return "Bearer " + self.access_token
 
+    def build_request_headers(self, **kwargs: str) -> dict[str,str]:
+        from linkmerce.utils.headers import add_headers
+        host = dict(host=self.origin, referer=self.origin, origin=self.origin)
+        return add_headers(self.get_request_headers(), authorization=self.get_authorization(), **host)
+
+    def set_request_headers(self, **kwargs: str):
+        super().set_request_headers(contents="json", **kwargs)
+
 
 class SabangnetLogin(LoginHandler, SabangnetAdmin):
 
@@ -97,3 +87,52 @@ class SabangnetLogin(LoginHandler, SabangnetAdmin):
         self.set_token(**data)
         self.login_history()
         return dict(cookies=self.get_cookies(), access_token=self.access_token, refresh_token=self.refresh_token)
+
+
+def get_order_date_pair(
+        start_date: dt.datetime | dt.date | str | Literal[":today:"] = ":today:",
+        end_date: dt.datetime | dt.date | str | Literal[":start_date:",":now:"] = ":start_date:",
+    ) -> tuple[str,str]:
+    import datetime as dt
+
+    def strftime(obj: dt.datetime | dt.date | str):
+        if isinstance(obj, dt.datetime):
+            date_string = obj.strftime("%Y%m%d%H%M%S")
+        else:
+            date_string = str(obj).replace('-', '').replace(':', '').replace(' ', '')
+
+        while date_string[-2:] == "00":
+            date_string = date_string[:-2]
+        return date_string
+
+    if isinstance(start_date, str) and (start_date == ":today:"):
+        start_date = dt.date.today()
+    start_date = strftime(start_date)
+
+    if isinstance(end_date, str):
+        if end_date == ":start_date:":
+            return start_date, start_date[:8]
+        elif end_date == ":now:":
+            return start_date, dt.datetime.now().strftime("%Y%m%d%H%M%S")
+    return start_date, strftime(end_date)
+
+
+def get_product_date_pair(
+        start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
+        end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+    ) -> tuple[str,str]:
+    import datetime as dt
+
+    if isinstance(start_date, str):
+        if start_date == ":base_date:":
+            start_date = dt.date(1986, 1, 9)
+        elif start_date == ":today:":
+            start_date = dt.date.today()
+    start_date = str(start_date).replace('-', '')
+
+    if isinstance(end_date, str):
+        if end_date == ":start_date:":
+            return start_date, start_date
+        elif end_date == ":today:":
+            end_date = dt.date.today()
+    return start_date, str(end_date).replace('-', '')

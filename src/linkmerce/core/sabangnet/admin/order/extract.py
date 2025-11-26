@@ -14,7 +14,7 @@ class Order(SabangnetAdmin):
     path = "/prod-api/customer/order/OrderConfirm/searchOrders"
     max_page_size = 500
     page_start = 1
-    date_format = "%Y%m%d"
+    datetime_format = "%Y%m%d%H%M%S"
 
     @property
     def default_options(self) -> dict:
@@ -24,17 +24,23 @@ class Order(SabangnetAdmin):
     @SabangnetAdmin.with_token
     def extract(
             self,
-            start_date: dt.date | str,
-            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-            date_type: str = "ord_dt",
+            start_date: dt.datetime | dt.date | str | Literal[":today:"] = ":today:",
+            end_date: dt.datetime | dt.date | str | Literal[":start_date:",":now:"] = ":start_date:",
+            date_type: str = "reg_dm",
             order_status_div: str = str(),
             order_status: Sequence[str] = list(),
+            shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             **kwargs
         ) -> JsonObject:
+        from linkmerce.core.sabangnet.admin import get_order_date_pair
+        kwargs = dict(
+            dict(zip(["start_date","end_date"], get_order_date_pair(start_date, end_date))),
+            date_type=date_type, order_status_div=order_status_div, order_status=order_status,
+            shop_id=shop_id, sort_type=sort_type)
+
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
-                .run(start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date),
-                    date_type=date_type, order_status_div=order_status_div, order_status=order_status, sort_type=sort_type))
+                .run(**kwargs))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
@@ -42,32 +48,32 @@ class Order(SabangnetAdmin):
 
     def build_request_json(
             self,
-            start_date: dt.date | str,
-            end_date: dt.date | str,
-            date_type: str = "ord_dt",
+            start_date: str,
+            end_date: str,
+            date_type: str = "reg_dm",
             order_status_div: str = str(),
             order_status: Sequence[str] = list(),
+            shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             page: int = 1,
             size: int = 500,
             **kwargs
         ) -> dict:
         return {
-            "regDmStartTime": "00:00",
-            "regDmEndTime": "23:00",
             "fnlChgPrgmNm": "order-confirm",
             "chkOrdNo": [],
             'currentPage': page,
             "dateDiv": date_type,
-            "startDate": str(start_date).replace('-',''),
-            "endDate": str(end_date).replace('-',''),
+            "startDate": start_date,
+            "endDate": end_date,
             "pageSize": size,
             "ordStsTpDivCd": order_status_div,
             "orderStrd": sort_type.rsplit('_', 1)[0],
             "orderDegreeStrd": sort_type.rsplit('_', 1)[1],
-            'orderStatus': order_status,
-            'multiplexId': [],
-            'searchKeywordList': [],
+            "orderStatus": order_status,
+            "shmaId": shop_id,
+            "multiplexId": [],
+            "searchKeywordList": [],
         }
 
     @property
@@ -107,7 +113,7 @@ class Order(SabangnetAdmin):
 class OrderDownload(Order):
     method = "POST"
     path = "/prod-api/customer/order/OrderConfirm/partner/downloadOrderConfirmExcelSearch"
-    date_format = "%Y%m%d"
+    datetime_format = "%Y%m%d%H%M%S"
 
     @property
     def default_options(self) -> dict:
@@ -117,19 +123,21 @@ class OrderDownload(Order):
     @SabangnetAdmin.with_token
     def extract(
             self,
-            excel_form: int,
-            start_date: dt.date | str,
-            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-            date_type: str = "ord_dt",
+            download_no: int,
+            start_date: dt.datetime | dt.date | str | Literal[":today:"] = ":today:",
+            end_date: dt.datetime | dt.date | str | Literal[":start_date:",":now:"] = ":start_date:",
+            date_type: str = "reg_dm",
             order_seq: list[int] = list(),
             order_status_div: str = str(),
             order_status: Sequence[str] = list(),
+            shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             **kwargs
         ) -> dict[str,bytes]:
-        end_date = (start_date if end_date == ":start_date:" else end_date)
+        from linkmerce.core.sabangnet.admin import get_order_date_pair
+        dates = get_order_date_pair(start_date, end_date)
         headers = self.build_request_headers()
-        body = self.build_request_json(excel_form, start_date, end_date, date_type, order_seq, order_status_div, order_status, sort_type)
+        body = self.build_request_json(download_no, *dates, date_type, order_seq, order_status_div, order_status, shop_id, sort_type)
         response = self.request(self.method, self.url, headers=headers, json=body)
         file_name = self.get_file_name(response.headers.get("Content-Disposition"))
         return {file_name: self.parse(response.content)}
@@ -144,24 +152,25 @@ class OrderDownload(Order):
 
     def build_request_json(
             self,
-            excel_form: int,
-            start_date: dt.date | str,
-            end_date: dt.date | str,
-            date_type: str = "ord_dt",
+            download_no: int,
+            start_date: str,
+            end_date: str,
+            date_type: str = "reg_dm",
             order_seq: list[int] = list(),
             order_status_div: str = str(),
             order_status: Sequence[str] = list(),
+            shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             page: int = 1,
             size: int = 25,
             **kwargs
         ) -> dict:
-        body = super().build_request_json(start_date, end_date, date_type, order_status_div, order_status, sort_type, page, size)
+        body = super().build_request_json(start_date, end_date, date_type, order_status_div, order_status, shop_id, sort_type, page, size)
         return dict(body, **{
             "chkOrdNo": order_seq,
             "downloadScale": ("" if order_seq else "all"),
             "exclFormDivCd": "01",
-            "exclFormSrno": str(excel_form),
+            "exclFormSrno": str(download_no),
             "excelTotalCount": 1,
             "excelPassword": None,
             "opaExcelDownloadName": "주문서확인처리",
@@ -179,18 +188,21 @@ class OrderStatus(OrderDownload):
     def extract(
             self,
             excel_form: int,
-            start_date: dt.date | str,
-            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            start_date: dt.datetime | dt.date | str | Literal[":today:"] = ":today:",
+            end_date: dt.datetime | dt.date | str | Literal[":start_date:",":now:"] = ":start_date:",
             date_type: list[str] = ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"],
             order_seq: list[int] = list(),
             order_status_div: str = str(),
             order_status: Sequence[str] = list(),
+            shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             **kwargs
         ) -> dict[str,bytes]:
-        kwargs = dict(kwargs,
-            excel_form=excel_form, start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date),
-            order_seq=order_seq, order_status_div=order_status_div, order_status=order_status, sort_type=sort_type)
+        from linkmerce.core.sabangnet.admin import get_order_date_pair
+        kwargs = dict(
+            dict(zip(["start_date","end_date"], get_order_date_pair(start_date, end_date))),
+            excel_form=excel_form, order_seq=order_seq, order_status_div=order_status_div, order_status=order_status,
+            shop_id=shop_id, sort_type=sort_type)
 
         keys = [self.date_type[dt] for dt in date_type]
         return dict(zip(keys, self.request_each(self.request_content).partial(**kwargs).expand(date_type=date_type).run()))
@@ -217,8 +229,8 @@ class ProductMapping(SabangnetAdmin):
             shop_id: str = str(),
             **kwargs
         ) -> JsonObject:
-        from linkmerce.core.sabangnet.admin import get_date_pair
-        start_date, end_date = get_date_pair(start_date, end_date)
+        from linkmerce.core.sabangnet.admin import get_product_date_pair
+        start_date, end_date = get_product_date_pair(start_date, end_date)
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(start_date=start_date, end_date=end_date, shop_id=shop_id))
 
@@ -228,8 +240,8 @@ class ProductMapping(SabangnetAdmin):
 
     def build_request_json(
             self,
-            start_date: dt.date | str,
-            end_date: dt.date | str,
+            start_date: str,
+            end_date: str,
             shop_id: str = str(),
             page: int = 1,
             size: int = 500,
@@ -237,8 +249,8 @@ class ProductMapping(SabangnetAdmin):
         ) -> dict:
         return {
             "dayOption": "001",
-            "startDate": str(start_date).replace('-',''),
-            "endDate": str(end_date).replace('-',''),
+            "startDate": start_date,
+            "endDate": end_date,
             # "excelDownYn": "N",
             "pageSize": size,
             "shmaId": shop_id,
