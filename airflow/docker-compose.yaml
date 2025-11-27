@@ -95,16 +95,16 @@ services:
   postgres:
     image: postgres:13
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
     networks:
       airflow-local:
         ipv4_address: 172.28.0.100
     ports:
-      - 5431:5432
+      - "${POSTGRES_PORT:-5431}:5432"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -132,18 +132,18 @@ services:
     restart: always
 
   playwright:
-    image: mcr.microsoft.com/playwright:v1.55.0-noble
+    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:-1.55.0}-noble
     networks:
       airflow-local:
         ipv4_address: 172.28.0.50
     working_dir: /home/pwuser
     user: pwuser
     command: >
-      /bin/sh -c "npx -y playwright@1.55.0 run-server --port 3000 --host 0.0.0.0"
+      /bin/sh -c "npx -y playwright@${PLAYWRIGHT_VERSION:-1.55.0} run-server --port 3000 --host 0.0.0.0"
     ports:
-      - "3000:3000"
+      - "${PLAYWRIGHT_PORT:-3000}:3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${PLAYWRIGHT_PORT:-3000}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -157,9 +157,9 @@ services:
       airflow-local:
         ipv4_address: 172.28.0.10
     ports:
-      - "8080:8080"
+      - "${AIRFLOW_WWW_PORT:-8080}:8080"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
+      test: ["CMD", "curl", "--fail", "http://localhost:${AIRFLOW_WWW_PORT:-8080}/api/v2/version"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -339,8 +339,8 @@ services:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
-      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_WWW_USER_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
   
@@ -372,9 +372,9 @@ services:
     profiles:
       - flower
     ports:
-      - "5555:5555"
+      - "${AIRFLOW_CELERY_PORT:-5555}:5555"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
+      test: ["CMD", "curl", "--fail", "http://localhost:${AIRFLOW_CELERY_PORT:-5555}/"]
       interval: 30s
       timeout: 10s
       retries: 5
