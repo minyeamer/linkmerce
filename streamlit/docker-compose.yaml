@@ -1,0 +1,14 @@
+services:
+  streamlit:
+    image: ${STREAMLIT_IMAGE_NAME:-streamlit:1.51.0}
+    ports:
+      - "${STREAMLIT_PORT:-8501}:8501"
+    volumes:
+      - ${STREAMLIT_APP_DIR:-.}/app.py:/app/app.py
+      - ${STREAMLIT_APP_DIR:-.}/.streamlit:/app/.streamlit
+    networks:
+      - streamlit-local
+
+networks:
+  streamlit-local:
+    driver: bridge
