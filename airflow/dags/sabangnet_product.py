@@ -23,25 +23,25 @@ with DAG(
 
 
     @task(task_id="etl_sabangnet_product", pool="sabangnet_pool")
-    def etl_sabangnet_product(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        date = str(data_interval_end.in_timezone("Asia/Seoul").date())
-        return main_product(product_type="product", date=date, **ti.xcom_pull(task_ids="read_variables"))
+    def etl_sabangnet_product(ti: TaskInstance, **kwargs) -> dict:
+        from variables import get_execution_date
+        return main_product(product_type="product", end_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_variables"))
 
     @task(task_id="etl_sabangnet_option", pool="sabangnet_pool")
-    def etl_sabangnet_option(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        date = str(data_interval_end.in_timezone("Asia/Seoul").date())
-        return main_product(product_type="option", date=date, **ti.xcom_pull(task_ids="read_variables"))
+    def etl_sabangnet_option(ti: TaskInstance, **kwargs) -> dict:
+        from variables import get_execution_date
+        return main_product(product_type="option", end_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_variables"))
 
     @task(task_id="etl_sabangnet_add_product", pool="sabangnet_pool")
-    def etl_sabangnet_add_product(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        date = str(data_interval_end.in_timezone("Asia/Seoul").date())
-        return main_product(product_type="add_product", date=date, **ti.xcom_pull(task_ids="read_variables"))
+    def etl_sabangnet_add_product(ti: TaskInstance, **kwargs) -> dict:
+        from variables import get_execution_date
+        return main_product(product_type="add_product", end_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_variables"))
 
     def main_product(
             userid: str,
             passwd: str,
             domain: int,
-            date: str,
+            end_date: str,
             product_type: Literal["product","option","add_product"],
             service_account: dict,
             tables: dict[str,str],
@@ -63,7 +63,7 @@ with DAG(
                     passwd = passwd,
                     domain = domain,
                     start_date = "2000-01-01",
-                    end_date = date,
+                    end_date = end_date,
                     **(dict(is_deleted = is_deleted) if include_deleted else dict()),
                     connection = conn,
                     **(dict(progress = False) if disable_progress else dict()),
@@ -74,7 +74,7 @@ with DAG(
                 return dict(
                     params = dict(
                         start_date = "2000-01-01",
-                        end_date = date,
+                        end_date = end_date,
                         **(dict(is_deleted = [False, True]) if include_deleted else dict()),
                     ),
                     count = {
@@ -94,15 +94,15 @@ with DAG(
 
 
     @task(task_id="etl_sabangnet_mapping", pool="sabangnet_pool")
-    def etl_sabangnet_mapping(ti: TaskInstance, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        date = str(data_interval_end.in_timezone("Asia/Seoul").date())
-        return main_mapping(date=date, **ti.xcom_pull(task_ids="read_variables"))
+    def etl_sabangnet_mapping(ti: TaskInstance, **kwargs) -> dict:
+        from variables import get_execution_date
+        return main_product(end_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_variables"))
 
     def main_mapping(
             userid: str,
             passwd: str,
             domain: int,
-            date: str,
+            end_date: str,
             service_account: dict,
             tables: dict[str,str],
             merge: dict[str,dict],
@@ -119,7 +119,7 @@ with DAG(
                 passwd = passwd,
                 domain = domain,
                 start_date = "2000-01-01",
-                end_date = date,
+                end_date = end_date,
                 connection = conn,
                 tables = sources,
                 progress = False,
@@ -130,7 +130,7 @@ with DAG(
                 return dict(
                     params = dict(
                         start_date = "2000-01-01",
-                        end_date = date,
+                        end_date = end_date,
                     ),
                     count = dict(
                         product = conn.count_table(sources["product"]),

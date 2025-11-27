@@ -31,9 +31,9 @@ with DAG(
 
 
         @task(task_id="etl_searchad_report", map_index_template="{{ queries['customer_id'] }}")
-        def etl_searchad_report(queries: dict, variables: dict, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-            date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
-            return main_searchad(**queries, date=date, **variables)
+        def etl_searchad_report(queries: dict, variables: dict, **kwargs) -> dict:
+            from variables import get_execution_date
+            return main_searchad(**queries, date=get_execution_date(kwargs, subdays=1), **variables)
 
         def main_searchad(
                 customer_id: int | str,
@@ -105,9 +105,9 @@ with DAG(
 
 
         @task(task_id="etl_gfa_report", map_index_template="{{ credentials['account_no'] }}")
-        def etl_gfa_report(credentials: dict, variables: dict, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-            date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
-            return main_gfa(**credentials, date=date, **variables)
+        def etl_gfa_report(credentials: dict, variables: dict, **kwargs) -> dict:
+            from variables import get_execution_date
+            return main_gfa(**credentials, date=get_execution_date(kwargs, subdays=1), **variables)
 
         def main_gfa(
                 account_no: int | str,

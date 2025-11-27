@@ -34,11 +34,10 @@ with DAG(
     FIRST_SCHEDULE = "03:00"
 
     @task(task_id="etl_smartstore_invoice", map_index_template="{{ credentials['channel_seq'] }}")
-    def etl_smartstore_invoice(credentials: dict, variables: dict, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        current_schedule = data_interval_end.in_timezone("Asia/Seoul").strftime("%H:%M")
-        range_type = "DISPATCHED_DATETIME" if current_schedule == FIRST_SCHEDULE else "PAYED_DATETIME"
-        date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
-        return main(**credentials, date=date, range_type=range_type, **variables)
+    def etl_smartstore_invoice(credentials: dict, variables: dict, **kwargs) -> dict:
+        from variables import get_execution_date
+        range_type = "DISPATCHED_DATETIME" if get_execution_date(kwargs, format="%H:%M") == FIRST_SCHEDULE else "PAYED_DATETIME"
+        return main(**credentials, date=get_execution_date(kwargs, subdays=1), range_type=range_type, **variables)
 
     def main(
             client_id: str,

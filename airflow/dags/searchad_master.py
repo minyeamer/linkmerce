@@ -29,8 +29,9 @@ with DAG(
 
 
         @task(task_id="etl_searchad_master", map_index_template="{{ credentials['customer_id'] }}")
-        def etl_searchad_master(credentials: dict, variables: dict, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-            from_date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=365*2).date())
+        def etl_searchad_master(credentials: dict, variables: dict, **kwargs) -> dict:
+            from variables import get_execution_date
+            from_date = get_execution_date(kwargs, subdays=(365*2))
             return {api_type: main_api(api_type, **credentials, from_date=from_date, **variables) for api_type in ["campaign", "adgroup", "ad"]}
 
         def main_api(

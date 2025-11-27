@@ -6,11 +6,11 @@ import pendulum
 
 with DAG(
     dag_id = "naver_product_catalog",
-    schedule = None, # triggered by rank_shop (0 6-18 * * *)
+    schedule = None, # triggered after naver_rank_shop DAG run (0 6-18 * * *)
     start_date = pendulum.datetime(2025, 8, 15, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:high", "naver:rank", "login:partnercenter", "schedule:hourly", "time:daytime", "triggered:true"],
+    tags = ["priority:high", "naver:rank", "login:partnercenter", "schedule:hourly", "time:daytime", "manual:dagrun"],
 ) as dag:
 
     PATH = ["smartstore", "brand", "naver_product_catalog"]

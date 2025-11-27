@@ -31,12 +31,13 @@ with DAG(
         return main(**credentials, **dates, **variables)
 
     def generate_sales_date(data_interval_end: pendulum.DateTime = None, **kwargs) -> tuple[str,str]:
-        def get_last_monday(datetime: pendulum.DateTime):
+        from variables import in_timezone
+        def get_last_monday(datetime: pendulum.DateTime) -> pendulum.DateTime:
             weekday = datetime.day_of_week # Monday: 0 - Sunday: 6
             return datetime if weekday == 0 else datetime.subtract(days=weekday)
-        start_date = get_last_monday(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1))
+        start_date = get_last_monday(in_timezone(data_interval_end, subdays=1))
         end_date = start_date.add(days=7)
-        return str(start_date.date()), str(end_date.date())
+        return start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d")
 
     def main(
             cookies: str,

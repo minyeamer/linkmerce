@@ -26,8 +26,9 @@ with DAG(
 
 
     @task(task_id="etl_coupang_adreport", map_index_template="{{ credentials['vendor_id'] }}", pool="coupang_pool")
-    def etl_coupang_adreport(credentials: dict, variables: dict, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
+    def etl_coupang_adreport(credentials: dict, variables: dict, **kwargs) -> dict:
+        from variables import get_execution_date
+        date = get_execution_date(kwargs, subdays=1)
         if credentials.get("nca"):
             return dict(
                 pa = main(**credentials, report_type="pa", date=date, **variables),

@@ -26,9 +26,9 @@ with DAG(
 
 
     @task(task_id="etl_smartstore_order", map_index_template="{{ credentials['channel_seq'] }}")
-    def etl_smartstore_order(credentials: dict, variables: dict, data_interval_end: pendulum.DateTime = None, **kwargs) -> dict:
-        date = str(data_interval_end.in_timezone("Asia/Seoul").subtract(days=1).date())
-        return main(**credentials, date=date, **variables)
+    def etl_smartstore_order(credentials: dict, variables: dict, **kwargs) -> dict:
+        from variables import get_execution_date
+        return main(**credentials, date=get_execution_date(kwargs, subdays=1), **variables)
 
     def main(
             client_id: str,
