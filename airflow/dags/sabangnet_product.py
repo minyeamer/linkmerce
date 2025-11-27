@@ -96,7 +96,7 @@ with DAG(
     @task(task_id="etl_sabangnet_mapping", pool="sabangnet_pool")
     def etl_sabangnet_mapping(ti: TaskInstance, **kwargs) -> dict:
         from variables import get_execution_date
-        return main_product(end_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_variables"))
+        return main_mapping(end_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_variables"))
 
     def main_mapping(
             userid: str,
