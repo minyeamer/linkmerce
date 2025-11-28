@@ -21,7 +21,6 @@ class Campaign(CoupangAds):
         return dict(PaginateAll = dict(request_delay=1))
 
     @CoupangAds.with_session
-    @CoupangAds.authorize
     def extract(
             self,
             goal_type: Literal["SALES","NCA","REACH"] = "SALES",
@@ -90,7 +89,6 @@ class Creative(CoupangAds):
         return dict(RequestEach = dict(request_delay=0.3))
 
     @CoupangAds.with_session
-    @CoupangAds.authorize
     def extract(self, campaign_ids: Sequence[int | str], vendor_id: str | None = None, **kwargs) -> JsonObject:
         return (self.request_each(self.request_json_safe)
                 .partial(vendor_id=vendor_id)
@@ -114,7 +112,6 @@ class _AdReport(CoupangAds):
     report_type: Literal["pa","nca"]
 
     @CoupangAds.with_session
-    @CoupangAds.authorize
     def extract(
             self,
             start_date: dt.date | str, 

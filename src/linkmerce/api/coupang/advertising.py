@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from typing import Literal, Sequence
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
+    from pathlib import Path
     import datetime as dt
 
 
@@ -15,12 +16,26 @@ def get_module(name: str) -> str:
     return (".coupang.advertising" + name) if name.startswith('.') else name
 
 
+def login(
+        userid: str,
+        passwd: str,
+        domain: Literal["wing","supplier"] = "wing",
+        save_to: str | Path | None = None,
+    ) -> str:
+    from linkmerce.core.coupang.advertising.common import CoupangLogin
+    auth = CoupangLogin()
+    cookies = auth.login(userid, passwd, domain)
+    if cookies and save_to:
+        with open(save_to, 'w', encoding="utf-8") as file:
+            file.write(cookies)
+    return cookies
+
+
 def campaign(
         cookies: str,
         goal_type: Literal["SALES","NCA","REACH"] = "SALES",
         is_deleted: bool = False,
         vendor_id: str | None = None,
-        domain: Literal["advertising","wing","supplier"] = "advertising",
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         request_delay: float | int = 1,
@@ -44,7 +59,6 @@ def campaign(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            variables = dict(domain=domain),
             options = dict(PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
         ),
         transform_options = transform_options,
@@ -55,7 +69,6 @@ def creative(
         cookies: str,
         campaign_ids: Sequence[int | str],
         vendor_id: str | None = None,
-        domain: Literal["advertising","wing","supplier"] = "advertising",
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         request_delay: float | int = 0.3,
@@ -79,7 +92,6 @@ def creative(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            variables = dict(domain=domain),
             options = dict(RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
         ),
         transform_options = transform_options,
@@ -97,7 +109,6 @@ def adreport(
         vendor_id: str | None = None,
         wait_seconds: int = 60,
         wait_interval: int = 1,
-        domain: Literal["advertising","wing","supplier"] = "advertising",
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -107,7 +118,7 @@ def adreport(
     """`tables = {'default': 'data'}`"""
     args = (
         cookies, start_date, end_date, date_type, report_level, campaign_ids, vendor_id,
-        wait_seconds, wait_interval, domain, connection, tables, return_type, extract_options, transform_options)
+        wait_seconds, wait_interval, connection, tables, return_type, extract_options, transform_options)
     if report_type == "pa":
         return product_adreport(*args)
     elif report_type == "nca":
@@ -126,7 +137,6 @@ def product_adreport(
         vendor_id: str | None = None,
         wait_seconds: int = 60,
         wait_interval: int = 1,
-        domain: Literal["advertising","wing","supplier"] = "advertising",
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -148,7 +158,6 @@ def product_adreport(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            variables = dict(domain=domain),
         ),
         transform_options = transform_options,
     )
@@ -164,7 +173,6 @@ def new_customer_adreport(
         vendor_id: str | None = None,
         wait_seconds: int = 60,
         wait_interval: int = 1,
-        domain: Literal["advertising","wing","supplier"] = "advertising",
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
@@ -186,7 +194,6 @@ def new_customer_adreport(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            variables = dict(domain=domain),
         ),
         transform_options = transform_options,
     )

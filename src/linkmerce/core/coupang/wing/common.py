@@ -41,16 +41,14 @@ class CoupangLogin(LoginHandler):
             userid: str,
             passwd: str,
             domain: Literal["wing","supplier"] = "wing",
-            with_token: bool = False,
+            with_token: bool = True,
             **kwargs
-        ) -> dict:
+        ) -> str:
         self.origin = f"https://{domain}.coupang.com"
         self.vendor_login(userid, passwd)
         if with_token:
-            xsrf_token = self.fetch_xsrf_token()
-            return dict(cookies=self.get_cookies(), xsrf_token=xsrf_token)
-        else:
-            return dict(cookies=self.get_cookies())
+            self.fetch_xsrf_token()
+        return self.get_cookies()
 
     def vendor_login(self, userid: str, passwd: str):
         login_url = self.fetch_main(allow_redirects=False)
@@ -104,9 +102,8 @@ class CoupangLogin(LoginHandler):
         with self.request("POST", xauth_url, data=body, headers=headers, allow_redirects=False) as response:
             return response.headers.get("Location")
 
-    def fetch_xsrf_token(self) -> str:
+    def fetch_xsrf_token(self):
         from linkmerce.utils.headers import build_headers
         url = self.origin + "/tenants/sfl-portal/card/cre/resource"
         headers = build_headers(url, referer=self.origin, ajax=True)
         self.request("GET", url, headers=headers)
-        return self.get_session().cookies.get("XSRF-TOKEN")

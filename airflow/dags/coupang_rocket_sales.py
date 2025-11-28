@@ -37,7 +37,7 @@ with DAG(
             return datetime if weekday == 0 else datetime.subtract(days=weekday)
         start_date = get_last_monday(in_timezone(data_interval_end, subdays=1))
         end_date = start_date.add(days=7)
-        return start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d")
+        return start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
 
     def main(
             cookies: str,

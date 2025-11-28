@@ -20,16 +20,16 @@ def login(
         userid: str,
         passwd: str,
         domain: Literal["wing","supplier"] = "wing",
-        with_token: bool = False,
+        with_token: bool = True,
         save_to: str | Path | None = None,
-    ) -> dict[str,str]:
+    ) -> str:
     from linkmerce.core.coupang.wing.common import CoupangLogin
     auth = CoupangLogin()
-    credentials = auth.login(userid, passwd, domain, with_token)
-    if credentials.get("cookies") and save_to:
+    cookies = auth.login(userid, passwd, domain, with_token)
+    if cookies and save_to:
         with open(save_to, 'w', encoding="utf-8") as file:
-            file.write(credentials["cookies"])
-    return credentials
+            file.write(cookies)
+    return cookies
 
 
 def product_option(
