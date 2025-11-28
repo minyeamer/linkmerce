@@ -132,14 +132,14 @@ services:
     restart: always
 
   playwright:
-    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:-1.55.0}-noble
+    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:-1.56.0}-noble
     networks:
       airflow-local:
         ipv4_address: 172.28.0.50
     working_dir: /home/pwuser
     user: pwuser
     command: >
-      /bin/sh -c "npx -y playwright@${PLAYWRIGHT_VERSION:-1.55.0} run-server --port 3000 --host 0.0.0.0"
+      /bin/sh -c "npx -y playwright@${PLAYWRIGHT_VERSION:-1.56.0} run-server --port 3000 --host 0.0.0.0"
     ports:
       - "${PLAYWRIGHT_PORT:-3000}:3000"
     healthcheck:

@@ -160,7 +160,7 @@ def build():
                             ("종료일시", utc_to_kst(response["data_interval_end"]).strftime(DATETIME_FORMAT)),
                         ], columns=["항목", "값"])
                     else:
-                        st.error("DAG 실행 실패: {}".format(response.get("status_code")))
+                        st.error("실행 실패: {}".format(response.get("status_code")))
                         st.text(response.get("message", str()))
                 else:
                     st.error("로그인 실패")
