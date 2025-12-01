@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import run_with_duckdb, update_options
+from linkmerce.common.api import extract, run_with_duckdb, update_options
 
 from typing import TYPE_CHECKING
 
@@ -20,6 +20,26 @@ def get_order_options(request_delay: float | int = 1, progress: bool = True) -> 
         CursorAll = dict(request_delay=request_delay),
         RequestEachCursor = dict(tqdm_options=dict(disable=(not progress))),
     )
+
+
+def request(
+        client_id: str,
+        client_secret: str,
+        method: str,
+        path: str,
+        version: str | None = None,
+        params: dict | list[tuple] | bytes | None = None,
+        data: dict | list[tuple] | bytes | None = None,
+        json: JsonObject | None = None,
+        headers: dict[str,str] = None,
+        extract_options: dict = dict(),
+    ) -> JsonObject:
+    from linkmerce.core.smartstore.api.common import SmartstoreTestAPI
+    extractor = SmartstoreTestAPI(**update_options(
+        extract_options,
+        variables = dict(client_id=client_id, client_secret=client_secret),
+    ))
+    return extract(extractor, how="sync", args=(method, path, version, params, data, json, headers))
 
 
 def product(
@@ -336,4 +356,40 @@ def aggregated_order_status(
             transformer = "OrderTime",
             args = (start_date, end_date, "CLAIM_COMPLETED_DATETIME"),
         ),
+    )
+
+
+def marketing_channel(
+        client_id: str,
+        client_secret: str,
+        channel_seq: int | str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        max_retries: int = 5,
+        request_delay: float | int = 1,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.smartstore.api.bizdata.extract import MarketingChannel
+    # from linkmerce.core.smartstore.api.bizdata.transform import MarketingChannel
+    return run_with_duckdb(
+        module = get_module(".bizdata"),
+        extractor = "MarketingChannel",
+        transformer = "MarketingChannel",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (channel_seq, start_date, end_date, max_retries),
+        extract_options = update_options(
+            extract_options,
+            options = dict(RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
+            variables = dict(client_id=client_id, client_secret=client_secret),
+        ),
+        transform_options = transform_options,
     )

@@ -78,11 +78,38 @@ class SmartstoreAPI(Extractor):
                 return response
 
     def is_valid_response(self, response: JsonObject, retry_count: int | None = None) -> bool:
-        if isinstance(response, dict) and response.get("code"):
-            if (response["code"] == "GW.RATE_LIMIT") and isinstance(retry_count, int):
+        if isinstance(response, dict):
+            rate_limit = (response.get("code") == "GW.RATE_LIMIT")
+            internal_error = (response.get("message") == "Internal server error")
+            if (rate_limit or internal_error) and isinstance(retry_count, int):
                 import time
                 time.sleep(retry_count)
                 return False
-            else:
+            elif response.get("code"):
                 raise ConnectionError(response.get("message") or str())
         return True
+
+
+class SmartstoreTestAPI(SmartstoreAPI):
+
+    @SmartstoreAPI.with_session
+    @SmartstoreAPI.with_token
+    def extract(
+            self,
+            method: str,
+            path: str,
+            version: str | None = None,
+            params: dict | list[tuple] | bytes | None = None,
+            data: dict | list[tuple] | bytes | None = None,
+            json: JsonObject | None = None,
+            headers: dict[str,str] = None,
+            **kwargs
+        ) -> JsonObject:
+        url = self.concat_path(self.origin, version, path)
+        message = self.build_request_message(method=method, url=url, **kwargs)
+        if params is not None: message["params"] = params
+        if data is not None: message["data"] = data
+        if json is not None: message["json"] = json
+        if isinstance(headers, dict): message["headers"].update(headers)
+        with self.get_session().request(**message) as response:
+            return response.json()

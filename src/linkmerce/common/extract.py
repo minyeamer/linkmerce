@@ -518,7 +518,7 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             freq: Literal["D","W","M"] = "D",
             format: str = "%Y-%m-%d",
-        ) -> list[dict[str,dt.date]] | dict[str,dt.date]:
+        ) -> list[dt.date] | dt.date:
         from linkmerce.utils.date import date_range
         ranges = date_range(start_date, (start_date if end_date == ":start_date:" else end_date), freq, format)
         return ranges[0] if len(ranges) == 1 else ranges
