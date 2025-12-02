@@ -14,11 +14,11 @@ def filter_warnings():
 def to_unique_headers(headers: list[str]) -> list[str]:
     unique = list()
     for header in headers:
-        suffix = 1
-        while header in unique:
-            header = header + f'_{suffix}'
+        header_str, suffix = str(header), 1
+        while header_str in unique:
+            header_str = f"{header}_{suffix}"
             suffix += 1
-        unique.append(header)
+        unique.append(header_str)
     return unique
 
 
