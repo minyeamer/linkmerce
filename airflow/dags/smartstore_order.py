@@ -74,7 +74,7 @@ with DAG(
             )
 
             query = f"SELECT MIN(DATE(payment_dt)), MAX(DATE(payment_dt)) FROM data"
-            payment_date_changed_from, payment_date_changed_to = conn.execute(query).fetchall()[0]
+            payment_date_from, payment_date_to = conn.execute(query).fetchall()[0]
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -82,8 +82,8 @@ with DAG(
                         channel_seq = channel_seq,
                         date = date,
                         range_type = "PAYED_DATETIME",
-                        payment_date_changed_from = payment_date_changed_from,
-                        payment_date_changed_to = payment_date_changed_to,
+                        payment_date_from = payment_date_from,
+                        payment_date_to = payment_date_to,
                     ),
                     count = dict(
                         order = conn.count_table(sources["order"]),
@@ -128,9 +128,9 @@ with DAG(
                             staging_table = f'{tables["temp_order_status"]}_{channel_seq}',
                             target_table = tables["order_status"],
                             **merge["status"],
-                            where_clause = f"DATE(T.payment_dt) BETWEEN '{payment_date_changed_from}' AND '{payment_date_changed_to}'",
+                            where_clause = f"DATE(T.payment_dt) BETWEEN '{payment_date_from}' AND '{payment_date_to}'",
                             progress = False,
-                        ) if payment_date_changed_from is not None else True),
+                        ) if payment_date_from is not None else True),
                     ),
                 )
 

@@ -9,7 +9,7 @@ with DAG(
     start_date = pendulum.datetime(2025, 9, 8, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1),
     catchup = False,
-    tags = ["priority:high", "all:cookies", "login:partnercenter", "login:searchad", "schedule:daily", "time:night"],
+    tags = ["priority:high", "all:cookies", "login:partnercenter", "login:searchad", "schedule:daily", "time:night", "playwright:true"],
 ) as dag:
 
     RETRY_OPTIONS = dict(retries=3, retry_delay=timedelta(minutes=1))

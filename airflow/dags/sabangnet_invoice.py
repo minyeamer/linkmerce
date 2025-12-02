@@ -86,7 +86,7 @@ with DAG(
                         invoice = conn.count_table("data"),
                     ),
                     status = dict(
-                        invoice = client.merge_into_table_from_duckdb(
+                        invoice = (client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = "data",
                             staging_table = tables["temp_invoice"],
@@ -94,7 +94,7 @@ with DAG(
                             **merge["invoice"],
                             where_clause = f"DATE(T.order_dt) IN ({', '.join(order_dates)})",
                             progress = False,
-                        ),
+                        ) if order_dates else True),
                         order_dates = [date[1:-1] for date in order_dates],
                     ),
                 )
