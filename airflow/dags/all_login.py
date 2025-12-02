@@ -51,7 +51,7 @@ with DAG(
 
     with TaskGroup(group_id="searchad_group") as searchad_group:
 
-        @task(task_id="read_smartstore_credentials", retries=3, retry_delay=timedelta(minutes=1))
+        @task(task_id="read_searchad_credentials", retries=3, retry_delay=timedelta(minutes=1))
         def read_searchad_credentials() -> list:
             from linkmerce.api.config import read_config
             from airflow.sdk import Variable
