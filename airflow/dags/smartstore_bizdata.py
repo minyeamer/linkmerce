@@ -67,8 +67,8 @@ with DAG(
                     status = dict(
                         data = client.load_table_from_duckdb(
                             connection = conn,
-                            source_table = "marketing_channel",
-                            target_table = tables["channel"],
+                            source_table = "data",
+                            target_table = tables["marketing_channel"],
                             progress = False,
                         ),
                     ),
