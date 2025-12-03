@@ -13,43 +13,54 @@ with DAG(
     tags = ["priority:high", "cj:loisparcel", "login:cj-loisparcel", "schedule:daily", "time:night", "playwright:true"],
 ) as dag:
 
-    PATH = ["cj", "loisparcel", "cj_loisparcel_invoice"]
+    PATH = ["cjlogistics", "loisparcel", "cj_loisparcel_invoice"]
 
     @task(task_id="read_variables", retries=3, retry_delay=timedelta(minutes=1))
     def read_variables() -> dict:
         from variables import read
-        return read(PATH, credentials=True, tables=True, service_account=True)
+        return read(PATH, credentials="expand", tables=True, service_account=True)
 
 
     @task(task_id="etl_loisparcel_invoice")
     def etl_loisparcel_invoice(ti: TaskInstance, **kwargs) -> dict:
-        from variables import get_execution_date
         variables = ti.xcom_pull(task_ids="read_variables")
-        return main(**variables, date=get_execution_date(kwargs, subdays=1))
+        if "query_dates" not in variables:
+            variables["query_dates"] = generate_query_range(**kwargs)
+        return main(**variables)
+
+    def generate_query_range(data_interval_end: pendulum.DateTime = None, **kwargs) -> dict[str,str]:
+        from variables import strftime
+        yesterday = strftime(data_interval_end, subdays=1)
+        return {
+            "접수일자": dict(start_date=strftime(data_interval_end, subdays=3), end_date=yesterday),
+            "집화일자": dict(start_date=yesterday, end_date=yesterday),
+            "배송완료일자": dict(start_date=yesterday, end_date=yesterday),
+        }
 
     def main(
             userid: str,
             passwd: str,
             mail_info: dict[str,str],
-            date: str,
+            query_dates: dict[str,dict[str,str]],
             service_account: dict,
             tables: dict[str,str],
             merge: dict[str,dict],
-            date_types: list[str] = ["접수일자", "집화일자", "배송완료일자"],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.extensions.bigquery import BigQueryClient
         date_by = {"접수일자": "by_register", "집화일자": "by_pickup", "배송완료일자": "by_delivery"}
-        date_types = [date_type for date_type in date_types if date_type in date_by]
+        query_dates = {date_type: query_dates[date_type] for date_type in date_by.keys() if date_type in query_dates}
+        if not query_dates:
+            raise ValueError("조회 기간이 존재하지 않습니다")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            results = extract(userid, passwd, mail_info, date, date_types)
+            results = extract(userid, passwd, mail_info, query_dates)
 
             source_table = "data"
             conn.execute(create_table(source_table))
             insert_query = insert_into_table(source_table, values=select_table())
-            for date_type in date_types[::-1]:
+            for date_type in list(query_dates.keys())[::-1]:
                 conn.execute(insert_query, obj=results[date_type])
 
             date_query = f"SELECT DISTINCT register_date FROM {source_table}"
@@ -60,11 +71,11 @@ with DAG(
                     params = dict(
                         userid = userid,
                         **{"2fa_email": mail_info["email"]},
-                        date = date,
+                        **{date_by[date_type]: params for date_type, params in query_dates.items()},
                     ),
                     count = dict(
                         total = conn.count_table(source_table),
-                        **{date_by[key]: len(values) for key, values in results.items()},
+                        **{date_by[date_type]: len(values) for date_type, values in results.items()},
                     ),
                     status = dict(
                         invoice = (client.merge_into_table_from_duckdb(
@@ -85,9 +96,9 @@ with DAG(
             userid: str,
             passwd: str,
             mail_info: dict[str,str],
-            date: str,
-            date_types: list[str] = ["접수일자", "집화일자", "배송완료일자"],
+            query_dates: dict[str,dict[str,str]],
         ) -> dict[str,list[dict]]:
+        """조회가능기간 = 16days"""
         from playwright.sync_api import Page, sync_playwright
         from typing import Literal
         import time
@@ -106,7 +117,7 @@ with DAG(
         def two_login_action(page: Page, code: str):
             page.type("input.cl-text", code, delay=100); time.sleep(SHORT)
             page.click("div.btn-login > a"); time.sleep(SHORT)
-            page.wait_for_selector("div.main-logintime")
+            page.wait_for_selector("div.main-logintime", timeout=30*1000)
 
         def close_popup(page: Page):
             time.sleep(LONG)
@@ -151,8 +162,8 @@ with DAG(
                     return
             raise ValueError(f"'{date_type}' 항목이 존재하지 않습니다")
 
-        def select_date(page: Page, date: str):
-            for i in [0, 1]:
+        def select_date(page: Page, start_date: str, end_date: str, **kwargs):
+            for i, date in zip([0, 1], [start_date, end_date]):
                 click_button(page, 'input[aria-label="기준일자"]', nth=i, width=0.25); time.sleep(SHORT)
                 year, month, day = date.split('-')
                 page.keyboard.type(year[0:2]); time.sleep(SHORT)
@@ -163,11 +174,22 @@ with DAG(
 
         def download(page: Page) -> list[dict]:
             from linkmerce.utils.excel import excel2json
+            import os
+            import tempfile
+
             with page.expect_download() as download_info:
                 click_button(page, "div.btn-i-excel > a", nth="last")
-            time.sleep(MEDIUM)
-            with open(download_info.value.path(), "rb") as file:
-                return excel2json(file.read(), warnings=False)[:-1] # Remove total(-1)
+
+            download = download_info.value
+            with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp_file:
+                tmp_path = tmp_file.name
+                download.save_as(tmp_path)
+
+            try:
+                with open(tmp_path, "rb") as file:
+                    return excel2json(file.read(), warnings=False)[:-1] # Remove total(-1)
+            finally:
+                os.unlink(tmp_path)
 
         def click_button(
                 page: Page,
@@ -194,11 +216,11 @@ with DAG(
                     close_popup(page)
                     goto_menu(page)
                     search(page)
-                    select_date(page, date)
 
                     results, selected = dict(), "집화일자"
-                    for date_type in date_types:
+                    for date_type, date_range in query_dates.items():
                         change_date_type(page, selected, change_to=date_type)
+                        select_date(page, **date_range)
                         selected = date_type
                         search(page)
                         results[date_type] = download(page)
@@ -228,8 +250,9 @@ with DAG(
             , delivery_message VARCHAR
             , box_type VARCHAR
             , delivery_type VARCHAR
+            , order_status VARCHAR
             , delivery_status VARCHAR
-            , register_date DATE
+            , register_date DATE NOT NULL
             , pickup_date DATE
             , delivery_date DATE
         );
@@ -253,11 +276,13 @@ with DAG(
             , "특이사항(배송메시지)" AS delivery_message
             , "박스타입" AS box_type
             , "운임구분" AS delivery_type
-            , "현재상태" AS delivery_status
+            , "예약구분" AS order_status
+            , "접수구분" AS delivery_status
             , CAST("접수일자" AS DATE) AS register_date
             , CAST("집화일자" AS DATE) AS pickup_date
             , CAST("배송일자" AS DATE) AS delivery_date
-        FROM {{ array }};
+        FROM {{ array }}
+        WHERE ("운송장번호" IS NOT NULL) AND (CAST("접수일자" AS DATE) IS NOT NULL);
         """.strip().replace("{{ array }}", f"(SELECT {array}.* FROM (SELECT UNNEST(${array}) AS {array}))")[:-1]
 
     def insert_into_table(table: str, values: str) -> str:
@@ -266,7 +291,14 @@ with DAG(
                 .replace("{{ values }}", values))
 
 
-    def get_2fa_code(origin: str, email: str, passwd: str, **kwargs) -> str:
+    def get_2fa_code(
+            origin: str,
+            email: str,
+            passwd: str,
+            wait_seconds: int = (60*3-10),
+            wait_interval: int = 1,
+            **kwargs
+        ) -> str:
         from linkmerce.utils.headers import build_headers
         import requests
         import time
@@ -277,17 +309,17 @@ with DAG(
             headers = build_headers(contents="json", host=f"auth-api.{origin}", origin=f"https://login.{origin}", referer=f"https://login.{origin}/")
             session.post(url, json=body, headers=headers)
 
-        def wait_2fa_mail(session: requests.Session, origin: str, num_retries: int = 5) -> int:
-            for _ in range(num_retries):
-                url = f"https://mail-api.{origin}/v2/mails"
-                params = {"page[limit]": 30, "page[offset]": 0, "sort[received_date]": "desc", "filter[mailbox_id][eq]": "b0",}
-                headers = build_headers(host=f"mail-api.{origin}", origin=f"https://mails.{origin}", referer=f"https://mails.{origin}/")
-                headers["x-skip-session-refresh"] = "true"
+        def wait_2fa_mail(session: requests.Session, origin: str) -> int:
+            url = f"https://mail-api.{origin}/v2/mails"
+            params = {"page[limit]": 30, "page[offset]": 0, "sort[received_date]": "desc", "filter[mailbox_id][eq]": "b0",}
+            headers = build_headers(host=f"mail-api.{origin}", origin=f"https://mails.{origin}", referer=f"https://mails.{origin}/")
+            headers["x-skip-session-refresh"] = "true"
+            for _ in range(wait_seconds):
                 with session.get(url, params=params, headers=headers) as response:
-                    mail = response.json()["data"][0]
-                    if (mail["subject"] == "CJ대한통운 LoIS Parcel 로그인 2차 인증") and mail["is_new"]:
-                        return mail["no"]
-                time.sleep(1)
+                    for mail in response.json()["data"][:5]:
+                        if (mail["subject"] == "CJ대한통운 LoIS Parcel 로그인 2차 인증") and mail["is_new"]:
+                            return mail["no"]
+                time.sleep(wait_interval)
             raise ValueError("인증코드가 전달되지 않았습니다")
 
         def retrieve_2fa_code(session: requests.Session, origin: str, mail_no: int) -> str:
