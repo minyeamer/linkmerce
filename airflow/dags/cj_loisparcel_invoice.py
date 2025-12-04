@@ -121,7 +121,7 @@ with DAG(
 
         def close_popup(page: Page):
             time.sleep(LONG)
-            while (page.locator("div.cl-dialog-close").count() > 1):
+            while (page.locator("div.cl-dialog-close").count() > 0):
                 click_button(page, "div.cl-dialog-close", nth="last"); time.sleep(MEDIUM)
 
         def goto_menu(page: Page):
