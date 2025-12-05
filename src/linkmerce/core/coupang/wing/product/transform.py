@@ -94,4 +94,6 @@ class RocketOption(DuckDBTransformer):
     def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
         options = RocketOptionlist().transform(obj)
         if options:
+            for option in options:
+                option.pop("productRecommendations", None)
             return self.insert_into_table(options, params=dict(vendor_id=vendor_id))
