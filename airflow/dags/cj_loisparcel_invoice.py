@@ -119,10 +119,13 @@ with DAG(
             page.click("div.btn-login > a"); time.sleep(SHORT)
             page.wait_for_selector("div.main-logintime", timeout=30*1000)
 
-        def close_popup(page: Page):
-            time.sleep(LONG)
-            while (page.locator("div.cl-dialog-close").count() > 0):
-                click_button(page, "div.cl-dialog-close", nth="last"); time.sleep(MEDIUM)
+        def close_popup(page: Page, timeout: int = 30):
+            for _ in range(timeout):
+                time.sleep(LONG)
+                if (page.locator("div.cl-dialog-close").count() > 0):
+                    click_button(page, "div.cl-dialog-close", nth="last"); time.sleep(MEDIUM)
+                else:
+                    return
 
         def goto_menu(page: Page):
             cl_level_1 = 'a.cl-level-1[title="고객실적"]'
