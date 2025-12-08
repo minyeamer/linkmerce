@@ -61,7 +61,8 @@ with DAG(
             conn.execute(create_table(source_table))
             insert_query = insert_into_table(source_table, values=select_table())
             for date_type in list(query_dates.keys())[::-1]:
-                conn.execute(insert_query, obj=results[date_type])
+                if results[date_type]:
+                    conn.execute(insert_query, obj=results[date_type])
 
             date_query = f"SELECT DISTINCT register_date FROM {source_table}"
             register_dates = sorted([f"'{date[0]}'" for date in conn.execute(date_query).fetchall()])
@@ -119,8 +120,8 @@ with DAG(
             page.click("div.btn-login > a"); time.sleep(SHORT)
             page.wait_for_selector("div.main-logintime", timeout=30*1000)
 
-        def close_popup(page: Page, timeout: int = 30):
-            for _ in range(timeout):
+        def close_popup(page: Page, retry_count: int = 10):
+            for _ in range(retry_count):
                 time.sleep(LONG)
                 if (page.locator("div.cl-dialog-close").count() > 0):
                     click_button(page, "div.cl-dialog-close", nth="last"); time.sleep(MEDIUM)
@@ -151,7 +152,7 @@ with DAG(
 
         def search(page: Page, delay: float = 3, timeout: int = 30):
             click_button(page, "div.btn-i-search > a", nth="last"); time.sleep(delay)
-            wait_for_loading(page, timeout)
+            wait_for_loading(page, timeout); time.sleep(MEDIUM)
 
         def change_date_type(page: Page, selected: str, change_to: str):
             try:
@@ -175,13 +176,22 @@ with DAG(
                 page.keyboard.type(day); time.sleep(SHORT)
                 page.keyboard.press("Enter"); time.sleep(SHORT)
 
-        def download(page: Page) -> list[dict]:
+        def count_total(page: Page) -> int:
+            label = page.locator('div[aria-label^="총"][aria-label$="건"]').first.get_attribute("aria-label")
+            return int(label[1:-1].strip())
+
+        def download(page: Page, timeout: int = 30) -> list[dict]:
+            from playwright.sync_api import TimeoutError
             from linkmerce.utils.excel import excel2json
             import os
             import tempfile
 
-            with page.expect_download() as download_info:
-                click_button(page, "div.btn-i-excel > a", nth="last")
+            try:
+                with page.expect_download(timeout=timeout*1000) as download_info:
+                    click_button(page, "div.btn-i-excel > a", nth="last")
+            except TimeoutError:
+                page.locator("div.cl-text", has_text="엑셀로 전환할 자료가 없습니다.").click()
+                return list()
 
             download = download_info.value
             with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp_file:
@@ -226,7 +236,7 @@ with DAG(
                         select_date(page, **date_range)
                         selected = date_type
                         search(page)
-                        results[date_type] = download(page)
+                        results[date_type] = download(page) if count_total(page) else list()
                         time.sleep(MEDIUM)
                     return results
                 finally:
