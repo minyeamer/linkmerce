@@ -13,6 +13,18 @@ def regexp_extract(pattern: re.Pattern | str, string: str, index: int = 0, defau
     return match.groups()[index] if match else default
 
 
+def regexp_groups(pattern: re.Pattern | str, string: str, indices: list[int] = list(), default: Any | None = None) -> list[str]:
+    match = re.search(pattern, string)
+    if match:
+        groups = match.groups()
+        if indices:
+            return [(groups[index] if index < len(groups) else default) for index in indices]
+        else:
+            return groups
+    else:
+        return [default for _ in indices]
+
+
 def regexp_replace(pattern: re.Pattern | str, repl: str, string: str, count: int = 0) -> str:
     return re.sub(pattern, repl, string, count)
 

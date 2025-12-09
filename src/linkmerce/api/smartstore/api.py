@@ -166,7 +166,7 @@ def product_option(
 
     columns = [
         "L.product_id"
-        , "COALESCE(R.option_id, L.product_id)"
+        , "COALESCE(R.option_id, L.product_id) AS option_id"
         , "L.channel_seq"
         , ("(CASE WHEN R.product_type = 0 THEN '옵션상품(단독형)' "
             + "WHEN R.product_type = 1 THEN '옵션상품(조합형)' "

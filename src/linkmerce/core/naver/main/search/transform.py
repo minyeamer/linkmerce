@@ -71,22 +71,126 @@ class MobileSearch(DuckDBTransformer):
 
 
 ###################################################################
-########################## Shopping Page ##########################
+######################## Mobile Tab Search ########################
 ###################################################################
 
-class PagedProducts(JsonTransformer):
-    path = ["data", 0, "products"]
+class CafeList(HtmlTransformer):
+    selector = "div.view_wrap"
+
+    def transform(self, obj: BeautifulSoup, query: str, **kwargs) -> list[dict]:
+        results = list()
+        for rank, div in enumerate(obj.select(self.selector), start=1):
+            results.append(self.parse(div, query, rank))
+        return results
+
+    def parse(self, div: Tag, query: str, rank: int) -> dict:
+        title_link = div.select_one("a.title_link")
+        url = title_link.attrs.get("href")
+        return dict(
+            query = query,
+            rank = rank,
+            **dict(zip(["cafe_url","article_id"], self.get_ids_from_url(url))),
+            ad_id = self.get_ad_id_from_attr(title_link.attrs.get("onclick")),
+            cafe_name = self.get_text(div, "div.user_info > a.name"),
+            title = title_link.get_text(strip=True),
+            description = self.get_text(div, "div.dsc_area"),
+            url = url,
+            image_url = (tag.attrs.get("src") if (tag := div.select_one("a.thumb_link > img")) else None),
+            next_url = (self.make_next_url(url, query) if url else None),
+            replies = '\n'.join(self.parse_replies(div)) or None,
+            write_date = self.get_text(div, "div.user_info > span.sub"),
+        )
+
+    def get_text(self, div: Tag, selector: str) -> str:
+        return tag.get_text(strip=True) if (tag := div.select_one(selector)) else None
+
+    def get_ids_from_url(self, url: str) -> tuple[str,str]:
+        from linkmerce.utils.regex import regexp_groups
+        return regexp_groups(r"/([^/]+)/(\d+)$", url.split('?')[0], indices=[0,1]) if url else (None, None)
+
+    def get_ad_id_from_attr(self, onclick: str) -> str:
+        from linkmerce.utils.regex import regexp_extract
+        return regexp_extract(r"(nad-a\d+-\d+-\d+)", onclick) if onclick else None
+
+    def make_next_url(self, url: str, query: str) -> str:
+        cafe_url, article_id = self.get_ids_from_url(url)
+        m_ = "m." if url.startswith("https://m.") else str()
+        if (cafe_url is None) or (article_id is None):
+            return None
+
+        from urllib.parse import quote
+        from uuid import uuid4
+        params = (p+'&') if (p := (url.split('?')[1] if '?' in url else None)) else str()
+        params = f"{params}useCafeId=false&tc=naver_search&or={m_}search.naver.com&query={quote(query)}&buid={uuid4()}"
+        return f"https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}?{params}"
+
+    def parse_replies(self, div: Tag, prefix: str = "[RE] ") -> list[str]:
+        replies = list()
+        for box in div.select("div.flick_bx"):
+            ico_reply = box.select_one("i.ico_reply")
+            if ico_reply:
+                ico_reply.decompose()
+                replies.append(prefix + box.get_text(strip=True))
+        return replies
 
 
-class ShoppingProduct(DuckDBTransformer):
+class CafeTab(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
     def transform(self, obj: JsonObject, query: str, **kwargs):
-        products = [dict(cardType=product["cardType"]) for product in (PagedProducts().transform(obj) or list())]
-        if products:
-            params = dict(keyword=query)
-            self.insert_into_table(products, params=params)
+        articles = CafeList().transform(obj, query)
+        if articles:
+            self.insert_into_table(articles)
 
 
-class ShoppingPage(ShoppingProduct):
+class CafeArticleJson(JsonTransformer):
+    path = ["result"]
+
+    def parse(self, obj: JsonObject, **kwargs) -> JsonObject:
+        result = obj["result"]
+        result["article"]["commenterCount"] = len({item["writer"]["memberKey"] for item in result["comments"]["items"]})
+        result["tags"] = ", ".join(result["tags"]) or None
+        result["content"] = self.parse_content(result["article"]["contentHtml"])
+        result["article"]["contentHtml"] = None
+        return result
+
+    def parse_content(self, content: str) -> dict:
+        from bs4 import BeautifulSoup
+        import re
+
+        source = BeautifulSoup(content.replace('\\\\', '\\'), "html.parser")
+        for div in source.select("div.se-oglink"):
+            div.decompose()
+        return dict(
+            contentLength = len(re.sub(r"\s+", ' ', source.get_text()).strip()),
+            imageCount = len(source.select("img.se-image-resource")),
+        )
+
+
+class CafeArticle(DuckDBTransformer):
     queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, **kwargs):
+        if obj is not None:
+            self.insert_into_table([CafeArticleJson().transform(obj)])
+
+
+###################################################################
+#################### Shopping Page (deprecated) ###################
+###################################################################
+
+# class PagedProducts(JsonTransformer):
+#     path = ["data", 0, "products"]
+
+
+# class ShoppingProduct(DuckDBTransformer):
+#     queries = ["create", "select", "insert"]
+
+#     def transform(self, obj: JsonObject, query: str, **kwargs):
+#         products = [dict(cardType=product["cardType"]) for product in (PagedProducts().transform(obj) or list())]
+#         if products:
+#             self.insert_into_table(products, params=dict(keyword=query))
+
+
+# class ShoppingPage(ShoppingProduct):
+#     queries = ["create", "select", "insert"]
