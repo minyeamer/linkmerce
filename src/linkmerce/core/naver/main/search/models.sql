@@ -56,7 +56,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , comment_count INTEGER
   , commenter_count INTEGER
   -- , member_count INTEGER
-  , write_date TIMESTAMP
+  , write_dt TIMESTAMP
   , PRIMARY KEY (cafe_id, article_id)
 );
 
@@ -79,7 +79,7 @@ SELECT
   , article.commentCount AS comment_count
   , article.commenterCount AS commenter_count
   -- , cafe.memberCount AS member_count
-  , make_timestamp(article.writeDate // 1000 * 1000000) AS write_date
+  , make_timestamp(article.writeDate // 1000 * 1000000) AS write_dt
 FROM {{ array }};
 
 -- CafeArticle: insert

@@ -1,0 +1,262 @@
+from airflow.sdk import DAG, task
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.slack.hooks.slack import SlackHook
+from datetime import timedelta
+import pendulum
+
+
+with DAG(
+    dag_id = "naver_cafe_search",
+    schedule = "10 * * * 1-5",
+    start_date = pendulum.datetime(2025, 12, 10, tz="Asia/Seoul"),
+    dagrun_timeout = timedelta(minutes=40),
+    catchup = False,
+    tags = ["priority:high", "naver:cafe", "schedule:weekdays", "time:allday"],
+) as dag:
+
+    PATH = ["naver", "main", "naver_cafe_search"]
+
+    @task(task_id="read_variables", retries=3, retry_delay=timedelta(minutes=1))
+    def read_variables() -> dict:
+        from variables import read
+        return read(PATH, sheets=True)
+
+    @task(task_id="set_cookies", retries=3, retry_delay=timedelta(minutes=1))
+    def set_cookies() -> str:
+        from playwright.sync_api import sync_playwright
+        import time
+
+        with sync_playwright() as playwright:
+            ws_endpoint = "ws://playwright:3000/"
+            browser = playwright.chromium.connect(ws_endpoint)
+            try:
+                page = browser.new_page()
+                try:
+                    page.goto("https://m.naver.com/")
+                    for _ in range(10):
+                        time.sleep(1)
+                        cookies = page.context.cookies()
+                        for cookie in cookies:
+                            if cookie["name"] == "NNB":
+                                return '; '.join([f"{cookie['name']}={cookie['value']}" for cookie in page.context.cookies()])
+                    raise ValueError("Failed to set valid cookies.")
+                finally:
+                    page.close()
+            finally:
+                browser.close()
+
+
+    @task(task_id="etl_naver_cafe_search")
+    def etl_naver_cafe_search(ti: TaskInstance, **kwargs) -> dict:
+        from variables import get_execution_date
+        date_ymd_h = get_execution_date(kwargs, format="%y%m%d_%H")
+        date_ko = get_execution_date(kwargs, format="%y년 %m월 %d일 %H시")
+        cookies = ti.xcom_pull(task_ids="set_cookies")
+        return main(cookies=cookies, date_ymd_h=date_ymd_h, date_ko=date_ko, **ti.xcom_pull(task_ids="read_variables"))
+
+    def main(
+            cookies: str,
+            records: list[dict],
+            max_rank: int,
+            channel_id: str,
+            date_ymd_h: str,
+            date_ko: str,
+            **kwargs
+        ) -> dict:
+        from linkmerce.common.load import DuckDBConnection
+        from linkmerce.api.naver.main import search_cafe_plus
+        from linkmerce.utils.excel import csv2excel, json2excel
+        sources = dict(search="naver_cafe_search", article="naver_cafe_article", merged="data")
+        query, alias = "naver_cafe_query", "data_alias"
+
+        with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
+            conn.create_table_from_json(query, records, option="replace")
+            query_map = dict(conn.fetch_all_to_csv(
+                "SELECT product, '(''' || string_agg(query, ''',''') || ''')' AS keywords "
+                + f"FROM {query} GROUP BY product ORDER BY product;"
+                , header=False))
+
+            search_cafe_plus(
+                cookies = cookies,
+                query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {query}").fetchall()],
+                max_rank = max_rank,
+                connection = conn,
+                tables = sources,
+                progress = False,
+                return_type = "none",
+            )
+
+            # SUMMARIZE
+            args = (sources["merged"], max_rank)
+            headers = wb_summary_headers(max_rank)
+            wb_summary = csv2excel({
+                product: ([headers] + conn.fetch_all_to_csv(summarize(*args, where_clause=f"query IN {keywords}"), header=False))
+                    for product, keywords in query_map.items()}, **wb_summary_styles(headers))
+
+            # DETAIL
+            conn.execute(detail(sources["merged"], alias, conn.table_exists(alias)))
+            wb_details = json2excel({
+                product: conn.fetch_all_to_json(f"SELECT * FROM {alias} WHERE \"검색어\" IN {keywords}")
+                    for product, keywords in query_map.items()}, **wb_details_styles())
+
+            # COUNT
+            query_group = conn.execute(f"SELECT query_group FROM {query} LIMIT 1;").fetchall()[0][0]
+            total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {query};").fetchall()[0][0]
+            counts = dict(conn.fetch_all_to_csv(
+                f"SELECT product, COUNT(DISTINCT query) FROM {query} GROUP BY product ORDER BY product;", header=False))
+
+            return send_excel_to_slack(
+                channel_id = channel_id,
+                summary_file = save_excel_to_tempfile(wb_summary),
+                details_file = save_excel_to_tempfile(wb_details),
+                max_rank = max_rank,
+                date_ymd_h = date_ymd_h,
+                date_ko = date_ko,
+                query_group = query_group,
+                total = total,
+                counts = counts,
+            )
+
+
+    def summarize(table: str, max_rank: int, where_clause: str = str()) -> str:
+        return f"""
+        SELECT * EXCLUDE (seq)
+        FROM (
+            SELECT
+                query
+                , MIN(seq) OVER (PARTITION BY query) AS seq
+                , rank
+                , (CASE
+                    WHEN STARTS_WITH(cafe_name, '[') OR STARTS_WITH(cafe_name, '(')
+                        THEN TRIM(cafe_name)
+                    ELSE TRIM(REGEXP_REPLACE(cafe_name, '[[(].*', '')) END) AS cafe_name
+                , (CASE
+                    WHEN TRY_STRPTIME(write_date, '%Y-%m-%d %H:%M:%S') IS NOT NULL THEN
+                        STRFTIME(TRY_STRPTIME(write_date, '%Y-%m-%d %H:%M:%S'), '%m.%d')
+                    WHEN TRY_STRPTIME(write_date, '%Y-%m-%d') IS NOT NULL THEN
+                        STRFTIME(TRY_STRPTIME(write_date, '%Y-%m-%d'), '%m.%d')
+                    ELSE write_date END) AS write_date
+                , IF(ad_id IS NULL, read_count, -1) AS read_count
+            FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM {table})
+            {f"WHERE {where_clause}" if where_clause else str()}
+        )
+        PIVOT (
+            FIRST(cafe_name) AS cafe_name
+            , FIRST(write_date) AS write_date
+            , FIRST(read_count) AS read_count
+            FOR rank IN ({','.join([str(rank) for rank in range(1, max_rank+1)])})
+        )
+        ORDER BY seq;
+        """
+
+    def wb_summary_headers(max_rank: int) -> list[str]:
+        headers = ["키워드"]
+        for rank in range(1, max_rank+1):
+            headers += [f"{rank}위", f"발행일({rank})", f"조회수({rank})"]
+        return headers
+
+    def wb_summary_styles(headers: list[str]) -> dict:
+        column_style, auto_width, conditional_rules = dict(), list(), dict()
+        for column in headers:
+            if column.endswith('위'):
+                column_style[column] = dict(fill={"fgColor": "FFF2CC", "fill_type": "solid"})
+                auto_width.append('!'+column)
+            elif column.startswith("조회수"):
+                column_style[column] = dict(number_format="#,##0;광고")
+                conditional_rules[column] = dict(
+                    operator="equal", formula=[-1], fill={"fgColor": "F4CCCC", "fill_type": "solid"})
+        return dict(column_style=column_style, auto_width=auto_width, conditional_formatting=conditional_rules)
+
+
+    def detail(source_table: str, taraget_table: str, table_exists: bool) -> str:
+        columns = ', '.join([f"{column_} AS \"{alias_}\"" for column_, alias_ in wb_details_alias()])
+        return (
+            (f"INSERT INTO {taraget_table} " if table_exists else f"CREATE TABLE {taraget_table} AS ")
+            + f"SELECT {columns} "
+            + f"FROM {source_table};")
+
+    def wb_details_alias() -> list[tuple[str,str]]:
+        return [
+            ("query", "검색어"),
+            ("rank", "순위"),
+            ("cafe_id", "카페번호"),
+            ("cafe_url", "카페ID"),
+            ("article_id", "글번호"),
+            ("ad_id", "소재ID"),
+            ("cafe_name", "카페명"),
+            ("title", "제목"),
+            ("menu_name", "메뉴"),
+            ("tags", "태그"),
+            ("nick_name", "작성자"),
+            ("url", "주소"),
+            ("image_url", "썸네일주소"),
+            ("title_length", "제목글자수"),
+            ("content_length", "내용글자수"),
+            ("image_count", "이미지수"),
+            ("read_count", "조회수"),
+            ("comment_count", "댓글수"),
+            ("commenter_count", "댓글작성자수"),
+            ("write_date", "작성일시"),
+        ]
+
+    def wb_details_styles() -> dict:
+        number_columns = ["제목글자수", "내용글자수", "이미지수", "조회수", "댓글수", "댓글작성자수"]
+        column_style = {column: dict(number_format="#,##0") for column in number_columns}
+        return dict(auto_width=["!소재ID"], column_style=column_style)
+
+
+    def save_excel_to_tempfile(wb) -> str:
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp_file:
+            tmp_path = tmp_file.name
+            wb.save(tmp_path)
+            return tmp_path
+
+    def send_excel_to_slack(
+            channel_id: str,
+            summary_file: str,
+            details_file: str,
+            max_rank: int,
+            date_ymd_h: str,
+            date_ko: str,
+            query_group: str,
+            total: int,
+            counts: dict[str,int],
+        ) -> dict:
+        import os
+        slack_hook = SlackHook(slack_conn_id="naver_cafe_search")
+
+        message = (
+            f">{date_ko}\n"
+            + f"*{query_group}*그룹 - {total}개 키워드 조회 (상위 {max_rank}개 게시글)\n"
+            + '\n'.join([f"• {product} : {count}개 키워드" for product, count in counts.items()]))
+        products = '+'.join([product.replace(' ', '') for product in counts.keys()])
+
+        try:
+            response = slack_hook.send_file_v2(
+                channel_id = channel_id,
+                file_uploads = [{
+                    "file": summary_file,
+                    "filename": f"{date_ymd_h}_요약_{query_group}그룹_{products}.xlsx"
+                }, {
+                    "file": details_file,
+                    "filename": f"{date_ymd_h}_세부_{query_group}그룹_{products}.xlsx"
+                }],
+                initial_comment = message,
+            )
+            return parse_slack_response(channel_id, message, response.get("files", list()), response.get("ok", False))
+        finally:
+            os.unlink(summary_file)
+            os.unlink(details_file)
+
+    def parse_slack_response(channel_id: str, message: str, files: list[dict], ok: bool) -> dict:
+        keys = ["id", "name", "size", "created", "permalink"]
+        return dict(
+            channel_id = channel_id,
+            message = message,
+            files = [{key: file.get(key) for key in keys} for file in files],
+            status = ok,
+        )
+
+
+    [read_variables(), set_cookies()] >> etl_naver_cafe_search()

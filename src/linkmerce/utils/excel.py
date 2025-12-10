@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from typing import TypeVar, TYPE_CHECKING
+from typing import Sequence, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Any, Literal, Union
     from openpyxl import Workbook, _ZipFileFileProtocol
     from openpyxl.worksheet.worksheet import Worksheet
     from openpyxl.cell.cell import Cell
+    from openpyxl.formatting import Rule
 
 Column = TypeVar("Column", int, str)
+Row = TypeVar("Row", bound=int)
+Range = TypeVar("Range", bound=Sequence)
 StyleConfig = TypeVar("StyleConfig", bound=dict[str,dict])
+
+WIDTH = 8.38
+HEIGHT = 15
 
 
 def filter_warnings():
@@ -67,55 +73,83 @@ def excel2json(
     return [dict(zip(headers, row)) for row in ws.iter_rows(min_row=header+1, values_only=True)]
 
 
-def json2excel(
-        obj: list[dict] | dict[str,list[dict]],
+def csv2excel(
+        obj: Sequence[Sequence[Any]] | dict[str,Sequence[Sequence[Any]]],
         sheet_name: str = "Sheet1",
         header: bool = True,
         header_style: StyleConfig | Literal["yellow"] = "yellow",
         column_style: dict[Column,StyleConfig] = dict(),
-        row_style: dict[int,StyleConfig] = dict(),
-        auto_link: list[Column] = list(),
-        auto_width: list[Column] = list(),
-        overflow: bool = False,
+        row_style: dict[Row,StyleConfig] = dict(),
+        auto_link: Sequence[Column] = list(),
+        auto_width: Sequence[Column] = list(),
+        conditional_formatting: dict[Union[Column,Row,Range],StyleConfig] = dict(),
+        truncate: bool = False,
         wrap_text: bool = False,
-        row_height: float | None = 16.5,
         freeze_panes: str | None = "A2",
     ) -> Workbook:
     from openpyxl import Workbook
     wb = Workbook()
-    obj = {sheet_name: obj} if isinstance(obj, list) else obj
+    obj = {sheet_name: obj} if isinstance(obj, Sequence) else obj
     kwargs = dict(
-        column_style=column_style, row_style=row_style, auto_link=auto_link, auto_width=auto_width,
-        overflow=overflow, wrap_text=wrap_text, row_height=row_height, freeze_panes=freeze_panes)
+        column_style=column_style, row_style=row_style,
+        auto_link=auto_link, auto_width=auto_width, conditional_formatting=conditional_formatting,
+        truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes)
 
-    for index, (name, values) in enumerate(obj.items()):
-        _json2sheet(wb, index, values, name, header, header_style, **kwargs)
+    for index, (name, rows) in enumerate(obj.items()):
+        _rows2sheet(wb, rows, index, name, header, header_style, **kwargs)
     return wb
 
 
-def _json2sheet(
+def json2excel(
+        obj: Sequence[dict] | dict[str,Sequence[dict]],
+        sheet_name: str = "Sheet1",
+        header: bool = True,
+        header_style: StyleConfig | Literal["yellow"] = "yellow",
+        column_style: dict[Column,StyleConfig] = dict(),
+        row_style: dict[Row,StyleConfig] = dict(),
+        auto_link: Sequence[Column] = list(),
+        auto_width: Sequence[Column] = list(),
+        conditional_formatting: dict[Union[Column,Row,Range],StyleConfig] = dict(),
+        truncate: bool = False,
+        wrap_text: bool = False,
+        freeze_panes: str | None = "A2",
+    ) -> Workbook:
+    from openpyxl import Workbook
+    wb = Workbook()
+    obj = {sheet_name: obj} if isinstance(obj, Sequence) else obj
+    kwargs = dict(
+        column_style=column_style, row_style=row_style,
+        auto_link=auto_link, auto_width=auto_width, conditional_formatting=conditional_formatting,
+        truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes)
+
+    for index, (name, rows) in enumerate(obj.items()):
+        headers = list(rows[0].keys()) if rows else list()
+        values = [[row.get(header, None) for header in headers] for row in rows]
+        csv_rows = ([headers] if header else list()) + values
+        _rows2sheet(wb, csv_rows, index, name, header, header_style, **kwargs)
+    return wb
+
+
+def _rows2sheet(
         wb: Workbook,
-        index: int,
-        values: list[dict],
+        rows: Sequence[Sequence[Any]],
+        sheet_index: int,
         sheet_name: str = "Sheet1",
         header: bool = True,
         header_style: StyleConfig | Literal["yellow"] = "yellow",
         **kwargs
     ):
-    if index == 0:
+    if sheet_index == 0:
         ws = wb.active
         ws.title = sheet_name
     else:
         ws = wb.create_sheet(sheet_name)
 
-    if not values:
+    if not rows:
         return
 
-    headers = list(values[0].keys())
-    if header:
-        ws.append(headers)
-    for row_data in values:
-        ws.append([row_data.get(header, None) for header in headers])
+    for row in rows:
+        ws.append(row)
 
     if not isinstance(header_style, dict):
         header_style = _yellow_header() if header_style == "yellow" else dict()
@@ -128,16 +162,17 @@ def style_sheet(
         header: bool = True,
         header_style: StyleConfig = dict(),
         column_style: dict[Column,StyleConfig] = dict(),
-        row_style: dict[int,StyleConfig] = dict(),
-        auto_link: list[Column] = list(),
-        auto_width: list[Column] = list(),
-        overflow: bool = False,
+        row_style: dict[Row,StyleConfig] = dict(),
+        auto_link: Sequence[Column] = list(),
+        auto_width: Sequence[Column] = list(),
+        conditional_formatting: dict[Union[Column,Row,Range],StyleConfig] = dict(),
+        truncate: bool = False,
         wrap_text: bool = False,
-        row_height: float | None = 16.5,
         freeze_panes: str | None = "A2",
     ) -> Worksheet:
     from openpyxl.styles import Alignment, Font
     from openpyxl.utils import get_column_letter
+
     HEADER = 1
     headers = [cell.value for cell in ws[HEADER]] if header else list()
 
@@ -173,18 +208,19 @@ def style_sheet(
     def get_cell_width(value: str) -> int:
         try:
             # 한글: 1.8배, 공백: 1.2배, 영문/숫자: 1배
-            return sum(1.8 if ord(c) > 12799 else 1.2 if c.isspace() else 1 for c in str(value or ''))
+            return sum(1.8 if ord(c) > 12799 else 1.2 if c.isspace() else 1 for c in value)
         except:
             return 0
 
     column_style = {get_column_index(column): style for column, style in column_style.items()}
-
-    if (not wrap_text) and isinstance(row_height, float):
-        for row in range(1, ws.max_row + 1):
-            ws.row_dimensions[row].height = row_height
-
     auto_link = build_column_indices(auto_link)
     auto_width = build_column_indices(auto_width)
+
+    if truncate:
+        for row in range(1, ws.max_row + 1):
+            ws.row_dimensions[row].height = HEIGHT
+
+    # STYLE CELLS
 
     for col_idx, column in enumerate(ws.columns, start=1):
         auto_link_ = (col_idx in auto_link)
@@ -192,16 +228,16 @@ def style_sheet(
         max_width = 0
 
         for row_idx, cell in enumerate(column, start=1):
-            value = cell.value
+            text = str(x) if (x := cell.value) is not None else str()
 
-            if auto_link_ and str(value).startswith("https://"):
-                cell.hyperlink = value
+            if auto_link_ and text.startswith("https://"):
+                cell.hyperlink = text
                 cell.font = Font(color="0000FF", underline="single")
 
             if auto_width_:
-                max_width = max(max_width, get_cell_width(value))
+                max_width = max(max_width, get_cell_width(text))
 
-            if wrap_text or ((not overflow) and isinstance(row_height, float)):
+            if truncate or wrap_text:
                 cell.alignment = Alignment(wrap_text=True)
 
             if header and (row_idx == HEADER):
@@ -213,8 +249,27 @@ def style_sheet(
                 style_cell(cell, **row_style[row_idx])
 
         if auto_width_:
-            width = max(min(max_width + 2, 25), 8.38)
-            ws.column_dimensions[get_column_letter(column[0].column)].width = width
+            width = max(min(max_width + 2, 25), WIDTH)
+            ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    # CONDITIONAL FORMATTING
+
+    for range_, config in conditional_formatting.items():
+        if isinstance(range_, str):
+            col_idx = get_column_index(range_)
+            if isinstance(col_idx, int):
+                column = get_column_letter(col_idx)
+                range_string = f"{column}{1+int(header)}:{column}{ws.max_row}"
+            else:
+                continue
+        elif isinstance(range_, int):
+            max_column = get_column_letter(ws.max_column)
+            range_string = f"A{range_}:{max_column}{range_}"
+        elif isinstance(range_, Sequence) and (len(range_) == 2):
+            range_string = f"{range_[0]}:{range_[1]}"
+        else:
+            continue
+        ws.conditional_formatting.add(range_string, conditional_rule(**config))
 
     if freeze_panes:
         ws.freeze_panes = freeze_panes
@@ -222,29 +277,60 @@ def style_sheet(
 
 def style_cell(
         cell: Cell,
-        align: dict = dict(),
-        border: dict = dict(),
-        fill: dict = dict(),
-        font: dict = dict(),
+        align: dict | None = None,
+        border: dict | None = None,
+        fill: dict | None = None,
+        font: dict | None = None,
         number_format: str | None = None,
         **kwargs
     ):
-    from openpyxl.styles import Alignment, Border, Side, PatternFill, Font
-
     if align:
+        from openpyxl.styles import Alignment
         cell.alignment = Alignment(**align)
 
     if border:
+        from openpyxl.styles import Border, Side
         cell.border = Border(**{k: Side(**v) for k, v in border.items()})
 
     if fill:
+        from openpyxl.styles import PatternFill
         cell.fill = PatternFill(**fill)
 
     if font:
+        from openpyxl.styles import Font
         cell.font = Font(**font)
 
     if number_format is not None:
         cell.number_format = number_format
+
+
+def conditional_rule(
+        operator: Literal[
+            "endsWith", "containsText", "beginsWith", "lessThan", "notBetween", "lessThanOrEqual",
+            "notEqual", "notContains", "between", "equal", "greaterThanOrEqual", "greaterThan"],
+        formula: Sequence,
+        stop_if_true: bool | None = None,
+        border: dict | None = None,
+        fill: dict | None = None,
+        font: dict | None = None,
+        **kwargs
+    ) -> Rule:
+    from openpyxl.formatting.rule import CellIsRule
+    styles = dict()
+
+    if border:
+        from openpyxl.styles import Border, Side
+        styles["border"] = Border(**{k: Side(**v) for k, v in border.items()})
+
+    if fill:
+        from openpyxl.styles import PatternFill
+        styles["fill"] = PatternFill(**fill)
+
+    if font:
+        from openpyxl.styles import Font
+        styles["font"] = Font(**font)
+
+    return CellIsRule(operator=operator, formula=formula, stopIfTrue=stop_if_true, **styles)
 
 
 def _yellow_header() -> StyleConfig:

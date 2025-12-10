@@ -111,32 +111,33 @@ def cafe_article(
 def search_cafe_plus(
         connection: DuckDBConnection,
         query: str | Iterable[str],
-        limit: int | None = None,
         cookies: str | None = None,
+        max_rank: int | None = None,
         tables: dict | None = None,
         request_delay: float | int = 1.01,
         progress: bool = True,
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
+        if_merged_table_exists: Literal["insert","replace"] = "replace",
     ) -> JsonObject:
-    """`tables = {'search': 'cafe_search', 'article': 'cafe_article', 'merged': 'data'}`"""
+    """`tables = {'search': 'naver_cafe_search', 'article': 'naver_cafe_article', 'merged': 'data'}`"""
     # from linkmerce.core.naver.main.search.extract import MobileTabSearch, CafeArticle
     # from linkmerce.core.naver.main.search.transform import CafeTab, CafeArticle
     from copy import deepcopy
     results = dict()
     common = (request_delay, progress, return_type)
-    search_table = (tables or dict()).get("search", "cafe_search")
-    article_table = (tables or dict()).get("article", "cafe_article")
+    search_table = (tables or dict()).get("search", "naver_cafe_search")
+    article_table = (tables or dict()).get("article", "naver_cafe_article")
     merged_table = (tables or dict()).get("merged", "data")
 
     options = (deepcopy(extract_options), deepcopy(transform_options))
     results["search"] = search_cafe(query, cookies, connection, dict(default=search_table), *common, *options)
-    if isinstance(limit, int):
-        connection.execute(f"DELETE FROM {search_table} WHERE rank > {limit}")
+    if isinstance(max_rank, int):
+        connection.execute(f"DELETE FROM {search_table} WHERE rank > {max_rank}")
 
-    query = f"SELECT DISTINCT next_url FROM {search_table} WHERE (next_url IS NOT NULL);"
-    next_url = [row[0] for row in connection.execute(query).fetchall()]
+    select_query = f"SELECT DISTINCT next_url FROM {search_table} WHERE (next_url IS NOT NULL);"
+    next_url = [row[0] for row in connection.execute(select_query).fetchall()]
     options = (deepcopy(extract_options), deepcopy(transform_options))
     results["article"] = cafe_article(next_url, "article", cookies, connection, dict(default=article_table), *common, *options)
 
@@ -165,20 +166,21 @@ def search_cafe_plus(
         , "R.read_count"
         , "R.comment_count"
         , "R.commenter_count"
-        , "COALESCE(STRFTIME(R.write_date, '%Y-%m-%d %H:%M:%S'), L.write_date) AS write_date"
+        , "COALESCE(STRFTIME(R.write_dt, '%Y-%m-%d %H:%M:%S'), L.write_date) AS write_date"
     ]
-    if connection.table_exists(merged_table):
+    if if_merged_table_exists == "replace":
+        keyword = f"CREATE OR REPLACE TABLE {merged_table} AS "
+    elif connection.table_exists(merged_table):
         keyword = f"INSERT INTO {merged_table} "
     else:
-        keyword = f"CREATE TABLE IF NOT EXISTS {merged_table} AS "
-    query = (
+        keyword = f"CREATE TABLE {merged_table} AS "
+    connection.execute(
         keyword
         + f"SELECT {', '.join(columns)} "
-        + f"FROM {search_table} AS L "
+        + f"FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM {search_table}) AS L "
         + f"LEFT JOIN {article_table} AS R "
             + "ON (L.cafe_url = R.cafe_url) AND (L.article_id = R.article_id) "
-        + "ORDER BY query, rank;")
-    connection.execute(query)
+        + "ORDER BY L.seq;")
 
     if return_type == "none":
         results["merged"] = None

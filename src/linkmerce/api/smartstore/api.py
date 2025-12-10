@@ -135,6 +135,7 @@ def product_option(
         return_type: Literal["csv","json","parquet","raw","none"] = "json",
         extract_options: dict = dict(),
         transform_options: dict = dict(),
+        if_merged_table_exists: Literal["insert","replace"] = "replace",
     ) -> dict[str,JsonObject]:
     """```python
     tables = {
@@ -202,17 +203,18 @@ def product_option(
         , "L.register_dt"
         , "L.modify_dt"
     ]
-    if connection.table_exists(merged_table):
+    if if_merged_table_exists == "replace":
+        keyword = f"CREATE OR REPLACE TABLE {merged_table} AS "
+    elif connection.table_exists(merged_table):
         keyword = f"INSERT INTO {merged_table} "
     else:
-        keyword = f"CREATE TABLE IF NOT EXISTS {merged_table} AS "
-    query = (
+        keyword = f"CREATE TABLE {merged_table} AS "
+    connection.execute(
         keyword
         + f"SELECT {', '.join(columns)} "
         + f"FROM {product_table} AS L "
         + f"LEFT JOIN {option_table} AS R "
             + "ON L.product_id = R.product_id;")
-    connection.execute(query)
 
     if return_type == "none":
         results["merged"] = None

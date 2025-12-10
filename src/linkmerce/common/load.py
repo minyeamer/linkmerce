@@ -261,9 +261,11 @@ class DuckDBConnection(Connection):
             query: str,
             params: dict | None = None,
             save_to: str | Path | None = None,
+            header: bool = True,
         ) -> list[tuple] | None:
         relation = self.conn.execute(query, parameters=params)
-        results = [tuple(self.get_columns(relation))] + relation.fetchall()
+        headers = [tuple(self.get_columns(relation))] if header else list()
+        results = headers + relation.fetchall()
         if save_to:
             return save_to_csv(results, save_to, delimiter=',')
         else:
