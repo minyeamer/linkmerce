@@ -1,5 +1,5 @@
 from airflow.sdk import DAG, TaskGroup, task
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.task.trigger_rule import TriggerRule
 from datetime import timedelta
 import pendulum
 

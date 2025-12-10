@@ -1,6 +1,6 @@
 from airflow.sdk import DAG, task
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.task.trigger_rule import TriggerRule
 from datetime import timedelta
 import pendulum
 
