@@ -7,11 +7,11 @@ import pendulum
 
 with DAG(
     dag_id = "naver_cafe_search",
-    schedule = "10 * * * 1-5",
-    start_date = pendulum.datetime(2025, 12, 10, tz="Asia/Seoul"),
-    dagrun_timeout = timedelta(minutes=40),
+    schedule = "0,10,20,30,40,50 8,9 * * *",
+    start_date = pendulum.datetime(2025, 12, 12, tz="Asia/Seoul"),
+    dagrun_timeout = timedelta(hours=1),
     catchup = False,
-    tags = ["priority:high", "naver:cafe", "schedule:weekdays", "time:allday"],
+    tags = ["priority:high", "naver:cafe", "schedule:weekdays", "time:morning"],
 ) as dag:
 
     PATH = ["naver", "main", "naver_cafe_search"]
@@ -21,10 +21,27 @@ with DAG(
         from variables import read
         return read(PATH, sheets=True)
 
-    @task(task_id="set_cookies", retries=3, retry_delay=timedelta(minutes=1))
-    def set_cookies() -> str:
-        from playwright.sync_api import sync_playwright
+
+    @task(task_id="set_cookies", retries=3, retry_delay=timedelta(minutes=1), pool="nsearch_pool")
+    def set_cookies(ti: TaskInstance, **kwargs) -> dict:
+        variables = ti.xcom_pull(task_ids="read_variables")
+        if not variables["records"]:
+            return variables
+
+        from playwright.sync_api import sync_playwright, Page
         import time
+
+        def wait_cookies(page: Page, wait_seconds: int = 10, wait_interval: int = 1):
+            for _ in range(wait_seconds // wait_interval):
+                time.sleep(wait_interval)
+                cookies = page.context.cookies()
+                for cookie in cookies:
+                    if cookie["name"] == "NNB":
+                        return
+            raise ValueError("Failed to set valid cookies.")
+
+        def get_cookies(page: Page) -> str:
+            return '; '.join([f"{cookie['name']}={cookie['value']}" for cookie in page.context.cookies()])
 
         with sync_playwright() as playwright:
             ws_endpoint = "ws://playwright:3000/"
@@ -33,26 +50,39 @@ with DAG(
                 page = browser.new_page()
                 try:
                     page.goto("https://m.naver.com/")
-                    for _ in range(10):
-                        time.sleep(1)
-                        cookies = page.context.cookies()
-                        for cookie in cookies:
-                            if cookie["name"] == "NNB":
-                                return '; '.join([f"{cookie['name']}={cookie['value']}" for cookie in page.context.cookies()])
-                    raise ValueError("Failed to set valid cookies.")
+                    wait_cookies(page)
+                    return dict(variables, cookies=get_cookies(page))
                 finally:
                     page.close()
             finally:
                 browser.close()
 
 
-    @task(task_id="etl_naver_cafe_search")
+    @task(task_id="etl_naver_cafe_search", pool="nsearch_pool")
     def etl_naver_cafe_search(ti: TaskInstance, **kwargs) -> dict:
         from variables import get_execution_date
-        date_ymd_h = get_execution_date(kwargs, format="%y%m%d_%H")
-        date_ko = get_execution_date(kwargs, format="%y년 %m월 %d일 %H시")
-        cookies = ti.xcom_pull(task_ids="set_cookies")
-        return main(cookies=cookies, date_ymd_h=date_ymd_h, date_ko=date_ko, **ti.xcom_pull(task_ids="read_variables"))
+        date_ymd_h = get_execution_date(kwargs, format="%y%m%d_%H%M")
+        date_ko = get_execution_date(kwargs, format="%y년 %m월 %d일 %H시 %분")
+
+        variables = ti.xcom_pull(task_ids="set_cookies")
+        if variables["records"] and variables["cookies"]:
+            return main(date_ymd_h=date_ymd_h, date_ko=date_ko, **variables)
+        else:
+            return dict(
+                params = dict(
+                    channel_id = variables["channel_id"],
+                    max_rank = variables["max_rank"],
+                    date_ymd_h = date_ymd_h,
+                    date_ko = date_ko,
+                    query_group = 'X',
+                ),
+                counts = dict(total=0),
+                message = None,
+                response = dict(
+                    files = list(),
+                    status = "skipped",
+                ),
+            )
 
     def main(
             cookies: str,
@@ -156,16 +186,25 @@ with DAG(
         return headers
 
     def wb_summary_styles(headers: list[str]) -> dict:
-        column_style, auto_width, conditional_rules = dict(), list(), dict()
-        for column in headers:
+        column_style, column_width, count_columns = dict(), dict(), list()
+        ad_rule = dict(operator="equal", formula=[-1], fill={"color": "#F4CCCC", "fill_type": "solid"})
+
+        for col_idx, column in enumerate(headers, start=1):
             if column.endswith('위'):
-                column_style[column] = dict(fill={"fgColor": "FFF2CC", "fill_type": "solid"})
-                auto_width.append('!'+column)
+                column_style[col_idx] = dict(fill={"color": "#FFF2CC", "fill_type": "solid"})
             elif column.startswith("조회수"):
-                column_style[column] = dict(number_format="#,##0;광고")
-                conditional_rules[column] = dict(
-                    operator="equal", formula=[-1], fill={"fgColor": "F4CCCC", "fill_type": "solid"})
-        return dict(column_style=column_style, auto_width=auto_width, conditional_formatting=conditional_rules)
+                column_style[col_idx] = dict(number_format="#,##0;광고")
+                column_width[col_idx] = "auto"
+                count_columns.append(column)
+            else:
+                column_width[col_idx] = "auto"
+
+        return dict(
+            column_style = column_style,
+            column_width = column_width,
+            row_height = 16.5,
+            conditional_formatting = [(count_columns, ad_rule)],
+        )
 
 
     def detail(source_table: str, taraget_table: str, table_exists: bool) -> str:
@@ -202,7 +241,11 @@ with DAG(
     def wb_details_styles() -> dict:
         number_columns = ["제목글자수", "내용글자수", "이미지수", "조회수", "댓글수", "댓글작성자수"]
         column_style = {column: dict(number_format="#,##0") for column in number_columns}
-        return dict(auto_width=["!소재ID"], column_style=column_style)
+
+        single_width = {"소재ID", "주소", "썸네일주소"}
+        column_width = {column: "auto" for _, column in wb_details_alias() if column not in single_width}
+
+        return dict(column_style=column_style, column_width=column_width, row_height=16.5)
 
 
     def save_excel_to_tempfile(wb) -> str:
@@ -244,19 +287,31 @@ with DAG(
                 }],
                 initial_comment = message,
             )
-            return parse_slack_response(channel_id, message, response.get("files", list()), response.get("ok", False))
+            return dict(
+                params = dict(
+                    channel_id = channel_id,
+                    max_rank = max_rank,
+                    date_ymd_h = date_ymd_h,
+                    date_ko = date_ko,
+                    query_group = query_group,
+                ),
+                counts = dict(total=total, **counts),
+                message = message,
+                response = parse_slack_response(
+                    files = response.get("files", list()),
+                    ok = response.get("ok", False)
+                ),
+            )
         finally:
             os.unlink(summary_file)
             os.unlink(details_file)
 
-    def parse_slack_response(channel_id: str, message: str, files: list[dict], ok: bool) -> dict:
+    def parse_slack_response(files: list[dict], ok: bool) -> dict:
         keys = ["id", "name", "size", "created", "permalink"]
         return dict(
-            channel_id = channel_id,
-            message = message,
             files = [{key: file.get(key) for key in keys} for file in files],
-            status = ok,
+            status = ("success" if ok else "failed"),
         )
 
 
-    [read_variables(), set_cookies()] >> etl_naver_cafe_search()
+    read_variables() >> set_cookies() >> etl_naver_cafe_search()
