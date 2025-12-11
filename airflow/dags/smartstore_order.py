@@ -85,7 +85,7 @@ with DAG(
                         payment_date_from = payment_date_from,
                         payment_date_to = payment_date_to,
                     ),
-                    count = dict(
+                    counts = dict(
                         order = conn.count_table(sources["order"]),
                         product_order = conn.count_table(sources["product_order"]),
                         delivery = conn.count_table(sources["delivery"]),

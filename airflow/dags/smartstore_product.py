@@ -76,7 +76,7 @@ with DAG(
                         channel_seq = channel_seq,
                         status_type = ["ALL"],
                     ),
-                    count = dict(
+                    counts = dict(
                         product = conn.count_table(sources["product"]),
                         option = conn.count_table(sources["option"]),
                     ),

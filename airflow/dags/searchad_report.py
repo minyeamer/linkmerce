@@ -70,7 +70,7 @@ with DAG(
                             report_name = report_name,
                             date = date,
                         ),
-                        count = dict(
+                        counts = dict(
                             data = conn.count_table("data"),
                         ),
                         status = dict(
@@ -139,7 +139,7 @@ with DAG(
                             date = date,
                             date_type = "DAY",
                         ),
-                        count = dict(
+                        counts = dict(
                             data = conn.count_table("data"),
                         ),
                         status = dict(

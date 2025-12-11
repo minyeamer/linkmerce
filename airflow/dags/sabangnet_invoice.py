@@ -82,7 +82,7 @@ with DAG(
                         download_no = download_no,
                         download_type = "invoice",
                     ),
-                    count = dict(
+                    counts = dict(
                         invoice = conn.count_table("data"),
                     ),
                     status = dict(

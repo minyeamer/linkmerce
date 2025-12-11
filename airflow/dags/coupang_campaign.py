@@ -80,7 +80,7 @@ with DAG(
                         goal_type = goal_type,
                         is_deleted = [False, True],
                     ),
-                    count = dict(
+                    counts = dict(
                         campaign = conn.count_table(sources["campaign"]),
                         adgroup = conn.count_table(sources["adgroup"]),
                         creative = (conn.count_table("coupang_creative") if nca_campaign_ids else None),

@@ -132,7 +132,7 @@ with DAG(
                         start_date = "2000-01-01",
                         end_date = end_date,
                     ),
-                    count = dict(
+                    counts = dict(
                         product = conn.count_table(sources["product"]),
                         sku = conn.count_table(sources["sku"]),
                     ),

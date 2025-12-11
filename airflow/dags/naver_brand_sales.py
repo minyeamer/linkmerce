@@ -68,7 +68,7 @@ with DAG(
                         start_date = start_date,
                         end_date = end_date,
                     ),
-                    count = dict(
+                    counts = dict(
                         sales = conn.count_table(sources["sales"]),
                         product = conn.count_table(sources["product"]),
                     ),

@@ -50,7 +50,7 @@ with DAG(
                     params = dict(
                         keyword = len(keyword),
                     ),
-                    count = dict(
+                    counts = dict(
                         data = conn.count_table("data"),
                     ),
                     status = dict(

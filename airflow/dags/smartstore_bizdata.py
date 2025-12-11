@@ -61,7 +61,7 @@ with DAG(
                         start_date = date,
                         end_date = date,
                     ),
-                    count = dict(
+                    counts = dict(
                         data = conn.count_table("data"),
                     ),
                     status = dict(

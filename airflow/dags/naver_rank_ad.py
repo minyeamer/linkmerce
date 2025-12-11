@@ -84,7 +84,7 @@ with DAG(
                         domain = "search",
                         mobile = True,
                     ),
-                    count = dict(
+                    counts = dict(
                         rank = conn.count_table(sources["rank"]),
                         product = conn.count_table(sources["product"]),
                     ),

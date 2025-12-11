@@ -71,7 +71,7 @@ with DAG(
                         start = [1, 101, 201],
                         sort = "sim",
                     ),
-                    count = dict(
+                    counts = dict(
                         rank = conn.count_table(sources["rank"]),
                         product = conn.count_table(sources["product"]),
                     ),

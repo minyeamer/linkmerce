@@ -68,7 +68,7 @@ with DAG(
                             customer_id = customer_id,
                             from_date = from_date,
                         ),
-                        count = dict(
+                        counts = dict(
                             data = conn.count_table("data"),
                         ),
                         status = dict(
@@ -141,7 +141,7 @@ with DAG(
                             account_no = account_no,
                             status = status,
                         ),
-                        count = dict(
+                        counts = dict(
                             data = conn.count_table("data"),
                         ),
                         status = dict(

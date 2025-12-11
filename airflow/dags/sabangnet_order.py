@@ -99,7 +99,7 @@ with DAG(
                         download_no = download_no[download_type],
                         download_type = download_type,
                     ),
-                    count = {
+                    counts = {
                         download_type: conn.count_table("data"),
                     },
                     status = {

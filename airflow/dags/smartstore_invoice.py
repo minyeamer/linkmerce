@@ -79,7 +79,7 @@ with DAG(
                         payment_date_from = payment_date_from,
                         payment_date_to = payment_date_to,
                     ),
-                    count = dict(
+                    counts = dict(
                         data = conn.count_table(sources["delivery"]),
                     ),
                     status = dict(

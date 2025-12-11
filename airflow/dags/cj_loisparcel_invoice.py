@@ -74,7 +74,7 @@ with DAG(
                         **{"2fa_email": mail_info["email"]},
                         **{date_by[date_type]: params for date_type, params in query_dates.items()},
                     ),
-                    count = dict(
+                    counts = dict(
                         total = conn.count_table(source_table),
                         **{date_by[date_type]: len(values) for date_type, values in results.items()},
                     ),

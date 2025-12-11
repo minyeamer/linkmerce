@@ -60,7 +60,7 @@ with DAG(
                         sort_type = "recent",
                         page = None,
                     ),
-                    count = dict(
+                    counts = dict(
                         price = conn.count_table("naver_brand_price"),
                         product = conn.count_table("naver_brand_product"),
                     ),

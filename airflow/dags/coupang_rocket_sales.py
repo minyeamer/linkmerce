@@ -80,7 +80,7 @@ with DAG(
                         end_date = end_date,
                         date_type = "SALES",
                     ),
-                    count = dict(
+                    counts = dict(
                         sales = conn.count_table(sources["sales"]),
                         shipping = conn.count_table(sources["shipping"]),
                     ),

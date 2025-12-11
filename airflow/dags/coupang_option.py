@@ -74,7 +74,7 @@ with DAG(
                         is_deleted = [False, True],
                         see_more = True,
                     ),
-                    count = dict(
+                    counts = dict(
                         vendor = conn.count_table("vendor"),
                         rfm = conn.count_table("rfm"),
                     ),

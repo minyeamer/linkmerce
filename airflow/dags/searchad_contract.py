@@ -55,7 +55,7 @@ with DAG(
                     params = dict(
                         customer_id = customer_id,
                     ),
-                    count = dict(
+                    counts = dict(
                         time = conn.execute("SELECT COUNT(*) FROM data WHERE contract_type = 0;").fetchall()[0][0],
                         brand_new = conn.execute("SELECT COUNT(*) FROM data WHERE contract_type = 1;").fetchall()[0][0],
                     ),

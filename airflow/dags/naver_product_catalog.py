@@ -58,7 +58,7 @@ with DAG(
                         sort_type = "recent",
                         page = None,
                     ),
-                    count = dict(
+                    counts = dict(
                         data = conn.count_table("data")
                     ),
                     status = dict(
