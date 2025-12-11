@@ -1,12 +1,13 @@
 [project]
 name = "linkmerce"
-version = "0.5.26"
+version = "0.5.27"
 description = "E-commerce API integration management"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "aiohttp>=3.12.15",
     "bcrypt>=4.3.0",
+    "brotli>=1.2.0",
     "bs4>=0.0.2",
     "duckdb>=1.3.2",
     "jinja2>=3.1.6",

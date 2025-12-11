@@ -60,7 +60,7 @@ class MobileTabSearch(Extractor):
         return {"ssc": tab_type, "sm": "mtb_jum", "query": query}
 
     def set_request_headers(self, **kwargs):
-        kwargs.update(authority=self.url, metadata="navigate", https=True)
+        kwargs.update(authority=self.url, encoding="gzip, deflate", metadata="navigate", https=True)
         return super().set_request_headers(**kwargs)
 
     @property

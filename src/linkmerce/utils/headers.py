@@ -151,7 +151,23 @@ def get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str,str] = "
 
 
 def get_user_agent(version: int = CHROME_VERSION) -> str:
-    return f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36"
+    import platform
+    system = platform.system()
+
+    if system == "Windows":
+        x64 = {"amd64", "x86_64", "x64"}
+        arch_token = "Win64; x64" if (arch := platform.machine()).lower() in x64 else arch
+        platform_token = "Windows NT 10.0; {}".format(arch_token or "Win64; x64")
+    elif system == "Darwin":
+        mac_ver = (platform.mac_ver()[0] or "26.1").replace('.','_')
+        platform_token = "Macintosh; Intel Mac OS X {}".format(mac_ver)
+    elif system == "Linux":
+        arch_token = platform.machine() or "x86_64"
+        platform_token = "X11; Linux {}".format(arch_token)
+    else:
+        platform_token = system or "Windows NT 10.0; Win64; x64"
+
+    return f"Mozilla/5.0 ({platform_token}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36"
 
 
 def zip_headers(header_lines: str) -> dict[str,str]:
