@@ -1,5 +1,11 @@
 FROM apache/airflow:3.1.3-python3.12
 
+# Set Korean locale to ensure proper handling of Korean text in HTTP responses
+USER root
+RUN locale-gen ko_KR.UTF-8
+RUN localedef -f UTF-8 -i ko_KR ko_KR.UTF-8
+USER airflow
+
 # Install uv (already included in the base image)
 # RUN pip install uv
 
@@ -16,3 +22,8 @@ RUN echo "playwright==1.56.0" >> requirements.txt
 
 # Install dependencies based on the requirements.txt file
 RUN pip install -r requirements.txt
+
+# Ensure Python processes pick up UTF-8 locale
+ENV LANGUAGE=ko_KR.UTF-8
+ENV LANG=ko_KR.UTF-8
+ENV LC_ALL=ko_KR.UTF-8
