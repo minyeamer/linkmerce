@@ -61,8 +61,8 @@ with DAG(
     @task(task_id="etl_naver_cafe_search", pool="nsearch_pool")
     def etl_naver_cafe_search(ti: TaskInstance, **kwargs) -> dict:
         from variables import get_execution_date
-        date_ymd_h = get_execution_date(kwargs, format="%y%m%d_%H%M")
-        date_ko = get_execution_date(kwargs, format="%y년 %m월 %d일 %H시 %분")
+        date_ymd_h = get_execution_date(kwargs, fmt="YYMMDD_HHmm")
+        date_ko = get_execution_date(kwargs, fmt="YY년 MM월 DD일 HH시 MM분 (dd)")
 
         variables = ti.xcom_pull(task_ids="set_cookies")
         if variables["records"] and variables["cookies"]:
@@ -204,6 +204,7 @@ with DAG(
             column_width = column_width,
             row_height = 16.5,
             conditional_formatting = [(count_columns, ad_rule)],
+            truncate = True,
         )
 
 
@@ -245,7 +246,7 @@ with DAG(
         single_width = {"소재ID", "주소", "썸네일주소"}
         column_width = {column: "auto" for _, column in wb_details_alias() if column not in single_width}
 
-        return dict(column_style=column_style, column_width=column_width, row_height=16.5)
+        return dict(column_style=column_style, column_width=column_width, row_height=16.5, truncate=True)
 
 
     def save_excel_to_tempfile(wb) -> str:
@@ -271,7 +272,7 @@ with DAG(
 
         message = (
             f">{date_ko}\n"
-            + f"*{query_group}*그룹 - {total}개 키워드 조회 (상위 {max_rank}개 게시글)\n"
+            + f"*{query_group}* 그룹 - {total}개 키워드 조회 (상위 {max_rank}개 게시글)\n"
             + '\n'.join([f"• {product} : {count}개 키워드" for product, count in counts.items()]))
         products = '+'.join([product.replace(' ', '') for product in counts.keys()])
 
@@ -280,10 +281,12 @@ with DAG(
                 channel_id = channel_id,
                 file_uploads = [{
                     "file": summary_file,
-                    "filename": f"{date_ymd_h}_요약_{query_group}그룹_{products}.xlsx"
+                    "filename": f"{date_ymd_h}_요약_{query_group}그룹_{products}.xlsx",
+                    "title": f"요약 - {', '.join(counts.keys())}",
                 }, {
                     "file": details_file,
-                    "filename": f"{date_ymd_h}_세부_{query_group}그룹_{products}.xlsx"
+                    "filename": f"{date_ymd_h}_세부_{query_group}그룹_{products}.xlsx",
+                    "title": f"세부 - {', '.join(counts.keys())}",
                 }],
                 initial_comment = message,
             )

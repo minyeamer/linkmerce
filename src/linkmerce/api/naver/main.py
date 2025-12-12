@@ -180,7 +180,7 @@ def search_cafe_plus(
         + f"FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM {search_table}) AS L "
         + f"LEFT JOIN {article_table} AS R "
             + "ON (L.cafe_url = R.cafe_url) AND (L.article_id = R.article_id) "
-        + "ORDER BY L.seq;")
+        + "ORDER BY L.seq, L.rank;")
 
     if return_type == "none":
         results["merged"] = None
