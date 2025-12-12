@@ -535,6 +535,29 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         context = list(map(lambda values: dict(zip(["start_date","end_date"], values)), pairs))
         return context[0] if len(context) == 1 else context
 
+    def split_date_range(
+            self,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            delta: int | dict[Literal["days","seconds","microseconds","milliseconds","minutes","hours","weeks"],float] = 1,
+            format: str = "%Y-%m-%d",
+        ) -> list[tuple[dt.date,dt.date]] | tuple[dt.date,dt.date]:
+        from linkmerce.utils.date import date_split
+        pairs = date_split(start_date, (start_date if end_date == ":start_date:" else end_date), delta, format)
+        return pairs[0] if len(pairs) == 1 else pairs
+
+    def split_date_context(
+            self,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            delta: int | dict[Literal["days","seconds","microseconds","milliseconds","minutes","hours","weeks"],float] = 1,
+            format: str = "%Y-%m-%d",
+        ) -> list[dict[str,dt.date]] | dict[str,dt.date]:
+        from linkmerce.utils.date import date_split
+        pairs = date_split(start_date, (start_date if end_date == ":start_date:" else end_date), delta, format)
+        context = list(map(lambda values: dict(zip(["start_date","end_date"], values)), pairs))
+        return context[0] if len(context) == 1 else context
+
 
 ###################################################################
 ########################### LoginHandler ##########################

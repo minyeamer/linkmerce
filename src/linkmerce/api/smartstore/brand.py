@@ -33,7 +33,7 @@ def login(
     return cookies
 
 
-def get_catalog_options(
+def each_page_options(
         max_concurrent: int = 3,
         request_delay: float | int = 1,
         progress: bool = True,
@@ -44,7 +44,7 @@ def get_catalog_options(
     )
 
 
-def get_sales_options(
+def each_request_options(
         max_concurrent: int = 3,
         request_delay: float | int = 1,
         progress: bool = True,
@@ -86,7 +86,7 @@ def brand_catalog(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = get_catalog_options(max_concurrent, request_delay, progress),
+            options = each_page_options(max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )
@@ -125,7 +125,7 @@ def brand_product(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = get_catalog_options(max_concurrent, request_delay, progress),
+            options = each_page_options(max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )
@@ -164,7 +164,7 @@ def brand_price(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = get_catalog_options(max_concurrent, request_delay, progress),
+            options = each_page_options(max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )
@@ -203,7 +203,48 @@ def product_catalog(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = get_catalog_options(max_concurrent, request_delay, progress),
+            options = each_page_options(max_concurrent, request_delay, progress),
+        ),
+        transform_options = transform_options,
+    )
+
+
+def page_view(
+        cookies: str,
+        aggregate_by: Literal["device","product","url"],
+        mall_seq: int | str | Iterable[int | str],
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        how: Literal["sync","async","async_loop"] = "sync",
+        max_concurrent: int = 3,
+        request_delay: float | int = 1,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> dict[str,JsonObject]:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.smartstore.brand.pageview.extract import PageViewByDevice, PageViewByUrl
+    # from linkmerce.core.smartstore.brand.pageview.transform import PageViewByDevice, PageViewByProduct, PageViewByUrl
+    return run_with_duckdb(
+        module = get_module(".pageview"),
+        extractor = "PageViewBy{}".format("Device" if aggregate_by == "device" else "Url"),
+        transformer = "PageViewBy{}".format(aggregate_by.capitalize()),
+        connection = connection,
+        tables = tables,
+        how = how,
+        return_type = return_type,
+        args = (mall_seq, start_date, end_date),
+        extract_options = update_options(
+            extract_options,
+            headers = dict(cookies=cookies),
+            options = (
+                each_request_options(max_concurrent, request_delay, progress)
+                if aggregate_by == "device" else
+                each_page_options(max_concurrent, request_delay, progress)
+            ),
         ),
         transform_options = transform_options,
     )
@@ -242,7 +283,7 @@ def store_sales(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = get_sales_options(max_concurrent, request_delay, progress),
+            options = each_request_options(max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )
@@ -281,7 +322,7 @@ def category_sales(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = get_sales_options(max_concurrent, request_delay, progress),
+            options = each_request_options(max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )
@@ -320,7 +361,7 @@ def product_sales(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = get_sales_options(max_concurrent, request_delay, progress),
+            options = each_request_options(max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )
@@ -359,7 +400,7 @@ def aggregated_sales(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = get_sales_options(max_concurrent, request_delay, progress),
+            options = each_request_options(max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )

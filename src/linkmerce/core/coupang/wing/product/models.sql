@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , category_name VARCHAR
   , brand_name VARCHAR
   , maker_name VARCHAR
-  , product_status TINYINT  -- {0: '판매중', 1: '품절', 2: '숨김상품'}
+  , product_status TINYINT -- {0: '판매중', 1: '품절', 2: '숨김상품'}
   , is_deleted BOOLEAN
   , price INTEGER
   , sales_price INTEGER

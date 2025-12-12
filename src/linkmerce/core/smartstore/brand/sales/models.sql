@@ -93,7 +93,7 @@ CREATE OR REPLACE TABLE {{ table }} (
   , payment_count BIGINT
   , payment_amount BIGINT
   , payment_date DATE
-  , PRIMARY KEY (product_id, payment_date)
+  , PRIMARY KEY (payment_date, product_id)
 );
 
 -- AggregatedSales: select_sales

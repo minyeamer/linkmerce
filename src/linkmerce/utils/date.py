@@ -230,7 +230,7 @@ def date_pairs(
 def date_split(
         start: dt.date | str,
         end: dt.date | str,
-        delta: int | dict = 1,
+        delta: int | dict[Literal["days","seconds","microseconds","milliseconds","minutes","hours","weeks"],float] = 1,
         format: str = "%Y-%m-%d",
     ) -> list[tuple[dt.date,dt.date]]:
     if isinstance(delta, int):
