@@ -28,23 +28,25 @@ def in_timezone(
 
 def strftime(
         datetime: pendulum.DateTime,
-        format: str = "%Y-%m-%d",
+        fmt: str = "YYYY-MM-DD",
+        locale: str = "ko",
         add: dict | None = None,
         subtract: dict | None = None,
         subdays: int | None = None,
     ) -> str:
-    return in_timezone(datetime, add, subtract, subdays).strftime(format)
+    return in_timezone(datetime, add, subtract, subdays).format(fmt, locale)
 
 
 def get_execution_date(
         kwargs: dict,
-        format: str = "%Y-%m-%d",
+        fmt: str = "YYYY-MM-DD",
+        locale: str = "ko",
         add: dict | None = None,
         subtract: dict | None = None,
         subdays: int | None = None,
     ) -> str:
     datetime = kwargs["data_interval_end"]
-    return strftime(datetime, format, add, subtract, subdays)
+    return strftime(datetime, fmt, locale, add, subtract, subdays)
 
 
 def read(

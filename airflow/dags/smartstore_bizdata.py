@@ -49,6 +49,7 @@ with DAG(
                 client_secret = client_secret,
                 channel_seq = channel_seq,
                 start_date = date,
+                end_date = date,
                 connection = conn,
                 progress = False,
                 return_type = "none",
@@ -58,8 +59,7 @@ with DAG(
                 return dict(
                     params = dict(
                         channel_seq = channel_seq,
-                        start_date = date,
-                        end_date = date,
+                        date = date,
                     ),
                     counts = dict(
                         data = conn.count_table("data"),

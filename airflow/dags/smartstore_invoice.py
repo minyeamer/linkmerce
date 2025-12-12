@@ -36,7 +36,7 @@ with DAG(
     @task(task_id="etl_smartstore_invoice", map_index_template="{{ credentials['channel_seq'] }}")
     def etl_smartstore_invoice(credentials: dict, variables: dict, **kwargs) -> dict:
         from variables import get_execution_date
-        range_type = "DISPATCHED_DATETIME" if get_execution_date(kwargs, format="%H:%M") == FIRST_SCHEDULE else "PAYED_DATETIME"
+        range_type = "DISPATCHED_DATETIME" if get_execution_date(kwargs, fmt="HH:mm") == FIRST_SCHEDULE else "PAYED_DATETIME"
         return main(**credentials, date=get_execution_date(kwargs, subdays=1), range_type=range_type, **variables)
 
     def main(
@@ -60,6 +60,7 @@ with DAG(
                 client_id = client_id,
                 client_secret = client_secret,
                 start_date = date,
+                end_date = date,
                 range_type = range_type,
                 connection = conn,
                 tables = sources,

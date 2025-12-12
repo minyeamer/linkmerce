@@ -58,6 +58,7 @@ with DAG(
                     report_name = report_name,
                     userid = userid,
                     start_date = date,
+                    end_date = date,
                     connection = conn,
                     return_type = "none",
                 )
@@ -126,6 +127,7 @@ with DAG(
                     account_no = account_no,
                     cookies = cookies,
                     start_date = date,
+                    end_date = date,
                     date_type = "DAY",
                     connection = conn,
                     progress = False,

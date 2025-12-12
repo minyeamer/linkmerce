@@ -56,6 +56,7 @@ with DAG(
                 cookies = cookies,
                 vendor_id = vendor_id,
                 start_date = date,
+                end_date = date,
                 report_type = report_type,
                 date_type = "daily",
                 report_level = report_level,

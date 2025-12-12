@@ -34,7 +34,7 @@ with DAG(
     @task(task_id="etl_sabangnet_invoice", pool="sabangnet_pool")
     def etl_sabangnet_invoice(ti: TaskInstance, **kwargs) -> dict:
         from variables import get_execution_date
-        date_type = "dlvery_rcv_dt" if get_execution_date(kwargs, format="%H:%M") == LAST_SCHEDULE else "reg_dm"
+        date_type = "dlvery_rcv_dt" if get_execution_date(kwargs, fmt="HH:mm") == LAST_SCHEDULE else "reg_dm"
         start_date = get_execution_date(kwargs, subdays=(TODAY if date_type == "dlvery_rcv_dt" else LAST_7_DAYS))
         end_date = get_execution_date(kwargs)
         return main(start_date=start_date, end_date=end_date, date_type=date_type, **ti.xcom_pull(task_ids="read_variables"))
