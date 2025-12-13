@@ -1,5 +1,5 @@
 -- BlogSearch: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
   , title VARCHAR
@@ -28,7 +28,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- NewsSearch: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
   , title VARCHAR
@@ -53,7 +53,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- BookSearch: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
   , title VARCHAR
@@ -88,7 +88,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- CafeSearch: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
   , title VARCHAR
@@ -115,7 +115,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- KiNSearch: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
   , title VARCHAR
@@ -138,7 +138,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- ImageSearch: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
   , title VARCHAR
@@ -165,7 +165,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- ShoppingSearch: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
   , id BIGINT
@@ -210,7 +210,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- ShoppingRank: create_rank
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , id BIGINT
   , product_id BIGINT
@@ -235,7 +235,7 @@ WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL;
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- ShoppingRank: create_product
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     id BIGINT PRIMARY KEY
   , product_id BIGINT
   , product_type TINYINT -- {0: '가격비교 상품', 1: '일반상품', 3: '광고상품'}

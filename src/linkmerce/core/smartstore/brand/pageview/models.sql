@@ -1,5 +1,5 @@
 -- PageViewByDevice: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     mall_seq BIGINT
   , device_type BIGINT -- {0: 'Pc', 1: 'Mobile', 2: 'All'}
   , page_click BIGINT
@@ -30,7 +30,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- PageViewByProduct: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     mall_seq BIGINT
   , product_id BIGINT -- {10: 'Main', ...product}
   , page_click BIGINT
@@ -66,7 +66,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- PageViewByUrl: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     mall_seq BIGINT
   , page_url VARCHAR
   , page_click BIGINT

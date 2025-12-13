@@ -1,5 +1,5 @@
 -- ExposureDiagnosis: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
   , id BIGINT
@@ -38,7 +38,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- ExposureRank: create_rank
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , id BIGINT
   , display_rank SMALLINT
@@ -68,7 +68,7 @@ WHERE exposure.id IS NOT NULL;
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- ExposureRank: create_product
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     id BIGINT PRIMARY KEY
   , product_id BIGINT NULL -- Placeholder
   , product_type TINYINT -- {0: '가격비교 상품', 1: '일반상품', 3: '광고상품'}

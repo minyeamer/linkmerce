@@ -1,5 +1,5 @@
 -- CafeTab: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     query VARCHAR
   , rank INTEGER
   , cafe_url VARCHAR
@@ -38,7 +38,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- CafeArticle: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     cafe_id BIGINT
   , article_id BIGINT
   , cafe_url VARCHAR
@@ -87,7 +87,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- ShoppingPage: create (deprecated)
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR PRIMARY KEY
   , page_unit_ad INTEGER
   , page_unit_shop INTEGER

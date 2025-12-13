@@ -240,11 +240,7 @@ def page_view(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = (
-                each_request_options(max_concurrent, request_delay, progress)
-                if aggregate_by == "device" else
-                each_page_options(max_concurrent, request_delay, progress)
-            ),
+            options = each_request_options(max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )

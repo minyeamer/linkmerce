@@ -1,5 +1,5 @@
 -- DailyReport: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     ad_id VARCHAR
   , customer_id INTEGER
   , media_name VARCHAR

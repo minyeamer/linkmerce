@@ -1,5 +1,5 @@
 -- Campaign: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     campaign_id VARCHAR PRIMARY KEY
   , campaign_name VARCHAR
   , campaign_type TINYINT -- Campaign: campaign_type
@@ -47,7 +47,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- Adgroup: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     adgroup_id VARCHAR PRIMARY KEY
   , campaign_id VARCHAR NOT NULL
   , adgroup_name VARCHAR
@@ -113,7 +113,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- Ad: create_ad
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     ad_id VARCHAR PRIMARY KEY
   , adgroup_id VARCHAR NOT NULL
   , ad_type TINYINT -- Ad: ad_type
@@ -152,7 +152,7 @@ FROM UNNEST([
 
 
 -- Ad: create_power_link_ad
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -230,7 +230,7 @@ ON CONFLICT DO NOTHING;
 
 
 -- Ad: create_power_contents_ad
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -305,7 +305,7 @@ ON CONFLICT DO NOTHING;
 
 
 -- Ad: create_shopping_product_ad
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -412,7 +412,7 @@ ON CONFLICT DO NOTHING;
 
 
 -- Ad: create_product_group
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     customer_id BIGINT NOT NULL
   , product_group_id VARCHAR PRIMARY KEY
   , business_channel_id VARCHAR
@@ -442,7 +442,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- Ad: create_product_group_rel
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     customer_id BIGINT NOT NULL
   , relation_id VARCHAR PRIMARY KEY
   , product_group_id VARCHAR NOT NULL
@@ -466,7 +466,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- Ad: create_brand_thumbnail_ad
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -511,7 +511,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- Ad: create_brand_banner_ad
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -554,7 +554,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- Ad: create_brand_ad
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY

@@ -16,6 +16,10 @@ class _PageView(PartnerCenter):
     days_limit = 90
     aggregate_by: Literal["Device","Url"]
 
+    @property
+    def default_options(self) -> dict:
+        return dict(RequestEach = dict(request_delay=1, max_concurrent=3))
+
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["data","storePageView","count"])
@@ -27,7 +31,7 @@ class _PageView(PartnerCenter):
             end_date: dt.date,
             date_type: Literal["daily","weekly","monthly"] = "daily",
             page: int = 1,
-            page_size: int = 50,
+            page_size: int = 10000,
             **kwargs
         ) -> dict:
         pageable = (self.aggregate_by == "Url")
@@ -82,10 +86,6 @@ class _PageView(PartnerCenter):
 class PageViewByDevice(_PageView):
     aggregate_by = "Device"
 
-    @property
-    def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1, max_concurrent=3))
-
     @PartnerCenter.with_session
     def extract(
             self,
@@ -115,14 +115,8 @@ class PageViewByDevice(_PageView):
 
 class PageViewByUrl(_PageView):
     aggregate_by = "Url"
-    page_size = 50
+    page_size = 10000
     page_start = 1
-
-    @property
-    def default_options(self) -> dict:
-        return dict(
-            PaginateAll = dict(request_delay=1, max_concurrent=3),
-            RequestEachPages = dict(request_delay=1, max_concurrent=3))
 
     @PartnerCenter.with_session
     def extract(
@@ -133,9 +127,8 @@ class PageViewByUrl(_PageView):
             **kwargs
         ) -> JsonObject:
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
-        return (self.request_each_pages(self.request_json_safe, context=context)
+        return (self.request_each(self.request_json_safe, context=context)
                 .expand(mall_seq=mall_seq)
-                .all_pages(self.count_total, self.page_size, self.page_start)
                 .run())
 
     @PartnerCenter.async_with_session
@@ -147,7 +140,6 @@ class PageViewByUrl(_PageView):
             **kwargs
         ) -> JsonObject:
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
-        return await (self.request_each_pages(self.request_async_json_safe, context=context)
+        return await (self.request_each(self.request_async_json_safe, context=context)
                 .expand(mall_seq=mall_seq)
-                .all_pages(self.count_total, self.page_size, self.page_start)
                 .run_async())

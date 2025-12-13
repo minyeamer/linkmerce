@@ -1,5 +1,5 @@
 -- BrandCatalog: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     id BIGINT PRIMARY KEY
   , catalog_name VARCHAR
   , maker_id BIGINT
@@ -62,7 +62,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- BrandProduct: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     id BIGINT PRIMARY KEY
   , product_id VARCHAR NOT NULL
   , catalog_id BIGINT
@@ -130,7 +130,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
 -- BrandPrice: create_price
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT PRIMARY KEY
   , mall_seq BIGINT
   , category_id INTEGER
@@ -153,7 +153,7 @@ WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- BrandPrice: create_product
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT PRIMARY KEY
   , mall_seq BIGINT
   , category_id INTEGER
@@ -189,7 +189,7 @@ ON CONFLICT DO UPDATE SET
 
 
 -- ProductCatalog: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT PRIMARY KEY
   , catalog_id BIGINT NOT NULL
   , created_at TIMESTAMP NOT NULL

@@ -1,5 +1,5 @@
 -- StoreSales: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     mall_seq BIGINT NOT NULL
   , payment_count BIGINT
   , payment_amount BIGINT
@@ -23,7 +23,7 @@ INSERT INTO {{ table }} {{ values }};
 
 
 -- CategorySales: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     category_id3 INTEGER NOT NULL
   , full_category_name VARCHAR
   , mall_seq BIGINT
@@ -51,7 +51,7 @@ INSERT INTO {{ table }} {{ values }};
 
 
 -- ProductSales: create
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT NOT NULL
   , product_name VARCHAR
   , mall_seq BIGINT
@@ -85,7 +85,7 @@ INSERT INTO {{ table }} {{ values }};
 
 
 -- AggregatedSales: create_sales
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT
   , mall_seq BIGINT
   , category_id3 INTEGER
@@ -124,7 +124,7 @@ GROUP BY sales.product_id, sales.payment_date;
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- AggregatedSales: create_product
-CREATE OR REPLACE TABLE {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ table }} (
     product_id BIGINT PRIMARY KEY
   , mall_seq BIGINT
   , category_id INTEGER
