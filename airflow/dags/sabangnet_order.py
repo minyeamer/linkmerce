@@ -27,8 +27,8 @@ with DAG(
         ) -> dict[str,str]:
         from variables import strftime
         return dict(
-            start_date = strftime(data_interval_start, fmt="YYMMDDHHmmss"),
-            end_date = strftime(data_interval_end, fmt="YYMMDDHHmmss"),
+            start_date = strftime(data_interval_start, fmt="YYYYMMDDHHmmss"),
+            end_date = strftime(data_interval_end, fmt="YYYYMMDDHHmmss"),
         )
 
 
