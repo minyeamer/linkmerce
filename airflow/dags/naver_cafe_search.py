@@ -62,7 +62,7 @@ with DAG(
     def etl_naver_cafe_search(ti: TaskInstance, **kwargs) -> dict:
         from variables import get_execution_date
         date_ymd_h = get_execution_date(kwargs, fmt="YYMMDD_HHmm")
-        date_ko = get_execution_date(kwargs, fmt="YY년 MM월 DD일 HH시 MM분 (dd)")
+        date_ko = get_execution_date(kwargs, fmt="YY년 MM월 DD일 HH시 mm분 (dd)")
 
         variables = ti.xcom_pull(task_ids="set_cookies")
         if variables["records"] and variables["cookies"]:
