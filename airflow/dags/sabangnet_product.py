@@ -157,4 +157,4 @@ with DAG(
                 )
 
 
-    read_variables() >> [etl_sabangnet_product(), etl_sabangnet_option(), etl_sabangnet_add_product(), etl_sabangnet_mapping()]
+    read_variables() >> etl_sabangnet_product() >> etl_sabangnet_option() >> etl_sabangnet_add_product() >> etl_sabangnet_mapping()

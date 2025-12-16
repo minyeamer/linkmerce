@@ -116,4 +116,4 @@ with DAG(
                 )
 
 
-    read_variables() >> [etl_sabangnet_order(), etl_sabangnet_dispatch(), etl_sabangnet_option()]
+    read_variables() >> etl_sabangnet_order() >> etl_sabangnet_dispatch() >> etl_sabangnet_option()
