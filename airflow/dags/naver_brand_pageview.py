@@ -5,7 +5,7 @@ import pendulum
 
 with DAG(
     dag_id = "naver_brand_pageview",
-    schedule = "50 7 * * *",
+    schedule = "0 10 * * *",
     start_date = pendulum.datetime(2025, 12, 13, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
