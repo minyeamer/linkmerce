@@ -54,6 +54,18 @@ def each_request_options(
     )
 
 
+def each_request_loop_options(
+        max_retries: int = 5,
+        max_concurrent: int = 3,
+        request_delay: float | int = 1,
+        progress: bool = True,
+    ) -> dict:
+    return dict(
+        RequestLoop = dict(max_retries=max_retries),
+        RequestEachLoop = dict(request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=dict(disable=(not progress))),
+    )
+
+
 def brand_catalog(
         cookies: str,
         brand_ids: str | Iterable[str],
@@ -218,6 +230,7 @@ def page_view(
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
         how: Literal["sync","async","async_loop"] = "sync",
+        max_retries: int = 5,
         max_concurrent: int = 3,
         request_delay: float | int = 1,
         progress: bool = True,
@@ -240,7 +253,7 @@ def page_view(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = each_request_options(max_concurrent, request_delay, progress),
+            options = each_request_loop_options(max_retries, max_concurrent, request_delay, progress),
         ),
         transform_options = transform_options,
     )

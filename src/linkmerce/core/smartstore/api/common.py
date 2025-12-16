@@ -19,7 +19,7 @@ class SmartstoreAPI(Extractor):
         try:
             self.set_api_key(**variables)
         except TypeError:
-            raise TypeError("Naver Open API requires variables for client_id and client_secret.")
+            raise TypeError("Naver Commerce API requires variables for client_id and client_secret.")
 
     def set_api_key(self, client_id: str, client_secret: str, **variables):
         super().set_variables(dict(client_id=client_id, client_secret=client_secret, **variables))
@@ -29,11 +29,11 @@ class SmartstoreAPI(Extractor):
         return self.concat_path(self.origin, self.version, self.path)
 
     @property
-    def client_id(self) -> int | str:
+    def client_id(self) -> str:
         return self.get_variable("client_id")
 
     @property
-    def client_secret(self) -> int | str:
+    def client_secret(self) -> str:
         return self.get_variable("client_secret")
 
     def with_token(func):
@@ -53,7 +53,7 @@ class SmartstoreAPI(Extractor):
             return response.json()["access_token"]
         except:
             from linkmerce.common.exceptions import AuthenticationError
-            raise AuthenticationError(f"Failed to authenticate with the Smartstore API.")
+            raise AuthenticationError(f"Failed to authenticate with the Naver Commerce API.")
 
     def _build_auth_params(self, client_id: str, client_secret: str) -> dict:
         import base64

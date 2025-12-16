@@ -48,7 +48,7 @@ FROM (
     , (CASE
         WHEN REGEXP_MATCHES(measuredThrough.url, '^/[^/]+/products/\d+$')
           THEN CAST(REGEXP_EXTRACT(measuredThrough.url, '(\d+)$') AS BIGINT)
-        WHEN REGEXP_MATCHES(measuredThrough.url, '^/[^/]$')
+        WHEN REGEXP_MATCHES(measuredThrough.url, '^/[^/]+$')
           THEN 10
         ELSE NULL END) AS product_id
     , visit.pageClick AS page_click

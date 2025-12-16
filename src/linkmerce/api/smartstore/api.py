@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import extract, run_with_duckdb, update_options
+from linkmerce.common.api import run_with_duckdb, update_options
 
 from typing import TYPE_CHECKING
 
@@ -39,7 +39,7 @@ def request(
         extract_options,
         variables = dict(client_id=client_id, client_secret=client_secret),
     ))
-    return extract(extractor, how="sync", args=(method, path, version, params, data, json, headers))
+    return extractor.extract(method, path, version, params, data, json, headers)
 
 
 def product(
