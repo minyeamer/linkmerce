@@ -23,6 +23,9 @@ class _PageView(PartnerCenter):
             RequestEachLoop = dict(request_delay=1, max_concurrent=3),
         )
 
+    def is_valid_response(self, response: JsonObject) -> bool:
+        return isinstance(response, dict)
+
     def count_total(self, response: JsonObject, **kwargs) -> int:
         from linkmerce.utils.map import hier_get
         return hier_get(response, ["data","storePageView","count"])
@@ -100,7 +103,7 @@ class PageViewByDevice(_PageView):
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
         return (self.request_each_loop(self.request_json, context=context)
                 .expand(mall_seq=mall_seq)
-                .loop(condition=(lambda obj: isinstance(obj, dict)))
+                .loop(self.is_valid_response)
                 .run())
 
     @PartnerCenter.async_with_session
@@ -112,9 +115,9 @@ class PageViewByDevice(_PageView):
             **kwargs
         ) -> JsonObject:
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
-        return await (self.request_each_loop(self.request_json, context=context)
+        return await (self.request_each_loop(self.request_async_json, context=context)
                 .expand(mall_seq=mall_seq)
-                .loop(condition=(lambda obj: isinstance(obj, dict)))
+                .loop(self.is_valid_response)
                 .run_async())
 
 
@@ -132,8 +135,9 @@ class PageViewByUrl(_PageView):
             **kwargs
         ) -> JsonObject:
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
-        return (self.request_each(self.request_json_safe, context=context)
+        return (self.request_each_loop(self.request_json, context=context)
                 .expand(mall_seq=mall_seq)
+                .loop(self.is_valid_response)
                 .run())
 
     @PartnerCenter.async_with_session
@@ -145,6 +149,7 @@ class PageViewByUrl(_PageView):
             **kwargs
         ) -> JsonObject:
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
-        return await (self.request_each(self.request_async_json_safe, context=context)
+        return await (self.request_each_loop(self.request_async_json, context=context)
                 .expand(mall_seq=mall_seq)
+                .loop(self.is_valid_response)
                 .run_async())
