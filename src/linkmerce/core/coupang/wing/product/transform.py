@@ -83,17 +83,35 @@ class ProductDownload(DuckDBTransformer):
         return ["등록상품ID", "등록상품명", "쿠팡 노출상품명", "카테고리", "제조사", "브랜드", "검색어", "성인상품여부(Y/N)"]
 
 
-class RocketOptionlist(JsonTransformer):
+class RocketInventorylist(JsonTransformer):
     dtype = dict
     path = ["viProperties"]
+
+    def transform(self, obj: JsonObject, **kwargs) -> JsonObject:
+        items = self.parse(obj)
+        for item in (items or list()):
+            if isinstance(item, dict):
+                item.pop("productRecommendations", None)
+                config = item.get("creturnConfigViewDto")
+                if isinstance(config, dict):
+                    config.pop("vendorItemCustomerReturnMonthlyInsights", None)
+        return items
+
+
+class RocketInventory(DuckDBTransformer):
+    queries = ["create", "select", "insert"]
+
+    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
+        items = RocketInventorylist().transform(obj)
+        if items:
+            return self.insert_into_table(items, params=dict(vendor_id=vendor_id))
 
 
 class RocketOption(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
     def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
-        options = RocketOptionlist().transform(obj)
-        if options:
-            for option in options:
-                option.pop("productRecommendations", None)
-            return self.insert_into_table(options, params=dict(vendor_id=vendor_id))
+        items = RocketInventorylist().transform(obj)
+        print(items[0])
+        if items:
+            return self.insert_into_table(items, params=dict(vendor_id=vendor_id))

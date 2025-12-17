@@ -92,19 +92,27 @@ with DAG(
 
     RFM_INSERT_QUERY = """
     INSERT INTO vendor (
-        vendor_inventory_id,
-        vendor_inventory_item_id,
-        product_id,
-        option_id,
-        item_id,
-        barcode,
-        vendor_id,
-        product_name,
-        product_status,
-        price,
-        sales_price
+        vendor_inventory_id
+        , vendor_inventory_item_id
+        , product_id
+        , option_id
+        , item_id
+        , barcode
+        , vendor_id
+        , product_name
+        , option_name
+        , display_category_id
+        , category_id
+        , category_name
+        , product_status
+        , price
+        , sales_price
+        , order_quantity
+        , stock_quantity
+        , register_dt
     )
     SELECT * FROM rfm ON CONFLICT DO NOTHING;
     """
+
 
     etl_coupang_option.partial(variables=read_variables()).expand(credentials=read_credentials())

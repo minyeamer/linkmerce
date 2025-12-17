@@ -389,6 +389,7 @@ class PaginateAll(ForEach, Request):
     def run(self, page: _SKIPPED = None, page_size: _SKIPPED = None, **kwargs) -> list:
         kwargs["page_size"] = self.max_page_size
         results, total_count = self._run_with_count(page=self.page_start, **kwargs)
+        print("[TOTAL]", total_count)
         if isinstance(total_count, int) and (total_count > self.max_page_size):
             from linkmerce.utils.progress import gather
             func = self._run_without_count
@@ -418,7 +419,7 @@ class PaginateAll(ForEach, Request):
 
     def _generate_next_pages(self, total_count: int) -> Iterable[int]:
         from math import ceil
-        return range(self.page_start + 1, ceil(total_count / self.max_page_size) + 1)
+        return range(self.page_start + 1, ceil(total_count / self.max_page_size) + self.page_start)
 
     def _run_with_count(self, **kwargs) -> tuple[Any,int]:
         results = self.func(**kwargs)

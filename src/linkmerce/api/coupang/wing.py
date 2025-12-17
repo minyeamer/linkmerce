@@ -160,6 +160,40 @@ def product_download(
     )
 
 
+def rocket_inventory(
+        cookies: str,
+        hidden_status: Literal["VISIBLE","HIDDEN"] | None = None, 
+        vendor_id: str | None = None,
+        domain: Literal["wing","supplier"] = "wing",
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 1,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.coupang.wing.product.extract import RocketInventory
+    # from linkmerce.core.coupang.wing.product.transform import RocketInventory
+    return run_with_duckdb(
+        module = get_module(".product"),
+        extractor = "RocketInventory",
+        transformer = "RocketInventory",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (hidden_status, vendor_id),
+        extract_options = update_options(
+            extract_options,
+            headers = dict(cookies=cookies),
+            options = dict(CursorAll = dict(request_delay=request_delay)),
+            variables = dict(domain=domain),
+        ),
+        transform_options = transform_options,
+    )
+
+
 def rocket_option(
         cookies: str,
         hidden_status: Literal["VISIBLE","HIDDEN"] | None = None, 
@@ -175,7 +209,7 @@ def rocket_option(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.coupang.wing.product.extract import RocketOption, ProductDetail
+    # from linkmerce.core.coupang.wing.product.extract import RocketInventory, ProductDetail
     # from linkmerce.core.coupang.wing.product.transform import RocketOption, ProductDetail
     common = dict(
         module = get_module(".product"),
@@ -186,14 +220,14 @@ def rocket_option(
         extract_options = update_options(
             extract_options,
             headers = dict(cookies=cookies),
-            options = dict(PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
+            options = dict(CursorAll = dict(request_delay=request_delay)),
             variables = dict(domain=domain),
         ),
         transform_options = transform_options,
     )
 
     product = run_with_duckdb(
-        extractor = "RocketOption",
+        extractor = "RocketInventory",
         transformer = "RocketOption",
         args = (hidden_status, vendor_id),
         **common,

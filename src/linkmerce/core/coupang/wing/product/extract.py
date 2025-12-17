@@ -221,16 +221,14 @@ class ProductDownload(ProductOption):
         }
 
 
-class RocketOption(CoupangWing):
+class RocketInventory(CoupangWing):
     method = "POST"
     path = "/tenants/rfm-inventory/inventory-health-dashboard/search"
-    max_page_size = 100
-    page_start = 0
     token_required = True
 
     @property
     def default_options(self) -> dict:
-        return dict(PaginateAll = dict(request_delay=1))
+        return dict(CursorAll = dict(request_delay=1))
 
     @CoupangWing.with_session
     def extract(
@@ -239,25 +237,39 @@ class RocketOption(CoupangWing):
             vendor_id: str | None = None,
             **kwargs
         ) -> JsonObject:
-        return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
+        return (self.cursor_all(self.request_json_safe, self.get_next_cursor)
                 .run(hidden_status=hidden_status, vendor_id=vendor_id, referer=kwargs.get("referer")))
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def get_next_cursor(self, response: JsonObject, **context) -> dict:
         from linkmerce.utils.map import hier_get
-        return hier_get(response, ["paginationResponse","totalNumberOfElements"])
+        pagination = hier_get(response, ["paginationResponse"]) or dict()
+        if pagination.get("searchAfterSortValues"):
+            return {
+                "pageNumber": pagination["pageNumber"]+1,
+                "searchAfterSortValues": pagination["searchAfterSortValues"]
+            }
+        else:
+            return None
+
+    # def count_total(self, response: JsonObject, **kwargs) -> int:
+    #     from linkmerce.utils.map import hier_get
+    #     return hier_get(response, ["paginationResponse","totalNumberOfElements"])
 
     def build_request_json(
             self,
             hidden_status: Literal["VISIBLE","HIDDEN"] | None = None,
             page: int = 0,
             page_size: int = 100,
+            next_cursor: dict | None = None,
             **kwargs
         ) -> dict:
         return {
             "paginationRequest": {
                 "pageSize": page_size,
-                "pageNumber": page,
-                "searchAfterSortValues": None
+                **(next_cursor if isinstance(next_cursor, dict) else {
+                    "pageNumber": page,
+                    "searchAfterSortValues": None
+                })
             },
             **({"hiddenStatus": hidden_status} if hidden_status in ("VISIBLE","HIDDEN") else {}),
             "sort": [{

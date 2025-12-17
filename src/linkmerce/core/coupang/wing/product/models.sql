@@ -111,29 +111,23 @@ ON CONFLICT (option_id) DO UPDATE SET
 INSERT INTO {{ table }} (
     option_id
   , vendor_inventory_item_id
-  , product_id
   , item_id
   , barcode
   , price
-  , sales_price
 )
 SELECT
     option_id
   , vendor_inventory_item_id
-  , product_id
   , item_id
   , barcode
   , price
-  , sales_price
 FROM ({{ values }}) AS items
 WHERE EXISTS (SELECT 1 FROM {{ table }} AS T WHERE T.option_id = items.option_id)
 ON CONFLICT (option_id) DO UPDATE SET
     vendor_inventory_item_id = EXCLUDED.vendor_inventory_item_id
-  , product_id = EXCLUDED.product_id
   , item_id = EXCLUDED.item_id
   , barcode = EXCLUDED.barcode
-  , price = EXCLUDED.price
-  , sales_price = EXCLUDED.sales_price;
+  , price = EXCLUDED.price;
 
 
 -- ProductDownload: create
@@ -177,6 +171,45 @@ WHERE TRY_CAST("옵션 ID" AS BIGINT) IS NOT NULL;
 INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 
+-- RocketInventory: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    product_id BIGINT
+  , option_id BIGINT PRIMARY KEY
+  , sku_id BIGINT
+  , vendor_id VARCHAR
+  , stock_quantity INTEGER
+  , inprogress_quantity INTEGER
+  , sales_amount_7d INTEGER
+  , sales_amount_30d INTEGER
+  , unit_sold_7d INTEGER
+  , unit_sold_30d INTEGER
+  , days_of_cover INTEGER
+  , fee_amount INTEGER
+  , updated_at TIMESTAMP
+);
+
+-- RocketInventory: select
+SELECT
+    listingDetails.productId AS product_id
+  , vendorItemId AS option_id
+  , creturnConfigViewDto->'$.externalSkuId' AS sku_id
+  , COALESCE(creturnConfigViewDto->>'$.vendorId', $vendor_id) AS vendor_id
+  , inventoryDetails.orderableQuantity AS stock_quantity
+  , inventoryDetails.inProgressInboundStatistics->'$.inProgressInboundQuantity' AS inprogress_quantity
+  , gmvForLast7Days AS sales_amount_7d
+  , gmvForLast30Days AS sales_amount_30d
+  , unitsSoldForLast7Days AS unit_sold_7d
+  , unitsSoldForLast30Days AS unit_sold_30d
+  , inventoryDetails.daysOfCover AS days_of_cover
+  , TRY_CAST(inventoryDetails.storageFee->'$.monthlyStorageFeeAmount.amount' AS INTEGER) AS fee_amount
+  , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
+FROM {{ array }}
+WHERE vendorItemId IS NOT NULL;
+
+-- RocketInventory: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
 -- RocketOption: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     vendor_inventory_id BIGINT
@@ -187,28 +220,47 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , barcode VARCHAR
   , vendor_id VARCHAR
   , product_name VARCHAR
+  , option_name VARCHAR
+  , display_category_id INTEGER
+  , category_id INTEGER
+  , category_name VARCHAR
   , product_status TINYINT  -- {0: '판매중', 1: '품절', 2: '숨김상품'}
   , price INTEGER
   , sales_price INTEGER
+  , order_quantity INTEGER
+  , stock_quantity INTEGER
+  , register_dt TIMESTAMP
 );
 
 -- RocketOption: select
 SELECT
     listingDetails.vendorInventoryId AS vendor_inventory_id
-  , NULL AS vendor_inventory_item_id
-  , NULL AS product_id
+  , creturnConfigViewDto->'$.vendorInventoryItemId' AS vendor_inventory_item_id
+  , listingDetails.productId AS product_id
   , vendorItemId AS option_id
-  , NULL AS item_id
+  , creturnConfigViewDto->'$.itemId' AS item_id
   , NULL AS barcode
   , COALESCE(creturnConfigViewDto->>'$.vendorId', $vendor_id) AS vendor_id
-  , listingDetails.vendorInventoryName AS product_name
+  , COALESCE(creturnConfigViewDto->>'$.productName', listingDetails.vendorInventoryName) AS product_name
+  , creturnConfigViewDto->>'$.itemName' AS option_name
+  , COALESCE(
+      creturnConfigViewDto->'$.displayCategoryCodeLevel5'
+    , creturnConfigViewDto->'$.displayCategoryCodeLevel4'
+    , creturnConfigViewDto->'$.displayCategoryCodeLevel3'
+    , creturnConfigViewDto->'$.displayCategoryCodeLevel2'
+    , creturnConfigViewDto->'$.displayCategoryCodeLevel1') AS display_category_id
+  , creturnConfigViewDto->'$.creturnCategoryLevelThresholdDto.categoryId' AS category_id
+  , creturnConfigViewDto->>'$.creturnCategoryLevelThresholdDto.kanNameEn' AS category_name
   , (CASE
       WHEN inventoryDetails.isHiddenByVendor THEN 2
       WHEN creturnConfigViewDto IS NOT NULL
         THEN IF(creturnConfigViewDto->'$.onSale', 0, 1)
       ELSE NULL END) AS product_status
   , NULL AS price
-  , NULL AS sales_price
+  , TRY_CAST(pricing.salesPrice.amount AS INTEGER) AS sales_price
+  , unitsSoldForLast30Days AS order_quantity
+  , inventoryDetails.orderableQuantity AS stock_quantity
+  , TRY_CAST(listingDetails.productRegistrationDate AS TIMESTAMP) AS register_dt
 FROM {{ array }}
 WHERE vendorItemId IS NOT NULL;
 
