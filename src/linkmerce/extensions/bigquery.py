@@ -471,6 +471,7 @@ class BigQueryClient(Connection):
             backup_table: DuckDBTable | None = TEMP_TABLE,
             if_source_table_empty: Literal["break","continue"] = "break",
             if_backup_table_exists: Literal["errors","ignore","replace"] = "replace",
+            truncate_target_table: bool = True,
         ) -> bool:
         if not (connection.table_has_rows(source_table) if if_source_table_empty == "break" else connection.table_exists(source_table)):
             return True
@@ -478,10 +479,11 @@ class BigQueryClient(Connection):
             return self.load_table_from_duckdb(connection, source_table, target_table, partition_by, schema, "append", if_not_found, progress)
 
         success = False
-        from_clause = concat_sql(f"FROM `{self.project_id}.{target_table}`", where(where_clause))
+        project_table = f"`{self.project_id}.{target_table}`"
+        from_clause = concat_sql(f"FROM {project_table}", where(where_clause))
 
         existing_values = self.fetch_all_to_json(concat_sql("SELECT *", from_clause))
-        self.conn.query(concat_sql("DELETE", from_clause))
+        self.conn.query(concat_sql("TRUNCATE TABLE", project_table) if truncate_target_table else concat_sql("DELETE", from_clause))
 
         try:
             success = self.load_table_from_duckdb(connection, source_table, target_table, partition_by, schema, "append", if_not_found, progress)
