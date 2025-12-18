@@ -41,6 +41,20 @@ class DagExecutor:
             if response.ok:
                 self.access_token = response.json()["access_token"]
 
+    def get_dag_run(self, dag_id: str, logical_date: dt.datetime, **kwargs) -> dict:
+        url = "{}/api/v2/dags/{}/dagRuns".format(AIRFLOW_SERVER_URL, dag_id)
+        params = dict(logical_date_gte = kst_to_utc(logical_date), logical_date_lte = kst_to_utc(logical_date))
+        headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
+        with self.session.get(url, params=params, headers=headers) as response:
+            dag_runs = response.json()["dag_runs"]
+            return dag_runs[0]["dag_run_id"] if dag_runs else None
+
+    def delete_dag_run(self, dag_id: str, dag_run_id: str, **kwargs) -> int:
+        url = "{}/api/v2/dags/{}/dagRuns/{}".format(AIRFLOW_SERVER_URL, dag_id, dag_run_id)
+        headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
+        with self.session.delete(url, headers=headers) as response:
+            return response.status_code
+
     def dag_run(
             self,
             dag_id: str,
@@ -48,8 +62,12 @@ class DagExecutor:
             logical_date: dt.datetime,
             data_interval_start: dt.datetime,
             data_interval_end: dt.datetime,
+            reset_dag_run: bool = True,
             **kwargs
         ) -> dict:
+        if reset_dag_run and (existing_dag_run := self.get_dag_run(dag_id, logical_date)):
+            self.delete_dag_run(dag_id, existing_dag_run)
+
         url = "{}/api/v2/dags/{}/dagRuns".format(AIRFLOW_SERVER_URL, dag_id)
         headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
         body = dict(
@@ -101,15 +119,14 @@ def build():
     with col13:
         order = st.selectbox("차수", options=list(range(1, 10)), index=0)
         order_name = {1: "1st", 2: "2nd", 3: "3rd"}.get(order, f"{order}th")
-        start_delta = dt.timedelta(days=(1 if order == 1 else 0))
-        start_index = (10 if order == 2 else 14)
-        end_index = {1: 9, 2: 13}.get(order, 23)
+        start_index = (9 if order == 1 else 13)
+        end_index = (9 if order == 1 else 13)
 
 
     # [Div2] Date Selection Controls (Start Date)
     col20, col21, col22, col23 = st.columns([4,2,2,2])
     with col20:
-        start_ymd = st.date_input("시작일", value=(dt.date.today() - start_delta))
+        start_ymd = st.date_input("시작일", value=dt.date.today())
     with col21:
         start_hour = st.selectbox("시작시간(시)", options=list(range(24)), index=start_index)
     with col22:
@@ -148,6 +165,7 @@ def build():
                         logical_date = start_date,
                         data_interval_start = start_date,
                         data_interval_end = end_date,
+                        reset_dag_run = True,
                     )
                     if response.get("state") != "failed":
                         st.success("실행 요청 성공!")
