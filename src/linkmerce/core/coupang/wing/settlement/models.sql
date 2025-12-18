@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , commission_amount INTEGER
   , sales_date DATE
   , settlement_date DATE
-  , PRIMARY KEY (settlement_type, order_id, option_id)
+  , PRIMARY KEY (vendor_id, order_id, option_id, settlement_type)
 );
 
 -- RocketSettlementDownload: select_sales
@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , order_date DATE
   , sales_date DATE
   , settlement_date DATE
-  , PRIMARY KEY (settlement_type, order_id, option_id)
+  , PRIMARY KEY (vendor_id, order_id, option_id, settlement_type)
 );
 
 -- RocketSettlementDownload: select_shipping

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , brand_name VARCHAR
   , unit_quantity INTEGER
   , unit_name VARCHAR
-  , org_price VARCHAR
+  , org_price INTEGER
   , expiration_date VARCHAR
   , updated_at TIMESTAMP
 );

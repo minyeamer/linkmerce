@@ -173,7 +173,9 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
 -- RocketInventory: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_id BIGINT
+    vendor_inventory_id BIGINT
+  , vendor_inventory_item_id BIGINT
+  , product_id BIGINT
   , option_id BIGINT PRIMARY KEY
   , sku_id BIGINT
   , vendor_id VARCHAR
@@ -190,7 +192,9 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 
 -- RocketInventory: select
 SELECT
-    listingDetails.productId AS product_id
+    listingDetails.vendorInventoryId AS vendor_inventory_id
+  , creturnConfigViewDto->'$.vendorInventoryItemId' AS vendor_inventory_item_id
+  , listingDetails.productId AS product_id
   , vendorItemId AS option_id
   , creturnConfigViewDto->'$.externalSkuId' AS sku_id
   , COALESCE(creturnConfigViewDto->>'$.vendorId', $vendor_id) AS vendor_id
