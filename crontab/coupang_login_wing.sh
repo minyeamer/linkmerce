@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # crontab -e
-# 20 9 * * * /bin/bash ${CRONTAB_DIR}/coupang_login_wing.sh $1 >> ${CRONTAB_DIR}/output.log 2>&1
+# 1 9 * * * /bin/bash ${CRONTAB_DIR}/coupang_login_wing.sh $1 >> ${CRONTAB_DIR}/output.log 2>&1
 
 CRONTAB_DIR="$(dirname "$0")"
 ROOT_DIR="$(dirname "$CRONTAB_DIR")"

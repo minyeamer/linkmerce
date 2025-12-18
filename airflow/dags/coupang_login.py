@@ -9,7 +9,7 @@ with DAG(
     dag_id = "coupang_login",
     schedule = MultipleCronTriggerTimetable(
         "41 5 * * *",
-        "20 9 * * *",
+        "1 9 * * *",
         timezone = "Asia/Seoul",
     ),
     start_date = pendulum.datetime(2025, 10, 22, tz="Asia/Seoul"),
