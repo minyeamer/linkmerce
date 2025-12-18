@@ -88,6 +88,7 @@ with DAG(
             cookies: str,
             records: list[dict],
             max_rank: int,
+            slack_conn_id: str,
             channel_id: str,
             date_ymd_h: str,
             date_ko: str,
@@ -136,6 +137,7 @@ with DAG(
                 f"SELECT product, COUNT(DISTINCT query) FROM {query} GROUP BY product ORDER BY product;", header=False))
 
             return send_excel_to_slack(
+                slack_conn_id = slack_conn_id,
                 channel_id = channel_id,
                 summary_file = save_excel_to_tempfile(wb_summary),
                 details_file = save_excel_to_tempfile(wb_details),
@@ -257,6 +259,7 @@ with DAG(
             return tmp_path
 
     def send_excel_to_slack(
+            slack_conn_id: str,
             channel_id: str,
             summary_file: str,
             details_file: str,
@@ -268,7 +271,7 @@ with DAG(
             counts: dict[str,int],
         ) -> dict:
         import os
-        slack_hook = SlackHook(slack_conn_id="naver_cafe_search")
+        slack_hook = SlackHook(slack_conn_id=slack_conn_id)
 
         message = (
             f">{date_ko}\n"

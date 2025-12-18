@@ -70,8 +70,7 @@ with DAG(
                 return_type = "none",
             )
 
-            query = "SELECT DISTINCT DATE(order_dt) FROM data"
-            order_dates = sorted([f"'{date[0]}'" for date in conn.execute(query).fetchall()])
+            date_array = conn.unique("data", "DATE(order_dt)")
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -85,6 +84,9 @@ with DAG(
                     counts = dict(
                         invoice = conn.count_table("data"),
                     ),
+                    dates = dict(
+                        invoice = list(map(str, date_array)),
+                    ),
                     status = dict(
                         invoice = (client.merge_into_table_from_duckdb(
                             connection = conn,
@@ -92,10 +94,9 @@ with DAG(
                             staging_table = tables["temp_invoice"],
                             target_table = tables["invoice"],
                             **merge["invoice"],
-                            where_clause = f"DATE(T.order_dt) IN ({', '.join(order_dates)})",
+                            where_clause = conn.expr_date_range("DATE(T.order_dt)", date_array),
                             progress = False,
-                        ) if order_dates else True),
-                        order_dates = [date[1:-1] for date in order_dates],
+                        ) if date_array else True),
                     ),
                 )
 

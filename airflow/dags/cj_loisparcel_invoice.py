@@ -10,7 +10,7 @@ with DAG(
     start_date = pendulum.datetime(2025, 12, 3, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:high", "cj:loisparcel", "login:cj-loisparcel", "schedule:daily", "time:night", "playwright:true"],
+    tags = ["priority:high", "loisparcel:invoice", "login:cj-loisparcel", "schedule:daily", "time:night", "playwright:true"],
 ) as dag:
 
     PATH = ["cjlogistics", "loisparcel", "cj_loisparcel_invoice"]
@@ -63,9 +63,7 @@ with DAG(
             for date_type in list(query_dates.keys())[::-1]:
                 if results[date_type]:
                     conn.execute(insert_query, obj=results[date_type])
-
-            date_query = f"SELECT DISTINCT register_date FROM {source_table}"
-            register_dates = sorted([f"'{date[0]}'" for date in conn.execute(date_query).fetchall()])
+            date_array = conn.unique(source_table, "register_date")
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -78,6 +76,9 @@ with DAG(
                         total = conn.count_table(source_table),
                         **{date_by[date_type]: len(values) for date_type, values in results.items()},
                     ),
+                    dates = dict(
+                        invoice = list(map(str, date_array)),
+                    ),
                     status = dict(
                         invoice = (client.merge_into_table_from_duckdb(
                             connection = conn,
@@ -85,10 +86,9 @@ with DAG(
                             staging_table = tables["temp_invoice"],
                             target_table = tables["invoice"],
                             **merge["invoice"],
-                            where_clause = f"T.register_date IN ({', '.join(register_dates)})",
+                            where_clause = conn.expr_date_range("T.register_date", date_array),
                             progress = False,
-                        ) if register_dates else True),
-                        register_dates = [date[1:-1] for date in register_dates],
+                        ) if date_array else True),
                     ),
                 )
 

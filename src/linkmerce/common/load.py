@@ -9,6 +9,7 @@ from typing import overload, TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any, Callable, Literal, Sequence, Type
     from types import TracebackType
+    import datetime as dt
 
     from duckdb import DuckDBPyConnection, DuckDBPyRelation
 
@@ -168,13 +169,40 @@ class Connection(metaclass=ABCMeta):
             return f"STRFTIME({expr}, '{format}')"
         return expr if type.upper() == "DATE" else "NULL"
 
-    def expr_interval(days: str | int | None = None) -> str:
+    def expr_interval(self, days: str | int | None = None) -> str:
         if isinstance(days, str):
             return days
         elif isinstance(days, int):
             return "{} INTERVAL {} DAY".format('-' if days < 0 else '+', abs(days))
         else:
             return str()
+
+    def expr_date_range(self, date_column: str, date_array: list[str | dt.date], format: str = "%Y-%m-%d") -> str:
+        if len(date_array) < 2:
+            return f"{date_column} = '{date_array[0]}'" if date_array else str()
+
+        import datetime as dt
+        def strptime(obj: str | dt.date) -> dt.date:
+            return obj if isinstance(obj, dt.date) else dt.datetime.strptime(str(obj), format).date()
+        array = sorted(map(strptime, date_array))
+
+        between, isin = list(), list()
+        start, prev = array[0], array[0]
+        for date in array[1:] + [array[-1] + dt.timedelta(days=2)]:
+            if (date - prev).days != 1: # if sequence breaks
+                if (start != prev) and (date - start).days != 1: # has 2+ days between dates
+                    between.append((str(start), str(prev)))
+                else:
+                    isin.append(str(prev))
+                start = date
+            prev = date
+
+        expr = list()
+        for start, end in between:
+            expr.append(f"{date_column} BETWEEN '{start}' AND '{end}'")
+        if isin:
+            expr.append(f"{date_column} IN ('"+"', '".join(isin)+"')")
+        return ('(('+") OR (".join(expr)+'))') if len(expr) > 1 else expr[0]
 
 
 ###################################################################

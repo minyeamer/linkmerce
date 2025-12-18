@@ -5,7 +5,7 @@ import pendulum
 
 with DAG(
     dag_id = "coupang_rocket_sales",
-    schedule = "30 9 * * *",
+    schedule = "10 9 * * *",
     start_date = pendulum.datetime(2025, 10, 22, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
@@ -36,7 +36,7 @@ with DAG(
             weekday = datetime.day_of_week # Monday: 0 - Sunday: 6
             return datetime if weekday == 0 else datetime.subtract(days=weekday)
         start_date = get_last_monday(in_timezone(data_interval_end, subdays=1))
-        end_date = start_date.add(days=7)
+        end_date = start_date.add(days=6)
         return start_date.format("YYYY-MM-DD"), end_date.format("YYYY-MM-DD")
 
     def main(
@@ -52,6 +52,7 @@ with DAG(
         from linkmerce.api.coupang.wing import rocket_settlement_download
         from linkmerce.extensions.bigquery import BigQueryClient
         sources = dict(sales="coupang_rocket_sales", shipping="coupang_rocket_shipping")
+        date_range = dict(sales=list(), shipping=list())
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             rocket_settlement_download(
@@ -66,11 +67,9 @@ with DAG(
                 return_type = "none",
             )
 
-            query_for_sales = "SELECT MIN(sales_date), MAX(sales_date) FROM {}".format(sources["sales"])
-            sales_date_from, sales_date_to = conn.execute(query_for_sales).fetchall()[0]
-
-            query_for_shipping = "SELECT MIN(sales_date), MAX(sales_date) FROM {}".format(sources["shipping"])
-            shipping_date_from, shipping_date_to = conn.execute(query_for_shipping).fetchall()[0]
+            for table in ["sales", "shipping"]:
+                date_range[table] = conn.unique(sources[table], "sales_date")
+                conn.execute(f"DELETE FROM {sources[table]} WHERE NOT BETWEEN '{start_date}' AND '{end_date}';")
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -84,21 +83,22 @@ with DAG(
                         sales = conn.count_table(sources["sales"]),
                         shipping = conn.count_table(sources["shipping"]),
                     ),
+                    dates = date_range,
                     status = dict(
-                        sales = (client.overwrite_table_from_duckdb(
+                        sales = client.overwrite_table_from_duckdb(
                             connection = conn,
                             source_table = sources["sales"],
                             target_table = tables["sales"],
-                            where_clause = f"(sales_date BETWEEN '{sales_date_from}' AND '{sales_date_to}') AND (vendor_id = '{vendor_id}')",
+                            where_clause = f"(sales_date BETWEEN '{start_date}' AND '{end_date}') AND (vendor_id = '{vendor_id}')",
                             progress = False,
-                        ) if sales_date_from is not None else True),
-                        shipping = (client.overwrite_table_from_duckdb(
+                        ),
+                        shipping = client.overwrite_table_from_duckdb(
                             connection = conn,
                             source_table = sources["shipping"],
                             target_table = tables["shipping"],
-                            where_clause = f"(sales_date BETWEEN '{shipping_date_from}' AND '{shipping_date_to}') AND (vendor_id = '{vendor_id}')",
+                            where_clause = f"(sales_date BETWEEN '{start_date}' AND '{end_date}') AND (vendor_id = '{vendor_id}')",
                             progress = False,
-                        ) if shipping_date_from is not None else True),
+                        ),
                     ),
                 )
 

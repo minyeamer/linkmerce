@@ -1,4 +1,5 @@
 from airflow.sdk import DAG, task
+from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
 import pendulum
 
@@ -20,10 +21,17 @@ with DAG(
         return read(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
 
 
-    @task(task_id="etl_naver_brand_pageview", map_index_template="{{ aggregate_by }}")
-    def etl_naver_brand_pageview(aggregate_by: str, variables: dict, **kwargs) -> dict:
+    @task(task_id="etl_naver_device_pageview")
+    def etl_naver_device_pageview(ti: TaskInstance, **kwargs) -> dict:
         from variables import get_execution_date
-        return main(aggregate_by=aggregate_by, date=get_execution_date(kwargs, subdays=1), **variables)
+        date = get_execution_date(kwargs, subdays=1)
+        return main(aggregate_by="device", date=date, **ti.xcom_pull(task_ids="read_variables"))
+
+    @task(task_id="etl_naver_product_pageview")
+    def etl_naver_product_pageview(ti: TaskInstance, **kwargs) -> dict:
+        from variables import get_execution_date
+        date = get_execution_date(kwargs, subdays=1)
+        return main(aggregate_by="product", date=date, **ti.xcom_pull(task_ids="read_variables"))
 
     def main(
             cookies: str,
@@ -37,7 +45,6 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.brand import page_view
         from linkmerce.extensions.bigquery import BigQueryClient
-        source_table = f"pageview_by_{aggregate_by}"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             page_view(
@@ -47,14 +54,13 @@ with DAG(
                 start_date = date,
                 end_date = date,
                 connection = conn,
-                tables = {"default": source_table},
                 how = "async",
                 progress = False,
                 return_type = "none",
             )
 
             id_column = dict(device="device_type", product="product_id")[aggregate_by]
-            conn.execute(f"ALTER TABLE {source_table} RENAME COLUMN {id_column} TO page_id;")
+            conn.execute(f"ALTER TABLE data RENAME COLUMN {id_column} TO page_id;")
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -64,12 +70,12 @@ with DAG(
                         date = date,
                     ),
                     counts = {
-                        aggregate_by: conn.count_table(source_table),
+                        aggregate_by: conn.count_table("data"),
                     },
                     status = {
                         aggregate_by: client.load_table_from_duckdb(
                             connection = conn,
-                            source_table = source_table,
+                            source_table = "data",
                             target_table = tables[aggregate_by],
                             progress = False,
                         ),
@@ -77,4 +83,4 @@ with DAG(
                 )
 
 
-    etl_naver_brand_pageview.partial(variables=read_variables()).expand(aggregate_by=["device","product"])
+    read_variables() >> etl_naver_device_pageview() >> etl_naver_product_pageview()

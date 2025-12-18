@@ -5,7 +5,7 @@ import pendulum
 
 with DAG(
     dag_id = "coupang_option",
-    schedule = "40 9 * * *",
+    schedule = "20 9 * * *",
     start_date = pendulum.datetime(2025, 11, 4, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,

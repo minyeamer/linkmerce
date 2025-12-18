@@ -68,8 +68,7 @@ with DAG(
                 return_type = "none",
             )
 
-            query = "SELECT MIN(DATE(payment_dt)), MAX(DATE(payment_dt)) FROM {}".format(sources["delivery"])
-            payment_date_from, payment_date_to = conn.execute(query).fetchall()[0]
+            date_array = conn.unique(sources["delivery"], "DATE(payment_dt)")
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -77,22 +76,23 @@ with DAG(
                         channel_seq = channel_seq,
                         date = date,
                         range_type = range_type,
-                        payment_date_from = payment_date_from,
-                        payment_date_to = payment_date_to,
                     ),
                     counts = dict(
-                        data = conn.count_table(sources["delivery"]),
+                        delivery = conn.count_table(sources["delivery"]),
+                    ),
+                    dates = dict(
+                        delivery = list(map(str, date_array)),
                     ),
                     status = dict(
-                        data = (client.merge_into_table_from_duckdb(
+                        delivery = (client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["delivery"],
                             staging_table = f'{tables["temp_delivery"]}_{channel_seq}',
                             target_table = tables["delivery"],
                             **merge["delivery"],
-                            where_clause = f"DATE(T.payment_dt) BETWEEN '{payment_date_from}' AND '{payment_date_to}'",
+                            where_clause = conn.expr_date_range("DATE(T.payment_dt)", date_array),
                             progress = False,
-                        ) if payment_date_from is not None else True),
+                        ) if date_array else True),
                     ),
                 )
 
