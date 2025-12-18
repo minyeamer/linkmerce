@@ -107,12 +107,9 @@ with DAG(
         trigger_dag_id = "naver_product_catalog",
         trigger_run_id = None,
         trigger_rule = TriggerRule.ONE_SUCCESS,
-        logical_date = "{{data_interval_start}}",
+        logical_date = "{{ logical_date }}",
         reset_dag_run = True,
         wait_for_completion = False,
-        poke_interval = 60,
-        allowed_states = ["success"],
-        failed_states = None,
     )
 
 

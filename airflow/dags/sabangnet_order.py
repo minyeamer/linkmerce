@@ -1,4 +1,6 @@
 from airflow.sdk import DAG, task
+from airflow.providers.standard.operators.python import BranchPythonOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
 import pendulum
@@ -6,8 +8,8 @@ import pendulum
 
 with DAG(
     dag_id = "sabangnet_order",
-    schedule = None, # triggered by API request (managed by human)
-    start_date = None,
+    schedule = "30 23 * * *", # triggered by API request (managed by human)
+    start_date = pendulum.datetime(2025, 9, 11, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
     tags = ["priority:high", "sabangnet:order", "login:sabangnet", "schedule:weekdays", "time:daytime", "manual:api"],
@@ -23,25 +25,29 @@ with DAG(
     def get_order_date_pair(
             data_interval_start: pendulum.DateTime,
             data_interval_end: pendulum.DateTime,
+            fmt: str = "YYYYMMDDHHmmss",
             **kwargs
         ) -> dict[str,str]:
         from variables import strftime
         return dict(
-            start_date = strftime(data_interval_start, fmt="YYYYMMDDHHmmss"),
-            end_date = strftime(data_interval_end, fmt="YYYYMMDDHHmmss"),
+            start_date = strftime(data_interval_start, fmt=fmt),
+            end_date = strftime(data_interval_end, fmt=fmt),
         )
 
 
     @task(task_id="etl_sabangnet_order", pool="sabangnet_pool")
     def etl_sabangnet_order(ti: TaskInstance, **kwargs) -> dict:
+        kwargs["fmt"] = "YYYYMMDDHHmmss" if ti.run_id.startswith("api__") else "YYYYMMDD"
         return main(download_type="order", **get_order_date_pair(**kwargs), **ti.xcom_pull(task_ids="read_variables"))
 
     @task(task_id="etl_sabangnet_dispatch", pool="sabangnet_pool")
     def etl_sabangnet_dispatch(ti: TaskInstance, **kwargs) -> dict:
+        kwargs["fmt"] = "YYYYMMDDHHmmss" if ti.run_id.startswith("api__") else "YYYYMMDD"
         return main(download_type="dispatch", **get_order_date_pair(**kwargs), **ti.xcom_pull(task_ids="read_variables"))
 
     @task(task_id="etl_sabangnet_option", pool="sabangnet_pool")
     def etl_sabangnet_option(ti: TaskInstance, **kwargs) -> dict:
+        kwargs["fmt"] = "YYYYMMDDHHmmss" if ti.run_id.startswith("api__") else "YYYYMMDD"
         return main(download_type="option", **get_order_date_pair(**kwargs), **ti.xcom_pull(task_ids="read_variables"))
 
     def main(
@@ -77,18 +83,11 @@ with DAG(
             )
 
             if download_type == "order":
-                query = "SELECT DISTINCT DATE(order_dt) FROM data"
-                order_dates = sorted([f"'{date[0]}'" for date in conn.execute(query).fetchall()])
-                where_clause = f"DATE(T.order_dt) IN ({', '.join(order_dates)})"
+                date_column, date_array = "DATE(T.order_dt)", conn.unique("data", "DATE(order_dt)")
             elif download_type == "dispatch":
-                query = "SELECT MIN(DATE(register_dt)), MAX(DATE(register_dt)) FROM data"
-                start_date, end_date = map(str, conn.execute(query).fetchall()[0])
-                if start_date == end_date:
-                    where_clause = f"DATE(T.register_dt) = '{start_date}'"
-                else:
-                    where_clause = f"DATE(T.register_dt) BETWEEN '{start_date}' AND '{end_date}'"
+                date_column, date_array = "DATE(T.register_dt)", conn.unique("data", "DATE(register_dt)")
             else:
-                where_clause = None
+                date_column, date_array = None, None
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -102,18 +101,45 @@ with DAG(
                     counts = {
                         download_type: conn.count_table("data"),
                     },
+                    dates = {
+                        download_type: date_array,
+                    },
                     status = {
-                        download_type: client.merge_into_table_from_duckdb(
+                        download_type: (client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = "data",
                             staging_table = tables[f"temp_{download_type}"],
                             target_table = tables[download_type],
                             **merge[download_type],
-                            where_clause = where_clause,
+                            where_clause = (conn.expr_date_range(date_column, date_array) if date_column else None),
                             progress = False,
-                        ),
+                        ) if (not date_column) or date_array else True),
                     },
                 )
 
 
-    read_variables() >> etl_sabangnet_order() >> etl_sabangnet_dispatch() >> etl_sabangnet_option()
+    def branch_condition(ti: TaskInstance, **kwargs) -> str | None:
+        if ti.run_id.startswith("api__1st__"):
+            return "cj_eflexs_stock"
+        else:
+            return None
+
+    branch_dagrun_trigger = BranchPythonOperator(
+        task_id = "branch_dagrun_trigger",
+        python_callable = branch_condition,
+    )
+
+
+    cj_eflexs_stock = TriggerDagRunOperator(
+        task_id = "cj_eflexs_stock",
+        trigger_dag_id = "cj_eflexs_stock",
+        trigger_run_id = "{{ run_id }}",
+        logical_date = "{{ logical_date }}",
+        reset_dag_run = True,
+        wait_for_completion = False,
+    )
+
+
+    (read_variables()
+    >> etl_sabangnet_order() >> etl_sabangnet_dispatch() >> etl_sabangnet_option()
+    >> branch_dagrun_trigger >> [cj_eflexs_stock])

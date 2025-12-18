@@ -8,12 +8,12 @@ import pendulum
 
 with DAG(
     dag_id = "cj_eflexs_stock",
-    schedule = "25 9 * * *",
+    schedule = None, # triggered after sabangnet_order DAG run (managed by human)
     start_date = pendulum.datetime(2025, 12, 18, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:high", "cj:eflexs", "coupang:inventory", "ecount:inventory", "ecount:product",
-            "login:cj-eflexs", "login:coupang", "api:ecount", "schedule:daily", "time:morning"],
+    tags = ["priority:high", "eflexs:stock", "coupang:inventory", "ecount:inventory", "ecount:product",
+            "login:cj-eflexs", "login:coupang", "api:ecount", "schedule:weekdays", "time:morning", "manual:api", "manual:dagrun"],
 ) as dag:
 
     with TaskGroup(group_id="cj_group") as cj_group:
@@ -30,7 +30,8 @@ with DAG(
         def etl_eflexs_stock(ti: TaskInstance, **kwargs) -> dict:
             from variables import get_execution_date
             start_date, end_date = get_execution_date(kwargs, subdays=7), get_execution_date(kwargs)
-            return main_eflexs(start_date=start_date, end_date=end_date, **ti.xcom_pull(task_ids="read_cj_variables"))
+            variables = ti.xcom_pull(task_ids="cj_group.read_cj_variables")
+            return main_eflexs(start_date=start_date, end_date=end_date, **variables)
 
         def main_eflexs(
                 userid: str,
@@ -44,11 +45,11 @@ with DAG(
                 **kwargs
             ) -> dict:
             from linkmerce.common.load import DuckDBConnection
-            from linkmerce.api.cj.eflexs import stock
+            from linkmerce.api.cj.eflexs import stock as extract
             from linkmerce.extensions.bigquery import BigQueryClient
 
             with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-                stock(
+                extract(
                     userid = userid,
                     passwd = passwd,
                     mail_info = mail_info,
@@ -163,12 +164,14 @@ with DAG(
         @task(task_id="etl_ecount_inventory")
         def etl_ecount_inventory(ti: TaskInstance, **kwargs) -> dict:
             from variables import get_execution_date
-            return main_ecount(api_type="inventory", base_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_ecount_variables"))
+            variables = ti.xcom_pull(task_ids="ecount_group.read_ecount_variables")
+            return main_ecount(api_type="inventory", base_date=get_execution_date(kwargs), **variables)
 
         @task(task_id="etl_ecount_product")
         def etl_ecount_product(ti: TaskInstance, **kwargs) -> dict:
             from variables import get_execution_date
-            return main_ecount(api_type="product", base_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_ecount_variables"))
+            variables = ti.xcom_pull(task_ids="ecount_group.read_ecount_variables")
+            return main_ecount(api_type="product", base_date=get_execution_date(kwargs), **variables)
 
         def main_ecount(
                 com_code: int | str,
