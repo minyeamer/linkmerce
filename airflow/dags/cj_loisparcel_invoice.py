@@ -77,7 +77,7 @@ with DAG(
                         **{date_by[date_type]: len(values) for date_type, values in results.items()},
                     ),
                     dates = dict(
-                        invoice = list(map(str, date_array)),
+                        invoice = sorted(map(str, date_array)),
                     ),
                     status = dict(
                         invoice = (client.merge_into_table_from_duckdb(

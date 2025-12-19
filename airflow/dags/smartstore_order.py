@@ -92,7 +92,7 @@ with DAG(
                         status = conn.count_table("data"),
                     ),
                     dates = dict(
-                        delivery = list(map(str, date_array)),
+                        delivery = sorted(map(str, date_array)),
                     ),
                     status = dict(
                         order = client.load_table_from_duckdb(

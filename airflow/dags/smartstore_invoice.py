@@ -81,7 +81,7 @@ with DAG(
                         delivery = conn.count_table(sources["delivery"]),
                     ),
                     dates = dict(
-                        delivery = list(map(str, date_array)),
+                        delivery = sorted(map(str, date_array)),
                     ),
                     status = dict(
                         delivery = (client.merge_into_table_from_duckdb(

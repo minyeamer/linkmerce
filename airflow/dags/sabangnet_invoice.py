@@ -85,7 +85,7 @@ with DAG(
                         invoice = conn.count_table("data"),
                     ),
                     dates = dict(
-                        invoice = list(map(str, date_array)),
+                        invoice = sorted(map(str, date_array)),
                     ),
                     status = dict(
                         invoice = (client.merge_into_table_from_duckdb(

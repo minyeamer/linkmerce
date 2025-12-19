@@ -101,9 +101,9 @@ with DAG(
                     counts = {
                         download_type: conn.count_table("data"),
                     },
-                    dates = {
-                        download_type: date_array,
-                    },
+                    **(dict(dates = {
+                        download_type: sorted(map(str, date_array))
+                    }) if date_column else dict()),
                     status = {
                         download_type: (client.merge_into_table_from_duckdb(
                             connection = conn,

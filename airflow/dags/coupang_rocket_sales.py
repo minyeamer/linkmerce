@@ -52,7 +52,7 @@ with DAG(
         from linkmerce.api.coupang.wing import rocket_settlement_download
         from linkmerce.extensions.bigquery import BigQueryClient
         sources = dict(sales="coupang_rocket_sales", shipping="coupang_rocket_shipping")
-        date_range = dict(sales=list(), shipping=list())
+        date_array = dict(sales=list(), shipping=list())
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             rocket_settlement_download(
@@ -68,8 +68,8 @@ with DAG(
             )
 
             for table in ["sales", "shipping"]:
-                date_range[table] = conn.unique(sources[table], "sales_date")
-                conn.execute(f"DELETE FROM {sources[table]} WHERE NOT BETWEEN '{start_date}' AND '{end_date}';")
+                date_array[table] = sorted(map(str, conn.unique(sources[table], "sales_date")))
+                conn.execute(f"DELETE FROM {sources[table]} WHERE sales_date NOT BETWEEN '{start_date}' AND '{end_date}';")
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -83,7 +83,7 @@ with DAG(
                         sales = conn.count_table(sources["sales"]),
                         shipping = conn.count_table(sources["shipping"]),
                     ),
-                    dates = date_range,
+                    dates = date_array,
                     status = dict(
                         sales = client.overwrite_table_from_duckdb(
                             connection = conn,
