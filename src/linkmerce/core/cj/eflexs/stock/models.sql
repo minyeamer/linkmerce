@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , usable_quantity INTEGER
   , hold_quantity INTEGER
   , process_quantity INTEGER
-  , ramain_days INTEGER
+  , remain_days INTEGER
   , validate_date DATE
   , inbound_date DATE
   , updated_at TIMESTAMP
@@ -36,7 +36,7 @@ SELECT
   , avlbQty AS usable_quantity
   , hldQty AS hold_quantity
   , prcsQty AS process_quantity
-  , TRY_CAST(remainInvnDays AS INTEGER) AS ramain_days
+  , TRY_CAST(remainInvnDays AS INTEGER) AS remain_days
   , TRY_CAST(validDatetime AS DATE) AS validate_date
   , TRY_CAST(STRPTIME(CAST(inbDate AS VARCHAR), '%Y%m%d') AS DATE) AS inbound_date
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
