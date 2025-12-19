@@ -471,7 +471,7 @@ class BigQueryClient(Connection):
             backup_table: DuckDBTable | None = TEMP_TABLE,
             if_source_table_empty: Literal["break","continue"] = "break",
             if_backup_table_exists: Literal["errors","ignore","replace"] = "replace",
-            truncate_target_table: bool = True,
+            truncate_target_table: bool = False,
         ) -> bool:
         if not (connection.table_has_rows(source_table) if if_source_table_empty == "break" else connection.table_exists(source_table)):
             return True
