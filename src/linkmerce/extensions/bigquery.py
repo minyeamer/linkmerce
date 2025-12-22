@@ -132,13 +132,17 @@ class BigQueryClient(Connection):
         except AttributeError:
             raise ValueError("Invalid value for data format. Supported formats are: csv, json.")
 
-    def fetch_all_to_csv(self, query: str) -> list[tuple]:
+    def fetch_all_to_csv(self, query: str, header: bool = True) -> list[tuple]:
         def row_keys(row: Row) -> tuple:
-            return tuple(row.values())
+            return tuple(row.keys())
         def row_values(row: Row) -> tuple:
             return tuple(row.values())
-        rows = self.execute_job(query)
-        return ([row_keys(rows[0])] if rows else list()) + [row_values(row) for row in rows]
+        rows = list()
+        for row in self.execute_job(query):
+            if header and (not rows):
+                rows.append(row_keys(row))
+            rows.append(row_values(row))
+        return rows
 
     def fetch_all_to_json(self, query: str) -> list[dict]:
         def row_to_dict(row: Row) -> dict[str,Any]:

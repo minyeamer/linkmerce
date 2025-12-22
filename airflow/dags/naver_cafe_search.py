@@ -188,24 +188,24 @@ with DAG(
         return headers
 
     def wb_summary_styles(headers: list[str]) -> dict:
-        column_style, column_width, count_columns = dict(), dict(), list()
+        column_styles, column_width, count_columns = dict(), dict(), list()
         ad_rule = dict(operator="equal", formula=[-1], fill={"color": "#F4CCCC", "fill_type": "solid"})
 
         for col_idx, column in enumerate(headers, start=1):
             if column.endswith('위'):
-                column_style[col_idx] = dict(fill={"color": "#FFF2CC", "fill_type": "solid"})
+                column_styles[col_idx] = dict(fill={"color": "#FFF2CC", "fill_type": "solid"})
             elif column.startswith("조회수"):
-                column_style[col_idx] = dict(number_format="#,##0;광고")
+                column_styles[col_idx] = dict(number_format="#,##0;광고")
                 column_width[col_idx] = "auto"
-                count_columns.append(column)
+                count_columns.append(col_idx)
             else:
                 column_width[col_idx] = "auto"
 
         return dict(
-            column_style = column_style,
+            column_styles = column_styles,
             column_width = column_width,
             row_height = 16.5,
-            conditional_formatting = [(count_columns, ad_rule)],
+            conditional_formatting = [dict(ranges=count_columns, range_type="column", rule=ad_rule)],
             truncate = True,
         )
 
@@ -243,12 +243,12 @@ with DAG(
 
     def wb_details_styles() -> dict:
         number_columns = ["제목글자수", "내용글자수", "이미지수", "조회수", "댓글수", "댓글작성자수"]
-        column_style = {column: dict(number_format="#,##0") for column in number_columns}
+        column_styles = {column: dict(number_format="#,##0") for column in number_columns}
 
         single_width = {"소재ID", "주소", "썸네일주소"}
         column_width = {column: "auto" for _, column in wb_details_alias() if column not in single_width}
 
-        return dict(column_style=column_style, column_width=column_width, row_height=16.5, truncate=True)
+        return dict(column_styles=column_styles, column_width=column_width, row_height=16.5, truncate=True)
 
 
     def save_excel_to_tempfile(wb) -> str:

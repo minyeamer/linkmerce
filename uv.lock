@@ -510,7 +510,7 @@ wheels = [
 
 [[package]]
 name = "linkmerce"
-version = "0.5.30"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

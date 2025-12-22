@@ -10,17 +10,45 @@ if TYPE_CHECKING:
     from openpyxl.formatting import Rule
     from openpyxl.styles import Alignment, Border, Color, PatternFill, Font
 
-Column = TypeVar("Column", int, str)
+Column = TypeVar("Column", int, str, tuple[str,...])
 Row = TypeVar("Row", bound=int)
-Range = TypeVar("Range", bound=tuple[str,str])
+Range = TypeVar("Range", bound=str)
 Ranges = TypeVar("Ranges", list, Column, Row, Range)
 
 StyleConfig = TypeVar("StyleConfig", bound=dict[str,dict])
 RuleConfig = TypeVar("RuleConfig", bound=dict)
 
+class ConditionalConfig(dict):
+    def __init__(
+            self,
+            ranges: list[Union[Column,Row,Range]] | Column | Row | Range,
+            range_type: Literal["column","row","range","auto"],
+            rule: dict,
+        ):
+        return super().__init__(ranges=ranges, range_type=range_type, rule=rule)
+
+class MergeConfig(dict):
+    def __init__(
+            self,
+            ranges: list[Union[Column,Row,Range]] | Column | Row | Range,
+            range_type: Literal["column","row","range","auto"],
+            mode: Literal["all","blank","same_value"] = "all",
+            align: Literal[
+                "top_left", "top_center", "top_right",
+                "center_left", "center", "center_right",
+                "bottom_left", "bottom_center", "bottom_right"] | None = "center",
+        ):
+        return super().__init__(ranges=ranges, range_type=range_type, mode=mode, align=align)
+
 Width = TypeVar("Width", float, str)
 Height = TypeVar("Height", float, str)
 Multiple = TypeVar("Multiple", bound=str)
+
+Node = TypeVar("Node", bound=tuple[int,int])
+TopLeft = TypeVar("TopLeft", bound=Node)
+TopRight = TypeVar("TopRight", bound=Node)
+BottomLeft = TypeVar("BottomLeft", bound=Node)
+BottomRight = TypeVar("BottomRight", bound=Node)
 
 SINGLE_WIDTH: float = 8.43
 SINGLE_HEIGHT: float = 15.0
@@ -30,6 +58,10 @@ def filter_warnings():
     import warnings
     warnings.filterwarnings("ignore", module="openpyxl.*")
 
+
+###################################################################
+###################### Convert Excel to JSON ######################
+###################################################################
 
 def to_unique_headers(headers: list[str]) -> list[str]:
     unique = list()
@@ -81,16 +113,22 @@ def excel2json(
     return [dict(zip(headers, row)) for row in ws.iter_rows(min_row=(header+1), values_only=True)]
 
 
+###################################################################
+################### Convert CSV or JSON to Excel ##################
+###################################################################
+
 def csv2excel(
         obj: Sequence[Sequence[Any]] | dict[str,Sequence[Sequence[Any]]],
         sheet_name: str = "Sheet1",
-        header: bool = True,
+        header_rows: Sequence[Row] = [1],
         header_style: StyleConfig | Literal["yellow"] = "yellow",
-        column_style: dict[Column,StyleConfig] = dict(),
-        row_style: dict[Row,StyleConfig] = dict(),
+        column_styles: dict[Column,StyleConfig] = dict(),
+        row_styles: dict[Row,StyleConfig] = dict(),
         column_width: float | Multiple | dict[Column,Width] | Literal["auto"] | None = "auto",
         row_height: float | Multiple | dict[Row,Height] | None = None,
-        conditional_formatting: Sequence[tuple[Ranges,RuleConfig]] = list(),
+        conditional_formatting: Sequence[ConditionalConfig] = list(),
+        merge_cells: Sequence[MergeConfig] = list(),
+        range_styles: Sequence[tuple[Range,StyleConfig]] = dict(),
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
@@ -100,26 +138,27 @@ def csv2excel(
     wb = Workbook()
     obj = {sheet_name: obj} if isinstance(obj, Sequence) else obj
     kwargs = dict(
-        column_style=column_style, row_style=row_style,
-        column_width=column_width, row_height=row_height,
-        conditional_formatting=conditional_formatting, hyperlink=hyperlink,
-        truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes)
+        column_styles=column_styles, row_styles=row_styles, column_width=column_width, row_height=row_height,
+        conditional_formatting=conditional_formatting, merge_cells=merge_cells, range_styles=range_styles,
+        hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes)
 
     for index, (name, rows) in enumerate(obj.items()):
-        _rows2sheet(wb, rows, index, name, header, header_style, **kwargs)
+        _rows2sheet(wb, rows, index, name, header_rows, header_style, **kwargs)
     return wb
 
 
 def json2excel(
         obj: Sequence[dict] | dict[str,Sequence[dict]],
         sheet_name: str = "Sheet1",
-        header: bool = True,
+        header: Literal["first","all"] | None = "first",
         header_style: StyleConfig | Literal["yellow"] = "yellow",
-        column_style: dict[Column,StyleConfig] = dict(),
-        row_style: dict[Row,StyleConfig] = dict(),
+        column_styles: dict[Column,StyleConfig] = dict(),
+        row_styles: dict[Row,StyleConfig] = dict(),
         column_width: float | Multiple | dict[Column,Width] | Literal["auto"] | None = "auto",
         row_height: float | Multiple | dict[Row,Height] | None = None,
-        conditional_formatting: Sequence[tuple[Ranges,RuleConfig]] = list(),
+        conditional_formatting: Sequence[ConditionalConfig] = list(),
+        merge_cells: Sequence[MergeConfig] = list(),
+        range_styles: Sequence[tuple[Range,StyleConfig]] = dict(),
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
@@ -129,16 +168,32 @@ def json2excel(
     wb = Workbook()
     obj = {sheet_name: obj} if isinstance(obj, Sequence) else obj
     kwargs = dict(
-        column_style=column_style, row_style=row_style,
-        column_width=column_width, row_height=row_height,
-        conditional_formatting=conditional_formatting, hyperlink=hyperlink,
-        truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes)
+        column_styles=column_styles, row_styles=row_styles, column_width=column_width, row_height=row_height,
+        conditional_formatting=conditional_formatting, merge_cells=merge_cells, range_styles=range_styles,
+        hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes)
+
+    def _get_all_keys(rows: Sequence[dict]) -> list[str]:
+        keys = list()
+        for row in rows:
+            for key in row.keys():
+                if key not in keys:
+                    keys.append(key)
+        return keys
+
+    def _get_json_keys(rows: Sequence[dict], how: Literal["first","all"]) -> list[str]:
+        if not rows:
+            return list()
+        elif how == "first":
+            return list(rows[0].keys())
+        else:
+            return _get_all_keys(rows)
 
     for index, (name, rows) in enumerate(obj.items()):
-        headers = list(rows[0].keys()) if rows else list()
-        values = [[row.get(header, None) for header in headers] for row in rows]
-        csv_rows = ([headers] if header else list()) + values
-        _rows2sheet(wb, csv_rows, index, name, header, header_style, **kwargs)
+        keys = _get_json_keys(rows, how=(header or "first"))
+        values = [[row.get(key, None) for key in keys] for row in rows]
+        csv_rows = ([keys] + values) if header else values
+        header_rows = [1] if header else []
+        _rows2sheet(wb, csv_rows, index, name, header_rows, header_style, **kwargs)
     return wb
 
 
@@ -147,10 +202,10 @@ def _rows2sheet(
         rows: Sequence[Sequence[Any]],
         sheet_index: int,
         sheet_name: str = "Sheet1",
-        header: bool = True,
+        header_rows: Sequence[Row] = [1],
         header_style: StyleConfig | Literal["yellow"] = "yellow",
         **kwargs
-    ):
+    ) -> Worksheet:
     if sheet_index == 0:
         ws = wb.active
         ws.title = sheet_name
@@ -166,25 +221,44 @@ def _rows2sheet(
     if not isinstance(header_style, dict):
         header_style = _yellow_header() if header_style == "yellow" else dict()
 
-    style_sheet(ws, header, header_style, **kwargs)
+    style_sheet(ws, header_rows, header_style, **kwargs)
+    return ws
 
+
+def _yellow_header() -> StyleConfig:
+    return {
+        "align": {"horizontal": "center", "vertical": "center"},
+        "fill": {"color": "#FFFF00", "fill_type": "solid"},
+        "font": {"color": "#000000", "bold": True},
+    }
+
+
+###################################################################
+######################### Style Worksheet #########################
+###################################################################
 
 def style_sheet(
         ws: Worksheet,
-        header: bool = True,
+        header_rows: Sequence[Row] = [1],
         header_style: StyleConfig = dict(),
-        column_style: dict[Column,StyleConfig] = dict(),
-        row_style: dict[Row,StyleConfig] = dict(),
+        column_styles: dict[Column,StyleConfig] = dict(),
+        row_styles: dict[Row,StyleConfig] = dict(),
         column_width: float | Multiple | dict[Column,Width] | Literal["auto"] | None = "auto",
         row_height: float | Multiple | dict[Row,Height] | None = None,
-        conditional_formatting: Sequence[tuple[Ranges,RuleConfig]] = list(),
+        conditional_formatting: Sequence[ConditionalConfig] = list(),
+        merge_cells: Sequence[MergeConfig] = list(),
+        range_styles: Sequence[tuple[Range,StyleConfig]] = dict(),
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
-        freeze_panes: str | None = "A2",
-    ) -> Worksheet:
-    HEADER = 1
-    headers = [cell.value for cell in ws[HEADER]] if header else list()
+        freeze_panes: Range | None = "A2",
+    ):
+    min_col, max_col = 'A', get_column_letter(ws.max_column)
+    min_row, max_row = ((max(header_rows) + 1) if header_rows else 1), ws.max_row
+    size = dict(min_col=min_col, max_col=max_col, min_row=min_row, max_row=max_row)
+
+    headers = ([tuple(ws.cell(row=row_idx, column=col_idx).value for row_idx in header_rows)
+        for col_idx in range(1, ws.max_column+1)] if header_rows else list())
 
     if truncate:
         row_height = SINGLE_HEIGHT if row_height is None else row_height
@@ -192,7 +266,7 @@ def style_sheet(
 
     # STYLE CELLS BY COLUMN
 
-    column_style = {get_column_index(column, headers): style for column, style in column_style.items()}
+    column_styles = _init_column_styles(column_styles, headers) if column_styles else dict()
     column_width = _init_column_width(column_width, headers) if column_width is not None else dict()
     auto_width = {col_idx for col_idx, width in column_width.items() if isinstance(width, str)}
 
@@ -213,13 +287,13 @@ def style_sheet(
             if wrap_text:
                 cell.alignment = _alignment(wrap_text=True)
 
-            if header and (row_idx == HEADER):
+            if row_idx in header_rows:
                 if header_style:
                     style_cell(cell, **header_style)
-            elif col_idx in column_style:
-                style_cell(cell, **column_style[col_idx])
-            elif row_idx in row_style:
-                style_cell(cell, **row_style[row_idx])
+            elif col_idx in column_styles:
+                style_cell(cell, **column_styles[col_idx])
+            elif row_idx in row_styles:
+                style_cell(cell, **row_styles[row_idx])
 
         # CHANGE COLUMN WIDTH
 
@@ -235,17 +309,34 @@ def style_sheet(
         for row_idx, height in row_height.items():
             ws.row_dimensions[row_idx].height = height
     elif row_height is not None:
-        for row_idx in range(1, ws.max_row+1):
+        for row_idx in range(1, max_row+1):
             ws.row_dimensions[row_idx].height = SINGLE_HEIGHT
 
     # CONDITIONAL FORMATTING
 
-    for ranges, config in conditional_formatting:
-        range_string = get_range(ranges,
-            min_column='A', max_column=get_column_letter(ws.max_column),
-            min_row=(1+int(header)), max_row=ws.max_row, headers=headers)
-        if range_string:
-            ws.conditional_formatting.add(range_string, conditional_rule(**config))
+    for config in conditional_formatting:
+        ranges = get_ranges(config["ranges"], (config.get("range_type") or "auto"), **size, headers=headers)
+        if ranges:
+            ws.conditional_formatting.add(' '.join(ranges), _conditional_rule(**config["rule"]))
+
+    # MERGE CELLS
+
+    for config in merge_cells:
+        merge_align = _merge_align(config.get("align", "center_center"))
+        for range_string in get_ranges(config["ranges"], config.get("range_type", "auto"), **size, headers=headers):
+            for merge_range in find_merge_ranges(ws, range_string, (config.get("mode") or "all")):
+                ws.merge_cells(merge_range)
+                if merge_align:
+                    col_start, row_start, _, _ = range_boundaries(merge_range)
+                    ws.cell(row_start, col_start).alignment = _alignment(**merge_align)
+
+    # STYLE CELLS BY RANGE
+
+    for range_string, styles in range_styles:
+        col_start, row_start, col_end, row_end = range_boundaries(range_string)
+        for row in ws.iter_rows(row_start, row_end, col_start, col_end):
+            for cell in row:
+                style_cell(cell, **styles)
 
     if freeze_panes:
         ws.freeze_panes = freeze_panes
@@ -275,69 +366,6 @@ def style_cell(
         cell.hyperlink = hyperlink
 
 
-def conditional_rule(
-        operator: Literal[
-            "endsWith", "containsText", "beginsWith", "lessThan", "notBetween", "lessThanOrEqual",
-            "notEqual", "notContains", "between", "equal", "greaterThanOrEqual", "greaterThan"],
-        formula: Sequence,
-        stop_if_true: bool | None = None,
-        border: dict | None = None,
-        fill: dict | None = None,
-        font: dict | None = None,
-        **kwargs
-    ) -> Rule:
-    from openpyxl.formatting.rule import CellIsRule
-    styles = dict()
-    if border:
-        styles["border"] = _border(**border)
-    if fill:
-        styles["fill"] = _fill(**fill)
-    if font:
-        styles["font"] = _font(**font)
-    return CellIsRule(operator=operator, formula=formula, stopIfTrue=stop_if_true, **styles)
-
-
-def get_range(
-        ranges: list[Union[Column,Row,Range]] | Column | Row | Range,
-        min_column: str,
-        max_column: str,
-        min_row: int,
-        max_row: int,
-        headers: list[str] = list(),
-    ) -> str:
-    if isinstance(ranges, list):
-        args = (min_column, max_column, min_row, max_row, headers)
-        return ' '.join([string for range_ in ranges if (string := get_range(range_, *args))])
-    elif isinstance(ranges, str):
-        column = get_column_letter(ranges, headers)
-        return f"{column}{min_row}:{column}{max_row}" if column is not None else str()
-    elif isinstance(ranges, int):
-        return f"{min_column}{ranges}:{max_column}{ranges}"
-    elif isinstance(ranges, tuple) and (len(ranges) == 2):
-        return f"{ranges[0]}:{ranges[1]}"
-    else:
-        return str()
-
-
-def get_column_index(column: Column, headers: list[str] = list()) -> int | None:
-    if isinstance(column, int):
-        return column
-    elif isinstance(column, str):
-        if column.startswith('!'):
-            exclude, column = -1, column[1:]
-        else:
-            exclude = 1
-        if column in headers:
-            return (headers.index(column) + 1) * exclude
-    return None
-
-
-def get_column_letter(column: Column, headers: list[str] = list()) -> str | None:
-    from openpyxl.utils import get_column_letter as get_letter
-    col_idx = get_column_index(column, headers)
-    return get_letter(col_idx) if isinstance(col_idx, int) else None
-
-
 def get_cell_width(value: str) -> float:
     try:
         # 한글: 1.8배, 공백: 1.2배, 영문/숫자: 1배
@@ -346,9 +374,104 @@ def get_cell_width(value: str) -> float:
         return 0.
 
 
+###################################################################
+########################### Column utils ##########################
+###################################################################
+
+def get_column_index(column: Column, headers: list[tuple[str,...]] = list()) -> int | None:
+    if isinstance(column, int):
+        return column
+    elif isinstance(column, str):
+        for index, header in enumerate(headers, start=1):
+            if (len(header) == 1) and (column == header[0]):
+                return index
+    elif isinstance(column, tuple):
+        try:
+            return headers.index(column) + 1
+        except:
+            pass
+    return None
+
+
+def get_column_letter(column: Column, headers: list[tuple[str,...]] = list()) -> str | None:
+    from openpyxl.utils import get_column_letter as get_letter
+    col_idx = get_column_index(column, headers)
+    return get_letter(col_idx) if isinstance(col_idx, int) else None
+
+
+def colstr(col_idx: int) -> str:
+    from openpyxl.utils import get_column_letter as get_letter
+    return get_letter(col_idx)
+
+
+###################################################################
+########################### Range utils ###########################
+###################################################################
+
+def get_ranges(
+        ranges: list[Union[Column,Row,Range]] | Column | Row | Range,
+        range_type: Literal["column","row","range","auto"],
+        min_col: str,
+        max_col: str,
+        min_row: int,
+        max_row: int,
+        headers: list[tuple[str,...]] = list(),
+    ) -> list[str]:
+
+    def _auto_detect(value: Column | Row | Range) -> Literal["column","row","range","auto"]:
+        if isinstance(value, int):
+            return "row"
+        elif isinstance(value, str):
+            return "range" if is_range_string(value) else "column"
+        elif isinstance(value, tuple):
+            return "column"
+        else:
+            return "auto"
+
+    def _make_range_string(value: Column | Row | Range, range_type: Literal["column","row","range","auto"]) -> str:
+        if range_type == "auto":
+            range_type = _auto_detect(value)
+
+        if (range_type == "column") and (column := get_column_letter(value, headers)):
+            return f"{column}{min_row}:{column}{max_row}"
+        elif (range_type == "row") and isinstance(value, int):
+            return f"{min_col}{value}:{max_col}{value}"
+        elif (range_type == "range") and isinstance(value, str) and is_range_string(value):
+            return value
+        else:
+            raise ValueError(f"Invalid Excel range format: {value}")
+
+    if isinstance(ranges, list):
+        return [range_string for value in ranges if (range_string := _make_range_string(value, range_type))]
+    else:
+        return [_make_range_string(ranges, range_type)]
+
+
+def is_range_string(value: str) -> bool:
+    import re
+    pattern = re.compile(r"^\$?[A-Z]+\$?[1-9][0-9]*$")
+    if ':' in value:
+        from_cell, to_cell = value.split(':', 1)
+        return (pattern.match(from_cell) and pattern.match(to_cell))
+    else:
+        return pattern.match(value)
+
+
+###################################################################
+########################### Style config ##########################
+###################################################################
+
+def _init_column_styles(
+        column_styles: dict[Column,StyleConfig],
+        headers: list[tuple[str,...]] = list(),
+    ) -> dict[int,StyleConfig]:
+    return {col_idx: styles for column, styles in column_styles.items()
+        if ((col_idx := get_column_index(column, headers)) is not None)}
+
+
 def _init_column_width(
-        column_width: dict[Column,Width] | float | Multiple | Literal["auto"],
-        headers: list[str],
+        column_width: float | Multiple | dict[Column,Width] | Literal["auto"],
+        headers: list[tuple[str,...]] = list(),
     ) -> dict[int, Union[float,Literal["auto"]]]:
 
     def _set_width(value: Width) -> float | Literal["auto"]:
@@ -374,7 +497,7 @@ def _init_column_width(
 
 def _init_row_height(
         row_height: dict[Row,Height] | float | Multiple | Literal["single"],
-    ) -> dict[int, float] | float | None:
+    ) -> dict[int,float] | float | None:
 
     def _set_height(value: Width) -> float:
         if isinstance(value, str):
@@ -390,6 +513,10 @@ def _init_row_height(
     else:
         return _set_height(row_height)
 
+
+###################################################################
+########################### Style object ##########################
+###################################################################
 
 def _alignment(**kwargs) -> Alignment:
     from openpyxl.styles import Alignment
@@ -431,9 +558,138 @@ def _color(rgb: Any, alpha: str = "FF") -> Color:
         return None
 
 
-def _yellow_header() -> StyleConfig:
-    return {
-        "align": {"horizontal": "center"},
-        "fill": {"color": "#FFFF00", "fill_type": "solid"},
-        "font": {"color": "#000000", "bold": True},
-    }
+###################################################################
+###################### Conditional formatting #####################
+###################################################################
+
+def _conditional_rule(
+        operator: Literal[
+            "endsWith", "containsText", "beginsWith", "lessThan", "notBetween", "lessThanOrEqual",
+            "notEqual", "notContains", "between", "equal", "greaterThanOrEqual", "greaterThan"],
+        formula: Sequence,
+        stop_if_true: bool | None = None,
+        border: dict | None = None,
+        fill: dict | None = None,
+        font: dict | None = None,
+        **kwargs
+    ) -> Rule:
+    from openpyxl.formatting.rule import CellIsRule
+    styles = dict()
+    if border:
+        styles["border"] = _border(**border)
+    if fill:
+        styles["fill"] = _fill(**fill)
+    if font:
+        styles["font"] = _font(**font)
+    return CellIsRule(operator=operator, formula=formula, stopIfTrue=stop_if_true, **styles)
+
+
+###################################################################
+########################### Merge cells ###########################
+###################################################################
+
+def find_merge_ranges(
+        ws: Worksheet,
+        range_string: Range,
+        mode: Literal["all","blank","same_value"] = "all",
+        priority: Literal["by_row","by_col"] = "by_row",
+    ) -> list[Range]:
+    if mode == "all":
+        return range_string
+    merge_ranges = list()
+
+    from collections import deque
+    min_col, min_row, max_col, max_row = range_boundaries(range_string)
+    num_rows, num_cols = (max_row - min_row + 1), (max_col - min_col + 1)
+    adapter = {"by_row": "width", "by_col": "height"}
+
+    rows = [list(row) for row in ws.iter_rows(min_row, max_row, min_col, max_col, values_only=True)]
+    visited = [[False for _ in range(num_cols)] for _ in range(num_rows)]
+
+    def _bfs(row_idx: int, col_idx: int) -> list[tuple[int,int]]:
+        queue, cells = deque(), [(row_idx + min_row, col_idx + min_col)]
+        queue.append((row_idx, col_idx))
+        visited[row_idx][col_idx] = True
+        value = rows[row_idx][col_idx]
+
+        while queue:
+            r, c = queue.popleft()
+            for nr, nc in [(r, c+1), (r+1, c)]: # [Right, Down]
+                if (0 <= nr < num_rows) and (0 <= nc < num_cols) and (not visited[nr][nc]):
+                    if (rows[nr][nc] == value) if mode == "same_value" else (rows[nr][nc] is None):
+                        visited[nr][nc] = True
+                        queue.append((nr, nc))
+                        cells.append((nr + min_row, nc + min_col))
+        return cells
+
+    for row_idx in range(num_rows):
+        for col_idx in range(num_cols):
+            if (not visited[row_idx][col_idx]) and (rows[row_idx][col_idx] is not None):
+                cells = _bfs(row_idx, col_idx)
+                if len(cells) < 2:
+                    continue
+
+                best_corners = get_largest_rectangle(cells, top_left=cells[0], priority=adapter[priority])
+                (row_start, col_start) = best_corners[0][0] # Top-Left
+                (row_end, col_end) = best_corners[1][1] # Bottom-Right
+
+                for r, c in cells:
+                    if not ((row_start <= r <= row_end) and (col_start <= c <= col_end)):
+                        visited[r - min_row][c - min_col] = False
+
+                if (row_start != row_end) or (col_start != col_end):
+                    merge_ranges.append(f"{colstr(col_start)}{row_start}:{colstr(col_end)}{row_end}")
+    return merge_ranges
+
+
+def get_largest_rectangle(
+        nodes: list[tuple[int,int]],
+        top_left: tuple[int,int],
+        priority: Literal["width","height"] = "width",
+    ) -> tuple[tuple[TopLeft,TopRight],tuple[BottomLeft,BottomRight]]:
+    node_set = set(nodes)
+    y0, x0 = top_left
+
+    best_score = (0, 0)
+    best_corners = (
+        ((top_left, top_left), (top_left, top_left)),
+        ((top_left, top_left), (top_left, top_left)),
+    )
+
+    max_width = 0
+    while (y0, x0 + max_width) in node_set:
+        max_width += 1
+
+    min_height = float("inf")
+    for width in range(1, max_width + 1):
+        height = 0
+        while (y0 + height, x0 + width - 1) in node_set:
+            height += 1
+
+        min_height = min(min_height, height)
+        area = width * min_height
+        score = (area, min_height if priority == "height" else width)
+
+        if score > best_score:
+            best_score = score
+            y_max, x_max = (y0 + int(min_height) - 1), (x0 + width - 1)
+            best_corners = (
+                ((y0, x0), (y0, x_max)),
+                ((y_max, x0), (y_max, x_max))
+            )
+
+    return best_corners
+
+
+def range_boundaries(range_string: str) -> tuple[int,int,int,int]:
+    from openpyxl.utils import range_boundaries as boundaries
+    min_col, min_row, max_col, max_row = boundaries(range_string)
+    return min_col, min_row, max_col, max_row
+
+
+def _merge_align(align: str | None = "center") -> dict[str,str]:
+    try:
+        align = "center_center" if align == "center" else align
+        return dict(zip(["vertical","horizontal"], align.split('_')))
+    except:
+        return dict()
