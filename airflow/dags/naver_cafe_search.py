@@ -96,7 +96,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.naver.main import search_cafe_plus
-        from linkmerce.utils.excel import csv2excel, json2excel
+        from linkmerce.utils.excel import csv2excel, json2excel, save_excel_to_tempfile
         sources = dict(search="naver_cafe_search", article="naver_cafe_article", merged="data")
         query, alias = "naver_cafe_query", "data_alias"
 
@@ -250,13 +250,6 @@ with DAG(
 
         return dict(column_styles=column_styles, column_width=column_width, row_height=16.5, truncate=True)
 
-
-    def save_excel_to_tempfile(wb) -> str:
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp_file:
-            tmp_path = tmp_file.name
-            wb.save(tmp_path)
-            return tmp_path
 
     def send_excel_to_slack(
             slack_conn_id: str,
