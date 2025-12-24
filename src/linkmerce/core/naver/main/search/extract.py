@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 class MobileSearch(Extractor):
     method = "GET"
     url = "https://m.search.naver.com/search.naver"
+    oquery = dict(oquery=None, tqi=None, ackey=None)
 
     @property
     def default_options(self) -> dict:
@@ -23,12 +24,44 @@ class MobileSearch(Extractor):
 
     @Extractor.with_session
     def extract(self, query: str | Iterable[str]) -> JsonObject | BeautifulSoup:
-        return (self.request_each(self.request_html)
+        return (self.request_each(self.search)
                 .expand(query=query)
                 .run())
 
+    def search(self, **kwargs) -> BeautifulSoup:
+        response = self.request_text(**kwargs)
+        self.save_search_query(response, kwargs.get("query"))
+        from bs4 import BeautifulSoup
+        return BeautifulSoup(response, "html.parser")
+
+    def save_search_query(self, response: str, query: str):
+        from linkmerce.utils.regex import regexp_extract
+        self.oquery["oquery"] = query
+        self.oquery["tqi"] = regexp_extract(r"tqi=([^&\"]+)", response)
+        self.oquery["ackey"] = regexp_extract(r"ackey=([^&\"]+)", response)
+
     def build_request_params(self, query: str, **kwargs) -> dict:
-        return {"sm": "mtp_hty.top", "where": 'm', "query": query}
+        params = {"sm": "mtp_hty.top", "where": "m", "query": query}
+        params.update({key: value for key, value in self.oquery.items() if value})
+        if "ackey" not in params:
+            self.oquery["ackey"] = self.ackey
+        return params
+
+    @property
+    def ackey(self) -> str:
+        import random
+
+        def _base36_encode(number):
+            chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+            result = str()
+            while number > 0:
+                number, i = divmod(number, 36)
+                result = chars[i] + result
+            return result or '0'
+
+        n = random.random()
+        s = _base36_encode(int(n * 36**10))
+        return s[2:10]
 
 
 ###################################################################
