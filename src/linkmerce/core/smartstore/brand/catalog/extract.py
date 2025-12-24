@@ -207,11 +207,3 @@ class BrandProduct(_VPartnerCenter):
                 **kv("mallSeq", mall_seq),
                 "brandSeqs": brand_ids.split(','),
             }
-
-
-class BrandPrice(BrandProduct):
-    ...
-
-
-class ProductCatalog(BrandProduct):
-    ...

@@ -167,11 +167,11 @@ def rank_exposure(
         transform_options: dict = dict(),
     ) -> dict[str,JsonObject]:
     """`tables = {'rank': 'naver_rank_ad', 'product': 'naver_product'}`"""
-    # from linkmerce.core.searchad.manage.exposure.extract import ExposureRank
+    # from linkmerce.core.searchad.manage.exposure.extract import ExposureDiagnosis
     # from linkmerce.core.searchad.manage.exposure.transform import ExposureRank
     return run_with_duckdb(
         module = get_module(".exposure"),
-        extractor = "ExposureRank",
+        extractor = "ExposureDiagnosis",
         transformer = "ExposureRank",
         connection = connection,
         tables = tables,

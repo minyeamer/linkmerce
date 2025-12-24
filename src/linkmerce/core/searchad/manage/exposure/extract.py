@@ -60,7 +60,3 @@ class ExposureDiagnosis(SearchAdManager):
     def set_request_headers(self, **kwargs: str):
         referer = f"{self.main_url}/customers/{self.customer_id}/tool/exposure-status"
         super().set_request_headers(referer=referer, **kwargs)
-
-
-class ExposureRank(ExposureDiagnosis):
-    ...

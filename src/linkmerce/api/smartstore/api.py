@@ -322,7 +322,7 @@ def aggregated_order_status(
         transform_options: dict = dict(),
     ) -> dict[str,JsonObject]:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.smartstore.api.order.extract import OrderTime
+    # from linkmerce.core.smartstore.api.order.extract import Order
     # from linkmerce.core.smartstore.api.order.transform import OrderTime
     common = dict(
         module = get_module(".order"),
@@ -348,13 +348,13 @@ def aggregated_order_status(
         ),
         purchase_decided = run_with_duckdb(
             **common,
-            extractor = "OrderTime",
+            extractor = "Order",
             transformer = "OrderTime",
             args = (start_date, end_date, "PURCHASE_DECIDED_DATETIME"),
         ),
         claim_completed = run_with_duckdb(
             **common,
-            extractor = "OrderTime",
+            extractor = "Order",
             transformer = "OrderTime",
             args = (start_date, end_date, "CLAIM_COMPLETED_DATETIME"),
         ),

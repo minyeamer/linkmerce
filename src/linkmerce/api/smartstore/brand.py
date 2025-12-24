@@ -162,11 +162,11 @@ def brand_price(
         transform_options: dict = dict(),
     ) -> dict[str,JsonObject]:
     """`tables = {'price': 'naver_brand_price', 'product': 'naver_brand_product'}`"""
-    # from linkmerce.core.smartstore.brand.catalog.extract import BrandPrice
+    # from linkmerce.core.smartstore.brand.catalog.extract import BrandProduct
     # from linkmerce.core.smartstore.brand.catalog.transform import BrandPrice
     return run_with_duckdb(
         module = get_module(".catalog"),
-        extractor = "BrandPrice",
+        extractor = "BrandProduct",
         transformer = "BrandPrice",
         connection = connection,
         tables = tables,
@@ -201,11 +201,11 @@ def product_catalog(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.smartstore.brand.catalog.extract import ProductCatalog
+    # from linkmerce.core.smartstore.brand.catalog.extract import BrandProduct
     # from linkmerce.core.smartstore.brand.catalog.transform import ProductCatalog
     return run_with_duckdb(
         module = get_module(".catalog"),
-        extractor = "ProductCatalog",
+        extractor = "BrandProduct",
         transformer = "ProductCatalog",
         connection = connection,
         tables = tables,
