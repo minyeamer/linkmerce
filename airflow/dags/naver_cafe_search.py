@@ -59,21 +59,18 @@ with DAG(
 
 
     @task(task_id="etl_naver_cafe_search", pool="nsearch_pool")
-    def etl_naver_cafe_search(ti: TaskInstance, **kwargs) -> dict:
-        from variables import get_execution_date
-        date_ymd_h = get_execution_date(kwargs, fmt="YYMMDD_HHmm")
-        date_ko = get_execution_date(kwargs, fmt="YY년 MM월 DD일 HH시 mm분 (dd)")
-
+    def etl_naver_cafe_search(ti: TaskInstance, data_interval_end: pendulum.DateTime, **kwargs) -> dict:
+        from variables import in_timezone, format_date
         variables = ti.xcom_pull(task_ids="set_cookies")
+
         if variables["records"] and variables["cookies"]:
-            return main(date_ymd_h=date_ymd_h, date_ko=date_ko, **variables)
+            return main(datetime=in_timezone(data_interval_end), **variables)
         else:
             return dict(
                 params = dict(
                     channel_id = variables["channel_id"],
+                    timestamp = format_date(in_timezone(data_interval_end), "YYYY-MM-DDTHH:mm:ss"),
                     max_rank = variables["max_rank"],
-                    date_ymd_h = date_ymd_h,
-                    date_ko = date_ko,
                     query_group = 'X',
                 ),
                 counts = dict(total=0),
@@ -90,8 +87,7 @@ with DAG(
             max_rank: int,
             slack_conn_id: str,
             channel_id: str,
-            date_ymd_h: str,
-            date_ko: str,
+            datetime: pendulum.DateTime,
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
@@ -142,8 +138,7 @@ with DAG(
                 summary_file = save_excel_to_tempfile(wb_summary),
                 details_file = save_excel_to_tempfile(wb_details),
                 max_rank = max_rank,
-                date_ymd_h = date_ymd_h,
-                date_ko = date_ko,
+                datetime = datetime,
                 query_group = query_group,
                 total = total,
                 counts = counts,
@@ -257,19 +252,21 @@ with DAG(
             summary_file: str,
             details_file: str,
             max_rank: int,
-            date_ymd_h: str,
-            date_ko: str,
+            datetime: pendulum.DateTime,
             query_group: str,
             total: int,
             counts: dict[str,int],
         ) -> dict:
+        from variables import format_date
         import os
         slack_hook = SlackHook(slack_conn_id=slack_conn_id)
 
         message = (
-            f">{date_ko}\n"
+            f">{format_date(datetime, 'YY년 MM월 DD일 HH시 mm분 (dd)')}\n"
             + f"*{query_group}* 그룹 - {total}개 키워드 조회 (상위 {max_rank}개 게시글)\n"
             + '\n'.join([f"• {product} : {count}개 키워드" for product, count in counts.items()]))
+
+        ymd_hm = format_date(datetime, "YYMMDD_HHmm")
         products = '+'.join([product.replace(' ', '') for product in counts.keys()])
 
         try:
@@ -277,11 +274,11 @@ with DAG(
                 channel_id = channel_id,
                 file_uploads = [{
                     "file": summary_file,
-                    "filename": f"{date_ymd_h}_요약_{query_group}그룹_{products}.xlsx",
+                    "filename": f"{ymd_hm}_요약_{query_group}그룹_{products}.xlsx",
                     "title": f"요약 - {', '.join(counts.keys())}",
                 }, {
                     "file": details_file,
-                    "filename": f"{date_ymd_h}_세부_{query_group}그룹_{products}.xlsx",
+                    "filename": f"{ymd_hm}_세부_{query_group}그룹_{products}.xlsx",
                     "title": f"세부 - {', '.join(counts.keys())}",
                 }],
                 initial_comment = message,
@@ -289,12 +286,14 @@ with DAG(
             return dict(
                 params = dict(
                     channel_id = channel_id,
+                    timestamp = format_date(datetime, 'YYYY-MM-DDTHH:mm:ss'),
                     max_rank = max_rank,
-                    date_ymd_h = date_ymd_h,
-                    date_ko = date_ko,
                     query_group = query_group,
                 ),
-                counts = dict(total=total, **counts),
+                counts = dict(
+                    total = total,
+                    **counts,
+                ),
                 message = message,
                 response = parse_slack_response(
                     files = response.get("files", list()),

@@ -29,10 +29,10 @@ with DAG(
         return main(**variables)
 
     def generate_query_range(data_interval_end: pendulum.DateTime = None, **kwargs) -> dict[str,str]:
-        from variables import strftime
-        yesterday = strftime(data_interval_end, subdays=1)
+        from variables import format_date
+        yesterday = format_date(data_interval_end, subdays=1)
         return {
-            "접수일자": dict(start_date=strftime(data_interval_end, subdays=3), end_date=yesterday),
+            "접수일자": dict(start_date=format_date(data_interval_end, subdays=3), end_date=yesterday),
             "집화일자": dict(start_date=yesterday, end_date=yesterday),
             "배송완료일자": dict(start_date=yesterday, end_date=yesterday),
         }

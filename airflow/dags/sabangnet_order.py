@@ -28,10 +28,10 @@ with DAG(
             fmt: str = "YYYYMMDDHHmmss",
             **kwargs
         ) -> dict[str,str]:
-        from variables import strftime
+        from variables import format_date
         return dict(
-            start_date = strftime(data_interval_start, fmt=fmt),
-            end_date = strftime(data_interval_end, fmt=fmt),
+            start_date = format_date(data_interval_start, fmt),
+            end_date = format_date(data_interval_end, fmt),
         )
 
 

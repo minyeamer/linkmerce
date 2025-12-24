@@ -26,7 +26,7 @@ def in_timezone(
     return datetime
 
 
-def strftime(
+def format_date(
         datetime: pendulum.DateTime,
         fmt: str = "YYYY-MM-DD",
         locale: str = "ko",
@@ -46,7 +46,7 @@ def get_execution_date(
         subdays: int | None = None,
     ) -> str:
     datetime = kwargs["data_interval_end"]
-    return strftime(datetime, fmt, locale, add, subtract, subdays)
+    return format_date(datetime, fmt, locale, add, subtract, subdays)
 
 
 def read(
