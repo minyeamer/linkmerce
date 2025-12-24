@@ -8,13 +8,14 @@ import pendulum
 
 
 with DAG(
-    dag_id = "cj_eflexs_stock",
+    dag_id = "ecount_stock_report",
     schedule = None, # triggered after sabangnet_order DAG run (managed by human)
     start_date = pendulum.datetime(2025, 12, 18, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
     tags = ["priority:high", "eflexs:stock", "coupang:inventory", "ecount:inventory", "ecount:product",
-            "login:cj-eflexs", "login:coupang", "api:ecount", "schedule:weekdays", "time:morning", "manual:api", "manual:dagrun"],
+            "login:cj-eflexs", "login:coupang", "api:ecount", "schedule:weekdays", "time:morning",
+            "manual:api", "manual:dagrun", "provider:slack"],
 ) as dag:
 
     with TaskGroup(group_id="cj_group") as cj_group:
@@ -226,38 +227,37 @@ with DAG(
         read_ecount_variables() >> etl_ecount_inventory() >> etl_ecount_product()
 
 
-    with TaskGroup(group_id="alert_group") as alert_group:
+    with TaskGroup(group_id="report_group") as report_group:
 
-        ALERT_PATH = ["cjlogistics", "eflexs", "alert_agg_stock"]
+        ALERT_PATH = ["ecount", "api", "ecount_stock_report"]
 
-        @task(task_id="read_alert_variables", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
-        def read_alert_variables() -> dict:
+        @task(task_id="read_report_variables", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALL_SUCCESS)
+        def read_report_variables() -> dict:
             from variables import read
             return read(ALERT_PATH, service_account=True)
 
 
-        @task(task_id="alert_agg_stock")
-        def alert_agg_stock(ti: TaskInstance, data_interval_end: pendulum.DateTime, **kwargs) -> dict:
+        @task(task_id="send_stock_report")
+        def send_stock_report(ti: TaskInstance, data_interval_end: pendulum.DateTime, **kwargs) -> dict:
             from variables import in_timezone
-            variables = ti.xcom_pull(task_ids="alert_group.read_alert_variables")
-            return main_alert(date=in_timezone(data_interval_end), **variables)
+            variables = ti.xcom_pull(task_ids="report_group.read_report_variables")
+            return main_report(datetime=in_timezone(data_interval_end), **variables)
 
-        def main_alert(
+        def main_report(
                 table_function: str,
                 slack_conn_id: str,
                 channel_id: str,
-                date: pendulum.DateTime,
+                datetime: pendulum.DateTime,
                 service_account: dict,
             ) -> dict:
             from linkmerce.extensions.bigquery import BigQueryClient
             from linkmerce.utils.excel import csv2excel, save_excel_to_tempfile
 
             with BigQueryClient(service_account) as client:
-                ymd = date.format("YYYY-MM-DD")
-                rows = client.fetch_all_to_csv(f"SELECT * FROM {table_function}('{ymd}');", header=True)
+                rows = client.fetch_all_to_csv(f"SELECT * FROM {table_function}('{datetime.date()}');", header=True)
 
             headers0, headers1 = list(), list()
-            for header, (expected, (header0, header1)) in zip(rows[0], expected_headers(date)):
+            for header, (expected, (header0, header1)) in zip(rows[0], expected_headers(datetime)):
                 if header != expected:
                     raise ValueError(f"Expected header '{expected}' do not match actual column '{header}'")
                 headers0.append(header0)
@@ -284,17 +284,18 @@ with DAG(
                 slack_conn_id = slack_conn_id,
                 channel_id = channel_id,
                 file = save_excel_to_tempfile(wb),
-                date_ymd_h = date.format("YYMMDD_HHmm"),
-                date_ko = date.format("YY년 MM월 DD일 HH시 mm분 (dd)"),
+                datetime = datetime,
                 total = (len(rows) - 1),
+                counts = count_by_brand(rows),
             )
 
 
-        def expected_headers(date: pendulum.DateTime) -> list[tuple[str, tuple[str,str]]]:
-            date_stock = date.format("YYYY-MM-DD(dd) HH:mm")
-            date_sales = tuple(date.subtract(days=delta).format("YYYY-MM-DD(dd)") for delta in [30, 1])
+        def expected_headers(datetime: pendulum.DateTime) -> list[tuple[str, tuple[str,str]]]:
+            from variables import format_date
+            datetime_stock = format_date(datetime, "YYYY-MM-DD(dd) HH:mm")
+            date_sales = tuple(format_date(datetime, "YYYY-MM-DD(dd)", subdays=delta) for delta in [30, 1])
             return [
-                ("brand_name", (f"재고 기준: {date_stock}", "브랜드")),
+                ("brand_name", (f"재고 기준: {datetime_stock}", "브랜드")),
                 ("option_id", (None, "사방넷\n품번코드")),
                 ("remarks_name", (None, "아이인리치코드")),
                 ("product_code", (f"판매량 기준: {date_sales[0]} ~ {date_sales[1]}", "품목코드")),
@@ -352,7 +353,7 @@ with DAG(
             return merge_headers, hedaer_styles
 
         def value_styles() -> tuple[dict,dict]:
-            headers = [column for _, (_, column) in expected_headers(str(), (None, None))]
+            headers = [column for _, (_, column) in expected_headers(pendulum.DateTime.now())]
             column_styles, column_width = dict(), dict()
 
             for col_idx, column in enumerate(headers, start=1):
@@ -396,36 +397,73 @@ with DAG(
             return [dict(ranges="A:X", range_type="range", rule=danger), dict(ranges="A:X", range_type="range", rule=warning)]
 
 
+        def count_by_brand(rows: list[tuple], header_row: int = 0) -> list[dict]:
+            from collections import defaultdict
+            counter = lambda: {"total": 0, "expired": 0, "excess": 0}
+            counts, keys = defaultdict(counter), list()
+
+            brand_col = rows[header_row].index("brand_name")
+            label_col = rows[header_row].index("performance")
+
+            for row in rows[(header_row+1):]:
+                brand_name = row[brand_col] or "브랜드없음"
+                if brand_name not in keys:
+                    keys.append(brand_name)
+
+                counts[brand_name]["total"] += 1
+                if row[label_col] == "소비기한 초과":
+                    counts[brand_name]["expired"] += 1
+                if row[label_col] == "판매부진":
+                    counts[brand_name]["excess"] += 1
+
+            return [dict(name=brand_name, **counts[brand_name]) for brand_name in keys]
+
+
         def send_excel_to_slack(
                 slack_conn_id: str,
                 channel_id: str,
                 file: str,
-                date_ymd_h: str,
-                date_ko: str,
+                datetime: pendulum.DateTime,
                 total: int,
+                counts: list[dict],
             ) -> dict:
+            from variables import format_date
             import os
             slack_hook = SlackHook(slack_conn_id=slack_conn_id)
 
-            message = None
+            message = (
+                "안녕하세요\n"
+                + "{} 브랜드별 재고-소비기한 현황 공유드립니다\n\n".format(format_date(datetime, "M/D(dd)"))
+                + "전체 {:,}개 이카운트 상품에 대한 브랜드별 요약:".format(total))
+
+            WARN, INFO = ":small_red_triangle:", ":small_blue_diamond:"
+            for brand in counts:
+                warning = ["{} {:,}개".format(label, brand[status])
+                    for status, label in [("expired","기한초과"), ("excess","판매부진")] if brand[status]]
+                if warning:
+                    message += "\n{} {} : {:,}개 상품 ({})".format(WARN, brand["name"], brand["total"], " / ".join(warning))
+                else:
+                    message += "\n{} {} : {:,}개 상품".format(INFO, brand["name"], brand["total"])
 
             try:
                 response = slack_hook.send_file_v2(
                     channel_id = channel_id,
                     file_uploads = [{
                         "file": file,
-                        "filename": f"재고_소비기한_{date_ymd_h}.xlsx",
-                        "title": f">{date_ko}",
+                        "filename": "재고_소비기한_{}.xlsx".format(format_date(datetime, "YYMMDD_HHmm")),
+                        "title": "재고-소비기한 ({})".format(format_date(datetime, "YYMMDD")),
                     }],
                     initial_comment = message,
                 )
                 return dict(
                     params = dict(
                         channel_id = channel_id,
-                        date_ymd_h = date_ymd_h,
-                        date_ko = date_ko,
+                        timestamp = format_date(datetime, "YYYY-MM-DDTHH:mm:ss"),
                     ),
-                    counts = dict(rows=total),
+                    counts = dict(
+                        total = total,
+                        by_brand = {brand["name"]: brand["total"] for brand in counts},
+                    ),
                     message = message,
                     response = parse_slack_response(
                         files = response.get("files", list()),
@@ -443,7 +481,7 @@ with DAG(
             )
 
 
-        read_alert_variables() >> alert_agg_stock()
+        read_report_variables() >> send_stock_report()
 
 
-    cj_group >> coupang_group >> ecount_group >> alert_group
+    cj_group >> coupang_group >> ecount_group >> report_group

@@ -11,7 +11,7 @@ with DAG(
     start_date = pendulum.datetime(2025, 12, 12, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1),
     catchup = False,
-    tags = ["priority:high", "naver:cafe", "schedule:weekdays", "time:morning"],
+    tags = ["priority:high", "naver:cafe", "schedule:weekdays", "time:morning", "provider:slack"],
 ) as dag:
 
     PATH = ["naver", "main", "naver_cafe_search"]

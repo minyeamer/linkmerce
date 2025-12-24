@@ -120,7 +120,7 @@ with DAG(
 
     def branch_condition(ti: TaskInstance, **kwargs) -> str | None:
         if ti.run_id.startswith("api__1st__"):
-            return "cj_eflexs_stock"
+            return "ecount_stock_report"
         else:
             return None
 
@@ -130,9 +130,9 @@ with DAG(
     )
 
 
-    cj_eflexs_stock = TriggerDagRunOperator(
-        task_id = "cj_eflexs_stock",
-        trigger_dag_id = "cj_eflexs_stock",
+    ecount_stock_report = TriggerDagRunOperator(
+        task_id = "ecount_stock_report",
+        trigger_dag_id = "ecount_stock_report",
         trigger_run_id = "{{ run_id }}",
         logical_date = "{{ logical_date }}",
         reset_dag_run = True,
@@ -142,4 +142,4 @@ with DAG(
 
     (read_variables()
     >> etl_sabangnet_order() >> etl_sabangnet_dispatch() >> etl_sabangnet_option()
-    >> branch_dagrun_trigger >> [cj_eflexs_stock])
+    >> branch_dagrun_trigger >> [ecount_stock_report])
