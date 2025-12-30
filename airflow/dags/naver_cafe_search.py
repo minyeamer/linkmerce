@@ -106,6 +106,7 @@ with DAG(
             search_cafe_plus(
                 cookies = cookies,
                 query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {query}").fetchall()],
+                mobile = True,
                 max_rank = max_rank,
                 connection = conn,
                 tables = sources,
@@ -287,6 +288,7 @@ with DAG(
                 params = dict(
                     channel_id = channel_id,
                     timestamp = format_date(datetime, 'YYYY-MM-DDTHH:mm:ss'),
+                    mobile = True,
                     max_rank = max_rank,
                     query_group = query_group,
                 ),

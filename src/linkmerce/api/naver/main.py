@@ -23,9 +23,44 @@ def get_options(
     )
 
 
+def search(
+        query: str | Iterable[str],
+        mobile: bool = True,
+        parse_html: bool = False,
+        cookies: str | None = None,
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 1.01,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'sections': 'naver_search_sections', 'summary': 'naver_search_summary'}`"""
+    # from linkmerce.core.naver.main.search.extract import Search
+    # from linkmerce.core.naver.main.search.transform import Search
+    return run_with_duckdb(
+        module = get_module(".search"),
+        extractor = "Search",
+        transformer = "Search",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (query, mobile, (parse_html and (return_type == "raw"))),
+        extract_options = update_options(
+            extract_options,
+            **(dict(headers=dict(cookies=cookies)) if cookies else dict()),
+            options = get_options(request_delay, progress),
+        ),
+        transform_options = transform_options,
+    )
+
+
 def _search_tab(
         query: str | Iterable[str],
         tab_type: Literal["image","blog","cafe","kin","influencer","clip","video","news","surf","shortents"],
+        mobile: bool = True,
         cookies: str | None = None,
         transformer: str | None = None,
         connection: DuckDBConnection | None = None,
@@ -37,16 +72,16 @@ def _search_tab(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.main.search.extract import MobileTabSearch
+    # from linkmerce.core.naver.main.search.extract import SearchTab
     return run_with_duckdb(
         module = get_module(".search"),
-        extractor = "MobileTabSearch",
+        extractor = "SearchTab",
         transformer = transformer,
         connection = connection,
         tables = tables,
         how = "sync",
         return_type = return_type,
-        args = (query, tab_type),
+        args = (query, tab_type, mobile),
         extract_options = update_options(
             extract_options,
             **(dict(headers=dict(cookies=cookies)) if cookies else dict()),
@@ -58,6 +93,7 @@ def _search_tab(
 
 def search_cafe(
         query: str | Iterable[str],
+        mobile: bool = True,
         cookies: str | None = None,
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
@@ -68,10 +104,10 @@ def search_cafe(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.main.search.extract import MobileTabSearch
+    # from linkmerce.core.naver.main.search.extract import SearchTab
     # from linkmerce.core.naver.main.search.transform import CafeTab
     return _search_tab(
-        query, "cafe", cookies, "CafeTab", connection, tables,
+        query, "cafe", mobile, cookies, "CafeTab", connection, tables,
         request_delay, progress, return_type, extract_options, transform_options)
 
 
@@ -111,6 +147,7 @@ def cafe_article(
 def search_cafe_plus(
         connection: DuckDBConnection,
         query: str | Iterable[str],
+        mobile: bool = True,
         cookies: str | None = None,
         max_rank: int | None = None,
         tables: dict | None = None,
@@ -122,7 +159,7 @@ def search_cafe_plus(
         if_merged_table_exists: Literal["insert","replace"] = "replace",
     ) -> JsonObject:
     """`tables = {'search': 'naver_cafe_search', 'article': 'naver_cafe_article', 'merged': 'data'}`"""
-    # from linkmerce.core.naver.main.search.extract import MobileTabSearch, CafeArticle
+    # from linkmerce.core.naver.main.search.extract import SearchTab, CafeArticle
     # from linkmerce.core.naver.main.search.transform import CafeTab, CafeArticle
     from copy import deepcopy
     results = dict()
@@ -132,7 +169,7 @@ def search_cafe_plus(
     merged_table = (tables or dict()).get("merged", "data")
 
     options = (deepcopy(extract_options), deepcopy(transform_options))
-    results["search"] = search_cafe(query, cookies, connection, dict(default=search_table), *common, *options)
+    results["search"] = search_cafe(query, mobile, cookies, connection, dict(default=search_table), *common, *options)
     if isinstance(max_rank, int):
         connection.execute(f"DELETE FROM {search_table} WHERE rank > {max_rank}")
 
@@ -188,37 +225,3 @@ def search_cafe_plus(
         results["merged"] = connection.fetch_all(return_type, f"SELECT * FROM {merged_table}")
 
     return results
-
-
-# (deprecated)
-# def shopping_page(
-#         query: str | Iterable[str],
-#         connection: DuckDBConnection | None = None,
-#         tables: dict | None = None,
-#         how: Literal["sync","async","async_loop"] = "sync",
-#         max_concurrent: int = 3,
-#         max_retries: int = 5,
-#         request_delay: float | int = 1.01,
-#         progress: bool = True,
-#         return_type: Literal["csv","json","parquet","raw","none"] = "json",
-#         extract_options: dict = dict(),
-#         transform_options: dict = dict(),
-#     ) -> JsonObject:
-#     """`tables = {'default': 'data'}`"""
-#     # from linkmerce.core.naver.main.search.extract import ShoppingProduct
-#     # from linkmerce.core.naver.main.search.transform import ShoppingProduct
-#     return run_with_duckdb(
-#         module = get_module(".search"),
-#         extractor = "ShoppingPage",
-#         transformer = "ShoppingPage",
-#         connection = connection,
-#         tables = tables,
-#         how = how,
-#         return_type = return_type,
-#         args = (query,),
-#         extract_options = update_options(
-#             extract_options,
-#             options = get_options(max_concurrent, max_retries, request_delay, progress),
-#         ),
-#         transform_options = transform_options,
-#     )

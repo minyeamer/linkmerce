@@ -1,3 +1,32 @@
+-- Search: create_sections
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    query VARCHAR PRIMARY KEY
+  , sections JSON -- list[list[dict]]
+);
+
+-- Search: create_summary
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    query VARCHAR
+  , seq INTEGER
+  , section VARCHAR
+  , subject VARCHAR
+  , item_count INTEGER
+  , PRIMARY KEY (query, seq, subject)
+);
+
+-- Search: select_summary
+SELECT
+    query
+  , seq
+  , section
+  , subject
+  , item_count
+FROM {{ array }};
+
+-- Search: insert_summary
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
 -- CafeTab: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     query VARCHAR

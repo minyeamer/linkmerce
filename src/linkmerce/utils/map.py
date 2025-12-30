@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Sequence, TYPE_CHECKING
+from typing import Callable, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Hashable, Literal, TypeVar
+    from typing import Any, Hashable, Literal, TypeVar
     _KT = TypeVar("_KT", Hashable)
     _VT = TypeVar("_VT", Any)
 
@@ -71,6 +71,21 @@ def hier_set(
         return left
 
     return recursive(__m, kwargs)
+
+
+def coalesce(
+        __m: dict[_KT,_VT],
+        keys: _KT | Sequence[_KT],
+        default: _VT | None = None,
+        condition: Callable[[_VT],bool] | Literal["notna","exists"] = "notna",
+    ) -> _VT:
+    if not isinstance(condition, Callable):
+        condition = bool if condition == "exists" else (lambda x: x is not None)
+
+    for key in (keys if isinstance(keys, Sequence) else [keys]):
+        if (key in __m) and condition(__m[key]):
+            return __m[key]
+    return default
 
 
 ###################################################################

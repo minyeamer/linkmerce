@@ -10,41 +10,55 @@ if TYPE_CHECKING:
 
 
 ###################################################################
-########################## Mobile Search ##########################
+############################## Search #############################
 ###################################################################
 
-class MobileSearch(Extractor):
+class Search(Extractor):
     method = "GET"
-    url = "https://m.search.naver.com/search.naver"
-    oquery = dict(oquery=None, tqi=None, ackey=None)
+    url = "https://{m}search.naver.com/search.naver"
+    state = dict(oquery=None, tqi=None, ackey=None)
 
     @property
     def default_options(self) -> dict:
         return dict(RequestEach = dict(request_delay=1.01))
 
     @Extractor.with_session
-    def extract(self, query: str | Iterable[str]) -> JsonObject | BeautifulSoup:
+    def extract(
+            self,
+            query: str | Iterable[str],
+            mobile: bool = True,
+            parse_html: bool = True,
+        ) -> JsonObject | BeautifulSoup | str:
         return (self.request_each(self.search)
+                .partial(mobile=mobile, parse_html=parse_html)
                 .expand(query=query)
                 .run())
 
-    def search(self, **kwargs) -> BeautifulSoup:
-        response = self.request_text(**kwargs)
+    def search(self, mobile: bool = True, parse_html: bool = True, **kwargs) -> BeautifulSoup | str:
+        kwargs["url"] = self.url.format(m=("m." if mobile else str()))
+        response = self.request_text(mobile=mobile, **kwargs)
         self.save_search_query(response, kwargs.get("query"))
-        from bs4 import BeautifulSoup
-        return BeautifulSoup(response, "html.parser")
+        if parse_html:
+            from bs4 import BeautifulSoup
+            return BeautifulSoup(response, "html.parser")
+        else:
+            return response
 
     def save_search_query(self, response: str, query: str):
         from linkmerce.utils.regex import regexp_extract
-        self.oquery["oquery"] = query
-        self.oquery["tqi"] = regexp_extract(r"tqi=([^&\"]+)", response)
-        self.oquery["ackey"] = regexp_extract(r"ackey=([^&\"]+)", response)
+        self.state["oquery"] = query
+        self.state["tqi"] = regexp_extract(r"tqi=([^&\"]+)", response)
+        self.state["ackey"] = regexp_extract(r"ackey=([^&\"]+)", response)
 
-    def build_request_params(self, query: str, **kwargs) -> dict:
-        params = {"sm": "mtp_hty.top", "where": "m", "query": query}
-        params.update({key: value for key, value in self.oquery.items() if value})
+    def build_request_params(self, query: str, mobile: bool = True, **kwargs) -> dict:
+        params = {
+            "sm": f"{'mtp_hty' if mobile else 'tab_hty'}.top",
+            "where": ('m' if mobile else "nexearch"),
+            "query": query,
+            **{key: value for key, value in self.state.items() if value}
+        }
         if "ackey" not in params:
-            self.oquery["ackey"] = self.ackey
+            self.state["ackey"] = self.ackey
         return params
 
     @property
@@ -65,12 +79,12 @@ class MobileSearch(Extractor):
 
 
 ###################################################################
-######################## Mobile Tab Search ########################
+############################ Search Tab ###########################
 ###################################################################
 
-class MobileTabSearch(Extractor):
+class SearchTab(Extractor):
     method = "GET"
-    url = "https://m.search.naver.com/search.naver"
+    url = "https://{m}search.naver.com/search.naver"
 
     @property
     def default_options(self) -> dict:
@@ -81,16 +95,18 @@ class MobileTabSearch(Extractor):
             self,
             query: str | Iterable[str],
             tab_type: Literal["image","blog","cafe","kin","influencer","clip","video","news","surf","shortents"],
+            mobile: bool = True,
             **kwargs
         ) -> JsonObject | BeautifulSoup:
-        tab_type = tab_type if tab_type in self.tab_type.values() else self.tab_type[tab_type]
+        url = self.url.format(m=("m." if mobile else str()))
+        tab_type = self.tab_type[tab_type].format(m=("m_" if mobile else str()))
         return (self.request_each(self.request_html)
-                .partial(tab_type=tab_type, **kwargs)
+                .partial(url=url, tab_type=tab_type, mobile=mobile, **kwargs)
                 .expand(query=query)
                 .run())
 
-    def build_request_params(self, query: str, tab_type: str, **kwargs) -> dict:
-        return {"ssc": tab_type, "sm": "mtb_jum", "query": query}
+    def build_request_params(self, query: str, tab_type: str, mobile: bool = True, **kwargs) -> dict:
+        return {"ssc": tab_type, "sm": ("mtb_jum" if mobile else "tab_jum"), "query": query}
 
     def set_request_headers(self, **kwargs):
         kwargs.update(authority=self.url, encoding="gzip, deflate", metadata="navigate", https=True)
@@ -99,16 +115,16 @@ class MobileTabSearch(Extractor):
     @property
     def tab_type(self) -> dict[str,str]:
         return {
-            "image": "tab.m_image.all", # "이미지"
-            "blog": "tab.m_blog.all", # "블로그"
-            "cafe": "tab.m_cafe.all", # "카페"
-            "kin": "tab.m_kin.all", # "지식iN"
-            "influencer": "tab.m_influencer.chl", # "인플루언서"
-            "clip": "tab.m_clip.all", # "클립"
-            "video": "tab.m_video.all", # "동영상"
-            "news": "tab.m_news.all", # "뉴스"
-            "surf": "tab.m_surf.tab1", # "서치피드"
-            "shortents": "tab.m_shortents.all" # "숏텐츠"
+            "image": "tab.{m}image.all", # "이미지"
+            "blog": "tab.{m}blog.all", # "블로그"
+            "cafe": "tab.{m}cafe.all", # "카페"
+            "kin": "tab.{m}kin.all", # "지식iN"
+            "influencer": "tab.{m}influencer.chl", # "인플루언서"
+            "clip": "tab.{m}clip.all", # "클립"
+            "video": "tab.{m}video.all", # "동영상"
+            "news": "tab.{m}news.all", # "뉴스"
+            "surf": "tab.{m}surf.tab1", # "서치피드"
+            "shortents": "tab.{m}shortents.all" # "숏텐츠"
         }
 
 
@@ -167,65 +183,3 @@ class CafeArticle(Extractor):
         origin = "https://cafe.naver.com" if domain == "cafe" else "https://m.cafe.naver.com"
         kwargs.update(authority=self.url, origin=origin, **{"x-cafe-product": "mweb"})
         return super().set_request_headers(**kwargs)
-
-
-###################################################################
-################## Shopping Product (deprecated) ##################
-###################################################################
-
-# class ShoppingProduct(Extractor):
-#     method = "GET"
-#     url = "https://ns-portal.shopping.naver.com/api/v1/shopping-paged-product"
-
-#     @property
-#     def default_options(self) -> dict:
-#         return dict(
-#             RequestLoop = dict(max_retries=5, ignored_errors=ConnectionError),
-#             RequestEachLoop = dict(request_delay=1.01, max_concurrent=3),
-#         )
-
-#     @Extractor.with_session
-#     def extract(self, query: str | Iterable[str], mobile: bool = True, **kwargs) -> JsonObject:
-#         return (self.request_each_loop(self.request_json_safe)
-#                 .partial(mobile=mobile)
-#                 .expand(query=query)
-#                 .loop(lambda x: True)
-#                 .run())
-
-#     @Extractor.async_with_session
-#     async def extract_async(self, query: str | Iterable[str], mobile: bool = True, **kwargs) -> JsonObject:
-#         return await (self.request_each_loop(self.request_async_json_safe)
-#                 .partial(mobile=mobile)
-#                 .expand(query=query)
-#                 .run_async())
-
-#     def build_request_params(self, query: str, mobile: bool = True, **kwargs) -> dict:
-#         if mobile:
-#             params = {"ssc": "tab.m.all", "sm": "mtb_hty.top", "source": "shp_tli"}
-#         else:
-#             params = {"ssc": "tab.nx.all", "sm": "top_hty", "source": "shp_gui"}
-#         params.update({"adDepth": 'H', "adPosition": 'T', "query": query})
-#         return params
-
-#     def build_request_headers(self, mobile: bool = True, **kwargs: str) -> dict[str,str]:
-#         ns = {"x-ns-device-type": ("mobile" if mobile else "pc"), "x-ns-page-id": self.generate_page_id()}
-#         return dict(self.get_request_headers(), **ns)
-
-#     def set_request_headers(self, mobile: bool = True, **kwargs: str):
-#         origin = "https://m.search.naver.com" if mobile else "https://search.naver.com"
-#         super().set_request_headers(contents="json", origin=origin, referer=origin, **kwargs)
-
-#     def generate_page_id(self) -> str:
-#         import random
-#         import string
-#         ascii_chars = string.digits + string.ascii_letters
-
-#         a = ''.join([random.choice(ascii_chars) for _ in range(8)])
-#         b = ''.join([random.choice(ascii_chars) for _ in range(6)])
-#         c = ''.join([random.choice(ascii_chars) for _ in range(2)])
-#         d = ''.join([random.choice(string.digits) for _ in range(6)])
-#         return f"j6b{a}ss{b}ssssss{c}-{d}"
-
-
-# class ShoppingPage(ShoppingProduct):
-#     ...

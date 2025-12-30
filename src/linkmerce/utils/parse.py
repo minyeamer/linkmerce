@@ -7,17 +7,35 @@ if TYPE_CHECKING:
     from bs4 import BeautifulSoup, Tag
 
 
-def clean_html(__object: str) -> str:
+
+###################################################################
+############################## Clean ##############################
+###################################################################
+
+def clean_html(__object: str, features: str | Sequence[str] | None = "html.parser", strip: bool = True) -> str:
     from bs4 import BeautifulSoup
-    return BeautifulSoup(__object, "lxml").get_text()
+    return _get_text(BeautifulSoup(__object, features), strip)
 
 
-def clean_tag(__object: str) -> str:
+def clean_tag(__object: str, strip: bool = True) -> str:
     import re
-    return re.sub("<[^>]*>", "", __object)
+    text = re.sub("<[^>]*>", "", __object)
+    return text.strip() if strip else text
 
 
-def select(tag: BeautifulSoup | Tag, selector: str) -> Tag | list[Tag] | str | list[str]:
+def _get_text(tag: BeautifulSoup | Tag, strip: bool = True) -> str:
+    if strip:
+        import re
+        return re.sub(r"\s+", ' ', tag.get_text()).strip()
+    else:
+        return tag.get_text()
+
+
+###################################################################
+############################## Select #############################
+###################################################################
+
+def select(tag: BeautifulSoup | Tag, selector: str) -> Tag | list[Tag] | str | list[str] | None:
     path = _split_selector(selector)
     if path[-1].startswith(':') and path[-1].endswith(':'):
         tag = hier_select(tag, path[:-1])
@@ -26,22 +44,32 @@ def select(tag: BeautifulSoup | Tag, selector: str) -> Tag | list[Tag] | str | l
         return hier_select(tag, path)
 
 
-def select_attr(tag: BeautifulSoup | Tag | list[Tag], attr: str) -> str | list[str]:
+def select_attr(tag: BeautifulSoup | Tag | list[Tag], attr: str) -> str | list[str] | None:
     if (tag is None) or (not attr):
         return tag
     elif isinstance(tag, list):
         return [select_attr(tag_, attr) for tag_ in tag]
     elif attr == "text()":
-        return tag.get_text(strip=True)
+        return _get_text(tag)
     elif attr.startswith("attr(") and attr.endswith(')'):
-        return tag.attrs.get(attr[5:-1], str())
+        return tag.get(attr[5:-1])
     elif attr.startswith("class(") and attr.endswith(')'):
-        return tag.attrs.get("class")[int(attr[6:-1])]
+        names = [value] if isinstance(value := tag.get("class"), str) else value
+        try:
+            return names if attr == "class()" else names[int(attr[6:-1])]
+        except:
+            return None
+    elif attr == "id()":
+        return tag.get("id")
+    elif attr.startswith("data(") and attr.endswith(')'):
+        return tag.get("data-{}".format(attr[5:-1]))
+    elif attr == "label()":
+        return tag.get("aria-labelledby")
     else:
         raise ValueError(f"Unknown attribute: {attr}")
 
 
-def hier_select(tag: BeautifulSoup | Tag | list[Tag], path: Sequence[str | int]) -> Tag | list[Tag]:
+def hier_select(tag: BeautifulSoup | Tag | list[Tag], path: Sequence[str | int]) -> Tag | list[Tag] | None:
     if (tag is None) or (not path):
         return tag
     elif isinstance(tag, list):

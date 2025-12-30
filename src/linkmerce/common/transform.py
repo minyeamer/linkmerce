@@ -98,7 +98,7 @@ class HtmlTransformer(Transformer, metaclass=ABCMeta):
             raise NotImplementedError("The 'parse' method must be implemented.")
 
     def select(self, obj: BeautifulSoup | Tag, selector: str) -> Tag | list[Tag] | str | list[str]:
-        from linkmerce.utils.css import select
+        from linkmerce.utils.parse import select
         return select(obj, selector)
 
 
