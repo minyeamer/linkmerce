@@ -178,7 +178,7 @@ with DAG(
 
         def count_total(page: Page) -> int:
             label = page.locator('div[aria-label^="총"][aria-label$="건"]').first.get_attribute("aria-label")
-            return int(label[1:-1].strip())
+            return int(label[1:-1].replace(',', '').strip())
 
         def download(page: Page, timeout: int = 30) -> list[dict]:
             from playwright.sync_api import TimeoutError
