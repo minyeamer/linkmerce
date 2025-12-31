@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import Sequence, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Literal, Union
+    from typing import Any, Callable, Literal, Union
     from openpyxl import Workbook, _ZipFileFileProtocol
     from openpyxl.worksheet.worksheet import Worksheet
     from openpyxl.cell.cell import Cell
     from openpyxl.formatting import Rule
     from openpyxl.styles import Alignment, Border, Color, PatternFill, Font
+    from openpyxl.worksheet.filters import FilterColumn, Filters, Top10, CustomFilter, DynamicFilter, ColorFilter, IconFilter
+    import datetime as dt
 
 Column = TypeVar("Column", int, str, tuple[str,...])
 Row = TypeVar("Row", bound=int)
@@ -84,6 +86,26 @@ class MergeConfig(dict):
         return super().__init__(ranges=ranges, range_type=range_type, mode=mode, styles=styles)
 
 
+class FilterConfig(dict):
+    def __init__(
+            self,
+            filter_type: Literal["value","top10","custom","dynamic","color","icon","blank","notBlank"],
+            **config
+        ):
+        return super().__init__(filter_type=filter_type, **config)
+
+
+class ColumnFilters(dict):
+    def __init__(
+            self,
+            range: Range | Literal[":all:"],
+            action: Literal["hide_rows"] | None = None,
+            filters: Sequence[tuple[Column, Sequence[FilterConfig]]] = list(),
+            button: Literal["always","hidden","auto"] = "always",
+        ):
+        return super().__init__(range=range, action=action, filters=filters, button=button)
+
+
 def filter_warnings():
     import warnings
     warnings.filterwarnings("ignore", module="openpyxl.*")
@@ -152,13 +174,14 @@ def csv2excel(
         sheet_name: str = "Sheet1",
         header_rows: Sequence[Row] = [1],
         header_styles: StyleConfig | Literal["yellow"] = "yellow",
-        column_styles: dict[Column,StyleConfig] = dict(),
-        row_styles: dict[Row,StyleConfig] = dict(),
-        column_width: float | Multiple | dict[Column,Width] | Literal[":fit_content:",":fit_header:",":fit_values:"] | None = ":fit_content:",
+        column_styles: dict[Column, StyleConfig] = dict(),
+        row_styles: dict[Row, StyleConfig] = dict(),
+        column_width: float | Multiple | dict[Column,Width] | Literal[":fit:",":fit_header:",":fit_values:"] | None = ":fit:",
         row_height: float | Multiple | dict[Row,Height] | None = None,
         conditional_formatting: Sequence[ConditionalConfig] = list(),
         merge_cells: Sequence[MergeConfig] = list(),
-        range_styles: Sequence[tuple[Range,StyleConfig]] = dict(),
+        range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
+        column_filters: ColumnFilters = dict(),
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
@@ -171,7 +194,7 @@ def csv2excel(
     kwargs = dict(
         column_styles=column_styles, row_styles=row_styles, column_width=column_width, row_height=row_height,
         conditional_formatting=conditional_formatting, merge_cells=merge_cells, range_styles=range_styles,
-        hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text,
+        column_filters=column_filters, hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text,
         freeze_panes=freeze_panes, zoom_scale=zoom_scale)
 
     for index, (name, rows) in enumerate(obj.items()):
@@ -184,13 +207,14 @@ def json2excel(
         sheet_name: str = "Sheet1",
         header: Literal["first","all"] | None = "first",
         header_styles: StyleConfig | Literal["yellow"] = "yellow",
-        column_styles: dict[Column,StyleConfig] = dict(),
-        row_styles: dict[Row,StyleConfig] = dict(),
-        column_width: float | Multiple | dict[Column,Width] | Literal[":fit_content:",":fit_header:",":fit_values:"] | None = ":fit_content:",
+        column_styles: dict[Column, StyleConfig] = dict(),
+        row_styles: dict[Row, StyleConfig] = dict(),
+        column_width: float | Multiple | dict[Column,Width] | Literal[":fit:",":fit_header:",":fit_values:"] | None = ":fit:",
         row_height: float | Multiple | dict[Row,Height] | None = None,
         conditional_formatting: Sequence[ConditionalConfig] = list(),
         merge_cells: Sequence[MergeConfig] = list(),
-        range_styles: Sequence[tuple[Range,StyleConfig]] = dict(),
+        range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
+        column_filters: ColumnFilters = dict(),
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
@@ -203,7 +227,7 @@ def json2excel(
     kwargs = dict(
         column_styles=column_styles, row_styles=row_styles, column_width=column_width, row_height=row_height,
         conditional_formatting=conditional_formatting, merge_cells=merge_cells, range_styles=range_styles,
-        hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text,
+        column_filters=column_filters, hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text,
         freeze_panes=freeze_panes, zoom_scale=zoom_scale)
 
     def _get_all_keys(rows: Sequence[dict]) -> list[str]:
@@ -283,13 +307,14 @@ def style_sheet(
         ws: Worksheet,
         header_rows: Sequence[Row] = [1],
         header_styles: StyleConfig = dict(),
-        column_styles: dict[Column,StyleConfig] = dict(),
-        row_styles: dict[Row,StyleConfig] = dict(),
-        column_width: float | Multiple | dict[Column,Width] | Literal[":fit_content:",":fit_header:",":fit_values:"] | None = ":fit_content:",
+        column_styles: dict[Column, StyleConfig] = dict(),
+        row_styles: dict[Row, StyleConfig] = dict(),
+        column_width: float | Multiple | dict[Column,Width] | Literal[":fit:",":fit_header:",":fit_values:"] | None = ":fit:",
         row_height: float | Multiple | dict[Row,Height] | None = None,
         conditional_formatting: Sequence[ConditionalConfig] = list(),
         merge_cells: Sequence[MergeConfig] = list(),
-        range_styles: Sequence[tuple[Range,StyleConfig]] = dict(),
+        range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
+        column_filters: ColumnFilters = dict(),
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
@@ -330,14 +355,14 @@ def style_sheet(
             if row_idx in header_rows:
                 if header_styles:
                     style_cell(cell, **header_styles)
-                if fit_mode in (":fit_content:",":fit_header:"):
+                if fit_mode in (":fit:",":fit_header:"):
                     max_width = max(max_width, get_cell_width(text))
             elif col_idx in column_styles:
                 style_cell(cell, **column_styles[col_idx])
             elif row_idx in row_styles:
                 style_cell(cell, **row_styles[row_idx])
 
-            if (fit_mode in (":fit_content:",":fit_values:")) and (row_idx not in header_rows):
+            if (fit_mode in (":fit:",":fit_values:")) and (row_idx not in header_rows):
                 max_width = max(max_width, get_cell_width(text))
 
         # CHANGE COLUMN WIDTH
@@ -386,6 +411,20 @@ def style_sheet(
         for row in ws.iter_rows(row_start, row_end, col_start, col_end):
             for cell in row:
                 style_cell(cell, **styles)
+
+    # FILTER BY COLUMN
+
+    if column_filters:
+        from openpyxl.worksheet.filters import AutoFilter
+        reference = f"A1:{max_col}{max_row}" if (ref := column_filters["range"]) == ":all:" else _to_excel_range(ref)
+        filters = list()
+
+        for column, configs in column_filters.get("filters", list()):
+            if (col_idx := get_column_index(column, headers)) is not None:
+                filters.append(_filter_column(col_idx, configs, column_filters.get("button", "always")))
+                if column_filters.get("action") == "hide_rows":
+                    filter_rows(ws, col_idx, configs, header_rows)
+        ws.auto_filter = AutoFilter(ref=reference, filterColumn=filters)
 
     if freeze_panes:
         ws.freeze_panes = freeze_panes
@@ -447,8 +486,12 @@ def get_column_index(column: Column, headers: list[tuple[str,...]] = list()) -> 
 
 def get_column_letter(column: Column, headers: list[tuple[str,...]] = list()) -> str | None:
     from openpyxl.utils import get_column_letter as get_letter
-    col_idx = get_column_index(column, headers)
-    return get_letter(col_idx) if isinstance(col_idx, int) else None
+    if isinstance(column, int):
+        return get_letter(column)
+    elif isinstance(col_idx := get_column_index(column, headers), int):
+        return get_letter(col_idx)
+    else:
+        return None
 
 
 def colstr(col_idx: int) -> str:
@@ -546,7 +589,7 @@ def split_range_string(value: str) -> tuple[str,str,str,str]:
 ###################################################################
 
 def _init_column_styles(
-        column_styles: dict[Column,StyleConfig],
+        column_styles: dict[Column, StyleConfig],
         headers: list[tuple[str,...]] = list(),
     ) -> dict[int,StyleConfig]:
     return {col_idx: styles for column, styles in column_styles.items()
@@ -554,13 +597,13 @@ def _init_column_styles(
 
 
 def _init_column_width(
-        column_width: float | Multiple | dict[Column,Width] | Literal[":fit_content:",":fit_header:",":fit_values:"],
+        column_width: float | Multiple | dict[Column,Width] | Literal[":fit:",":fit_header:",":fit_values:"],
         headers: list[tuple[str,...]] = list(),
-    ) -> dict[int, Union[float,Literal[":fit_content:",":fit_header:",":fit_values:"]]]:
+    ) -> dict[int, Union[float,Literal[":fit:",":fit_header:",":fit_values:"]]]:
 
-    def _set_width(value: Width) -> float | Literal[":fit_content:",":fit_header:",":fit_values:"]:
+    def _set_width(value: Width) -> float | Literal[":fit:",":fit_header:",":fit_values:"]:
         if isinstance(value, str):
-            if value in (":fit_content:",":fit_header:",":fit_values:"):
+            if value in (":fit:",":fit_header:",":fit_values:"):
                 return value
             elif value.endswith('x'):
                 value = SINGLE_WIDTH * float(value[:-1])
@@ -640,6 +683,401 @@ def _color(rgb: Any, alpha: str = "FF") -> Color:
         return rgb
     else:
         return None
+
+
+###################################################################
+########################## Filter object ##########################
+###################################################################
+
+def _filter_column(
+        col_idx: int,
+        filter_configs: Sequence[FilterConfig],
+        button: Literal["always","hidden","auto"] = "always",
+    ) -> FilterColumn:
+    from openpyxl.worksheet.filters import FilterColumn
+    kwargs, custom_filters, blank = dict(), list(), None
+
+    for config in filter_configs:
+        filter_type = config["filter_type"]
+        if filter_type == "value":
+            kwargs["filters"] = _value_filter(**config)
+        elif filter_type == "top10":
+            kwargs["top10"] = _top10_filter(**config)
+        elif filter_type == "custom":
+            custom_filters.append(_custom_filter(**config))
+        elif filter_type == "dynamic":
+            kwargs["dynamicFilter"] = _dynamic_filter(**config)
+        elif filter_type == "color":
+            kwargs["colorFilter"] = _color_filter(**config)
+        elif filter_type == "icon":
+            kwargs["iconFilter"] = _icon_filter(**config)
+        elif filter_type == "blank":
+            blank = True
+        elif filter_type == "notBlank":
+            blank = False
+        else:
+            pass
+
+    if custom_filters:
+        from openpyxl.worksheet.filters import CustomFilters
+        kwargs["customFilters"] = CustomFilters(customFilter=custom_filters)
+
+    filter_column = FilterColumn(colId=(col_idx-1), **_filter_button_options(button), **kwargs)
+    return _add_blank_filter(filter_column, blank) if isinstance(blank, bool) else filter_column
+
+
+
+def _value_filter(
+        blank: bool | None = None,
+        calendar_type: str | None = None,
+        values: Sequence[str] | None = None,
+        dates: Sequence[dict] | None = None,
+        **kwargs
+    ) -> Filters:
+    from openpyxl.worksheet.filters import Filters, DateGroupItem
+    return Filters(
+        **(dict(blank=blank) if isinstance(blank, bool) else dict()),
+        **(dict(calendarType=calendar_type) if isinstance(calendar_type, str) else dict()),
+        **(dict(filter=values) if isinstance(values, Sequence) else dict()),
+        **(dict(dateGroupItem=[DateGroupItem(**item) for item in dates]) if isinstance(dates, Sequence) else dict()),
+    )
+
+
+def _top10_filter(
+        value: float,
+        top: bool | None = None,
+        percent: bool | None = None,
+        filter_value: float | None = None,
+        **kwargs
+    ) -> Top10:
+    from openpyxl.worksheet.filters import Top10
+    return Top10(
+        **(dict(top=top) if isinstance(top, bool) else dict()),
+        **(dict(percent=percent) if isinstance(percent, bool) else dict()),
+        val = value,
+        **(dict(filterVal=filter_value) if filter_value is not None else dict()),
+    )
+
+
+def _custom_filter(
+        operator: Literal["equal","lessThan","lessThanOrEqual","notEqual","greaterThanOrEqual","greaterThan"],
+        value: str,
+        **kwargs
+    ) -> CustomFilter:
+    from openpyxl.worksheet.filters import CustomFilter
+    return CustomFilter(operator=operator, val=value)
+
+
+def _dynamic_filter(
+        type: Literal[
+            "null", "aboveAverage", "belowAverage", "tomorrow",
+            "today", "yesterday", "nextWeek", "thisWeek", "lastWeek", "nextMonth",
+            "thisMonth", "lastMonth", "nextQuarter", "thisQuarter", "lastQuarter",
+            "nextYear", "thisYear", "lastYear", "yearToDate", "Q1", "Q2", "Q3", "Q4",
+            "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12"],
+        value: float | None = None,
+        datetime: dt.datetime | None = None,
+        max_value: float | None = None,
+        max_datetime: dt.datetime | None = None,
+        **kwargs
+    ) -> DynamicFilter:
+    from openpyxl.worksheet.filters import DynamicFilter
+    return DynamicFilter(type=type,
+        **(dict(value=value) if value is not None else dict()),
+        **(dict(datetime=datetime) if datetime is not None else dict()),
+        **(dict(max_value=max_value) if max_value is not None else dict()),
+        **(dict(max_datetime=max_datetime) if max_datetime is not None else dict()),
+    )
+
+
+def _color_filter(
+        dfx_id: int | None = None,
+        color_type: Literal["cell","font"] = "cell",
+        **kwargs
+    ) -> ColorFilter:
+    from openpyxl.worksheet.filters import ColorFilter
+    return ColorFilter(
+        **(dict(dxfId=dfx_id) if isinstance(dfx_id, int) else dict()),
+        **(dict(cellColor=(color_type == "cell")) if color_type in {"cell","font"} else dict()),
+    )
+
+
+def _icon_filter(
+        icon_set: Literal[
+            "3Arrows", "3ArrowsGray", "3Flags",
+            "3TrafficLights1", "3TrafficLights2", "3Signs", "3Symbols", "3Symbols2",
+            "4Arrows", "4ArrowsGray", "4RedToBlack", "4Rating", "4TrafficLights",
+            "5Arrows", "5ArrowsGray", "5Rating", "5Quarters"],
+        icon_id: int | None = None,
+        **kwargs
+    ) -> IconFilter:
+    from openpyxl.worksheet.filters import IconFilter
+    return IconFilter(
+        iconSet = icon_set,
+        **(dict(iconId=icon_id) if isinstance(icon_id, int) else dict()),
+    )
+
+
+def _add_blank_filter(filter_column: FilterColumn, blank: bool) -> FilterColumn:
+    if blank:
+        from openpyxl.worksheet.filters import Filters, BlankFilter
+        filter_column.filters = Filters(blank=True, filter=[BlankFilter()])
+    else:
+        filter_column.filters.blank = False
+    return filter_column
+
+
+def _filter_button_options(how: Literal["always","hidden","auto"] = "always") -> dict:
+    if how == "hidden":
+        return dict(hiddenButton=True)
+    elif how == "auto":
+        return dict(showButton=False)
+    else:
+        return dict() # default = dict(hiddenButton=False, showButton=True)
+
+
+###################################################################
+########################### Filter rows ###########################
+###################################################################
+
+def filter_rows(
+        ws: Worksheet,
+        col_idx: int,
+        filter_configs: Sequence[FilterConfig],
+        header_rows: Sequence[Row] = [1],
+    ):
+    conditions, global_config = _init_conditions(filter_configs)
+    col_values = list()
+
+    for row_idx, cell in enumerate(ws[get_column_letter(col_idx)], start=1):
+        if global_config:
+            col_values.append(cell.value)
+
+        if ws.row_dimensions[row_idx].hidden or (row_idx in header_rows):
+            continue
+
+        matched = True
+        for condition in conditions:
+            if matched:
+                matched = condition(cell)
+        if not matched:
+            ws.row_dimensions[row_idx].hidden = True
+
+    if global_config and col_values:
+        try:
+            for row_idx in _apply_global_filter(col_values, header_rows, **global_config):
+                ws.row_dimensions[row_idx].hidden = True
+        except:
+            pass
+
+
+def _init_conditions(filter_configs: Sequence[FilterConfig]) -> tuple[Callable[[Cell],bool], dict]:
+    conditions, global_config = list(), dict()
+    for config in filter_configs:
+        filter_type = config["filter_type"]
+        if filter_type == "value":
+            conditions.append(lambda cell: _apply_value_filter(cell, **config))
+        elif filter_type == "top10":
+            global_config.update(config)
+        elif filter_type == "custom":
+            conditions.append(lambda cell: _apply_custom_filter(cell, **config))
+        elif filter_type == "dynamic":
+            if config.get("type") in {"aboveAverage","belowAverage"}:
+                global_config["average"] = config["type"][:-7]
+            else:
+                conditions.append(lambda cell: _apply_dynamic_filter(cell, **config))
+        elif filter_type == "color":
+            pass # conditions.append(lambda cell: _apply_color_filter(cell, **config))
+        elif filter_type == "icon":
+            pass # conditions.append(lambda cell: _apply_icon_filter(cell, **config))
+        elif filter_type == "blank":
+            conditions.append(lambda cell: cell.value is None)
+        elif filter_type == "notBlank":
+            conditions.append(lambda cell: cell.value is not None)
+        else:
+            pass
+    return conditions, global_config
+
+
+def _apply_value_filter(
+        cell: Cell,
+        blank: bool | None = None,
+        values: Sequence[str] | None = None,
+        dates: Sequence[dict] | None = None,
+        **kwargs
+    ) -> bool:
+    value, value_str = cell.value, str(cell.value)
+
+    if isinstance(blank, bool):
+        if ((value is None) if blank else (value is not None)):
+            return True
+
+    if value_str in (values or list()):
+        return True
+
+    import datetime as dt
+    for date in (dates or list()):
+        if isinstance(date, dict) and isinstance(value, dt.date):
+            group = date["dateTimeGrouping"]
+            if getattr(value, group) == date.get(group):
+                return True
+
+    return False
+
+
+def _apply_custom_filter(
+        cell: Cell,
+        operator: Literal["equal","lessThan","lessThanOrEqual","notEqual","greaterThanOrEqual","greaterThan"],
+        value: str,
+        **kwargs
+    ) -> bool:
+    try:
+        if operator == "equal":
+            return cell.value == value
+        elif operator == "lessThan":
+            return cell.value < value
+        elif operator == "lessThanOrEqual":
+            return cell.value <= value
+        elif operator == "notEqual":
+            return cell.value != value
+        elif operator == "greaterThanOrEqual":
+            return cell.value >= value
+        elif operator == "greaterThan":
+            return cell.value > value
+        else:
+            return False
+    except:
+        return False
+
+
+def _apply_dynamic_filter(
+        cell: Cell,
+        type: Literal[
+            "null", "tomorrow", "today", "yesterday", "nextWeek", "thisWeek", "lastWeek", "nextMonth",
+            "thisMonth", "lastMonth", "nextQuarter", "thisQuarter", "lastQuarter",
+            "nextYear", "thisYear", "lastYear", "yearToDate", "Q1", "Q2", "Q3", "Q4",
+            "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12"],
+        tz: str = "local",
+        **kwargs
+    ) -> bool:
+    import pendulum
+    import datetime as dt
+
+    value = cell.value
+    if type == "null":
+        return value is None
+
+    # Convert cell value to pendulum date
+    if isinstance(value, dt.datetime):
+        cell_date = pendulum.instance(value, tz=tz).date()
+    elif isinstance(value, dt.date):
+        cell_date = value
+    else:
+        return False
+    today = pendulum.today(tz).date()
+
+    # Day-based filters
+    if type in {"tomorrow", "today", "yesterday"}:
+        delta = {"tomorrow": 1, "today": 0, "yesterday": -1}[type]
+        return cell_date == today.add(days=delta)
+
+    # Week-based filters
+    elif type in {"nextWeek", "thisWeek", "lastWeek"}:
+        start_of_week = today.start_of("week")
+        if type == "thisWeek":
+            return start_of_week <= cell_date < start_of_week.add(weeks=1)
+        elif type == "nextWeek":
+            return start_of_week.add(weeks=1) <= cell_date < start_of_week.add(weeks=2)
+        elif type == "lastWeek":
+            return start_of_week.subtract(weeks=1) <= cell_date < start_of_week
+
+    # Month-based filters
+    elif type in {"nextMonth", "thisMonth", "lastMonth"}:
+        if type == "thisMonth":
+            return (cell_date.year == today.year) and (cell_date.month == today.month)
+        elif type == "nextMonth":
+            next_month = today.add(months=1)
+            return (cell_date.year == next_month.year) and (cell_date.month == next_month.month)
+        elif type == "lastMonth":
+            last_month = today.subtract(months=1)
+            return (cell_date.year == last_month.year) and (cell_date.month == last_month.month)
+
+    # Quarter-based filters
+    elif type in {"nextQuarter", "thisQuarter", "lastQuarter"}:
+        cell_quarter = (cell_date.month - 1) // 3 + 1
+        today_quarter = (today.month - 1) // 3 + 1
+
+        if type == "thisQuarter":
+            return (cell_date.year == today.year) and (cell_quarter == today_quarter)
+        elif type == "nextQuarter":
+            next_quarter_date = today.add(months=3)
+            next_quarter = (next_quarter_date.month - 1) // 3 + 1
+            return (cell_date.year == next_quarter_date.year) and (cell_quarter == next_quarter)
+        elif type == "lastQuarter":
+            last_quarter_date = today.subtract(months=3)
+            last_quarter = (last_quarter_date.month - 1) // 3 + 1
+            return (cell_date.year == last_quarter_date.year) and (cell_quarter == last_quarter)
+    
+    # Year-based filters
+    elif type in {"nextYear", "thisYear", "lastYear"}:
+        if type == "thisYear":
+            return cell_date.year == today.year
+        elif type == "nextYear":
+            return cell_date.year == (today.year + 1)
+        elif type == "lastYear":
+            return cell_date.year == (today.year - 1)
+
+    # Year to date
+    elif type == "yearToDate":
+        return (cell_date.year == today.year) and (cell_date <= today)
+
+    # Specific quarter filters
+    elif type in {"Q1", "Q2", "Q3", "Q4"}:
+        quarter = int(type[1])
+        return ((cell_date.month - 1) // 3 + 1) == quarter
+
+    # Specific month filters
+    elif type in {"M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12"}:
+        month = int(type[1:])
+        return cell_date.month == month
+
+    return False
+
+
+def _apply_global_filter(
+        col_values: list[float],
+        header_rows: Sequence[Row] = [1],
+        value: float | None = None,
+        top: bool | None = None,
+        percent: bool | None = None,
+        average: Literal["above","below"] | None = None,
+        **kwargs
+    ) -> list[int]:
+    isna = (lambda iv: (iv[0] not in header_rows) and (iv[1] is None))
+    notna = (lambda iv: (iv[0] not in header_rows) and (iv[1] is not None))
+    argsort = sorted([(v, i) for i, v in sorted(filter(notna, enumerate(col_values, start=1)))])
+    args, hidden_rows = list(), [i for i, v in enumerate(col_values) if isna((i,v))]
+
+    if average:
+        avg_value = sum(map(lambda x: x[0], argsort)) / len(argsort)
+        for v, i in argsort:
+            (args if ((v >= avg_value) if average == "above" else (v <= avg_value)) else hidden_rows).append(i)
+    else:
+        args = [i for v, i in argsort]
+
+    if value is not None:
+        if percent:
+            n = max(round_half_up(len(args) * (value / 100)), 1)
+            hidden_rows += args[:n] if top else args[(n*-1):]
+        else:
+            hidden_rows += args[:value] if top else args[(value*-1):]
+
+    return hidden_rows
+
+
+def round_half_up(value: float) -> int:
+    from decimal import Decimal, ROUND_HALF_UP
+    return int(Decimal(value).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
 
 ###################################################################
