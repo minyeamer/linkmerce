@@ -51,36 +51,36 @@ class SearchSection(HtmlTransformer):
                 results.append([dict(section=heading)])
         return results
 
-    def select_sections(self, source: BeautifulSoup, parent: str) -> list[Tag]:
-        from bs4 import Tag
-        sections = list()
-        for e in source.select(" > ".join([parent, ''.join([f":not({selector})" for selector in self.notin])])):
-            if not isinstance(e, Tag): continue
-            elif e.name == "link":
-                if e.get("href", str()).endswith("/index.css"):
-                    sections += self.select_sections(e, parent='&')
-            else: sections.append(e)
-        return sections
-
     @property
     def notin(self) -> list[str]:
         common = ["script", "#snb", "._scrollLog"]
         from_pc = [".api_sc_page_wrap", '[class*="feed_wrap"]', "._scrollLogEndline"]
         from_mobile = [".sp_page", '[class*="feed_more"]', '[data-slog-container="pag"]']
-        from_shop_div = ['[id^="shp_"][id$="_css"]', '[id^="shs_"][id$="_css"]']
-        return common + from_pc + from_mobile + from_shop_div
+        shop_css = ['[id^="shp_"][id$="_css"]', '[id^="shs_"][id$="_css"]']
+        return common + from_pc + from_mobile + shop_css
+
+    def select_sections(self, source: BeautifulSoup, parent: str, depth: int = 1) -> list[Tag]:
+        from bs4 import Tag
+        sections = list()
+        for e in source.select(" > ".join([parent, ''.join([f":not({selector})" for selector in self.notin])])):
+            if not isinstance(e, Tag): continue
+            elif e.name == "link":
+                if (depth == 1) and e.get("href", str()).endswith("/index.css"):
+                    sections += self.select_sections(e, parent='&', depth=(depth+1))
+            else: sections.append(e)
+        return sections
 
     def select_nested_blocks(self, div: Tag) -> list[Tag]:
         from bs4 import Tag
-        blocks, next_divs = list(), list()
+        blocks, children = list(), list()
         for e in div.children:
             if isinstance(e, Tag):
-                (blocks if (e.get("id") or str()).startswith("fdr-") else next_divs).append(e)
+                (blocks if (e.get("id") or str()).startswith("fdr-") else children).append(e)
 
         if blocks:
             return blocks
-        for next_div in next_divs:
-            blocks += self.select_nested_blocks(next_div)
+        for child in children:
+            blocks += self.select_nested_blocks(child)
         return blocks
 
     def get_props_by_id(self, response: str, id: str, sep: str = '\n') -> list[dict]:
@@ -185,18 +185,18 @@ class Shopping(_ShoppingTransformer):
 
     def parse_product(self, data: dict, page: int | None = None) -> dict:
         from linkmerce.utils.map import hier_get
-        ad_description = [data.get("adPromotionDescription"), data.get("adPromotionLongDescription")]
+        ad_desc_keys = ["adPromotionDescription", "adPromotionLongDescription"]
         return {
             "section": "네이버 가격비교",
-            "subject": (self.card_type.get(data.get("cardType")) or data.get("cardType")),
+            "subject": (self.source_type.get(data.get("sourceType")) or data.get("sourceType")),
             "page": page,
             "id": data.get("nvMid"),
             "product_id": (data.get("channelProductId") or None),
-            "category_id": int(id) if (id := str(data.get("leafCategoryId"))).isdigit() else None,
-            **({"ad_id": id} if (id := str(data.get("gdid"))).startswith("nad-") else dict()),
+            "product_type": (self.card_type.get(data.get("cardType")) or data.get("cardType")),
             "title": (data.get("productNameOrg") or data.get("productName") or None),
             "url": (hier_get(data, ["productUrl","pcUrl"]) or hier_get(data, ["productClickUrl","pcUrl"]) or None),
             "image_url": (hier_get(data, ["images",0,"imageUrl"]) or None),
+            "category_id": int(id) if (id := str(data.get("leafCategoryId"))).isdigit() else None,
             "channel_seq": data.get("merchantNo"),
             "mall_seq": (int(seq) if (seq := str(data.get("mallSeq"))).isdigit() and (seq != '0') else None),
             "mall_name": (data.get("mallName") or None),
@@ -209,7 +209,10 @@ class Shopping(_ShoppingTransformer):
             "purchase_count": data.get("purchaseCount"),
             "keep_count": data.get("keepCount"),
             "mall_count": data.get("mallCount"),
-            "description": (" / ".join(filter(None, ad_description)) or None),
+            **({
+                "ad_id": good_id,
+                "description": (" / ".join(data[key] for key in ad_desc_keys if data.get(key)) or None),
+            } if (good_id := str(data.get("gdid"))).startswith("nad-") else dict()),
         }
 
     def parse_filter_set(self, props: dict, sep: str = '\n') -> list[dict]:
@@ -225,6 +228,14 @@ class Shopping(_ShoppingTransformer):
                     "names": sep.join([(value.get("name") or str()) for value in values]),
                 })
         return filter_set
+
+    @property
+    def source_type(self) -> dict[str,str]:
+        return {
+            "AD": "광고 상품",
+            "SUPER_POINT": "광고+ 상품",
+            "SAS": "일반 상품",
+        }
 
     @property
     def card_type(self) -> dict[str,str]:
@@ -528,13 +539,19 @@ class Search(DuckDBTransformer):
             self.insert_into_table(self.summarize_sections(query, sections),
                 key=f"insert_summary", table=f":summary:", values=f":select_summary:")
 
+    def insert_sections(self, query: str, sections: list[list[dict]]):
+        import json
+        json_str = json.dumps(sections, ensure_ascii=False, separators=(',', ':'))
+        table = self.get_table(":sections:")
+        return self.conn.conn.execute(f"INSERT INTO {table} (query, sections) VALUES (?, ?)", (query, json_str))
+
     def summarize_sections(self, query: str, sections: list[list[dict]]) -> list[dict]:
         from collections import Counter
         from linkmerce.utils.map import hier_get
         summary = list()
         for seq, section in enumerate(sections, start=1):
             heading = hier_get(section, [0,"section"])
-            subjects = [item["subject"] for item in section if item.get("subject")]
+            subjects = [item["subject"] for item in section if item.get("subject") and (item.get("page", 1) == 1)]
             if not heading:
                 continue
             elif (len(section) == 1) and (len(section[0]) == 1):
@@ -545,12 +562,6 @@ class Search(DuckDBTransformer):
                 for subject, count in Counter(subjects).items():
                     summary.append(dict(query=query, seq=seq, section=heading, subject=subject, item_count=count))
         return summary
-
-    def insert_sections(self, query: str, sections: list[list[dict]]):
-        import json
-        json_str = json.dumps(sections, ensure_ascii=False, separators=(',', ':'))
-        table = self.get_table(":sections:")
-        return self.conn.conn.execute(f"INSERT INTO {table} (query, sections) VALUES (?, ?)", (query, json_str))
 
 
 ###################################################################
