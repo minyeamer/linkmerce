@@ -37,7 +37,7 @@ with DAG(
 
     CHUNK = 100
 
-    @task(task_id="etl_naver_rank_ad", map_index_template="{{ queries['customer_id'] }}")
+    @task(task_id="etl_naver_rank_ad", map_index_template="{{ queries['customer_id'] }}", retries=3, retry_delay=timedelta(minutes=1))
     def etl_naver_rank_ad(queries: dict, variables: dict) -> list[dict]:
         keywords = queries.pop("keyword")
         return [main(**queries, keyword=keywords[i:i+CHUNK], **variables, seq=(i//CHUNK)) for i in range(0, len(keywords), CHUNK)]

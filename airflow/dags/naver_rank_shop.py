@@ -31,7 +31,7 @@ with DAG(
 
     CHUNK = 100
 
-    @task(task_id="etl_naver_rank_shop")
+    @task(task_id="etl_naver_rank_shop", retries=3, retry_delay=timedelta(minutes=1))
     def etl_naver_rank_shop(queries: dict, variables: dict) -> dict:
         return main(**queries, **variables)
 

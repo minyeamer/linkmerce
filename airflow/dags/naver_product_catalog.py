@@ -21,7 +21,7 @@ with DAG(
         return read(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
 
 
-    @task(task_id="etl_product_catalog")
+    @task(task_id="etl_product_catalog", retries=3, retry_delay=timedelta(minutes=1))
     def etl_product_catalog(ti: TaskInstance, **kwargs) -> dict:
         return main(**ti.xcom_pull(task_ids="read_variables"))
 
