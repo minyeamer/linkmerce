@@ -194,7 +194,7 @@ with DAG(
                 return list()
 
             download = download_info.value
-            with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
                 tmp_path = tmp_file.name
                 download.save_as(tmp_path)
 

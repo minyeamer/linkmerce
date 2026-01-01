@@ -202,6 +202,7 @@ with DAG(
             column_width = column_width,
             row_height = 16.5,
             conditional_formatting = [dict(ranges=count_columns, range_type="column", rule=ad_rule)],
+            column_filters = dict(range=":all:"),
             truncate = True,
         )
 
@@ -244,7 +245,13 @@ with DAG(
         single_width = {"소재ID", "주소", "썸네일주소"}
         column_width = {column: "auto" for _, column in wb_details_alias() if column not in single_width}
 
-        return dict(column_styles=column_styles, column_width=column_width, row_height=16.5, truncate=True)
+        return dict(
+            column_styles = column_styles,
+            column_width = column_width,
+            row_height = 16.5,
+            column_filters = dict(range=":all:"),
+            truncate = True,
+        )
 
 
     def send_excel_to_slack(

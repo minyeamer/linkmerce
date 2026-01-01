@@ -276,6 +276,7 @@ with DAG(
                 conditional_formatting = conditional_formatting(),
                 merge_cells = merge_headers,
                 range_styles = hedaer_styles,
+                column_filters = dict(range=":all:"),
                 freeze_panes = "F3",
                 zoom_scale = 85,
             )
@@ -326,7 +327,7 @@ with DAG(
 
             def _styles(color: str) -> dict:
                 return dict(
-                    alignment = {"horizontal": "center", "vertical": "center", "wrap_text": True},
+                    alignment={"horizontal": "center", "vertical": "center", "wrap_text": True},
                     fill = {"color": color, "fill_type": "solid"},
                     font = {"color": "#000000", "bold": True},
                 )
@@ -367,14 +368,14 @@ with DAG(
                     column_width[col_idx] = 10.5
                 elif column in ("일 평균 판매량\n(최근 30일)", "판매 가능일", "재고 알림"):
                     if column == "판매 가능일":
-                        column_styles[col_idx] = dict(alignment = {"horizontal": "center"}, number_format="#,##0일 이내;-;-")
+                        column_styles[col_idx] = dict(alignment={"horizontal": "center"}, number_format="#,##0일 이내;-;-")
                     elif column == "재고 알림":
-                        column_styles[col_idx] = dict(alignment = {"horizontal": "center"})
+                        column_styles[col_idx] = dict(alignment={"horizontal": "center"})
                     else:
                         column_styles[col_idx] = dict(number_format="#,##0;-#,##0;-")
                     column_width[col_idx] = 13.5
                 elif column in ("브랜드", "유통기한", "예상 소진일"):
-                    column_styles[col_idx] = dict(alignment = {"horizontal": "center"})
+                    column_styles[col_idx] = dict(alignment={"horizontal": "center"})
 
                 if col_idx not in column_width:
                     column_width[col_idx] = ":fit_values:"

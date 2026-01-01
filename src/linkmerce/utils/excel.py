@@ -17,6 +17,11 @@ Row = TypeVar("Row", bound=int)
 Range = TypeVar("Range", bound=str)
 Ranges = TypeVar("Ranges", list, Column, Row, Range)
 
+MinCol = TypeVar("MinCol", bound=int)
+MinRow = TypeVar("MinRow", bound=int)
+MaxCol = TypeVar("MaxCol", bound=int)
+MaxRow = TypeVar("MaxRow", bound=int)
+
 Width = TypeVar("Width", float, str)
 Height = TypeVar("Height", float, str)
 Multiple = TypeVar("Multiple", bound=str)
@@ -26,6 +31,8 @@ TopLeft = TypeVar("TopLeft", bound=Node)
 TopRight = TypeVar("TopRight", bound=Node)
 BottomLeft = TypeVar("BottomLeft", bound=Node)
 BottomRight = TypeVar("BottomRight", bound=Node)
+
+State = TypeVar("State", bound=dict)
 
 SINGLE_WIDTH: float = 8.43
 SINGLE_HEIGHT: float = 15.0
@@ -99,11 +106,10 @@ class ColumnFilters(dict):
     def __init__(
             self,
             range: Range | Literal[":all:"],
-            action: Literal["hide_rows"] | None = None,
             filters: Sequence[tuple[Column, Sequence[FilterConfig]]] = list(),
             button: Literal["always","hidden","auto"] = "always",
         ):
-        return super().__init__(range=range, action=action, filters=filters, button=button)
+        return super().__init__(range=range, filters=filters, button=button)
 
 
 def filter_warnings():
@@ -182,6 +188,7 @@ def csv2excel(
         merge_cells: Sequence[MergeConfig] = list(),
         range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
         column_filters: ColumnFilters = dict(),
+        filter_mode: Literal["openpyxl","xml"] | None = None,
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
@@ -194,12 +201,19 @@ def csv2excel(
     kwargs = dict(
         column_styles=column_styles, row_styles=row_styles, column_width=column_width, row_height=row_height,
         conditional_formatting=conditional_formatting, merge_cells=merge_cells, range_styles=range_styles,
-        column_filters=column_filters, hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text,
-        freeze_panes=freeze_panes, zoom_scale=zoom_scale)
+        column_filters=column_filters, filter_action={"openpyxl": "hide", "xml": "list"}.get(filter_mode),
+        hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes, zoom_scale=zoom_scale)
 
-    for index, (name, rows) in enumerate(obj.items()):
-        _rows2sheet(wb, rows, index, name, header_rows, header_styles, **kwargs)
-    return wb
+    states = list()
+    for index, (name, rows) in enumerate(obj.items(), start=1):
+        ws, state = _rows2sheet(wb, rows, index, name, header_rows, header_styles, **kwargs)
+        states.append(state)
+
+    if filter_mode == "xml":
+        filtered_rows = {index: state["filtered_rows"] for index, state in enumerate(states, start=1) if state["filtered_rows"]}
+        return apply_filters(wb, filtered_rows)
+    else:
+        return wb
 
 
 def json2excel(
@@ -215,6 +229,7 @@ def json2excel(
         merge_cells: Sequence[MergeConfig] = list(),
         range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
         column_filters: ColumnFilters = dict(),
+        filter_mode: Literal["openpyxl","xml"] | None = None,
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
@@ -227,10 +242,10 @@ def json2excel(
     kwargs = dict(
         column_styles=column_styles, row_styles=row_styles, column_width=column_width, row_height=row_height,
         conditional_formatting=conditional_formatting, merge_cells=merge_cells, range_styles=range_styles,
-        column_filters=column_filters, hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text,
-        freeze_panes=freeze_panes, zoom_scale=zoom_scale)
+        column_filters=column_filters, filter_action={"openpyxl": "hide", "xml": "list"}.get(filter_mode),
+        hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes, zoom_scale=zoom_scale)
 
-    def _get_all_keys(rows: Sequence[dict]) -> list[str]:
+    def _get_all_keys(rows: Sequence[dict]) -> list:
         keys = list()
         for row in rows:
             for key in row.keys():
@@ -238,7 +253,7 @@ def json2excel(
                     keys.append(key)
         return keys
 
-    def _get_json_keys(rows: Sequence[dict], how: Literal["first","all"]) -> list[str]:
+    def _get_json_keys(rows: Sequence[dict], how: Literal["first","all"]) -> list:
         if not rows:
             return list()
         elif how == "first":
@@ -246,13 +261,32 @@ def json2excel(
         else:
             return _get_all_keys(rows)
 
-    for index, (name, rows) in enumerate(obj.items()):
+    def _keys_to_rows(keys: list) -> list[list]:
+        key_depths = {len(key) for key in keys if isinstance(key, tuple)}
+        if key_depths:
+            def get_value(key: Any, depth: int):
+                if isinstance(key, tuple):
+                    return key[depth] if depth < len(key) else None
+                else:
+                    return key if depth == 0 else None
+            return [[get_value(key, depth) for key in keys] for depth in range(max(key_depths))]
+        else:
+            return [keys]
+
+    states = list()
+    for index, (name, rows) in enumerate(obj.items(), start=1):
         keys = _get_json_keys(rows, how=(header or "first"))
         values = [[row.get(key, None) for key in keys] for row in rows]
-        csv_rows = ([keys] + values) if header else values
-        header_rows = [1] if header else []
-        _rows2sheet(wb, csv_rows, index, name, header_rows, header_styles, **kwargs)
-    return wb
+        headers = _keys_to_rows(keys) if header else list()
+        header_rows = list(range(1,len(headers)+1)) if headers else list()
+        ws, state = _rows2sheet(wb, (headers + values), index, name, header_rows, header_styles, **kwargs)
+        states.append(state)
+
+    if filter_mode == "xml":
+        filtered_rows = {index: state["filtered_rows"] for index, state in enumerate(states, start=1) if state["filtered_rows"]}
+        return apply_filters(wb, filtered_rows)
+    else:
+        return wb
 
 
 def _rows2sheet(
@@ -263,8 +297,8 @@ def _rows2sheet(
         header_rows: Sequence[Row] = [1],
         header_styles: StyleConfig | Literal["yellow"] = "yellow",
         **kwargs
-    ) -> Worksheet:
-    if sheet_index == 0:
+    ) -> tuple[Worksheet, State]:
+    if sheet_index == 1:
         ws = wb.active
         ws.title = sheet_name
     else:
@@ -279,13 +313,13 @@ def _rows2sheet(
     if not isinstance(header_styles, dict):
         header_styles = _yellow_headers() if header_styles == "yellow" else dict()
 
-    style_sheet(ws, header_rows, header_styles, **kwargs)
-    return ws
+    state = style_sheet(ws, header_rows, header_styles, **kwargs)
+    return ws, state
 
 
 def save_excel_to_tempfile(wb: Workbook) -> str:
     import tempfile
-    with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp_file:
+    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
         tmp_path = tmp_file.name
         wb.save(tmp_path)
         return tmp_path
@@ -315,12 +349,13 @@ def style_sheet(
         merge_cells: Sequence[MergeConfig] = list(),
         range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
         column_filters: ColumnFilters = dict(),
+        filter_action: Literal["hide","list"] | None = None,
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
         freeze_panes: Range | None = "A2",
         zoom_scale: int | None = None,
-    ):
+    ) -> State:
     min_col, max_col = 'A', get_column_letter(ws.max_column)
     min_row, max_row = ((max(header_rows) + 1) if header_rows else 1), ws.max_row
     size = dict(min_col=min_col, max_col=max_col, min_row=min_row, max_row=max_row)
@@ -370,6 +405,7 @@ def style_sheet(
         width = min(max_width + 2., 25.) if fit_mode else column_width.get(col_idx)
         if isinstance(width, float):
             ws.column_dimensions[get_column_letter(col_idx)].width = width
+            column_width["width"] = width
 
     # CHANGE ROW HEIGHT
 
@@ -414,23 +450,36 @@ def style_sheet(
 
     # FILTER BY COLUMN
 
+    filtered_rows = set()
+
     if column_filters:
         from openpyxl.worksheet.filters import AutoFilter
-        reference = f"A1:{max_col}{max_row}" if (ref := column_filters["range"]) == ":all:" else _to_excel_range(ref)
-        filters = list()
+        range_string = f"A1:{max_col}{max_row}" if (ref := column_filters["range"]) == ":all:" else _to_excel_range(ref)
+        _, min_row, _, max_row = range_boundaries(range_string)
+        row_range = [row_idx for row_idx in range(min_row, max_row+1) if row_idx not in header_rows]
 
-        for column, configs in column_filters.get("filters", list()):
+        filters = list()
+        for column, configs in (column_filters.get("filters") or list()):
             if (col_idx := get_column_index(column, headers)) is not None:
                 filters.append(_filter_column(col_idx, configs, column_filters.get("button", "always")))
-                if column_filters.get("action") == "hide_rows":
-                    filter_rows(ws, col_idx, configs, header_rows)
-        ws.auto_filter = AutoFilter(ref=reference, filterColumn=filters)
+                if filter_action:
+                    values = [(row_idx, ws.cell(row_idx, col_idx).value) for row_idx in row_range if row_idx not in filtered_rows]
+                    filtered_rows = filtered_rows.union(filter_values(values, configs))
+        ws.auto_filter = AutoFilter(ref=range_string, filterColumn=filters)
+
+        if (filter_action == "hide") and filtered_rows:
+            for row_idx in filtered_rows:
+                ws.row_dimensions[row_idx].hidden = True
+
+    # EXTRA SETTINGS
 
     if freeze_panes:
         ws.freeze_panes = freeze_panes
 
     if zoom_scale:
         ws.sheet_view.zoomScale = zoom_scale
+
+    return dict(size, column_styles=column_styles, column_width=column_width, row_height=row_height, filtered_rows=filtered_rows)
 
 
 def style_cell(
@@ -574,7 +623,7 @@ def to_valid_excel_range(ws: Worksheet, value: str) -> str:
     return f"{min_col}{min_row}:{max_col}{max_row}"
 
 
-def split_range_string(value: str) -> tuple[str,str,str,str]:
+def split_range_string(value: str) -> tuple[MinCol,MinRow,MaxCol,MaxRow]:
     import re
     col, row = r"\$?[A-Z]+", r"\$?[1-9][0-9]*"
     cell = r"^({})?({})?$".format(col, row)
@@ -691,13 +740,13 @@ def _color(rgb: Any, alpha: str = "FF") -> Color:
 
 def _filter_column(
         col_idx: int,
-        filter_configs: Sequence[FilterConfig],
+        configs: Sequence[FilterConfig],
         button: Literal["always","hidden","auto"] = "always",
     ) -> FilterColumn:
     from openpyxl.worksheet.filters import FilterColumn
     kwargs, custom_filters, blank = dict(), list(), None
 
-    for config in filter_configs:
+    for config in configs:
         filter_type = config["filter_type"]
         if filter_type == "value":
             kwargs["filters"] = _value_filter(**config)
@@ -837,113 +886,103 @@ def _filter_button_options(how: Literal["always","hidden","auto"] = "always") ->
 
 
 ###################################################################
-########################### Filter rows ###########################
+########################## Filter values ##########################
 ###################################################################
 
-def filter_rows(
-        ws: Worksheet,
-        col_idx: int,
-        filter_configs: Sequence[FilterConfig],
-        header_rows: Sequence[Row] = [1],
-    ):
-    conditions, global_config = _init_conditions(filter_configs)
-    col_values = list()
+def filter_values(
+        values: Sequence[tuple[Row,Any]],
+        configs: Sequence[FilterConfig],
+    ) -> set[Row]:
+    conditions, global_config = _init_conditions(configs)
+    filtered_rows = set()
 
-    for row_idx, cell in enumerate(ws[get_column_letter(col_idx)], start=1):
-        if global_config:
-            col_values.append(cell.value)
+    for row_idx, value in values:
+        if row_idx not in filtered_rows:
+            for condition in conditions:
+                if not condition(value):
+                    filtered_rows.add(row_idx)
+                    break
 
-        if ws.row_dimensions[row_idx].hidden or (row_idx in header_rows):
-            continue
-
-        matched = True
-        for condition in conditions:
-            if matched:
-                matched = condition(cell)
-        if not matched:
-            ws.row_dimensions[row_idx].hidden = True
-
-    if global_config and col_values:
+    if global_config:
         try:
-            for row_idx in _apply_global_filter(col_values, header_rows, **global_config):
-                ws.row_dimensions[row_idx].hidden = True
+            return filtered_rows.union(_apply_global_filter(values, **global_config))
         except:
-            pass
+            return filtered_rows
+    else:
+        return filtered_rows
 
 
-def _init_conditions(filter_configs: Sequence[FilterConfig]) -> tuple[Callable[[Cell],bool], dict]:
+def _init_conditions(configs: Sequence[FilterConfig]) -> tuple[Callable[[Any],bool], dict]:
     conditions, global_config = list(), dict()
-    for config in filter_configs:
+    for config in configs:
         filter_type = config["filter_type"]
         if filter_type == "value":
-            conditions.append(lambda cell: _apply_value_filter(cell, **config))
+            conditions.append(lambda cell_value: _apply_value_filter(cell_value, **config))
         elif filter_type == "top10":
             global_config.update(config)
         elif filter_type == "custom":
-            conditions.append(lambda cell: _apply_custom_filter(cell, **config))
+            conditions.append(lambda cell_value: _apply_custom_filter(cell_value, **config))
         elif filter_type == "dynamic":
             if config.get("type") in {"aboveAverage","belowAverage"}:
                 global_config["average"] = config["type"][:-7]
             else:
-                conditions.append(lambda cell: _apply_dynamic_filter(cell, **config))
+                conditions.append(lambda cell_value: _apply_dynamic_filter(cell_value, **config))
         elif filter_type == "color":
             pass # conditions.append(lambda cell: _apply_color_filter(cell, **config))
         elif filter_type == "icon":
             pass # conditions.append(lambda cell: _apply_icon_filter(cell, **config))
         elif filter_type == "blank":
-            conditions.append(lambda cell: cell.value is None)
+            conditions.append(lambda cell_value: cell_value is None)
         elif filter_type == "notBlank":
-            conditions.append(lambda cell: cell.value is not None)
+            conditions.append(lambda cell_value: cell_value is not None)
         else:
             pass
     return conditions, global_config
 
 
 def _apply_value_filter(
-        cell: Cell,
+        cell_value: Any,
         blank: bool | None = None,
         values: Sequence[str] | None = None,
         dates: Sequence[dict] | None = None,
         **kwargs
     ) -> bool:
-    value, value_str = cell.value, str(cell.value)
-
     if isinstance(blank, bool):
-        if ((value is None) if blank else (value is not None)):
+        if ((cell_value is None) if blank else (cell_value is not None)):
             return True
 
-    if value_str in (values or list()):
+    if str(cell_value) in (values or list()):
         return True
 
     import datetime as dt
     for date in (dates or list()):
-        if isinstance(date, dict) and isinstance(value, dt.date):
+        if isinstance(date, dict) and isinstance(cell_value, dt.date):
             group = date["dateTimeGrouping"]
-            if getattr(value, group) == date.get(group):
+            if getattr(cell_value, group) == date.get(group):
                 return True
 
     return False
 
 
 def _apply_custom_filter(
-        cell: Cell,
+        cell_value: Any,
         operator: Literal["equal","lessThan","lessThanOrEqual","notEqual","greaterThanOrEqual","greaterThan"],
         value: str,
         **kwargs
     ) -> bool:
     try:
         if operator == "equal":
-            return cell.value == value
+            return cell_value == value
         elif operator == "lessThan":
-            return cell.value < value
+            return cell_value < value
         elif operator == "lessThanOrEqual":
-            return cell.value <= value
+            return cell_value <= value
         elif operator == "notEqual":
-            return cell.value != value
+            return cell_value != value
         elif operator == "greaterThanOrEqual":
-            return cell.value >= value
+            return cell_value >= value
         elif operator == "greaterThan":
-            return cell.value > value
+            return cell_value > value
         else:
             return False
     except:
@@ -951,7 +990,7 @@ def _apply_custom_filter(
 
 
 def _apply_dynamic_filter(
-        cell: Cell,
+        cell_value: Any,
         type: Literal[
             "null", "tomorrow", "today", "yesterday", "nextWeek", "thisWeek", "lastWeek", "nextMonth",
             "thisMonth", "lastMonth", "nextQuarter", "thisQuarter", "lastQuarter",
@@ -963,15 +1002,14 @@ def _apply_dynamic_filter(
     import pendulum
     import datetime as dt
 
-    value = cell.value
     if type == "null":
-        return value is None
+        return cell_value is None
 
     # Convert cell value to pendulum date
-    if isinstance(value, dt.datetime):
-        cell_date = pendulum.instance(value, tz=tz).date()
-    elif isinstance(value, dt.date):
-        cell_date = value
+    if isinstance(cell_value, dt.datetime):
+        cell_date = pendulum.instance(cell_value, tz=tz).date()
+    elif isinstance(cell_value, dt.date):
+        cell_date = cell_value
     else:
         return False
     today = pendulum.today(tz).date()
@@ -1045,39 +1083,103 @@ def _apply_dynamic_filter(
 
 
 def _apply_global_filter(
-        col_values: list[float],
-        header_rows: Sequence[Row] = [1],
+        cell_values: Sequence[tuple[Row,Any]],
         value: float | None = None,
         top: bool | None = None,
         percent: bool | None = None,
         average: Literal["above","below"] | None = None,
         **kwargs
-    ) -> list[int]:
-    isna = (lambda iv: (iv[0] not in header_rows) and (iv[1] is None))
-    notna = (lambda iv: (iv[0] not in header_rows) and (iv[1] is not None))
-    argsort = sorted([(v, i) for i, v in sorted(filter(notna, enumerate(col_values, start=1)))])
-    args, hidden_rows = list(), [i for i, v in enumerate(col_values) if isna((i,v))]
+    ) -> set[Row]:
+    filtered_rows = {row_idx for row_idx, value in cell_values if value is None}
+    values = sorted([(row_idx, value) for row_idx, value in cell_values if value is not None], key=(lambda x: x[1]))
 
     if average:
-        avg_value = sum(map(lambda x: x[0], argsort)) / len(argsort)
-        for v, i in argsort:
-            (args if ((v >= avg_value) if average == "above" else (v <= avg_value)) else hidden_rows).append(i)
+        avg_value = sum(map(lambda x: x[1], values)) / len(values)
+        rows = list()
+        for row_idx, value in values:
+            if ((value >= avg_value) if average == "above" else (value <= avg_value)):
+                rows.append(row_idx)
+            else:
+                filtered_rows.add(row_idx)
     else:
-        args = [i for v, i in argsort]
+        rows = list(map(lambda x: x[0], values))
 
     if value is not None:
         if percent:
-            n = max(round_half_up(len(args) * (value / 100)), 1)
-            hidden_rows += args[:n] if top else args[(n*-1):]
+            n = max(round_half_up(len(rows) * (value / 100)), 1)
+            return filtered_rows.union(rows[:n] if top else rows[(n*-1):])
         else:
-            hidden_rows += args[:value] if top else args[(value*-1):]
-
-    return hidden_rows
+            return filtered_rows.union(rows[:value] if top else rows[(value*-1):])
+    else:
+        return filtered_rows
 
 
 def round_half_up(value: float) -> int:
     from decimal import Decimal, ROUND_HALF_UP
     return int(Decimal(value).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+
+
+###################################################################
+########################## Apply filters ##########################
+###################################################################
+
+def apply_filters(wb: Workbook, filtered_rows: dict[Row,set[Row]]) -> Workbook:
+    import xml.etree.ElementTree as ET
+    import os
+
+    for index, rows in filtered_rows.items():
+        ws = wb.worksheets[index-1]
+        if not (ws.auto_filter and ws.auto_filter.filterColumn):
+            continue
+
+        ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        ET.register_namespace('', ns["main"])
+
+        input_path = save_excel_to_tempfile(wb)
+        try:
+            wb = _apply_filter(input_path, index, rows, ns)
+        finally:
+            os.remove(input_path)
+
+    return wb
+
+
+def _apply_filter(input_path: str, sheet_index: int, filtered_rows: set[Row], ns: dict) -> Workbook:
+    from openpyxl import load_workbook
+    from tempfile import NamedTemporaryFile
+    import xml.etree.ElementTree as ET
+    import zipfile
+    import os
+
+    with zipfile.ZipFile(input_path, 'r') as zip_in:
+        sheet_xml = f"xl/worksheets/sheet{sheet_index}.xml"
+        with zip_in.open(sheet_xml) as zip_file:
+            tree = ET.parse(zip_file)
+            root = tree.getroot()
+
+        sheet_data = root.find(".//main:sheetData", ns)
+        if sheet_data is not None:
+            for row in sheet_data.findall(".//main:row", ns):
+                row_idx = int(row.get('r', 0))
+                if row_idx in filtered_rows:
+                    row.set("hidden", '1')
+                elif row.get("hidden"):
+                    del row.attrib["hidden"]
+
+        with NamedTemporaryFile(delete=False, suffix=".xlsx") as file:
+            output_path = file.name
+
+        try:
+            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zip_out:
+                for zip_info in zip_in.infolist():
+                    if zip_info.filename == sheet_xml:
+                        xml_bytes = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+                        zip_out.writestr(zip_info, xml_bytes)
+                    else:
+                        zip_out.writestr(zip_info, zip_in.read(zip_info.filename))
+            return load_workbook(output_path)
+        finally:
+            os.remove(output_path)
 
 
 ###################################################################
@@ -1228,7 +1330,7 @@ def get_largest_rectangle(
     return best_corners
 
 
-def range_boundaries(range_string: str) -> tuple[int,int,int,int]:
+def range_boundaries(range_string: str) -> tuple[MinCol,MinRow,MaxCol,MaxRow]:
     from openpyxl.utils import range_boundaries as boundaries
     min_col, min_row, max_col, max_row = boundaries(range_string)
     return min_col, min_row, max_col, max_row
