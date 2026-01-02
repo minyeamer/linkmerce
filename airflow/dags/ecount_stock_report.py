@@ -276,7 +276,7 @@ with DAG(
                 conditional_formatting = conditional_formatting(),
                 merge_cells = merge_headers,
                 range_styles = hedaer_styles,
-                column_filters = dict(range=":all:"),
+                column_filters = dict(range="A2:X"),
                 freeze_panes = "F3",
                 zoom_scale = 85,
             )
