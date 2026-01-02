@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from linkmerce.common.transform import JsonTransformer, HtmlTransformer, DuckDBTransformer
 
-from typing import TYPE_CHECKING
+from typing import TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Literal
     from linkmerce.common.transform import JsonObject
     from bs4 import BeautifulSoup, Tag
+
+Props = TypeVar("Props", bound=dict)
 
 
 def parse_int(text: str) -> int | None:
@@ -92,7 +94,7 @@ class SearchSection(HtmlTransformer):
         try:
             data = json.loads(body)
             return self.fender_renderer(data, sep)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, KeyError):
             return list()
 
     def fender_renderer(self, data: JsonObject, sep: str = '\n') -> list[dict]:
@@ -285,52 +287,28 @@ class _PropsTransformer(JsonTransformer):
     dtype = dict
     path = ["body","props"]
 
-    def get_props(self, data: dict[str,dict]) -> dict[str,Any]:
+    def get_props(self, data: dict[str,dict]) -> Props:
         return data["body"]["props"]
+
+    def split_layout(self, props: Props) -> tuple[Props, Props]:
+        template_id = str(props["children"][0]["templateId"])
+        if (template_id == "header") or template_id.endswith("Header"):
+            header, layout = props["children"][:2]
+            return header, layout["props"]
+        else:
+            return None, props
 
     def clean_html(self, __object: Any, strip: bool = True) -> str | None:
         from linkmerce.utils.parse import clean_html as clean
         return clean(__object, strip=strip) if isinstance(__object, str) else None
 
-    def coalesce_text(self, props: dict[str,Any], keys: list[str], strip: bool = True) -> str | None:
+    def coalesce_text(self, props: Props, keys: list[str], strip: bool = True) -> str | None:
         for key in keys:
             if props.get(key):
                 return self.clean_html(props[key], strip=strip)
 
 
-class IntentBlock(_PropsTransformer):
-
-    # @try_except
-    def transform(self, data: dict[str,dict], sep: str = '\n', **kwargs) -> list[dict]:
-        props = self.get_props(data)
-        header, contents, footer = props["children"]
-        subject = self.parse_subject(header)
-        return [self.parse(content["props"], subject=subject, template_id=template_id, sep=sep)
-                for content in contents["props"]["children"]
-                    if (template_id := content["templateId"]) != "dividerLine"]
-
-    def parse(self, props: dict[str,Any], subject: str, template_id: str, sep: str = '\n') -> dict:
-        from linkmerce.utils.map import hier_get
-        from linkmerce.utils.regex import regexp_extract
-        mo = (template_id == "ugcItemMo")
-        article = (props.get("article") or dict()) if mo else props
-        profile = props.get("profile" if mo else "sourceProfile") or dict()
-        return {
-            "section": "스마트블록",
-            "subject": subject,
-            "title": self.clean_html(article.get("title")),
-            "description": self.clean_html(article.get("content")),
-            "url": article.get("titleHref"),
-            **({"ad_id": regexp_extract(r"(nad-a001-03-\d+)", hier_get(article, ["clickLog","title","i"]) or str())}
-                if subject == "브랜드 콘텐츠" else dict()),
-            "image_count": article.get("imageCount") or 0,
-            "image_url": hier_get(article, (["thumbObject","src"] if mo else ["images",0,"imageSrc"])),
-            # "image_urls": sep.join([image["imageSrc"] for image in (article.get("images") or list())]),
-            "profile_name": profile.get("text" if mo else "title"),
-            "profile_url": profile.get("href" if mo else "titleHref"),
-            # "profile_image_url": article.get("imageSrc"),
-            "created_date": profile.get("subText" if mo else "createdDate"),
-        }
+class _ContentsPropsTransformer(_PropsTransformer):
 
     def parse_subject(self, header: dict) -> str:
         title = header["props"]["title"] or str()
@@ -341,21 +319,77 @@ class IntentBlock(_PropsTransformer):
         else:
             return title
 
+    def parse_items(self, props: Props) -> list[Props]:
+        items = list()
+        for child in props["children"]:
+            template_id = str(child["templateId"])
+            if template_id == "healthItem":
+                pass
+            elif template_id.endswith("Item") or template_id.endswith("ItemMo"):
+                items.append(child)
+                continue
+            from linkmerce.utils.map import hier_get
+            if hier_get(child, ["props","children"]):
+                items += self.parse_items(child["props"])
+        return items
 
-class Web(_PropsTransformer):
+
+class IntentBlock(_ContentsPropsTransformer):
 
     # @try_except
     def transform(self, data: dict[str,dict], sep: str = '\n', **kwargs) -> list[dict]:
         props = self.get_props(data)
-        return [self.parse(web["props"]) for web in props["children"][0]["props"]["children"]]
+        header, layout = self.split_layout(props)
+        subject = self.parse_subject(header) if header else None
+        contents = list()
+        for item in self.parse_items(layout):
+            id = item["templateId"]
+            if id == "accordionItem":
+                contents += [
+                    self.parse(child["props"], subject, mobile=False, sep=sep)
+                    for child in item["props"]["children"]]
+            else:
+                contents.append(self.parse(item["props"], subject, mobile=(id == "ugcItemMo"), sep=sep))
+        return contents
 
-    def parse(self, props: dict[str,Any], sep: str = '\n') -> dict:
+    def parse(self, props: Props, subject: str, mobile: bool = False, sep: str = '\n') -> dict:
+        from linkmerce.utils.map import hier_get, coalesce
+        from linkmerce.utils.regex import regexp_extract
+        article = (props.get("article") or dict()) if mobile else props
+        profile = props.get("profile" if mobile else "sourceProfile") or dict()
+        return {
+            "section": "스마트블록",
+            "subject": subject,
+            "title": self.clean_html(article.get("title")),
+            "description": self.clean_html(article.get("content")),
+            "url": article.get("titleHref"),
+            **({"ad_id": regexp_extract(r"(nad-a001-03-\d+)", hier_get(article, ["clickLog","title","i"]) or str())}
+                if subject == "브랜드 콘텐츠" else dict()),
+            "image_count": article.get("imageCount") or 0,
+            "image_url": hier_get(article, (["thumbObject","src"] if mobile else ["images",0,"imageSrc"])),
+            # "image_urls": sep.join([image["imageSrc"] for image in (article.get("images") or list())]),
+            "profile_name": coalesce(profile, ["text","title"] if mobile else ["title","text"]),
+            "profile_url": coalesce(profile, ["href","titleHref"] if mobile else ["titleHref","href"]),
+            "created_date": coalesce(profile, ["subText","createdDate"] if mobile else ["createdDate","subText"]),
+        }
+
+
+class Web(_ContentsPropsTransformer):
+
+    # @try_except
+    def transform(self, data: dict[str,dict], sep: str = '\n', **kwargs) -> list[dict]:
+        props = self.get_props(data)
+        header, layout = self.split_layout(props)
+        subject = self.parse_subject(header) if header else "외부 사이트"
+        return [self.parse(item["props"], subject, sep) for item in self.parse_items(layout)]
+
+    def parse(self, props: Props, subject: str, sep: str = '\n') -> dict:
         from linkmerce.utils.map import hier_get
         profile = props.get("profile") or dict()
         # more = hier_get(props, ["aggregation","contents",0]) or dict()
         return {
             "section": "웹문서",
-            "subject": "외부 사이트",
+            "subject": subject,
             "title": self.clean_html(props.get("title")),
             "description": self.clean_html(props.get("bodyText")),
             "url": props.get("href"),
@@ -370,15 +404,39 @@ class Web(_PropsTransformer):
         }
 
 
+class Review(_ContentsPropsTransformer):
+
+    # @try_except
+    def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
+        props = self.get_props(data)
+        header, layout = self.split_layout(props)
+        subject = self.parse_subject(header) if header else "리뷰"
+        return [self.parse(item["props"], subject) for item in self.parse_items(layout)]
+
+    def parse(self, props: Props, subject: str) -> dict:
+        profile = props.get("sourceProfile") or dict()
+        return {
+            "section": "웹문서",
+            "subject": subject,
+            "title": self.clean_html(props.get("title")),
+            "description": self.clean_html(props.get("content")),
+            "url": props.get("titleHref"),
+            "profile_name": profile.get("title"),
+            "profile_url": profile.get("titleHref"),
+            # "profile_image_url": profile.get("imageSrc"),
+            "created_date": profile.get("createdDate"),
+        }
+
+
 class Image(_PropsTransformer):
 
     # @try_except
     def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
         props = self.get_props(data)
-        header, images, footer = props["children"]
-        return [self.parse(image["props"]) for image in images["props"]["children"][0]["props"]["children"]]
+        header, layout = self.split_layout(props)
+        return [self.parse(image["props"]) for image in layout["children"]]
 
-    def parse(self, props: dict[str,Any]) -> dict:
+    def parse(self, props: Props) -> dict:
         # from linkmerce.utils.map import hier_get
         return {
             "section": "이미지",
@@ -393,18 +451,13 @@ class Video(_PropsTransformer):
 
     # @try_except
     def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
+        from linkmerce.utils.map import hier_get
         props = self.get_props(data)
-        if props["children"][0]["templateId"] == "header":
-            from linkmerce.utils.map import hier_get
-            header, videos, footer = props["children"]
-            videos = videos["props"]["children"]
-            subject = hier_get(header, ["props","title"])
-        else:
-            videos = props["children"]
-            subject = None
-        return [self.parse(video["props"], subject) for video in videos]
+        header, layout = self.split_layout(props)
+        subject = hier_get(header, ["props","title"]) if header else None
+        return [self.parse(video["props"], subject) for video in layout["children"]]
 
-    def parse(self, props: dict[str,Any], subject: str) -> dict:
+    def parse(self, props: Props, subject: str) -> dict:
         return {
             "section": "동영상",
             "subject": subject,
@@ -416,28 +469,6 @@ class Video(_PropsTransformer):
             "profile_url": (props.get("authorHref") or props.get("profileHref")),
             # "profile_image_url": props.get("profileImageSrc"),
             "created_date": props.get("createdAt"),
-        }
-
-
-class Review(_PropsTransformer):
-
-    # @try_except
-    def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
-        props = self.get_props(data)
-        return [self.parse(review["props"]) for review in props["children"][0]["props"]["children"]]
-
-    def parse(self, props: dict[str,Any]) -> dict:
-        profile = props.get("sourceProfile") or dict()
-        return {
-            "section": "웹문서",
-            "subject": "리뷰",
-            "title": self.clean_html(props.get("title")),
-            "description": self.clean_html(props.get("content")),
-            "url": props.get("titleHref"),
-            "profile_name": profile.get("title"),
-            "profile_url": profile.get("titleHref"),
-            # "profile_image_url": profile.get("imageSrc"),
-            "created_date": profile.get("createdDate"),
         }
 
 
@@ -454,7 +485,7 @@ class RelatedQuery(_PropsTransformer):
             "url": self.parse(props, query_type),
         }]
 
-    def parse(self, props: dict[str,Any], query_type: Literal["nd","sbs"]) -> str | None:
+    def parse(self, props: Props, query_type: Literal["nd","sbs"]) -> str | None:
         if ("apiURLs" in props) and isinstance(props["apiURLs"], dict):
             return props["apiURLs"].get(query_type)
         else:
@@ -468,7 +499,7 @@ class AiBriefing(_PropsTransformer):
         props = self.get_props(data)
         return self.parse_sources(props)
 
-    def parse_media(self, props: dict[str,Any]) -> list[dict]:
+    def parse_media(self, props: Props) -> list[dict]:
         def get_type(type: str) -> str:
             return {"image":"이미지", "video":"동영상"}.get(type, type)
         return [{
@@ -481,7 +512,7 @@ class AiBriefing(_PropsTransformer):
             "image_url": media.get("thumbnailUrl"),
         } for media in (props.get("multimedia") or list()) if isinstance(media, dict)]
 
-    def parse_summary(self, props: dict[str,Any]) -> list[dict]:
+    def parse_summary(self, props: Props) -> list[dict]:
         from linkmerce.utils.map import hier_get
         return [{
             "section": "AI 브리핑",
@@ -489,7 +520,7 @@ class AiBriefing(_PropsTransformer):
             "summary": hier_get(props, ["summary","markdown"]),
         }]
 
-    def parse_sources(self, props: dict[str,Any]) -> list[dict]:
+    def parse_sources(self, props: Props) -> list[dict]:
         return [{
             "section": "AI 브리핑",
             "subject": "관련 자료",
@@ -499,14 +530,14 @@ class AiBriefing(_PropsTransformer):
             "url": source.get("url"),
         } for source in (props.get("sources") or list()) if isinstance(source, dict)]
 
-    def parse_questions(self, props: dict[str,Any]) -> list[dict]:
+    def parse_questions(self, props: Props) -> list[dict]:
         return [{
             "section": "AI 브리핑",
             "subject": "관련 질문",
             "question": question["title"],
         } for question in (props.get("relatedQuestions") or list())]
 
-    def parse_info(self, props: dict[str,Any]) -> list[dict]:
+    def parse_info(self, props: Props) -> list[dict]:
         from linkmerce.utils.map import hier_get
         return [{
             "section": "AI 브리핑",
@@ -530,13 +561,9 @@ class Search(DuckDBTransformer):
 
     def transform(self, obj: str, query: str, mobile: bool = True, sep: str = '\n', **kwargs):
         sections = SearchSection().transform(obj, mobile, sep)
-        if query == "요가양말":
-            from bs4 import BeautifulSoup
-            with open("var/요가양말.html",'w',encoding="utf-8") as file:
-                file.write(BeautifulSoup(obj, 'html.parser').prettify())
         if sections:
             self.insert_sections(query, sections)
-            self.insert_into_table(self.summarize_sections(query, sections),
+            self.insert_into_table(self.summarize_sections(query, sections, sep),
                 key=f"insert_summary", table=f":summary:", values=f":select_summary:")
 
     def insert_sections(self, query: str, sections: list[list[dict]]):
@@ -545,7 +572,7 @@ class Search(DuckDBTransformer):
         table = self.get_table(":sections:")
         return self.conn.conn.execute(f"INSERT INTO {table} (query, sections) VALUES (?, ?)", (query, json_str))
 
-    def summarize_sections(self, query: str, sections: list[list[dict]]) -> list[dict]:
+    def summarize_sections(self, query: str, sections: list[list[dict]], sep: str = '\n') -> list[dict]:
         from collections import Counter
         from linkmerce.utils.map import hier_get
         summary = list()
@@ -554,9 +581,12 @@ class Search(DuckDBTransformer):
             subjects = [item["subject"] for item in section if item.get("subject") and (item.get("page", 1) == 1)]
             if not heading:
                 continue
+            elif heading == "연관검색어":
+                keyword_count = len((section[0].get("keywords") or str()).split(sep))
+                summary.append(dict(query=query, seq=seq, section=heading, subject=str(), item_count=keyword_count))
             elif (len(section) == 1) and (len(section[0]) == 1):
                 summary.append(dict(query=query, seq=seq, section=heading, subject=str(), item_count=0))
-            elif not subjects:
+            elif (not subjects) or (heading == "웹문서"):
                 summary.append(dict(query=query, seq=seq, section=heading, subject=str(), item_count=len(section)))
             else:
                 for subject, count in Counter(subjects).items():
