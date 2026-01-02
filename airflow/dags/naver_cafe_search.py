@@ -9,7 +9,7 @@ with DAG(
     dag_id = "naver_cafe_search",
     schedule = "0,10,20,30,40,50 8,9 * * *",
     start_date = pendulum.datetime(2025, 12, 12, tz="Asia/Seoul"),
-    dagrun_timeout = timedelta(hours=1),
+    dagrun_timeout = timedelta(minutes=30),
     catchup = False,
     tags = ["priority:high", "naver:cafe", "schedule:weekdays", "time:morning", "provider:slack"],
 ) as dag:
@@ -70,10 +70,13 @@ with DAG(
                 params = dict(
                     channel_id = variables["channel_id"],
                     timestamp = format_date(in_timezone(data_interval_end), "YYYY-MM-DDTHH:mm:ss"),
+                    mobile = True,
                     max_rank = variables["max_rank"],
                     query_group = 'X',
                 ),
-                counts = dict(total=0),
+                counts = dict(
+                    total = 0,
+                ),
                 message = None,
                 response = dict(
                     files = list(),
@@ -92,20 +95,20 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.naver.main import search_cafe_plus
-        from linkmerce.utils.excel import csv2excel, json2excel, save_excel_to_tempfile
+        from linkmerce.utils.excel import csv2excel, save_excel_to_tempfile
         sources = dict(search="naver_cafe_search", article="naver_cafe_article", merged="data")
-        query, alias = "naver_cafe_query", "data_alias"
+        query_table, data_alias = "naver_cafe_query", "data_alias"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            conn.create_table_from_json(query, records, option="replace")
+            conn.create_table_from_json(query_table, records, option="replace", temp=True)
             query_map = dict(conn.fetch_all_to_csv(
                 "SELECT product, '(''' || string_agg(query, ''',''') || ''')' AS keywords "
-                + f"FROM {query} GROUP BY product ORDER BY product;"
+                + f"FROM {query_table} GROUP BY product ORDER BY product;"
                 , header=False))
 
             search_cafe_plus(
                 cookies = cookies,
-                query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {query}").fetchall()],
+                query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {query_table}").fetchall()],
                 mobile = True,
                 max_rank = max_rank,
                 connection = conn,
@@ -114,24 +117,24 @@ with DAG(
                 return_type = "none",
             )
 
-            # SUMMARIZE
-            args = (sources["merged"], max_rank)
+            # SUMMARY
             headers = wb_summary_headers(max_rank)
+            params = lambda keywords: dict(table=sources["merged"], max_rank=max_rank, keywords=keywords)
             wb_summary = csv2excel({
-                product: ([headers] + conn.fetch_all_to_csv(summarize(*args, where_clause=f"query IN {keywords}"), header=False))
+                product: ([headers] + conn.fetch_all_to_csv(summarize(**params(keywords)), header=False))
                     for product, keywords in query_map.items()}, **wb_summary_styles(headers))
 
             # DETAIL
-            conn.execute(detail(sources["merged"], alias, conn.table_exists(alias)))
-            wb_details = json2excel({
-                product: conn.fetch_all_to_json(f"SELECT * FROM {alias} WHERE \"검색어\" IN {keywords}")
+            conn.execute(detail(sources["merged"], data_alias, conn.table_exists(data_alias)))
+            wb_details = csv2excel({
+                product: conn.fetch_all_to_csv(f"SELECT * FROM {data_alias} WHERE \"검색어\" IN {keywords}", header=True)
                     for product, keywords in query_map.items()}, **wb_details_styles())
 
             # COUNT
-            query_group = conn.execute(f"SELECT query_group FROM {query} LIMIT 1;").fetchall()[0][0]
-            total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {query};").fetchall()[0][0]
+            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0]
+            total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {query_table};").fetchall()[0][0]
             counts = dict(conn.fetch_all_to_csv(
-                f"SELECT product, COUNT(DISTINCT query) FROM {query} GROUP BY product ORDER BY product;", header=False))
+                f"SELECT product, COUNT(DISTINCT query) FROM {query_table} GROUP BY product ORDER BY product;", header=False))
 
             return send_excel_to_slack(
                 slack_conn_id = slack_conn_id,
@@ -146,7 +149,7 @@ with DAG(
             )
 
 
-    def summarize(table: str, max_rank: int, where_clause: str = str()) -> str:
+    def summarize(table: str, max_rank: int, keywords: str) -> str:
         return f"""
         SELECT * EXCLUDE (seq)
         FROM (
@@ -166,7 +169,7 @@ with DAG(
                     ELSE write_date END) AS write_date
                 , IF(ad_id IS NULL, read_count, -1) AS read_count
             FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM {table})
-            {f"WHERE {where_clause}" if where_clause else str()}
+            WHERE query IN {keywords}
         )
         PIVOT (
             FIRST(cafe_name) AS cafe_name
@@ -178,7 +181,7 @@ with DAG(
         """
 
     def wb_summary_headers(max_rank: int) -> list[str]:
-        headers = ["키워드"]
+        headers = ["검색어"]
         for rank in range(1, max_rank+1):
             headers += [f"{rank}위", f"발행일({rank})", f"조회수({rank})"]
         return headers
@@ -192,12 +195,13 @@ with DAG(
                 column_styles[col_idx] = dict(fill={"color": "#FFF2CC", "fill_type": "solid"})
             elif column.startswith("조회수"):
                 column_styles[col_idx] = dict(number_format="#,##0;광고")
-                column_width[col_idx] = "auto"
+                column_width[col_idx] = ":fit:"
                 count_columns.append(col_idx)
             else:
-                column_width[col_idx] = "auto"
+                column_width[col_idx] = ":fit:"
 
         return dict(
+            header_styles = "yellow",
             column_styles = column_styles,
             column_width = column_width,
             row_height = 16.5,
@@ -243,9 +247,10 @@ with DAG(
         column_styles = {column: dict(number_format="#,##0") for column in number_columns}
 
         single_width = {"소재ID", "주소", "썸네일주소"}
-        column_width = {column: "auto" for _, column in wb_details_alias() if column not in single_width}
+        column_width = {column: ":fit:" for _, column in wb_details_alias() if column not in single_width}
 
         return dict(
+            header_styles = "yellow",
             column_styles = column_styles,
             column_width = column_width,
             row_height = 16.5,
@@ -271,7 +276,7 @@ with DAG(
 
         message = (
             f">{format_date(datetime, 'YY년 MM월 DD일 HH시 mm분 (dd)')}\n"
-            + f"*{query_group}* 그룹 - {total}개 키워드 조회 (상위 {max_rank}개 게시글)\n"
+            + f"*{query_group}* 그룹 - {total}개 키워드 검색 (상위 {max_rank}개 게시글)\n"
             + '\n'.join([f"• {product} : {count}개 키워드" for product, count in counts.items()]))
 
         ymd_hm = format_date(datetime, "YYMMDD_HHmm")
@@ -282,11 +287,11 @@ with DAG(
                 channel_id = channel_id,
                 file_uploads = [{
                     "file": summary_file,
-                    "filename": f"{ymd_hm}_요약_{query_group}그룹_{products}.xlsx",
+                    "filename": f"{ymd_hm}_카페_요약_{query_group}그룹_{products}.xlsx",
                     "title": f"요약 - {', '.join(counts.keys())}",
                 }, {
                     "file": details_file,
-                    "filename": f"{ymd_hm}_세부_{query_group}그룹_{products}.xlsx",
+                    "filename": f"{ymd_hm}_카페_세부_{query_group}그룹_{products}.xlsx",
                     "title": f"세부 - {', '.join(counts.keys())}",
                 }],
                 initial_comment = message,
