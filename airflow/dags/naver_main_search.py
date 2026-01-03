@@ -1,4 +1,5 @@
 from airflow.sdk import DAG, task
+from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.slack.hooks.slack import SlackHook
 from datetime import timedelta
@@ -22,14 +23,24 @@ with DAG(
         return read(PATH, sheets=True)
 
 
+    def branch_condition(ti: TaskInstance, **kwargs) -> str | None:
+        variables = ti.xcom_pull(task_ids="read_variables")
+        if variables["records"]:
+            return "set_cookies"
+        else:
+            return None
+
+    branch_etl_trigger = BranchPythonOperator(
+        task_id = "branch_etl_trigger",
+        python_callable = branch_condition,
+    )
+
+
     @task(task_id="set_cookies", retries=3, retry_delay=timedelta(minutes=1), pool="nsearch_pool")
     def set_cookies(ti: TaskInstance, **kwargs) -> dict:
-        variables = ti.xcom_pull(task_ids="read_variables")
-        if not variables["records"]:
-            return variables
-
         from playwright.sync_api import sync_playwright, Page
         import time
+        variables = ti.xcom_pull(task_ids="read_variables")
 
         def wait_cookies(page: Page, wait_seconds: int = 10, wait_interval: int = 1):
             for _ in range(wait_seconds // wait_interval):
@@ -123,7 +134,7 @@ with DAG(
                 for query, sections in conn.sql("SELECT * FROM {}".format(sources["sections"])).fetchall()]
 
             # SAVE LOCAL
-            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0]
+            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0] or '0'
 
             if save_to:
                 from pathlib import Path
@@ -422,4 +433,4 @@ with DAG(
         )
 
 
-    read_variables() >> set_cookies() >> etl_naver_main_search()
+    read_variables() >> branch_etl_trigger >> set_cookies() >> etl_naver_main_search()

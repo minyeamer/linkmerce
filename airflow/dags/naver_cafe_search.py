@@ -1,4 +1,5 @@
 from airflow.sdk import DAG, task
+from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.slack.hooks.slack import SlackHook
 from datetime import timedelta
@@ -22,14 +23,24 @@ with DAG(
         return read(PATH, sheets=True)
 
 
+    def branch_condition(ti: TaskInstance, **kwargs) -> str | None:
+        variables = ti.xcom_pull(task_ids="read_variables")
+        if variables["records"]:
+            return "set_cookies"
+        else:
+            return None
+
+    branch_etl_trigger = BranchPythonOperator(
+        task_id = "branch_etl_trigger",
+        python_callable = branch_condition,
+    )
+
+
     @task(task_id="set_cookies", retries=3, retry_delay=timedelta(minutes=1), pool="nsearch_pool")
     def set_cookies(ti: TaskInstance, **kwargs) -> dict:
-        variables = ti.xcom_pull(task_ids="read_variables")
-        if not variables["records"]:
-            return variables
-
         from playwright.sync_api import sync_playwright, Page
         import time
+        variables = ti.xcom_pull(task_ids="read_variables")
 
         def wait_cookies(page: Page, wait_seconds: int = 10, wait_interval: int = 1):
             for _ in range(wait_seconds // wait_interval):
@@ -91,6 +102,7 @@ with DAG(
             slack_conn_id: str,
             channel_id: str,
             datetime: pendulum.DateTime,
+            save_to: str = str(),
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
@@ -117,6 +129,18 @@ with DAG(
                 return_type = "none",
             )
 
+            # SAVE LOCAL
+            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0] or '0'
+
+            if save_to:
+                from pathlib import Path
+                path = Path(save_to, str(datetime.year), str(datetime.month), str(datetime.day))
+                path.mkdir(parents=True, exist_ok=True)
+                for table in ["search","article"]:
+                    select_query = f"SELECT * FROM {sources[table]}"
+                    save_path = path / (datetime.format("HHmm") + f"_{table}_" + query_group + ".parquet")
+                    conn.fetch_all_to_parquet(select_query, save_to=save_path, ensure_ascii=False, separators=(',', ':'), default=str)
+
             # SUMMARY
             headers = wb_summary_headers(max_rank)
             params = lambda keywords: dict(table=sources["merged"], max_rank=max_rank, keywords=keywords)
@@ -131,7 +155,6 @@ with DAG(
                     for product, keywords in query_map.items()}, **wb_details_styles())
 
             # COUNT
-            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0]
             total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {query_table};").fetchall()[0][0]
             counts = dict(conn.fetch_all_to_csv(
                 f"SELECT product, COUNT(DISTINCT query) FROM {query_table} GROUP BY product ORDER BY product;", header=False))
@@ -326,4 +349,4 @@ with DAG(
         )
 
 
-    read_variables() >> set_cookies() >> etl_naver_cafe_search()
+    read_variables() >> branch_etl_trigger >> set_cookies() >> etl_naver_cafe_search()
