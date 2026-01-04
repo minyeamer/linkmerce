@@ -139,7 +139,7 @@ with DAG(
                 for table in ["search","article"]:
                     select_query = f"SELECT * FROM {sources[table]}"
                     save_path = path / (datetime.format("HHmm") + f"_{table}_" + query_group + ".parquet")
-                    conn.fetch_all_to_parquet(select_query, save_to=save_path, ensure_ascii=False, separators=(',', ':'), default=str)
+                    conn.fetch_all_to_parquet(select_query, save_to=str(save_path))
 
             # SUMMARY
             headers = wb_summary_headers(max_rank)
