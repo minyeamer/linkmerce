@@ -156,10 +156,7 @@ class CafeArticle(Extractor):
             **kwargs
         ) -> dict:
         if domain != "article":
-            from linkmerce.utils.regex import regexp_groups
-            cafe_url, article_id = regexp_groups(r"/([^/]+)/(\d+)$", url.split('?')[0], indices=[0,1])
-            params = ('?'+p) if (p := (url.split('?')[1] if '?' in url else None)) else str()
-            url = self.url.format(cafe_url=cafe_url, article_id=article_id) + params
+            url = self.make_article_url(url)
         return super().build_request_message(url=url, **kwargs)
 
     def build_request_headers(
@@ -168,18 +165,36 @@ class CafeArticle(Extractor):
             domain: Literal["article","cafe","m"] = "article",
             **kwargs
         ) -> dict[str,str]:
-        headers = self.get_request_headers()
-        if domain == "article":
-            from linkmerce.utils.regex import regexp_groups
-            cafe_url, article_id = regexp_groups(r"/([^/]+)/articles/(\d+)$", url.split('?')[0], indices=[0,1])
-            m_ = "m." if "m.search" in url else str()
-            params = ('?'+p) if (p := (url.split('?')[1].split('&')[0] if '?' in url else None)) else str()
-            headers["referer"] = self.referer.format(m_=m_, cafe_url=cafe_url, article_id=article_id) + params
-        else:
-            headers["referer"] = url
-        return headers
+        referer = self.make_referral_url(url) if domain == "article" else url
+        return dict(self.get_request_headers(), referer=referer)
 
     def set_request_headers(self, domain: Literal["cafe","m"] = "m", **kwargs):
         origin = "https://cafe.naver.com" if domain == "cafe" else "https://m.cafe.naver.com"
         kwargs.update(authority=self.url, origin=origin, **{"x-cafe-product": "mweb"})
-        return super().set_request_headers(**kwargs)
+        super().set_request_headers(**kwargs)
+
+    def get_ids_from_url(self, url: str) -> tuple[str,str]:
+        from linkmerce.utils.regex import regexp_groups
+        return regexp_groups(r"/([^/]+)/(\d+)$", url.split('?')[0], indices=[0,1])
+
+    def make_article_url(self, url: str) -> str:
+        cafe_url, article_id = self.get_ids_from_url(url)
+        if (cafe_url is not None) and (article_id is not None):
+            params = self.make_article_params(url)
+            return f"https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}?{params}"
+        else:
+            raise ValueError(f"URL is invalid: '{url}'")
+
+    def make_article_params(self, url: str) -> str:
+        from urllib.parse import urlencode
+        from uuid import uuid4
+        param_string = url.split('?')[1] if '?' in url else str()
+        params = dict([kv.split('=', maxsplit=1) for kv in param_string.split('&')]) if param_string else dict()
+        return urlencode(dict(params, **{"useCafeId": "false", "buid": uuid4()}))
+
+    def make_referral_url(self, url: str) -> str:
+        cafe_url, article_id = self.get_ids_from_url(url)
+        if (cafe_url is not None) and (article_id is not None):
+            m_ = "m." if "m.search" in url else str()
+            params = ('?'+url.split('?')[1]) if '?' in url else str()
+            return self.referer.format(m_=m_, cafe_url=cafe_url, article_id=article_id) + params

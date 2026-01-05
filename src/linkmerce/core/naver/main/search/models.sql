@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , description VARCHAR
   , url VARCHAR
   , image_url VARCHAR
-  , next_url VARCHAR
+  , article_url VARCHAR
   , replies VARCHAR
   , write_date VARCHAR
   , PRIMARY KEY (query, rank)
@@ -57,7 +57,7 @@ SELECT
   , description
   , url
   , image_url
-  , next_url
+  , article_url
   , replies
   , COALESCE(STRFTIME(TRY_STRPTIME(write_date, '%Y.%m.%d.'), '%Y-%m-%d'), write_date) AS write_date
 FROM {{ array }};

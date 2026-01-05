@@ -327,7 +327,7 @@ def save_excel_to_tempfile(wb: Workbook) -> str:
 
 def _yellow_headers() -> StyleConfig:
     return {
-        "align": ALIGN_CENTER,
+        "alignment": ALIGN_CENTER,
         "fill": {"color": "#FFFF00", "fill_type": "solid"},
         "font": {"color": "#000000", "bold": True},
     }

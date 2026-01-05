@@ -619,7 +619,7 @@ class CafeList(HtmlTransformer):
             "description": self.select(div, "div.dsc_area > :text():"),
             "url": url,
             "image_url": self.select(div, "a.thumb_link > img > :attr(src):"),
-            "next_url": (self.make_next_url(url, query) if url else None),
+            "article_url": (self.make_article_url(url, query) if url else None),
             "replies": '\n'.join(self.parse_replies(div)) or None,
             "write_date": self.select(div, "div.user_info > span.sub > :text():"),
         }
@@ -632,17 +632,24 @@ class CafeList(HtmlTransformer):
         from linkmerce.utils.regex import regexp_extract
         return regexp_extract(r"(nad-a\d+-\d+-\d+)", onclick) if onclick else None
 
-    def make_next_url(self, url: str, query: str) -> str:
+    def make_article_url(self, url: str, query: str) -> str:
         cafe_url, article_id = self.get_ids_from_url(url)
-        m_ = "m." if url.startswith("https://m.") else str()
-        if (cafe_url is None) or (article_id is None):
-            return None
+        if (cafe_url is not None) and (article_id is not None):
+            params = self.make_article_params(url, query)
+            return f"https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}?{params}"
 
-        from urllib.parse import quote
+    def make_article_params(self, url: str, query: str) -> str:
+        from urllib.parse import quote, urlencode
         from uuid import uuid4
-        params = (p+'&') if (p := (url.split('?')[1] if '?' in url else None)) else str()
-        params = f"{params}useCafeId=false&tc=naver_search&or={m_}search.naver.com&query={quote(query)}&buid={uuid4()}"
-        return f"https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}?{params}"
+        param_string = url.split('?')[1] if '?' in url else str()
+        params = dict([kv.split('=', maxsplit=1) for kv in param_string.split('&')]) if param_string else dict()
+        return urlencode(dict(params, **{
+            "useCafeId": "false",
+            "tc": "naver_search",
+            "or": "{}search.naver.com".format("m." if url.startswith("https://m.") else str()),
+            "query": quote(query),
+            "buid": uuid4()
+        }))
 
     def parse_replies(self, div: Tag, prefix: str = "[RE] ") -> list[str]:
         replies = list()
@@ -667,12 +674,15 @@ class CafeArticleJson(JsonTransformer):
     path = ["result"]
 
     def parse(self, obj: JsonObject, **kwargs) -> JsonObject:
-        result = obj["result"]
-        result["article"]["commenterCount"] = len({item["writer"]["memberKey"] for item in result["comments"]["items"]})
-        result["tags"] = ", ".join(result["tags"]) or None
-        result["content"] = self.parse_content(result["article"]["contentHtml"])
-        result["article"]["contentHtml"] = None
-        return result
+        try:
+            result = obj["result"]
+            result["article"]["commenterCount"] = len({item["writer"]["memberKey"] for item in result["comments"]["items"]})
+            result["tags"] = ", ".join(result["tags"]) or None
+            result["content"] = self.parse_content(result["article"]["contentHtml"])
+            result["article"]["contentHtml"] = None
+            return result
+        except:
+            return None
 
     def parse_content(self, content: str) -> dict:
         from bs4 import BeautifulSoup
@@ -691,5 +701,6 @@ class CafeArticle(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
     def transform(self, obj: JsonObject, **kwargs):
-        if obj is not None:
-            self.insert_into_table([CafeArticleJson().transform(obj)])
+        article = CafeArticleJson().transform(obj) if obj is not None else None
+        if article:
+            self.insert_into_table([article])

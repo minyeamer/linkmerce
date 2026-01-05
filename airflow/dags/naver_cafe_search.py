@@ -98,10 +98,10 @@ with DAG(
     def main(
             cookies: str,
             records: list[dict],
-            max_rank: int,
             slack_conn_id: str,
             channel_id: str,
             datetime: pendulum.DateTime,
+            max_rank: int | None = None,
             save_to: str = str(),
             **kwargs
         ) -> dict:
@@ -113,6 +113,7 @@ with DAG(
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             conn.create_table_from_json(query_table, records, option="replace", temp=True)
+            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0] or '0'
             query_map = dict(conn.fetch_all_to_csv(
                 "SELECT product, '(''' || string_agg(query, ''',''') || ''')' AS keywords "
                 + f"FROM {query_table} GROUP BY product ORDER BY product;"
@@ -120,7 +121,7 @@ with DAG(
 
             search_cafe_plus(
                 cookies = cookies,
-                query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {query_table}").fetchall()],
+                query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {query_table};").fetchall()],
                 mobile = True,
                 max_rank = max_rank,
                 connection = conn,
@@ -130,28 +131,28 @@ with DAG(
             )
 
             # SAVE LOCAL
-            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0] or '0'
-
             if save_to:
                 from pathlib import Path
                 path = Path(save_to, str(datetime.year), str(datetime.month), str(datetime.day))
                 path.mkdir(parents=True, exist_ok=True)
                 for table in ["search","article"]:
-                    select_query = f"SELECT * FROM {sources[table]}"
+                    select_query = f"SELECT * FROM {sources[table]};"
                     save_path = path / (datetime.format("HHmm") + f"_{table}_" + query_group + ".parquet")
                     conn.fetch_all_to_parquet(select_query, save_to=str(save_path))
 
             # SUMMARY
             headers = wb_summary_headers(max_rank)
-            params = lambda keywords: dict(table=sources["merged"], max_rank=max_rank, keywords=keywords)
+            def _select_query(keywords: str) -> str:
+                return wb_summary_query(sources["merged"], max_rank, keywords)
+
             wb_summary = csv2excel({
-                product: ([headers] + conn.fetch_all_to_csv(summarize(**params(keywords)), header=False))
+                product: wb_summary_concat(headers, conn.fetch_all_to_csv(_select_query(keywords), header=False))
                     for product, keywords in query_map.items()}, **wb_summary_styles(headers))
 
-            # DETAIL
-            conn.execute(detail(sources["merged"], data_alias, conn.table_exists(data_alias)))
+            # DETAILS
+            conn.execute(wb_details_query(sources["merged"], data_alias, conn.table_exists(data_alias)))
             wb_details = csv2excel({
-                product: conn.fetch_all_to_csv(f"SELECT * FROM {data_alias} WHERE \"검색어\" IN {keywords}", header=True)
+                product: conn.fetch_all_to_csv(f"SELECT * FROM {data_alias} WHERE \"검색어\" IN {keywords};", header=True)
                     for product, keywords in query_map.items()}, **wb_details_styles())
 
             # COUNT
@@ -172,7 +173,13 @@ with DAG(
             )
 
 
-    def summarize(table: str, max_rank: int, keywords: str) -> str:
+    def wb_summary_headers(max_rank: int) -> list[str]:
+        headers = ["검색어"]
+        for rank in range(1, max_rank+1):
+            headers += [f"{rank}위", f"발행일({rank})", f"조회수({rank})"]
+        return headers
+
+    def wb_summary_query(table: str, max_rank: int, keywords: str) -> str:
         return f"""
         SELECT * EXCLUDE (seq)
         FROM (
@@ -203,15 +210,17 @@ with DAG(
         ORDER BY seq;
         """
 
-    def wb_summary_headers(max_rank: int) -> list[str]:
-        headers = ["검색어"]
-        for rank in range(1, max_rank+1):
-            headers += [f"{rank}위", f"발행일({rank})", f"조회수({rank})"]
-        return headers
+    def wb_summary_concat(header: list[str], summary: list[tuple]) -> list[tuple]:
+        def _decode(read_count: int) -> int | str:
+            return "광고" if read_count == -1 else read_count
+
+        return [header] + [
+            tuple(_decode(value) if column.startswith("조회수") else value
+                for column, value in zip(header, row)) for row in summary]
 
     def wb_summary_styles(headers: list[str]) -> dict:
         column_styles, column_width, count_columns = dict(), dict(), list()
-        ad_rule = dict(operator="equal", formula=[-1], fill={"color": "#F4CCCC", "fill_type": "solid"})
+        ad_rule = dict(operator="equal", formula=['"광고"'], fill={"color": "#F4CCCC", "fill_type": "solid"})
 
         for col_idx, column in enumerate(headers, start=1):
             if column.endswith('위'):
@@ -234,7 +243,7 @@ with DAG(
         )
 
 
-    def detail(source_table: str, taraget_table: str, table_exists: bool) -> str:
+    def wb_details_query(source_table: str, taraget_table: str, table_exists: bool) -> str:
         columns = ', '.join([f"{column_} AS \"{alias_}\"" for column_, alias_ in wb_details_alias()])
         return (
             (f"INSERT INTO {taraget_table} " if table_exists else f"CREATE TABLE {taraget_table} AS ")

@@ -173,10 +173,10 @@ def search_cafe_plus(
     if isinstance(max_rank, int):
         connection.execute(f"DELETE FROM {search_table} WHERE rank > {max_rank}")
 
-    select_query = f"SELECT DISTINCT next_url FROM {search_table} WHERE next_url IS NOT NULL;"
-    next_url = [row[0] for row in connection.execute(select_query).fetchall()]
+    select_query = f"SELECT DISTINCT article_url FROM {search_table} WHERE article_url IS NOT NULL;"
+    article_url = [row[0] for row in connection.execute(select_query).fetchall()]
     options = (deepcopy(extract_options), deepcopy(transform_options))
-    results["article"] = cafe_article(next_url, "article", cookies, connection, dict(default=article_table), *common, *options)
+    results["article"] = cafe_article(article_url, "article", cookies, connection, dict(default=article_table), *common, *options)
 
     if return_type == "raw":
         return results

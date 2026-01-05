@@ -98,21 +98,24 @@ with DAG(
     def main(
             cookies: str,
             records: list[dict],
-            max_rank: int,
             slack_conn_id: str,
             channel_id: str,
             datetime: pendulum.DateTime,
+            max_rank: int | None = None,
             save_to: str = str(),
+            search_cafe: dict = dict(),
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.naver.main import search
+        from linkmerce.api.naver.main import search, cafe_article
         from linkmerce.utils.excel import csv2excel, save_excel_to_tempfile
+        from pathlib import Path
         sources = dict(sections="naver_search_sections", summary="naver_search_summary")
-        query_table = "naver_search_query"
+        query_table, cafe_table = "naver_search_query", "naver_cafe_article"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             conn.create_table_from_json(query_table, records, option="replace", temp=True)
+            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0] or '0'
             query_map = dict(conn.fetch_all_to_csv(
                 "SELECT product, '(''' || string_agg(query, ''',''') || ''')' AS keywords "
                 + f"FROM {query_table} GROUP BY product ORDER BY product;"
@@ -132,39 +135,64 @@ with DAG(
             import json
             raw_data = [[query, json.loads(sections)]
                 for query, sections in conn.sql("SELECT * FROM {}".format(sources["sections"])).fetchall()]
+            contents = select_contents(raw_data)
 
             # SAVE LOCAL
-            query_group = conn.execute(f"SELECT query_group FROM {query_table} LIMIT 1;").fetchall()[0][0] or '0'
-
             if save_to:
-                from pathlib import Path
                 path = Path(save_to, str(datetime.year), str(datetime.month), str(datetime.day))
                 path.mkdir(parents=True, exist_ok=True)
                 with open(path / (datetime.format("HHmm_") + query_group + ".json"), 'w', encoding="utf-8") as file:
                     json.dump(raw_data, file, ensure_ascii=False, separators=(',', ':'), default=str)
 
+            # SEARCH CAFE
+            if query_group.startswith("카페") and isinstance(search_cafe.get("max_rank"), int):
+                max_cafe_rank = max(search_cafe["max_rank"], 1)
+                urls = list({row["주소"] for row in contents if (row["구분"] == "카페") and (row["순위"] <= max_cafe_rank)})
+            else:
+                urls = list()
+
+            cafe_article(
+                cookies = cookies,
+                url = urls,
+                domain = 'm',
+                connection = conn,
+                tables = {"default": cafe_table},
+                progress = False,
+                return_type = "none",
+            )
+            conn.fetch_all_to_json(f"SELECT * FROM {cafe_table};")
+
+            if search_cafe.get("save_to"):
+                cafe_path = Path(search_cafe["save_to"], str(datetime.year), str(datetime.month), str(datetime.day))
+                cafe_path.mkdir(parents=True, exist_ok=True)
+                save_path = cafe_path / (datetime.format("HHmm") + "_article_" + query_group + ".parquet")
+                conn.fetch_all_to_parquet(f"SELECT * FROM {cafe_table};", save_to=str(save_path))
+            cafe_articles = conn.fetch_all_to_json(f"SELECT * FROM {cafe_table};")
+
             # SUMMARY
             staging_table = "contents_summary"
-            conn.create_table_from_json(staging_table, summarize_contents(raw_data), option="replace", temp=True)
+            summary = summarize_contents(raw_data)
+            if cafe_articles:
+                summary = enrich_summary(summary, cafe_articles)
+            conn.create_table_from_json(staging_table, summary, option="replace", temp=True)
 
             max_rank = min(max_rank, conn.sql(f"SELECT IFNULL(MAX(rank), 0) FROM {staging_table};").fetchall()[0][0])
-            params = lambda keywords: dict(
-                section_table = sources["summary"],
-                contents_table = staging_table,
-                max_rank = max_rank,
-                keywords = keywords)
+            def _select_query(keywords: str) -> str:
+                return wb_summary_query(sources["summary"], staging_table, max_rank, keywords)
 
             headers = wb_summary_headers(max_rank)
             wb_summary = csv2excel({
-                product: ([headers] + conn.fetch_all_to_csv(summarize_sections(**params(keywords)), header=False))
+                product: wb_summary_concat(headers, conn.fetch_all_to_csv(_select_query(keywords), header=False))
                     for product, keywords in query_map.items()}, **wb_summary_styles(headers))
 
             # CONTENTS
-            staging_table = "contents_list"
-            conn.create_table_from_json(staging_table, select_contents(raw_data), option="replace", temp=True)
+            staging_table = "contents_data"
+            if cafe_articles:
+                contents = enrich_contents(contents, cafe_articles)
+            conn.create_table_from_json(staging_table, contents, option="replace", temp=True)
 
             wb_contents = csv2excel({
-                product: conn.fetch_all_to_csv(f"SELECT * FROM {staging_table} WHERE \"검색어\" IN {keywords}", header=True)
+                product: conn.fetch_all_to_csv(f"SELECT * FROM {staging_table} WHERE \"검색어\" IN {keywords};", header=True)
                     for product, keywords in query_map.items()}, **wb_contents_styles())
 
             # COUNT
@@ -184,27 +212,6 @@ with DAG(
                 counts = counts,
             )
 
-
-    def summarize_contents(raw_data: list[tuple[str, list[list[dict]]]]) -> list[dict]:
-        from linkmerce.utils.map import hier_get
-        contents = list()
-        for query, sections in raw_data:
-            for seq, section in enumerate(sections, start=1):
-                heading = hier_get(section, [0,"section"])
-                if heading in {"스마트블록","웹문서"}:
-                    for rank, content in enumerate(section, start=1):
-                        contents.append(
-        {
-            "query": query,
-            "seq": seq,
-            "subject": (content.get("subject") if heading == "스마트블록" else str()),
-            "rank": rank,
-            "profile": (content.get("profile_name") or '-'),
-            "site_type": _get_site_type_from_url(content.get("url")),
-            "created_date": (content.get("created_date") or '-'),
-        })
-        return contents
-
     def _get_site_type_from_url(url: str | None) -> str | None:
         import re
         if not url:
@@ -222,8 +229,59 @@ with DAG(
         else:
             return "기타"
 
+    def _get_site_labels(mode: str = "encode") -> dict:
+        enum = enumerate(["카페", "광고", "블로그", "인플루언서", "유튜브", "기타"])
+        if mode == "encode":
+            return {label: (category * -1) for category, label in enum}
+        else:
+            return {(category * -1): label for category, label in enum}
 
-    def summarize_sections(section_table: str, contents_table: str, max_rank: int, keywords: str) -> str:
+    def _get_cafe_ids_from_url(url: str) -> tuple[str,str]:
+        from linkmerce.utils.regex import regexp_groups
+        return regexp_groups(r"/([^/]+)/(\d+)$", url.split('?')[0], indices=[0,1]) if url else (None, None)
+
+
+    def summarize_contents(raw_data: list[tuple[str, list[list[dict]]]]) -> list[dict]:
+        from linkmerce.utils.map import hier_get
+        contents, labels = list(), _get_site_labels(mode="encode")
+        for query, sections in raw_data:
+            for seq, section in enumerate(sections, start=1):
+                heading = hier_get(section, [0,"section"])
+                if heading in {"스마트블록","웹문서"}:
+                    for rank, content in enumerate(section, start=1):
+                        contents.append(
+        {
+            "query": query,
+            "seq": seq,
+            "url": content.get("url"),
+            "subject": (content.get("subject") if heading == "스마트블록" else str()),
+            "rank": rank,
+            "profile": (content.get("profile_name") or '-'),
+            "read_count": labels.get(_get_site_type_from_url(content.get("url"))),
+            "created_date": (content.get("created_date") or '-'),
+        })
+        return contents
+
+    def enrich_summary(data: list[dict], cafe_articles: list[dict]) -> list[dict]:
+        counts = {(article["cafe_url"], str(article["article_id"])): article["read_count"] for article in cafe_articles}
+
+        def _update_row(row: dict) -> dict:
+            cafe_url, article_id = _get_cafe_ids_from_url(row["url"])
+            read_count = counts.get((cafe_url, article_id)) or 0
+            if isinstance(read_count, (float,int)):
+                row["read_count"] = read_count
+            return row
+
+        return [_update_row(row) if row["read_count"] == 0 else row for row in data]
+
+
+    def wb_summary_headers(max_rank: int) -> list[str]:
+        headers = ["키워드", "순번", "영역", "주제", "항목수"]
+        for rank in range(1, max_rank+1):
+            headers += [f"{rank}위", f"생성일({rank})", f"조회수({rank})"]
+        return headers
+
+    def wb_summary_query(section_table: str, contents_table: str, max_rank: int, keywords: str) -> str:
         return f"""
         SELECT
             S.* EXCLUDE (rn)
@@ -241,19 +299,19 @@ with DAG(
                     WHEN STARTS_WITH(profile, '[') OR STARTS_WITH(profile, '(')
                         THEN TRIM(profile)
                     ELSE TRIM(REGEXP_REPLACE(profile, '[[(].*', '')) END) AS profile
-                , site_type
                 , (CASE
                     WHEN created_date IS NULL THEN NULL
                     WHEN TRY_STRPTIME(created_date, '%Y.%m.%d.') IS NOT NULL THEN
                         STRFTIME(TRY_STRPTIME(created_date, '%Y.%m.%d.'), '%m.%d')
                     ELSE created_date END) AS created_date
+                , read_count
             FROM {contents_table}
             WHERE query IN {keywords}
         )
         PIVOT (
             FIRST(profile) AS profile
-            , FIRST(site_type) AS site_type
             , FIRST(created_date) AS created_date
+            , FIRST(read_count) AS read_count
             FOR rank IN ({','.join([str(rank) for rank in range(1, max_rank+1)])})
         )
         ORDER BY query, seq, subject
@@ -263,33 +321,38 @@ with DAG(
         ORDER BY S.rn, S.seq;
         """
 
-    def wb_summary_headers(max_rank: int) -> list[str]:
-        headers = ["키워드", "순번", "영역", "주제", "항목수"]
-        for rank in range(1, max_rank+1):
-            headers += [f"{rank}위", f"구분({rank})", f"생성일({rank})"]
-        return headers
+    def wb_summary_concat(header: list[str], summary: list[tuple]) -> list[tuple]:
+        labels = _get_site_labels(mode="decode")
+
+        def _decode(read_count: int) -> int | str:
+            return read_count if isinstance(read_count, int) and (read_count >= 0) else labels.get(read_count)
+
+        return [header] + [
+            tuple(_decode(value) if column.startswith("조회수") else value
+                for column, value in zip(header, row)) for row in summary]
 
     def wb_summary_styles(headers: list[str]) -> dict:
         from linkmerce.utils.excel import get_column_letter
-        column_styles, column_width, type_columns = dict(), dict(), list()
+        column_styles, column_width, count_columns = dict(), dict(), list()
         ad_rule = dict(operator="equal", formula=['"광고"'], fill={"color": "#F4CCCC", "fill_type": "solid"})
-        cafe_rule = dict(operator="equal", formula=['"카페"'], fill={"color": "#03C75A", "fill_type": "solid"})
+        cafe_rule = dict(operator="formula", formula=[], fill={"color": "#03C75A", "fill_type": "solid"})
         na_rule = dict(operator="formula", formula=["ISBLANK(F2)"], fill={"color": "#BFBFBF", "fill_type": "solid"})
 
         for col_idx, column in enumerate(headers, start=1):
             if column.endswith('위'):
                 column_styles[col_idx] = dict(fill={"color": "#FFF2CC", "fill_type": "solid"})
-            elif column.startswith("구분"):
-                column_styles[col_idx] = dict(alignment={"horizontal": "center"})
-                type_columns.append(col_idx)
             elif column.startswith("생성일"):
                 column_styles[col_idx] = dict(alignment={"horizontal": "center"})
+            elif column.startswith("조회수"):
+                column_styles[col_idx] = dict(alignment={"horizontal": "center"}, number_format="#,##0;광고;블로그")
+                count_columns.append(col_idx)
             elif column == "영역":
                 column_width[col_idx] = 12
             elif column == "항목수":
                 column_styles[col_idx] = dict(alignment={"horizontal": "center"})
             elif column != "순번":
                 column_width[col_idx] = ":fit:"
+        cafe_rule["formula"] = [get_column_letter(min(count_columns))+'2'] if count_columns else []
 
         return dict(
             header_styles = "yellow",
@@ -297,8 +360,8 @@ with DAG(
             column_width = column_width,
             row_height = 16.5,
             conditional_formatting = [
-                dict(ranges=type_columns, range_type="column", rule=ad_rule),
-                dict(ranges=type_columns, range_type="column", rule=cafe_rule),
+                dict(ranges=count_columns, range_type="column", rule=ad_rule),
+                dict(ranges=count_columns, range_type="column", rule=cafe_rule),
                 *((dict(ranges=f"F2:{get_column_letter(len(headers))}", range_type="range", rule=na_rule),)
                 if len(headers) > 6 else tuple()),
             ],
@@ -343,6 +406,38 @@ with DAG(
             "생성일": content.get("created_date"),
         })
         return contents
+
+    def zip_cafe_articles(cafe_articles: list[dict]) -> dict[tuple[str,str], dict]:
+        return {
+            (article["cafe_url"], str(article["article_id"])): {
+                "프로필": article["cafe_name"],
+                "제목": article["title"],
+                "제목글자수": article["title_length"],
+                "내용글자수": article["content_length"],
+                "이미지수": article["image_count"],
+                "조회수": article["read_count"],
+                "댓글수": article["comment_count"],
+                "댓글작성자수": article["commenter_count"],
+                "생성일": article["write_dt"],
+            }
+            for article in cafe_articles
+        }
+
+    def enrich_contents(data: list[dict], cafe_articles: list[dict]) -> list[dict]:
+        __m = zip_cafe_articles(cafe_articles)
+
+        def _update_row(row: dict) -> dict:
+            import datetime as dt
+            cafe_url, article_id = _get_cafe_ids_from_url(row["주소"])
+            for key, value in (__m.get((cafe_url, article_id)) or dict()).items():
+                if (key == "생성일") and isinstance(value, dt.datetime):
+                    row[key] = value.strftime("%Y.%m.%d.")
+                elif not row.get(key):
+                    row[key] = value
+            return row
+
+        return [(_update_row(row) if (row["구분"] == "카페") and row["주소"] else row) for row in data]
+
 
     def wb_contents_headers() -> list[str]:
         return [
