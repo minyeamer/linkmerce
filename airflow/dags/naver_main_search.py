@@ -230,7 +230,7 @@ with DAG(
             return "기타"
 
     def _get_site_labels(mode: str = "encode") -> dict:
-        enum = enumerate(["카페", "광고", "블로그", "인플루언서", "유튜브", "기타"])
+        enum = enumerate(["카페", "광고", "블로그", "인플루언서", "유튜브", "기타"], start=1)
         if mode == "encode":
             return {label: (category * -1) for category, label in enum}
         else:
@@ -267,12 +267,13 @@ with DAG(
 
         def _update_row(row: dict) -> dict:
             cafe_url, article_id = _get_cafe_ids_from_url(row["url"])
-            read_count = counts.get((cafe_url, article_id)) or 0
+            read_count = counts.get((cafe_url, article_id))
             if isinstance(read_count, (float,int)):
-                row["read_count"] = read_count
+                row["read_count"] = int(read_count)
             return row
 
-        return [_update_row(row) if row["read_count"] == 0 else row for row in data]
+        CAFE = -1
+        return [_update_row(row) if row["read_count"] == CAFE else row for row in data]
 
 
     def wb_summary_headers(max_rank: int) -> list[str]:
@@ -325,7 +326,7 @@ with DAG(
         labels = _get_site_labels(mode="decode")
 
         def _decode(read_count: int) -> int | str:
-            return read_count if isinstance(read_count, int) and (read_count >= 0) else labels.get(read_count)
+            return labels.get(read_count) if isinstance(read_count, int) and (read_count < 0) else read_count
 
         return [header] + [
             tuple(_decode(value) if column.startswith("조회수") else value
@@ -335,7 +336,8 @@ with DAG(
         from linkmerce.utils.excel import get_column_letter
         column_styles, column_width, count_columns = dict(), dict(), list()
         ad_rule = dict(operator="equal", formula=['"광고"'], fill={"color": "#F4CCCC", "fill_type": "solid"})
-        cafe_rule = dict(operator="formula", formula=[], fill={"color": "#03C75A", "fill_type": "solid"})
+        cafe_rule = dict(operator="equal", formula=['"카페"'], fill={"color": "#03C75A", "fill_type": "solid"})
+        count_rule = dict(operator="formula", formula=[], fill={"color": "#03C75A", "fill_type": "solid"})
         na_rule = dict(operator="formula", formula=["ISBLANK(F2)"], fill={"color": "#BFBFBF", "fill_type": "solid"})
 
         for col_idx, column in enumerate(headers, start=1):
@@ -352,19 +354,23 @@ with DAG(
                 column_styles[col_idx] = dict(alignment={"horizontal": "center"})
             elif column != "순번":
                 column_width[col_idx] = ":fit:"
-        cafe_rule["formula"] = [get_column_letter(min(count_columns))+'2'] if count_columns else []
+
+        formatting_rules = list()
+        if count_columns:
+            count_rule["formula"] = ["=ISNUMBER({})".format(get_column_letter(min(count_columns))+'2')]
+            formatting_rules = [
+                dict(ranges=count_columns, range_type="column", rule=ad_rule),
+                dict(ranges=count_columns, range_type="column", rule=cafe_rule),
+                dict(ranges=count_columns, range_type="column", rule=count_rule),
+                dict(ranges=f"F2:{get_column_letter(len(headers))}", range_type="range", rule=na_rule),
+            ]
 
         return dict(
             header_styles = "yellow",
             column_styles = column_styles,
             column_width = column_width,
             row_height = 16.5,
-            conditional_formatting = [
-                dict(ranges=count_columns, range_type="column", rule=ad_rule),
-                dict(ranges=count_columns, range_type="column", rule=cafe_rule),
-                *((dict(ranges=f"F2:{get_column_letter(len(headers))}", range_type="range", rule=na_rule),)
-                if len(headers) > 6 else tuple()),
-            ],
+            conditional_formatting = formatting_rules,
             column_filters = dict(
                 range = ":all:",
                 filters = [("영역", [dict(filter_type="value", values=["스마트블록","웹문서"])])]
