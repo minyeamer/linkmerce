@@ -119,41 +119,40 @@ def build():
     with col13:
         order = st.selectbox("차수", options=list(range(1, 10)), index=0)
         order_name = {1: "1st", 2: "2nd", 3: "3rd"}.get(order, f"{order}th")
-        start_index = (9 if order == 1 else 13)
-        end_index = (9 if order == 1 else 13)
+        default_start_HMS = ("09:00:00" if order == 1 else "13:00:00")
+        default_end_HMS = ("09:59:59" if order == 1 else "13:59:59")
 
 
-    # [Div2] Date Selection Controls (Start Date)
-    col20, col21, col22, col23 = st.columns([4,2,2,2])
+    # [Div2] Date Selection Controls
+    error_msg = str()
+    col20, col21, col22, col23 = st.columns([1,1,1,1])
     with col20:
         start_ymd = st.date_input("시작일", value=dt.date.today())
     with col21:
-        start_hour = st.selectbox("시작시간(시)", options=list(range(24)), index=start_index)
+        start_HMS = st.text_input("시작시간", value=default_start_HMS, max_chars=8)
+        try:
+            start_hour, start_minute, start_second = map(int, start_HMS.split(':'))
+        except ValueError:
+            error_msg = "올바른 시작시간을 입력해주세요."
     with col22:
-        start_minute = st.selectbox("시작시간(분)", options=list(range(60)), index=0)
+        end_ymd = st.date_input("종료일", value=dt.date.today())
     with col23:
-        start_second = st.selectbox("시작시간(초)", options=list(range(60)), index=0)
+        end_HMS = st.text_input("종료시간", value=default_end_HMS, max_chars=8)
+        try:
+            end_hour, end_minute, end_second = map(int, end_HMS.split(':'))
+        except ValueError:
+            error_msg = "올바른 종료시간을 입력해주세요."
+    if error_msg:
+        st.error(error_msg)
+        st.stop()
 
     start_date = dt.datetime(start_ymd.year, start_ymd.month, start_ymd.day, start_hour, start_minute, start_second)
-
-
-    # [Div3] Date Selection Controls (End Date)
-    col30, col31, col32, col33 = st.columns([4,2,2,2])
-    with col30:
-        end_ymd = st.date_input("종료일", value=dt.date.today())
-    with col31:
-        end_hour = st.selectbox("종료시간(시)", options=list(range(24)), index=end_index)
-    with col32:
-        end_minute = st.selectbox("종료시간(분)", options=list(range(60)), index=59)
-    with col33:
-        end_second = st.selectbox("종료시간(초)", options=list(range(60)), index=59)
-
     end_date = dt.datetime(end_ymd.year, end_ymd.month, end_ymd.day, end_hour, end_minute, end_second)
 
 
-    # [Div4] Confirmation and Execution
-    col40, col41 = st.columns(2)
-    with col40:
+    # [Div3] Confirmation and Execution
+    col30, col31 = st.columns(2)
+    with col30:
         if st.button("실행", type="primary"):
             with requests.Session() as session:
                 executor = DagExecutor(session)
@@ -182,7 +181,7 @@ def build():
                         st.text(response.get("message", str()))
                 else:
                     st.error("로그인 실패")
-    with col41:
+    with col31:
         if st.button("확인"):
             build_markdown([
                 ("작업명", dag_name),
