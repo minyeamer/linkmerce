@@ -5,7 +5,7 @@ from linkmerce.common.api import run_with_duckdb
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Iterable, Literal
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
     import datetime as dt
@@ -183,6 +183,42 @@ def brand_new_contract(
         return_type = return_type,
         extract_options = dict(
             extract_options,
+            variables = get_variables(api_key, secret_key, customer_id),
+        ),
+        transform_options = transform_options,
+    )
+
+
+def keyword(
+        api_key: str,
+        secret_key: str,
+        customer_id: int | str,
+        keywords: str | Iterable[str],
+        max_rank: int | None = None,
+        show_detail: bool = True,
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.searchad.api.keyword.extract import Keyword
+    # from linkmerce.core.searchad.api.keyword.transform import Keyword
+    return run_with_duckdb(
+        module = get_module(".keyword"),
+        extractor = "Keyword",
+        transformer = "Keyword",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (keywords, max_rank, (show_detail or (return_type != "raw"))),
+        extract_options = dict(
+            extract_options,
+            options = dict(RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
             variables = get_variables(api_key, secret_key, customer_id),
         ),
         transform_options = transform_options,
