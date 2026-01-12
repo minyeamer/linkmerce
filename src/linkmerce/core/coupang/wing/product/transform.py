@@ -112,6 +112,5 @@ class RocketOption(DuckDBTransformer):
 
     def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
         items = RocketInventorylist().transform(obj)
-        print(items[0])
         if items:
             return self.insert_into_table(items, params=dict(vendor_id=vendor_id))

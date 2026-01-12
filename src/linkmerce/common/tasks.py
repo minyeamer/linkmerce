@@ -389,7 +389,6 @@ class PaginateAll(ForEach, Request):
     def run(self, page: _SKIPPED = None, page_size: _SKIPPED = None, **kwargs) -> list:
         kwargs["page_size"] = self.max_page_size
         results, total_count = self._run_with_count(page=self.page_start, **kwargs)
-        print("[TOTAL]", total_count)
         if isinstance(total_count, int) and (total_count > self.max_page_size):
             from linkmerce.utils.progress import gather
             func = self._run_without_count
