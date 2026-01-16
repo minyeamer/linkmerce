@@ -1,7 +1,7 @@
 from __future__ import annotations
 from linkmerce.core.sabangnet.admin import SabangnetAdmin
 
-from typing import TYPE_CHECKING
+from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Sequence
@@ -262,13 +262,10 @@ class ProductMapping(SabangnetAdmin):
         }
 
 
-class SkuQuery(dict):
-    def __init__(self, product_id_shop: str, shop_id: str, product_id: str, **kwargs):
-        super().__init__(
-            product_id_shop = product_id_shop,
-            shop_id = shop_id,
-            product_id = product_id,
-        )
+class SkuQuery(TypedDict):
+    product_id_shop: str
+    shop_id: str
+    product_id: str
 
 
 class SkuMapping(SabangnetAdmin):

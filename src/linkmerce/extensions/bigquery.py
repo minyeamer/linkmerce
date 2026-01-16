@@ -3,7 +3,7 @@ import functools
 
 from linkmerce.common.load import Connection, concat_sql, where
 
-from typing import Sequence, TYPE_CHECKING
+from typing import Sequence, TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, IO, Literal, Type, TypeVar
@@ -47,16 +47,11 @@ class ServiceAccount(dict):
             raise ValueError("Unrecognized service account.")
 
 
-class PartitionOptions(dict):
-    def __init__(
-            self,
-            by: str | list[str] | None = None,
-            ascending: bool | None = True,
-            where_clause: str | None = None,
-            if_errors: Literal["ignore","raise"] = "raise",
-            **kwargs
-        ):
-        super().__init__(by=by, ascending=ascending, where_clause=where_clause, if_errors=if_errors)
+class PartitionOptions(TypedDict, total=False):
+    by: str | list[str] | None
+    ascending: bool | None
+    where_clause: str | None
+    if_errors: Literal["ignore","raise"]
 
 
 ###################################################################

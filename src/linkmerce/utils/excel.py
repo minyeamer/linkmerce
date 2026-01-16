@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence, TypeVar, TYPE_CHECKING
+from typing import Optional, Sequence, TypedDict, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Literal, Union
@@ -40,76 +40,47 @@ SINGLE_HEIGHT: float = 15.0
 ALIGN_CENTER = {"horizontal": "center", "vertical": "center"}
 
 
-class StyleConfig(dict):
-    def __init__(
-            self,
-            alignment: dict | None = None,
-            border: dict | None = None,
-            fill: dict | None = None,
-            font: dict | None = None,
-            number_format: str | None = None,
-            hyperlink: str | None = None,
-        ):
-        return super().__init__(
-            alignment=alignment, border=border, fill=fill, font=font,
-            number_format=number_format, hyperlink=hyperlink)
+class StyleConfig(TypedDict, total=False):
+    alignment: dict | None
+    border: dict | None
+    fill: dict | None
+    font: dict | None
+    number_format: str | None
+    hyperlink: str | None
 
 
-class RuleConfig(dict):
-    def __init__(
-            self,
-            operator: Literal[
-                "endsWith", "containsText", "beginsWith", "lessThan", "notBetween", "lessThanOrEqual",
-                "notEqual", "notContains", "between", "equal", "greaterThanOrEqual", "greaterThan", "formula"],
-            formula: Sequence | None = None,
-            stop_if_true: bool | None = None,
-            border: dict | None = None,
-            fill: dict | None = None,
-            font: dict | None = None,
-        ):
-        return super().__init__(
-            operator=operator, formula=formula, stop_if_true=stop_if_true,
-            border=border, fill=fill, font=font)
+class RuleConfig(TypedDict, total=False):
+    operator: Literal[
+        "endsWith", "containsText", "beginsWith", "lessThan", "notBetween", "lessThanOrEqual",
+        "notEqual", "notContains", "between", "equal", "greaterThanOrEqual", "greaterThan", "formula"]
+    formula: Sequence | None
+    stop_if_true: bool | None
+    border: dict | None
+    fill: dict | None
+    font: dict | None
 
 
-class ConditionalConfig(dict):
-    def __init__(
-            self,
-            ranges: list[Union[Column,Row,Range]] | Column | Row | Range,
-            range_type: Literal["column","row","range","auto"],
-            rule: RuleConfig,
-        ):
-        return super().__init__(ranges=ranges, range_type=range_type, rule=rule)
+class ConditionalConfig(TypedDict):
+    ranges: list[Union[Column,Row,Range]] | Column | Row | Range
+    range_type: Literal["column","row","range","auto"]
+    rule: RuleConfig
 
 
-class MergeConfig(dict):
-    def __init__(
-            self,
-            ranges: list[Union[Column,Row,Range]] | Column | Row | Range,
-            range_type: Literal["column","row","range","auto"],
-            mode: Literal["all","blank","same_value"],
-            styles: StyleConfig | None = {"alignment": ALIGN_CENTER},
-        ):
-        return super().__init__(ranges=ranges, range_type=range_type, mode=mode, styles=styles)
+class MergeConfig(TypedDict):
+    ranges: list[Union[Column,Row,Range]] | Column | Row | Range
+    range_type: Literal["column","row","range","auto"]
+    mode: Literal["all","blank","same_value"]
+    styles: StyleConfig | None
 
 
-class FilterConfig(dict):
-    def __init__(
-            self,
-            filter_type: Literal["value","top10","custom","dynamic","color","icon","blank","notBlank"],
-            **config
-        ):
-        return super().__init__(filter_type=filter_type, **config)
+class FilterConfig(TypedDict, total=False):
+    filter_type: Literal["value","top10","custom","dynamic","color","icon","blank","notBlank"]
 
 
-class ColumnFilters(dict):
-    def __init__(
-            self,
-            range: Range | Literal[":all:"],
-            filters: Sequence[tuple[Column, Sequence[FilterConfig]]] = list(),
-            button: Literal["always","hidden","auto"] = "always",
-        ):
-        return super().__init__(range=range, filters=filters, button=button)
+class ColumnFilters(TypedDict):
+    range: Range | Literal[":all:"]
+    filters: Sequence[tuple[Column, Sequence[FilterConfig]]]
+    button: Literal["always","hidden","auto"]
 
 
 def filter_warnings():
