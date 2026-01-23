@@ -307,3 +307,4 @@ debug*.ipynb
 debug*.sh
 
 airflow/extensions/
+airflow/dags/private/
