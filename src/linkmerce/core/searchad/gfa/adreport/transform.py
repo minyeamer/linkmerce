@@ -39,7 +39,7 @@ class Creative(DuckDBTransformer):
             self.insert_into_table(adsets, params=dict(account_no=account_no))
 
 
-class PerformanceReport(DuckDBTransformer):
+class _PerformanceReport(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
     def transform(self, obj: bytes, account_no: int | str, **kwargs):
@@ -55,3 +55,11 @@ class PerformanceReport(DuckDBTransformer):
             for name in zf.namelist():
                 if name.endswith(".csv"):
                     return zf.read(name)
+
+
+class CampaignReport(_PerformanceReport):
+    queries = ["create", "select", "insert"]
+
+
+class CreativeReport(_PerformanceReport):
+    queries = ["create", "select", "insert"]

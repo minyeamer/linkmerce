@@ -119,20 +119,37 @@ with DAG(
                 **kwargs
             ) -> dict:
             from linkmerce.common.load import DuckDBConnection
-            from linkmerce.api.searchad.gfa import performance_report
+            from linkmerce.api.searchad.gfa import campaign_report, creative_report
             from linkmerce.extensions.bigquery import BigQueryClient
+            sources = dict(campaign="campaign_report", creative="creative_report", merged="data")
 
             with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-                performance_report(
+                campaign_report(
                     account_no = account_no,
                     cookies = cookies,
                     start_date = date,
                     end_date = date,
                     date_type = "DAY",
                     connection = conn,
+                    tables = {"default": sources["campaign"]},
                     progress = False,
                     return_type = "none",
                 )
+
+                creative_report(
+                    account_no = account_no,
+                    cookies = cookies,
+                    start_date = date,
+                    end_date = date,
+                    date_type = "DAY",
+                    connection = conn,
+                    tables = {"default": sources["creative"]},
+                    progress = False,
+                    return_type = "none",
+                )
+
+                conn.copy_table(sources["creative"], sources["merged"], option="replace", temp=True)
+                conn.execute(merge_into_query(sources["campaign"], sources["merged"]))
 
                 with BigQueryClient(service_account) as client:
                     return dict(
@@ -154,6 +171,26 @@ with DAG(
                         ),
                     )
 
+        def merge_into_query(source_table: str, target_table: str) -> str:
+            return f"""
+            INSERT INTO {target_table}
+            SELECT
+                campaign_no
+                , 0 AS adset_no
+                , 0 AS creative_no
+                , account_no
+                , impression_count
+                , click_count
+                , reach_count
+                , ad_cost
+                , conv_count
+                , conv_amount
+                , ymd
+            FROM {source_table} AS S
+            WHERE NOT EXISTS (
+                SELECT 1 FROM {target_table} AS T
+                WHERE (T.account_no = S.account_no) AND (T.campaign_no = S.campaign_no)
+            );""".strip()
 
         (etl_gfa_report
             .partial(variables=read_gfa_variables())

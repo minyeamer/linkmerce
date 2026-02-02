@@ -130,7 +130,7 @@ def creative(
         return_type, extract_options, transform_options)
 
 
-def performance_report(
+def campaign_report(
         account_no: int | str,
         cookies: str,
         start_date: dt.date | str,
@@ -147,12 +147,49 @@ def performance_report(
         transform_options: dict = dict(),
     ) -> JsonObject:
     """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
-    # from linkmerce.core.searchad.gfa.adreport.transform import PerformanceReport
+    # from linkmerce.core.searchad.gfa.adreport.extract import CampaignReport
+    # from linkmerce.core.searchad.gfa.adreport.transform import CampaignReport
     return run_with_duckdb(
         module = get_module(".adreport"),
-        extractor = "PerformanceReport",
-        transformer = "PerformanceReport",
+        extractor = "CampaignReport",
+        transformer = "CampaignReport",
+        connection = connection,
+        tables = tables,
+        how = "sync",
+        return_type = return_type,
+        args = (start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress),
+        extract_options = dict(
+            extract_options,
+            headers = dict(cookies=cookies),
+            variables = dict(account_no=account_no),
+        ),
+        transform_options = transform_options,
+    )
+
+
+def creative_report(
+        account_no: int | str,
+        cookies: str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+        columns: list[str] | Literal[":default:"] = ":default:",
+        wait_seconds: int = 60,
+        wait_interval: int = 1,
+        progress: bool = True,
+        connection: DuckDBConnection | None = None,
+        tables: dict | None = None,
+        return_type: Literal["csv","json","parquet","raw","none"] = "json",
+        extract_options: dict = dict(),
+        transform_options: dict = dict(),
+    ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
+    # from linkmerce.core.searchad.gfa.adreport.extract import CreativeReport
+    # from linkmerce.core.searchad.gfa.adreport.transform import CreativeReport
+    return run_with_duckdb(
+        module = get_module(".adreport"),
+        extractor = "CreativeReport",
+        transformer = "CreativeReport",
         connection = connection,
         tables = tables,
         how = "sync",

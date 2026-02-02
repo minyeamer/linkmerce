@@ -204,6 +204,7 @@ class PerformanceReport(SearchAdGFA):
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
             columns: list[str] | Literal[":default:"] = ":default:",
+            ad_unit: Literal["AD_ACCOUNT","CAMPAIGN","AD_SET","ASSET_GROUP","CREATIVE"] = "CREATIVE",
             wait_seconds: int = 60,
             wait_interval: int = 1,
             progress: bool = True,
@@ -211,13 +212,14 @@ class PerformanceReport(SearchAdGFA):
         ) -> dict[str,bytes]:
         columns = self.db_columns if columns == ":default:" else columns
         dates = self.generate_date_range(start_date, end_date=(start_date if end_date == ":start_date:" else end_date))
-        return self.download(columns, dates, date_type, wait_seconds, wait_interval, progress)
+        return self.download(columns, dates, date_type, ad_unit, wait_seconds, wait_interval, progress)
 
     def download(
             self,
             columns: list[str],
             dates: list[tuple[dt.date,dt.date]],
             date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+            ad_unit: Literal["AD_ACCOUNT","CAMPAIGN","AD_SET","ASSET_GROUP","CREATIVE"] = "CREATIVE",
             wait_seconds: int = 60,
             wait_interval: int = 1,
             progress: bool = True,
@@ -228,7 +230,7 @@ class PerformanceReport(SearchAdGFA):
 
         status = [False] * len(dates)
         for index, (start_date, end_date) in enumerate(tqdm(dates, desc="Requesting performance reports", disable=(not progress))):
-            kwargs = dict(start_date=start_date, end_date=end_date, date_type=date_type, columns=columns)
+            kwargs = dict(start_date=start_date, end_date=end_date, date_type=date_type, ad_unit=ad_unit, columns=columns)
             status[index] = self.request_report(**kwargs)
             time.sleep(wait_interval)
 
@@ -302,6 +304,7 @@ class PerformanceReport(SearchAdGFA):
             start_date: dt.date,
             end_date: dt.date,
             date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+            ad_unit: Literal["AD_ACCOUNT","CAMPAIGN","AD_SET","ASSET_GROUP","CREATIVE"] = "CREATIVE",
             **kwargs
         ) -> dict:
         return {
@@ -311,7 +314,7 @@ class PerformanceReport(SearchAdGFA):
                 "endDate": str(end_date),
                 "reportDateUnit": date_type,
                 "placeUnit": "TOTAL",
-                "reportAdUnit": "CREATIVE",
+                "reportAdUnit": ad_unit,
                 "reportDimension": "TOTAL",
                 "colList": columns,
                 "adAccountNo": self.account_no,
@@ -327,8 +330,8 @@ class PerformanceReport(SearchAdGFA):
         params = '&'.join([f"{key}={value}" for key, value in {
             "startDate": str(start_date),
             "endDate": str(end_date),
-            "adUnit": "CREATIVE",
-            "dateUnit": "DAY",
+            "adUnit": kwargs.get("ad_unit") or "CREATIVE",
+            "dateUnit": kwargs.get("date_type") or "DAY",
             "placeUnit": "TOTAL",
             "dimension": "TOTAL",
             "currentPage": 1,
@@ -338,6 +341,58 @@ class PerformanceReport(SearchAdGFA):
             "accessAdAccountNo": self.account_no,
         }.items()])
         return "{}/adAccount/accounts/{}/report/performance?{}".format(self.origin, self.account_no, params)
+
+    @property
+    def db_columns(self) -> list[str]:
+        return list()
+
+    @property
+    def ad_unit(self) -> dict[str,str]:
+        return {
+            "광고 계정": "AD_ACCOUNT",
+            "캠페인": "CAMPAIGN",
+            "광고 그룹": "AD_SET",
+            "애셋 그룹": "ASSET_GROUP",
+            "광고 소재": "CREATIVE",
+        }
+
+
+class CampaignReport(PerformanceReport):
+
+    def extract(
+            self,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+            columns: list[str] | Literal[":default:"] = ":default:",
+            wait_seconds: int = 60,
+            wait_interval: int = 1,
+            progress: bool = True,
+            **kwargs
+        ) -> dict[str,bytes]:
+        return super().extract(
+            start_date, end_date, date_type, columns, "CAMPAIGN", wait_seconds, wait_interval, progress, **kwargs)
+
+    @property
+    def db_columns(self) -> list[str]:
+        return ["sales", "impCount", "clickCount", "convCount", "convSales"]
+
+
+class CreativeReport(PerformanceReport):
+
+    def extract(
+            self,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+            columns: list[str] | Literal[":default:"] = ":default:",
+            wait_seconds: int = 60,
+            wait_interval: int = 1,
+            progress: bool = True,
+            **kwargs
+        ) -> dict[str,bytes]:
+        return super().extract(
+            start_date, end_date, date_type, columns, "CREATIVE", wait_seconds, wait_interval, progress, **kwargs)
 
     @property
     def db_columns(self) -> list[str]:
