@@ -191,7 +191,7 @@ class WorksheetClient(Client):
             return list_get(records, filter_headers) if filter_headers is not None else records
 
     def count_rows(self, include_header: bool = False) -> int:
-        len(self.worksheet.get_values("A:A")) - bool(not include_header)
+        return len(self.worksheet.get_values("A:A")) - bool(not include_header)
 
     def get_header_row(self) -> list[str]:
         return self.worksheet.get_values("1:1")[0]
