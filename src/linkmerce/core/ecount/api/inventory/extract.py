@@ -16,7 +16,8 @@ class Inventory(EcountAPI):
 
     @EcountAPI.with_session
     @EcountAPI.with_oapi
-    def extract(self,
+    def extract(
+            self,
             base_date: dt.date | str | Literal[":today:"] = ":today:",
             warehouse_code: str | None = None,
             product_code: str | None = None,
@@ -35,7 +36,8 @@ class Inventory(EcountAPI):
         with self.request(**message) as response:
             return self.parse(response.json(), **kwargs)
 
-    def build_request_json(self,
+    def build_request_json(
+            self,
             base_date: dt.date | str,
             warehouse_code: str | None = None,
             product_code: str | None = None,

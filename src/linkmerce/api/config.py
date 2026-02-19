@@ -14,7 +14,7 @@ DEFAULT_SCHEMAS = "env/schemas.json"
 DEFAULT_SERVICE_ACCOUNT = "env/service_account.json"
 
 
-def exists(obj: Any, dtype: type,  list: bool = False, dict: bool = False) -> bool:
+def exists(obj: Any, dtype: type, list: bool = False, dict: bool = False) -> bool:
     if list:
         return list_exists(obj, dtype)
     elif dict:
