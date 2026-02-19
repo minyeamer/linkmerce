@@ -238,7 +238,10 @@ def _default_config(
         with_table_schema: bool | None = False,
         read_google_sheets: bool = True,
     ) -> dict:
-    return read_config(
+    config = read_config(
         file_path, key_path, format, credentials_path, schemas_path, service_account,
         skip_subpath, with_table_schema, read_google_sheets
     )
+    if service_account:
+        config["service_account"] = service_account
+    return config
