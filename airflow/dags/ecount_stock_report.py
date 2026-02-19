@@ -240,7 +240,9 @@ with DAG(
         @task(task_id="send_stock_report")
         def send_stock_report(ti: TaskInstance, data_interval_end: pendulum.DateTime, **kwargs) -> dict:
             from variables import in_timezone
+            import time
             variables = ti.xcom_pull(task_ids="report_group.read_report_variables")
+            time.sleep(10) # Wait for data to be fully loaded
             return main_report(datetime=in_timezone(data_interval_end), **variables)
 
         def main_report(
@@ -253,11 +255,13 @@ with DAG(
             from linkmerce.extensions.bigquery import BigQueryClient
             from linkmerce.utils.excel import csv2excel, save_excel_to_tempfile
 
+            headers = expected_headers(datetime)
             with BigQueryClient(service_account) as client:
-                rows = client.fetch_all_to_csv(f"SELECT * FROM {table_function}('{datetime.date()}');", header=True)
+                columns = ', '.join([header[0] for header in headers])
+                rows = client.fetch_all_to_csv(f"SELECT {columns} FROM {table_function}('{datetime.date()}');", header=True)
 
             headers0, headers1 = list(), list()
-            for header, (expected, (header0, header1)) in zip(rows[0], expected_headers(datetime)):
+            for header, (expected, (header0, header1)) in zip(rows[0], headers):
                 if header != expected:
                     raise ValueError(f"Expected header '{expected}' do not match actual column '{header}'")
                 headers0.append(header0)
