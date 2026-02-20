@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence, TypedDict, TypeVar, TYPE_CHECKING
+from typing import Sequence, TypedDict, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Literal, Union
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from openpyxl.worksheet.filters import FilterColumn, Filters, Top10, CustomFilter, DynamicFilter, ColorFilter, IconFilter
     import datetime as dt
 
+Sheet = TypeVar("Row", bound=int)
 Column = TypeVar("Column", int, str, tuple[str,...])
 Row = TypeVar("Row", bound=int)
 Range = TypeVar("Range", bound=str)
@@ -1094,7 +1095,7 @@ def round_half_up(value: float) -> int:
 ########################## Apply filters ##########################
 ###################################################################
 
-def apply_filters(wb: Workbook, filtered_rows: dict[Row,set[Row]]) -> Workbook:
+def apply_filters(wb: Workbook, filtered_rows: dict[Sheet,set[Row]]) -> Workbook:
     import xml.etree.ElementTree as ET
     import os
 
@@ -1115,7 +1116,7 @@ def apply_filters(wb: Workbook, filtered_rows: dict[Row,set[Row]]) -> Workbook:
     return wb
 
 
-def _apply_filter(input_path: str, sheet_index: int, filtered_rows: set[Row], ns: dict) -> Workbook:
+def _apply_filter(input_path: str, sheet_index: Sheet, filtered_rows: set[Row], ns: dict) -> Workbook:
     from openpyxl import load_workbook
     from tempfile import NamedTemporaryFile
     import xml.etree.ElementTree as ET
@@ -1255,7 +1256,7 @@ def find_merge_ranges(
                         visited[r][c] = False
 
                 if (row_start != row_end) or (col_start != col_end):
-                    merge_ranges.append(f"{colstr(col_start)}{row_start+min_row}:{colstr(col_end)}{row_end+min_col}")
+                    merge_ranges.append(f"{colstr(col_start+min_col)}{row_start+min_row}:{colstr(col_end+min_col)}{row_end+min_row}")
                 else:
                     for r, c in cells[1:]:
                         visited[r][c] = False
