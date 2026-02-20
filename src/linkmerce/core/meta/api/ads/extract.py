@@ -22,19 +22,19 @@ class MetaAds(MetaAPI):
     def default_options(self) -> dict:
         return dict(RequestEach = dict(request_delay=1))
 
-    def _extract_backend(self, ad_accounts: Sequence[str] = list(), **partial) -> JsonObject:
-        if not ad_accounts:
-            ad_accounts = [ad_account["id"] for ad_account in self.list_ad_accounts()]
-        return (self.request_each(self.request_json_by_ad_account)
+    def _extract_backend(self, account_ids: Sequence[str] = list(), **partial) -> JsonObject:
+        if not account_ids:
+            account_ids = [account["id"] for account in self.list_accounts()]
+        return (self.request_each(self.request_json_by_account)
                 .partial(**partial)
-                .expand(ad_account=ad_accounts)
+                .expand(account_id=account_ids)
                 .run())
 
-    def request_json_by_ad_account(self, ad_account: str, **kwargs) -> JsonObject:
-        kwargs["url"] = self.concat_path(self.origin, self.version, ad_account, self.path)
+    def request_json_by_account(self, account_id: str, **kwargs) -> JsonObject:
+        kwargs["url"] = self.concat_path(self.origin, self.version, account_id, self.path)
         return self.request_json_safe(**kwargs)
 
-    def list_ad_accounts(self) -> list[AdAccount]:
+    def list_accounts(self) -> list[AdAccount]:
         import json
         url = self.concat_path(self.origin, self.version, "/me/adaccounts")
         params = {"access_token": self.access_token, "fields": "id,name"}
@@ -54,11 +54,11 @@ class _AdObjects(MetaAds):
             self,
             start_date: dt.date | str | None = None,
             end_date: dt.date | str | None = None,
-            ad_accounts: Sequence[str] = list(),
+            account_ids: Sequence[str] = list(),
             fields: Sequence[str] = list(),
             **kwargs
         ) -> JsonObject:
-        return self._extract_backend(ad_accounts, start_date=start_date, end_date=end_date, fields=fields)
+        return self._extract_backend(account_ids, start_date=start_date, end_date=end_date, fields=fields)
 
     def build_request_params(
             self,
@@ -67,7 +67,6 @@ class _AdObjects(MetaAds):
             fields: Sequence[str] = list(),
             **kwargs
         ) -> dict[str,str]:
-        import json
         return {
             "access_token": self.access_token,
             "fields": ','.join(fields if fields else self.fields),
@@ -122,12 +121,12 @@ class Insights(MetaAds):
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             date_type: Literal["daily","total"] = "daily",
-            ad_accounts: Sequence[str] = list(),
+            account_ids: Sequence[str] = list(),
             fields: Sequence[str] = list(),
             **kwargs
         ) -> JsonObject:
         dates = dict(start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date))
-        return self._extract_backend(ad_accounts, ad_level=ad_level, **dates, date_type=date_type, fields=fields)
+        return self._extract_backend(account_ids, ad_level=ad_level, **dates, date_type=date_type, fields=fields)
 
     def build_request_params(
             self,
@@ -138,14 +137,13 @@ class Insights(MetaAds):
             fields: Sequence[str] = list(),
             **kwargs
         ) -> dict[str,str]:
-        import json
         return {
             "access_token": self.access_token,
             "fields": ','.join(fields if fields else self.fields),
             "level": ad_level,
             "time_range": self.time_range(start_date, end_date),
             **({"time_increment": 1} if date_type == "daily" else {}),
-            "limit": 5000
+            "limit": 5000,
         }
 
     @property

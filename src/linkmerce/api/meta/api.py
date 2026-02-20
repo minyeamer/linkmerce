@@ -31,7 +31,7 @@ def _ad_objects(
         app_secret: str = str(),
         start_date: dt.date | str | None = None,
         end_date: dt.date | str | None = None,
-        ad_accounts: Sequence[str] = list(),
+        account_ids: Sequence[str] = list(),
         fields: Sequence[str] = list(),
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
@@ -52,7 +52,7 @@ def _ad_objects(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        args = (start_date, end_date, ad_accounts, fields),
+        args = (start_date, end_date, account_ids, fields),
         extract_options = update_options(
             extract_options,
             variables = dict(access_token=access_token, app_id=app_id, app_secret=app_secret),
@@ -68,7 +68,7 @@ def campaigns(
         app_secret: str = str(),
         start_date: dt.date | str | None = None,
         end_date: dt.date | str | None = None,
-        ad_accounts: Sequence[str] = list(),
+        account_ids: Sequence[str] = list(),
         fields: Sequence[str] = list(),
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
@@ -82,7 +82,7 @@ def campaigns(
     # from linkmerce.core.meta.api.ads.extract import Campaigns
     # from linkmerce.core.meta.api.ads.transform import Campaigns
     return _ad_objects(
-        access_token, "Campaigns", app_id, app_secret, start_date, end_date, ad_accounts, fields,
+        access_token, "Campaigns", app_id, app_secret, start_date, end_date, account_ids, fields,
         connection, tables, request_delay, progress, return_type, extract_options, transform_options)
 
 
@@ -92,7 +92,7 @@ def adsets(
         app_secret: str = str(),
         start_date: dt.date | str | None = None,
         end_date: dt.date | str | None = None,
-        ad_accounts: Sequence[str] = list(),
+        account_ids: Sequence[str] = list(),
         fields: Sequence[str] = list(),
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
@@ -102,10 +102,11 @@ def adsets(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
     # from linkmerce.core.meta.api.ads.extract import Adsets
     # from linkmerce.core.meta.api.ads.transform import Adsets
     return _ad_objects(
-        access_token, "Adsets", app_id, app_secret, start_date, end_date, ad_accounts, fields,
+        access_token, "Adsets", app_id, app_secret, start_date, end_date, account_ids, fields,
         connection, tables, request_delay, progress, return_type, extract_options, transform_options)
 
 
@@ -115,7 +116,7 @@ def ads(
         app_secret: str = str(),
         start_date: dt.date | str | None = None,
         end_date: dt.date | str | None = None,
-        ad_accounts: Sequence[str] = list(),
+        account_ids: Sequence[str] = list(),
         fields: Sequence[str] = list(),
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
@@ -125,10 +126,11 @@ def ads(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
+    """`tables = {'default': 'data'}`"""
     # from linkmerce.core.meta.api.ads.extract import Ads
     # from linkmerce.core.meta.api.ads.transform import Ads
     return _ad_objects(
-        access_token, "Ads", app_id, app_secret, start_date, end_date, ad_accounts, fields,
+        access_token, "Ads", app_id, app_secret, start_date, end_date, account_ids, fields,
         connection, tables, request_delay, progress, return_type, extract_options, transform_options)
 
 
@@ -140,7 +142,7 @@ def insights(
         date_type: Literal["daily","total"] = "daily",
         app_id: str = str(),
         app_secret: str = str(),
-        ad_accounts: Sequence[str] = list(),
+        account_ids: Sequence[str] = list(),
         fields: Sequence[str] = list(),
         connection: DuckDBConnection | None = None,
         tables: dict | None = None,
@@ -150,7 +152,13 @@ def insights(
         extract_options: dict = dict(),
         transform_options: dict = dict(),
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
+    """```python
+    tables = {
+        'campaigns': 'meta_campaigns',
+        'adsets': 'meta_adsets',
+        'ads': 'meta_ads',
+        'metrics': 'meta_insights'
+    }"""
     # from linkmerce.core.meta.api.ads.extract import Insights
     # from linkmerce.core.meta.api.ads.transform import Insights
     return run_with_duckdb(
@@ -161,7 +169,7 @@ def insights(
         tables = tables,
         how = "sync",
         return_type = return_type,
-        args = (ad_level, start_date, end_date, date_type, ad_accounts, fields),
+        args = (ad_level, start_date, end_date, date_type, account_ids, fields),
         extract_options = update_options(
             extract_options,
             variables = dict(access_token=access_token, app_id=app_id, app_secret=app_secret),
