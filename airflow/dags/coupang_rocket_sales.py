@@ -46,6 +46,7 @@ with DAG(
             end_date: str,
             service_account: dict,
             tables: dict[str,str],
+            merge: dict[str,dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
@@ -67,9 +68,7 @@ with DAG(
                 return_type = "none",
             )
 
-            for table in ["sales", "shipping"]:
-                date_array[table] = sorted(map(str, conn.unique(sources[table], "sales_date")))
-                conn.execute(f"DELETE FROM {sources[table]} WHERE sales_date NOT BETWEEN '{start_date}' AND '{end_date}';")
+            date_array = {table: conn.unique(sources[table], "register_date") for table in ["sales", "shipping"]}
 
             with BigQueryClient(service_account) as client:
                 return dict(
@@ -85,18 +84,28 @@ with DAG(
                     ),
                     dates = date_array,
                     status = dict(
-                        sales = client.overwrite_table_from_duckdb(
+                        sales = client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["sales"],
+                            staging_table = tables["temp_sales"],
                             target_table = tables["sales"],
-                            where_clause = f"(sales_date BETWEEN '{start_date}' AND '{end_date}') AND (vendor_id = '{vendor_id}')",
+                            **merge["sales"],
+                            where_clause = "({sales_date}) AND (T.vendor_id = '{vendor_id}')".format(
+                                sales_date = conn.expr_date_range("T.sales_date", date_array["sales"]),
+                                vendor_id = vendor_id,
+                            ),
                             progress = False,
                         ),
-                        shipping = client.overwrite_table_from_duckdb(
+                        shipping = client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["shipping"],
+                            staging_table = tables["temp_shipping"],
                             target_table = tables["shipping"],
-                            where_clause = f"(sales_date BETWEEN '{start_date}' AND '{end_date}') AND (vendor_id = '{vendor_id}')",
+                            **merge["shipping"],
+                            where_clause = "({sales_date}) AND (T.vendor_id = '{vendor_id}')".format(
+                                sales_date = conn.expr_date_range("T.sales_date", date_array["shipping"]),
+                                vendor_id = vendor_id,
+                            ),
                             progress = False,
                         ),
                     ),

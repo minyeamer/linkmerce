@@ -153,8 +153,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , warehousing_fee INTEGER
   , discount_amount INTEGER
   , extra_fee INTEGER
-  , order_date DATE
   , sales_date DATE
+  , shipping_date DATE
   , settlement_date DATE
   , PRIMARY KEY (vendor_id, order_id, option_id, settlement_type)
 );
@@ -186,8 +186,8 @@ SELECT
   , TRY_CAST("발생비용(A)" AS INTEGER) AS warehousing_fee
   , TRY_CAST("할인가(B)" AS INTEGER) AS discount_amount
   , TRY_CAST(item->'$.추가비용' AS INTEGER) AS extra_fee
-  , TRY_CAST("주문일" AS DATE) AS order_date
-  , TRY_CAST("매출인식일" AS DATE) AS sales_date
+  , TRY_CAST("주문일" AS DATE) AS sales_date
+  , TRY_CAST("매출인식일" AS DATE) AS shipping_date
   , TRY_CAST("정산주기(종료일)" AS DATE) AS settlement_date
 FROM {{ array }} AS item
 WHERE (TRY_CAST("주문ID" AS BIGINT) IS NOT NULL) AND (TRY_CAST("옵션ID" AS BIGINT) IS NOT NULL)
