@@ -68,7 +68,7 @@ with DAG(
                 return_type = "none",
             )
 
-            date_array = {table: conn.unique(sources[table], "register_date") for table in ["sales", "shipping"]}
+            date_array = {table: conn.unique(sources[table], "sales_date") for table in ["sales", "shipping"]}
 
             with BigQueryClient(service_account) as client:
                 return dict(
