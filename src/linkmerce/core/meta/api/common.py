@@ -17,11 +17,6 @@ class OAuthException(Exception):
 class MetaAPI(Extractor):
     method: str = "GET"
     origin: str = "https://graph.facebook.com/"
-    version: str = "v24.0"
-    path: str | None = None
-
-    def extract(self, *args, **kwargs):
-        return super().extract(*args, **kwargs)
 
     def set_variables(self, variables: Variables = dict()):
         try:
@@ -34,16 +29,9 @@ class MetaAPI(Extractor):
             access_token: str,
             app_id: str = str(),
             app_secret: str = str(),
-            version: str = str(),
             **variables,
         ):
-        if version:
-            self.version = version
         super().set_variables(dict(access_token=access_token, app_id=app_id, app_secret=app_secret, **variables))
-
-    @property
-    def url(self) -> str:
-        return self.concat_path(self.origin, self.path)
 
     @property
     def access_token(self) -> int | str:

@@ -25,13 +25,15 @@ with DAG(
         return read(META_PATH, credentials=True)["credentials"]
 
 
+    AD_OBJECTS = ["campaigns", "adsets", "ads"]
+
     @task(task_id="etl_meta_objects", map_index_template="{{ credentials['app_id'] }}")
     def etl_meta_objects(credentials: dict, variables: dict, **kwargs) -> dict:
         variables = dict(variables, merge=variables["merge"]["objects"])
-        return {api_type: main_objects(api_type, **credentials, **variables) for api_type in ["campaigns","adsets","ads"]}
+        return {ad_level: main_objects(ad_level, **credentials, **variables) for ad_level in AD_OBJECTS}
 
     def main_objects(
-            api_type: str,
+            ad_level: str,
             access_token: str,
             app_id: str,
             app_secret: str,
@@ -44,7 +46,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.extensions.bigquery import BigQueryClient
         from importlib import import_module
-        extract = getattr(import_module("linkmerce.api.meta.api"), api_type)
+        extract = getattr(import_module("linkmerce.api.meta.api"), ad_level)
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             extract(
@@ -60,6 +62,7 @@ with DAG(
             with BigQueryClient(service_account) as client:
                 return dict(
                     params = dict(
+                        ad_level = ad_level,
                         account_ids = account_ids,
                     ),
                     counts = dict(
@@ -69,9 +72,9 @@ with DAG(
                         data = client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = "data",
-                            staging_table = "{}_{}".format(tables[f"temp_{api_type}"], app_id),
-                            target_table = tables[api_type],
-                            **merge[api_type],
+                            staging_table = "{}_{}".format(tables[f"temp_{ad_level}"], app_id),
+                            target_table = tables[ad_level],
+                            **merge[ad_level],
                             progress = False,
                         ),
                     ),

@@ -16,17 +16,20 @@ class AdAccount(TypedDict):
 
 
 class MetaAds(MetaAPI):
-    method = "GET"
+    """https://developers.facebook.com/docs/marketing-api/reference/v24.0"""
+    method: str = "GET"
+    version: str = "v24.0"
+    path: str | None = None
 
     @property
     def default_options(self) -> dict:
         return dict(RequestEach = dict(request_delay=1))
 
-    def _extract_backend(self, account_ids: Sequence[str] = list(), **partial) -> JsonObject:
+    def _extract_backend(self, account_ids: Sequence[str] = list(), **kwargs) -> JsonObject:
         if not account_ids:
             account_ids = [account["id"] for account in self.list_accounts()]
         return (self.request_each(self.request_json_by_account)
-                .partial(**partial)
+                .partial(**kwargs)
                 .expand(account_id=account_ids)
                 .run())
 
@@ -79,6 +82,7 @@ class _AdObjects(MetaAds):
 
 
 class Campaigns(_AdObjects):
+    """https://developers.facebook.com/docs/marketing-api/reference/ad-account/campaigns/v24.0"""
     path = "/campaigns"
 
     @property
@@ -89,6 +93,7 @@ class Campaigns(_AdObjects):
 
 
 class Adsets(_AdObjects):
+    """https://developers.facebook.com/docs/marketing-api/reference/ad-account/adsets/v24.0"""
     path = "/adsets"
 
     @property
@@ -100,6 +105,7 @@ class Adsets(_AdObjects):
 
 
 class Ads(_AdObjects):
+    """https://developers.facebook.com/docs/marketing-api/reference/ad-account/ads/v24.0"""
     path = "/ads"
 
     @property
@@ -111,6 +117,7 @@ class Ads(_AdObjects):
 
 
 class Insights(MetaAds):
+    """https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/v24.0"""
     path = "/insights"
 
     @MetaAds.with_session
