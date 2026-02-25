@@ -91,7 +91,7 @@ with DAG(
         return read(GOOGLE_PATH, credentials=True)["credentials"]
 
 
-    @task(task_id="etl_google_insight", map_index_template="{{ credentials['app_id'] }}")
+    @task(task_id="etl_google_insight", map_index_template="{{ credentials['customer_id'] }}")
     def etl_google_insight(credentials: dict, variables: dict, **kwargs) -> dict:
         from variables import get_execution_date
         return main_insight(**credentials, date=get_execution_date(kwargs, subdays=1), **variables)
