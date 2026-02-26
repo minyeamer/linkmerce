@@ -33,10 +33,10 @@ SELECT
   , campaign.advertisingChannelType AS campaign_type
   , campaign.status AS campaign_status
   , campaign.biddingStrategyType AS bidding_strategy
-  , ROUND(COALESCE(TRY_CAST(campaignBudget.amountMicros AS INTEGER), 0) / 1000000) AS campaign_budget
+  , ROUND(COALESCE(TRY_CAST(campaignBudget.amountMicros AS BIGINT), 0) / 1000000) AS campaign_budget
   , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count_30d
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count_30d
-  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS INTEGER), 0) / 1000000) AS ad_cost_30d
+  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost_30d
   , TRY_STRPTIME(campaign.startDateTime, '%Y-%m-%d %H:%M:%S') AS created_at
 FROM {{ array }};
 
@@ -114,10 +114,10 @@ SELECT
   , campaign.id AS campaign_id
   , adGroup.type AS adgroup_type
   , adGroup.status AS adgroup_status
-  , ROUND(COALESCE(TRY_CAST(adGroup.targetCpaMicros AS INTEGER), 0) / 1000000) AS target_cpa
+  , ROUND(COALESCE(TRY_CAST(adGroup.targetCpaMicros AS BIGINT), 0) / 1000000) AS target_cpa
   , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count_30d
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count_30d
-  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS INTEGER), 0) / 1000000) AS ad_cost_30d
+  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost_30d
 FROM {{ array }};
 
 -- AdGroup: insert
@@ -174,7 +174,7 @@ SELECT
   , adGroupAd.status AS ad_status
   , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count_30d
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count_30d
-  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS INTEGER), 0) / 1000000) AS ad_cost_30d
+  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost_30d
 FROM {{ array }};
 
 -- Ad: insert
@@ -358,7 +358,7 @@ SELECT
       ELSE NULL END) AS device_type
   , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count
-  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS INTEGER), 0) / 1000000) AS ad_cost
+  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost
   , TRY_STRPTIME(segments.date, '%Y-%m-%d') AS ymd
 FROM {{ array }};
 
