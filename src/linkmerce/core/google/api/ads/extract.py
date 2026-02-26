@@ -211,33 +211,9 @@ class Ad(GoogleAds):
         ]
 
 
-class Asset(GoogleAds):
-    """https://developers.google.com/google-ads/api/fields/v23/asset"""
-    table = "asset"
-
-    @GoogleAPI.with_session
-    @GoogleAPI.with_token
-    def extract(self, fields: Sequence[str] = list(), **kwargs) -> JsonObject:
-        response = self.request_json(fields = fields)
-        return self.parse(response, customer_id=self.customer_id)
-
-    @property
-    def fields(self) -> list[str]:
-        return [
-            "asset.id",
-            "asset.name",
-            "asset.type",
-            "asset.callout_asset.callout_text",
-            "asset.image_asset.full_size.url",
-            "asset.structured_snippet_asset.header",
-            "asset.text_asset.text",
-            "asset.youtube_video_asset.youtube_video_title",
-        ]
-
-
-class AssetView(GoogleAds):
-    """https://developers.google.com/google-ads/api/fields/v23/ad_group_ad_asset_view"""
-    table = "ad_group_ad_asset_view"
+class Insight(GoogleAds):
+    """https://developers.google.com/google-ads/api/fields/v23/ad_group_ad"""
+    table = "ad_group_ad"
 
     @property
     def default_options(self) -> dict:
@@ -270,6 +246,50 @@ class AssetView(GoogleAds):
                 fields = fields,
             )
             return self.parse(response, customer_id=str(self.customer_id))
+
+    @property
+    def fields(self) -> list[str]:
+        return [
+            "ad_group_ad.ad.id",
+            "campaign.id",
+            "ad_group.id",
+            "segments.date",
+            "segments.device",
+            "metrics.impressions",
+            "metrics.clicks",
+            "metrics.cost_micros",
+            # "metrics.conversions",
+            # "metrics.conversions_value",
+        ]
+
+
+class Asset(GoogleAds):
+    """https://developers.google.com/google-ads/api/fields/v23/asset"""
+    table = "asset"
+
+    @GoogleAPI.with_session
+    @GoogleAPI.with_token
+    def extract(self, fields: Sequence[str] = list(), **kwargs) -> JsonObject:
+        response = self.request_json(fields = fields)
+        return self.parse(response, customer_id=self.customer_id)
+
+    @property
+    def fields(self) -> list[str]:
+        return [
+            "asset.id",
+            "asset.name",
+            "asset.type",
+            "asset.callout_asset.callout_text",
+            "asset.image_asset.full_size.url",
+            "asset.structured_snippet_asset.header",
+            "asset.text_asset.text",
+            "asset.youtube_video_asset.youtube_video_title",
+        ]
+
+
+class AssetView(Insight):
+    """https://developers.google.com/google-ads/api/fields/v23/ad_group_ad_asset_view"""
+    table = "ad_group_ad_asset_view"
 
     @property
     def fields(self) -> list[str]:

@@ -220,6 +220,45 @@ FROM UNNEST([
 ]);
 
 
+-- Insight: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    customer_id VARCHAR
+  , campaign_id VARCHAR NOT NULL
+  , adgroup_id VARCHAR NOT NULL
+  , ad_id VARCHAR
+  , device_type TINYINT
+  , impression_count INTEGER
+  , click_count INTEGER
+  , ad_cost INTEGER
+  , ymd DATE
+  , PRIMARY KEY (ymd, customer_id, ad_id, device_type)
+);
+
+-- Insight: select
+SELECT
+    $customer_id AS customer_id
+  , campaign.id AS campaign_id
+  , adGroup.id AS adgroup_id
+  , adGroupAd.ad.id AS ad_id
+  , (CASE
+      WHEN segments.device = 'DESKTOP' THEN 0
+      WHEN segments.device = 'MOBILE' THEN 1
+      WHEN segments.device = 'TABLET' THEN 2
+      WHEN segments.device = 'CONNECTED_TV' THEN 3
+      WHEN segments.device = 'OTHER' THEN 4
+      WHEN segments.device = 'UNKNOWN' THEN 5
+      WHEN segments.device = 'UNSPECIFIED' THEN 6
+      ELSE NULL END) AS device_type
+  , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count
+  , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count
+  , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost
+  , TRY_STRPTIME(segments.date, '%Y-%m-%d') AS ymd
+FROM {{ array }};
+
+-- Insight: insert
+INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+
+
 -- Asset: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     asset_id VARCHAR
@@ -300,7 +339,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , click_count INTEGER
   , ad_cost INTEGER
   , ymd DATE
-  , PRIMARY KEY (customer_id, ad_id, asset_id, field_type, device_type)
+  , PRIMARY KEY (ymd, customer_id, ad_id, asset_id, field_type, device_type)
 );
 
 -- AssetView: select

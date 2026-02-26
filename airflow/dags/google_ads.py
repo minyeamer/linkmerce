@@ -106,11 +106,11 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.google.api import asset_view
+        from linkmerce.api.google.api import insight
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            asset_view(
+            insight(
                 customer_id = customer_id,
                 manager_id = manager_id,
                 developer_token = developer_token,

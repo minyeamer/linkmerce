@@ -30,6 +30,10 @@ class AdGroup(_AdTransformer):
     queries = ["create", "select", "insert"]
 
 
+class Insight(_AdTransformer):
+    queries = ["create", "select", "insert"]
+
+
 class Asset(_AdTransformer):
     queries = ["create", "select", "insert"]
 
