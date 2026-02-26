@@ -240,9 +240,7 @@ with DAG(
         @task(task_id="send_stock_report")
         def send_stock_report(ti: TaskInstance, data_interval_end: pendulum.DateTime, **kwargs) -> dict:
             from variables import in_timezone
-            import time
             variables = ti.xcom_pull(task_ids="report_group.read_report_variables")
-            time.sleep(10) # Wait for data to be fully loaded
             return main_report(datetime=in_timezone(data_interval_end), **variables)
 
         def main_report(
@@ -251,14 +249,22 @@ with DAG(
                 channel_id: str,
                 datetime: pendulum.DateTime,
                 service_account: dict,
+                max_fetch_retries: int = 10,
+                delay_increment: float = 10.,
+                **kwargs
             ) -> dict:
             from linkmerce.extensions.bigquery import BigQueryClient
             from linkmerce.utils.excel import csv2excel, save_excel_to_tempfile
+            import time
 
             headers = expected_headers(datetime)
             with BigQueryClient(service_account) as client:
                 columns = ', '.join([header[0] for header in headers])
-                rows = client.fetch_all_to_csv(f"SELECT {columns} FROM {table_function}('{datetime.date()}');", header=True)
+                for i in range(1, max_fetch_retries+1):
+                    rows = client.fetch_all_to_csv(f"SELECT {columns} FROM {table_function}('{datetime.date()}');", header=True)
+                    if sum_eflexs_quantity(rows) > 0:
+                        break
+                    time.sleep(delay_increment * i)
 
             headers0, headers1 = list(), list()
             for header, (expected, (header0, header1)) in zip(rows[0], headers):
@@ -401,6 +407,13 @@ with DAG(
             )
             return [dict(ranges="A:X", range_type="range", rule=danger), dict(ranges="A:X", range_type="range", rule=warning)]
 
+
+        def sum_eflexs_quantity(rows: list[tuple]) -> int:
+            ELFEXS_QUANTITY = 10
+            try:
+                return sum([(row[ELFEXS_QUANTITY] or 0) for row in rows[1:]]) if rows else 0
+            except:
+                return 0
 
         def count_by_brand(rows: list[tuple], header_row: int = 0) -> list[dict]:
             from collections import defaultdict
