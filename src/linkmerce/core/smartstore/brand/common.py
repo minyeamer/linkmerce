@@ -23,7 +23,6 @@ class PartnerCenter(Extractor):
 
 class PartnerCenterLogin(SmartstoreLogin):
     center_url = "https://center.shopping.naver.com"
-    hcenter_url = "https://hcenter.shopping.naver.com"
 
     @SmartstoreLogin.with_session
     def login(
@@ -38,9 +37,13 @@ class PartnerCenterLogin(SmartstoreLogin):
         login_info = super().login(userid, passwd, channel_seq, cookies)
         self.login_init(login_info["redirectUrl"])
         self.celogin(pincode=regexp_extract(r"\?pincode=(.*)$", login_info["redirectUrl"]))
-        self.fetch_embrace_token(subject="main", params=dict(targetUrl=(self.center_url + "/iframe/main.nhn")))
-        self.fetch_embrace_token(subject="brand-analytics.dashboard", login=True)
+        self.fetch_embrace_token(subject="main", login=False)
+        self.fetch_adbridge()
+        self.fetch_embrace_token(subject="brand-analytics.product", login=True)
         return login_info
+
+    def _center_url(self, _: str) -> str:
+        return f"https://{_}center.shopping.naver.com"
 
     ############################ Login Init ###########################
 
@@ -138,9 +141,7 @@ class PartnerCenterLogin(SmartstoreLogin):
         headers = self.build_request_headers(redirect_url, referer=(self.center_url + "/v1/slogin2/login"))
         self.request("GET", redirect_url, headers=headers)
 
-    ###################################################################
     ########################## Embrace Token ##########################
-    ###################################################################
 
     def fetch_embrace_token(self, subject: str, login: bool = False, params: dict = dict()) -> str:
         url = self.center_url + "/v2/members/me/embrace-token-at-url"
@@ -161,13 +162,13 @@ class PartnerCenterLogin(SmartstoreLogin):
         from linkmerce.utils.regex import regexp_extract
         self.get_member()
 
-        url = self.hcenter_url + "/v1/login/by-token"
+        url = self._center_url('h') + "/v1/login/by-token"
         params = dict(token=regexp_extract(r"\?token=(.*)$", redirect_url))
         headers = self.build_request_headers(url, referer=redirect_url)
         self.request("GET", url, params=params, headers=headers)
 
     def get_member(self):
-        url = self.hcenter_url + "/graphql"
+        url = self._center_url('h') + "/graphql"
         headers = self.build_request_headers(url, referer=self.center_url)
         self.request("POST", url, data=self.build_member_data(), headers=headers)
 
@@ -202,3 +203,28 @@ class PartnerCenterLogin(SmartstoreLogin):
             }
             ]).generate_fields(indent=2, prefix="query getMember ")[:(len("  __typename\n}")*-1)] + '}\n')
         return {"operationName": "getMember", "variables": {}, "query": query}
+
+    ############################ Ad Bridge ############################
+
+    def fetch_adbridge(self) -> str:
+        self.fetch_adcenter()
+
+        url = self._center_url("ad") + "/adbridge/home"
+        referer = self._center_url('a') + "/iframe/main.nhn"
+        headers = self.build_request_headers(url, https=True, referer=referer)
+        self.request("GET", url, headers=headers)
+
+    def fetch_adcenter(self):
+        from bs4 import BeautifulSoup
+        url = self._center_url('a') + "/iframe/main.nhn"
+        headers = self.build_request_headers(url, https=True, referer=self.center_url, metadata={
+            "sec-fetch-dest": "iframe", "sec-fetch-mode": "navigate", "sec-fetch-site": "same-site"
+        })
+        with self.request("GET", url, headers=headers) as response:
+            source = BeautifulSoup(response.text, "html.parser")
+            iframe_url = source.select_one("#adInfoFrame").attrs["src"]
+            self.redirect_adcenter(iframe_url, referer=url)
+
+    def redirect_adcenter(self, iframe_url: str, referer: str):
+        headers = self.build_request_headers(iframe_url, https=True, referer=referer)
+        self.request("GET", iframe_url, headers=headers)
