@@ -166,15 +166,23 @@ with DAG(
                     return
             raise ValueError(f"'{date_type}' 항목이 존재하지 않습니다")
 
-        def select_date(page: Page, start_date: str, end_date: str, **kwargs):
+        def set_date_range(page: Page, start_date: str, end_date: str, **kwargs):
             for i, date in zip([0, 1], [start_date, end_date]):
-                click_button(page, 'input[aria-label="기준일자"]', nth=i, width=0.25); time.sleep(SHORT)
-                year, month, day = date.split('-')
-                page.keyboard.type(year[0:2]); time.sleep(SHORT)
-                page.keyboard.type(year[2:4]); time.sleep(SHORT)
-                page.keyboard.type(month); time.sleep(SHORT)
-                page.keyboard.type(day); time.sleep(SHORT)
-                page.keyboard.press("Enter"); time.sleep(SHORT)
+                for j in range(5):
+                    time.sleep(j)
+                    input_value = page.locator('input[aria-label="기준일자"]').nth(i).input_value()
+                    if date == input_value:
+                        break
+                    input_date(page, date, nth=i)
+
+        def input_date(page: Page, date: str, nth: int):
+            click_button(page, 'input[aria-label="기준일자"]', nth=nth, width=0.25); time.sleep(SHORT)
+            year, month, day = date.split('-')
+            page.keyboard.type(year[0:2]); time.sleep(SHORT)
+            page.keyboard.type(year[2:4]); time.sleep(SHORT)
+            page.keyboard.type(month); time.sleep(SHORT)
+            page.keyboard.type(day); time.sleep(SHORT)
+            page.keyboard.press("Enter"); time.sleep(SHORT)
 
         def count_total(page: Page) -> int:
             label = page.locator('div[aria-label^="총"][aria-label$="건"]').first.get_attribute("aria-label")
@@ -233,7 +241,7 @@ with DAG(
                     results, selected = dict(), "집화일자"
                     for date_type, date_range in query_dates.items():
                         change_date_type(page, selected, change_to=date_type)
-                        select_date(page, **date_range)
+                        set_date_range(page, **date_range)
                         selected = date_type
                         search(page)
                         results[date_type] = download(page) if count_total(page) else list()
