@@ -87,20 +87,22 @@ class AdvancedReport(Transformer):
     @property
     def conv_performance(self) -> dict[str,dict]:
         return { # 전환 성과
-            "전환수": dict(name="ccnt", type="INTEGER"),
+            "총 전환수": dict(name="ccnt", type="INTEGER"),
             "직접전환수": dict(name="drtCcnt", type="INTEGER"),
             "간접전환수": dict(name="idrtCcnt", type="INTEGER"),
             "전환율(%)": dict(name="crto", type="FLOAT"),
-            "전환매출액(원)": dict(name="convAmt", type="INTEGER"),
+            "총 전환매출액(원)": dict(name="convAmt", type="INTEGER"),
             "직접전환매출액(원)": dict(name="drtConvAmt", type="INTEGER"),
             "간접전환매출액(원)": dict(name="idrtConvAmt", type="INTEGER"),
             "전환당비용(원)": dict(name="cpConv", type="INTEGER"),
             "광고수익률(%)": dict(name="ror", type="FLOAT"),
             "전환유형": dict(name="convTp", type="STRING"),
             "방문당 평균페이지뷰": dict(name="pv", type="FLOAT"),
+            "pv": dict(name="pv", type="FLOAT"),
             "방문당 평균체류시간(초)": dict(name="stayTm", type="FLOAT"),
-            "전환수(네이버페이)": dict(name="npCcnt", type="INTEGER"),
-            "전환매출액(네이버페이)": dict(name="npConvAmt", type="INTEGER"),
+            "stayTm": dict(name="stayTm", type="FLOAT"),
+            "총 전환수(네이버페이)": dict(name="npCcnt", type="INTEGER"),
+            "총 전환매출액(네이버페이)": dict(name="npConvAmt", type="INTEGER"),
         }
 
     @property
