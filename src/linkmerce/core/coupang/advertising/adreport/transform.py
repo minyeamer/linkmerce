@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from linkmerce.common.transform import JsonObject
+    from pathlib import Path
 
 
 class CampaignList(JsonTransformer):
@@ -78,7 +79,7 @@ class Creative(DuckDBTransformer):
 class ProductAdReport(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
-    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
+    def transform(self, obj: bytes | str | Path, vendor_id: str | None = None, **kwargs):
         from linkmerce.utils.excel import excel2json
         reports = excel2json(obj, warnings=False)
         if reports:
@@ -88,7 +89,7 @@ class ProductAdReport(DuckDBTransformer):
 class NewCustomerAdReport(DuckDBTransformer):
     queries = ["create", "select", "insert"]
 
-    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
+    def transform(self, obj: bytes | str | Path, vendor_id: str | None = None, **kwargs):
         from linkmerce.utils.excel import excel2json
         reports = excel2json(obj, warnings=False)
         if reports:

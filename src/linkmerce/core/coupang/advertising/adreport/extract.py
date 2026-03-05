@@ -27,7 +27,7 @@ class Campaign(CoupangAds):
             is_deleted: bool = False,
             vendor_id: str | None = None,
             **kwargs
-        ) -> dict[str,bytes]:
+        ) -> JsonObject:
         return (self.paginate_all(self.request_json_with_timeout, self.count_total, self.max_page_size, self.page_start)
                 .run(goal_type=goal_type, is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
 
