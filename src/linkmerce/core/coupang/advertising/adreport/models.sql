@@ -172,7 +172,7 @@ FROM (
     -- , "광고유형" AS target_type
     , TRY_CAST("광고집행 옵션ID" AS BIGINT) AS option_id
     -- , "광고집행 상품명" AS option_name
-    , COALESCE(TRY_CAST("광고 전환 매출발생 옵션ID" AS BIGINT), 0) AS option_conv_id
+    , COALESCE(TRY_CAST("광고전환매출발생 옵션ID" AS BIGINT), 0) AS option_conv_id
     -- , "광고전환매출발생 상품명" AS option_conv_name
     , (CASE
         WHEN "광고 노출 지면" = '검색 영역' THEN 0
@@ -188,7 +188,7 @@ FROM (
     , TRY_CAST(REPLACE(TRY_CAST("직접 전환매출액(1일)" AS VARCHAR), ',', '') AS INTEGER) AS direct_conv_amount
     -- , TRY_CAST(TRY_STRPTIME("캠페인 시작일", '%Y.%m.%d') AS DATE) AS campaign_start_date
     -- , TRY_CAST(TRY_STRPTIME("캠페인 종료일", '%Y.%m.%d') AS DATE) AS campaign_end_date
-    , TRY_CAST(TRY_STRPTIME("날짜", '%Y.%m.%d.') AS DATE) AS ymd
+    , TRY_CAST(TRY_STRPTIME(CAST(CAST("날짜" AS BIGINT) AS VARCHAR), '%Y%m%d') AS DATE) AS ymd
   FROM {{ array }}
 ) AS row
 WHERE (campaign_id IS NOT NULL)
