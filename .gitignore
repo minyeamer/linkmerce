@@ -308,3 +308,4 @@ debug*.sh
 
 airflow/extensions/
 airflow/dags/private/
+!chat.log

@@ -1,0 +1,363 @@
+LinkMerce 프로젝트 의사결정 로그
+================================================================================
+
+[2026-03-09] Q8: T-2 상세화 — JsonTransformer fill_paths + deep_fill 설계
+================================================================================
+
+배경
+----
+  plan-transformer.md T-2에서 "SELECT 파싱으로 JSON 키 자동 정규화"를 제안.
+  사용자가 smartstore/api/order/transform.py의 OrderList를 예시로
+  구체적인 설계를 요청. 현재 validate_* 패턴이 너무 더럽다고 지적.
+
+문제 재확인
+-----------
+  OrderList.validate_content() → validate_order() → validate_product_order() 등
+  5개 메서드, 72줄. 모두 동일한 패턴:
+    "if key not in dict: dict[key] = None"
+
+  SharedProduct: SQL에서 이미 content.order.orderId 등 전체 경로를 선언.
+  Python에서 같은 경로를 다시 선언하는 것은 중복.
+
+  DuckDB BinderException 발생 조건:
+    - UNNEST($obj)로 json list를 컬럼화할 때 obj[0]의 키 집합으로 스키마 결정
+    - SELECT에서 참조하는 컬럼이 obj[0]에 없으면 파싱 시점 BinderException
+    - 현재 validate_*(orders[0])만 패치. rows 1+는 DuckDB가 NULL로 처리.
+
+설계 결정 1: deep_fill 유틸리티 (utils/fill.py 신설)
+-----------------------------------------------------
+  deep_fill(obj, paths) — 점 표기법 경로의 최하위까지 None 채움
+
+  경로 형식:
+    dict 형식: {"content.order": ["orderId", "ordererNo"]}  ← compact
+    list 형식: ["content.order.orderId", "content.order.ordererNo"]  ← explicit
+
+  path 파싱:
+    "a.b.c"       → ["a", "b", "c"]
+    "a.list[0].c" → ["a", "list", 0, "c"]  (리스트 인덱스 지원)
+
+  중간 경로 처리:
+    - 누락/None → 빈 dict 자동 생성
+    - 다음 키가 int → 빈 list 자동 생성
+    - 리스트 길이 부족 → {} 추가로 확장
+    - 최하위 키 누락 → None 설정
+
+설계 결정 2: JsonTransformer.fill_paths 클래스 속성 추가
+---------------------------------------------------------
+  fill_paths: dict[str, list[str]] | list[str] | None = None
+
+  transform() 오버라이드:
+    result = super().transform(obj)
+    if result and self.fill_paths is not None:
+        for item in (result if isinstance(result, list) else [result]):
+            if isinstance(item, dict):
+                deep_fill(item, self.fill_paths)
+    return result
+
+  → validate_* 메서드 전부 삭제, transform() 오버라이드 불필요.
+
+OrderList 변환 예시 (비교)
+--------------------------
+  AS-IS: 72줄, validate_content + 4개 메서드
+  TO-BE: 20줄, fill_paths dict 선언만
+
+  TO-BE 전문:
+    class OrderList(JsonTransformer):
+        dtype = dict
+        path = ["data", "contents"]
+        fill_paths = {
+            "content.order": [
+                "orderId", "ordererNo", "ordererId", "ordererName",
+                "payLocationType", "orderDate", "paymentDate",
+            ],
+            "content.productOrder": [
+                "merchantChannelId", "productId", "optionCode",
+                "sellerProductCode", "optionManageCode", "productOrderStatus",
+                "claimStatus", "productClass", "productName", "productOption",
+                "inflowPath", "inflowPathAdd", "deliveryAttributeType",
+                "deliveryTagType", "quantity", "unitPrice", "optionPrice",
+                "deliveryFeeAmount", "totalPaymentAmount", "paymentCommission",
+                "expectedSettlementAmount", "decisionDate",
+            ],
+            "content.productOrder.shippingAddress": ["zipCode", "latitude", "longitude"],
+            "content.delivery": [
+                "trackingNumber", "deliveryCompany", "deliveryMethod",
+                "pickupDate", "sendDate", "deliveredDate",
+            ],
+            "content.completedClaims[0]": ["claimType", "claimRequestAdmissionDate"],
+        }
+
+T-2-3과의 역할 분담 (최종 형태)
+---------------------------------
+  T-2-3 완성(SELECT auto-parse) 이후:
+    - content.order.*, content.productOrder.*, content.delivery.* 경로:
+      insert_into_table()이 SELECT 파싱으로 자동 처리 → fill_paths 불필요
+    - content.completedClaims[0].* 경로:
+      SELECT에 직접 등장하지 않는 리스트 인덱스 → fill_paths에만 남음
+
+  최종 OrderList (T-2-3 완성 후):
+    class OrderList(JsonTransformer):
+        dtype = dict
+        path = ["data", "contents"]
+        fill_paths = {
+            "content.completedClaims[0]": ["claimType", "claimRequestAdmissionDate"],
+        }
+
+  패턴: fill_paths는 "SQL에 등장하지 않는 list[0] 경로"에만 남음.
+  나머지는 SELECT 파싱으로 자동화.
+
+OrderStatus.validate_change_status 처리
+----------------------------------------
+  OrderStatus(DuckDBTransformer)의 validate_change_status()는
+  OrderList의 validate_* 패턴과 동일. 단, JsonTransformer가 아닌
+  DuckDBTransformer에 위치.
+
+  T-2-3 완성 시 insert_into_table()이 SELECT 파싱으로 자동 처리 →
+  validate_change_status() 메서드 삭제 가능.
+
+  이 패턴은 코드베이스 전체에 걸쳐 반복되며, T-2-3이 모두 해소.
+
+결정 사항
+---------
+  1. utils/fill.py 신설: deep_fill(obj, paths) + _parse_path() + _fill_path()
+  2. JsonTransformer에 fill_paths 클래스 속성 추가 및 transform() 수정
+  3. dict 형식(compact)이 기본 권장 형식
+  4. list[n] 인덱스 경로는 fill_paths로 처리 (SELECT 파싱 대상 외)
+  5. DuckDBTransformer의 validate_* 패턴은 T-2-3(insert_into_table 자동화) 완성 후 제거
+  6. plan-transformer.md T-2 섹션에 fill_paths 설계 상세화 예정
+
+
+[2026-03-09] Q9: 변수명 확정 + T-3 DuckDBTransformer 선언적 추상화 설계
+================================================================================
+
+배경
+----
+  Q8의 fill_paths 설계를 검토한 후:
+    1. 변수명 변경: path → root_path, fill_paths → key_paths 로 확정.
+    2. DuckDBTransformer 단에서도 동일한 선언적 추상화 도입.
+      set_tables / create_table / transform 3개 메서드가 표준 패턴에서
+      모두 직접 구현되고 있음 → 클래스 속성으로 추상화 가능.
+
+변수명 변경 결정
+----------------
+  path → root_path
+    이유: JSON 경로 탐색의 "시작점(root)"임을 명시. 단순 path보다 의미 명확.
+  fill_paths → key_paths
+    이유: 채울 키(key) 경로를 선언한다는 의미 강조. fill은 구현 방식이고
+          key는 선언 내용에 집중.
+  변경 범위: JsonTransformer 클래스 속성 + plan-transformer.md T-2-5 섹션.
+  chat.log Q8의 fill_paths 표기는 역사 기록이므로 수정하지 않음.
+
+T-3 설계: 신규 DuckDBTransformer 클래스 속성
+--------------------------------------------
+  json_source: type[JsonTransformer] | None = None
+    → transform()에서 obj를 파싱할 JsonTransformer 클래스
+    → None이면 transform()을 직접 구현 (기존 방식 유지)
+
+  table_keys: list[str] | None = None
+    → 다중 테이블 모드. 각 키는 테이블명 접미사 (e.g., "order", "product_order")
+    → None이면 단일 테이블 모드
+
+  table_prefix: str | None = None
+    → f"{table_prefix}_{key}" 패턴으로 실제 테이블명 생성
+    → e.g., table_prefix="smartstore", key="order" → "smartstore_order"
+
+자동화 동작 (3개 메서드)
+------------------------
+  queries:      table_keys 설정 시 [f"{kw}_{key}" for key in table_keys for kw in ...] 자동
+                json_source만 설정 시 ["create", "select", "insert"] 자동
+  set_tables(): table_keys + table_prefix → {key: f"{prefix}_{key}"} 자동
+  create_table(): table_keys → for key in table_keys: super().create_table(...) 자동
+  transform():  json_source 설정 시 → 파싱 후 단일/다중 삽입 자동 분기
+                single: insert_into_table(data, params=kwargs or None)
+                multi:  for key in table_keys: insert_into_table(data, key=..., table=..., values=...)
+
+Before/After (Order, OrderTime)
+--------------------------------
+  Order (15줄 → 3줄):
+    AS-IS: queries 선언 + set_tables + create_table + transform 4개 메서드
+    TO-BE:
+      class Order(DuckDBTransformer):
+          table_keys   = ["order", "product_order", "delivery", "option"]
+          table_prefix = "smartstore"
+          json_source  = OrderList
+
+  OrderTime (8줄 → 1줄):
+    AS-IS: queries 선언 + transform 구현 (channel_seq params)
+    TO-BE:
+      class OrderTime(DuckDBTransformer):
+          json_source = OrderList
+    channel_seq는 **kwargs로 전달 → params=kwargs 자동 언팩.
+
+적용 범위
+---------
+  표준 패턴 (json_source 추상화 가능):
+    - json_source 파싱 후 추가 가공 없는 단일/다중 테이블 Transformer 전체
+  비표준 (직접 구현 유지):
+    - searchad/api/adreport: TSV 멀티 타입, 테이블별 다른 로직
+    - 파싱 후 enrich() 등 추가 가공이 있는 경우
+
+결정 사항
+---------
+  1. path → root_path, fill_paths → key_paths 로 변수명 확정
+  2. plan-transformer.md: T-2-5(key_paths/root_path 상세) + T-3 섹션 추가
+  3. T-3 구현: json_source, table_keys, table_prefix 신규 클래스 속성
+  4. queries 자동 계산: __init_subclass__ 또는 __init__ 시점에 처리
+  5. 하위 호환: T-3 속성 미선언 시 기존 동작 완전 유지
+
+
+================================================================================
+Q11. T-2 설계 변경: sqlglot 제거, key_paths 단일 메커니즘으로 전환
+================================================================================
+
+배경
+----
+  Q10에서 sqlglot 기반 SELECT 파싱 + key_paths 조합으로 T-2를 설계했으나,
+  사용자가 SELECT 파싱 방식을 거부하고 key_paths 단일 메커니즘으로 재결정.
+
+변경 이유
+---------
+  - Q8/Q9에서 key_paths를 정의하는 방식으로 이미 결정한 상태였음.
+  - SELECT 파싱(sqlglot)은 추가로 제안된 방식이었으나 채택하지 않음.
+  - 모든 JsonTransformer에서 key_paths를 명시적으로 선언하는 것이 더 명확하고
+    제어 가능한 방식.
+
+신규 동작 (핵심)
+----------------
+  key_paths = ["key1.key2", "key3"]
+  입력: {}
+  출력: {"key1": {"key2": None}, "key3": None}
+
+  입력: {"key1": {"key2": "v", "extra": "x"}, "key3": "y", "unrelated": "z"}
+  출력: {"key1": {"key2": "v"}, "key3": "y"}        ← extra, unrelated 제거
+
+  - key_paths에 선언된 경로만 남긴다 (필터링)
+  - 선언된 경로에 값이 없으면 None으로 채운다
+  - 모든 행이 동일한 키 구조 → DuckDB UNNEST schema 안정 → BinderException 해소
+
+폐기된 T-2 설계
+---------------
+  T-2-0: pyproject.toml sqlglot 의존성 추가 → 불필요
+  T-2-1: utils/sql_parse.py (sqlglot.parse_one, extract_source_columns) → 삭제
+  T-2-2: DBTransformer.normalize_json + _get_source_columns (SELECT 파싱 캐싱) → 삭제
+  T-2-3: insert_into_table 자동 normalize_json 호출 → 삭제
+  T-2-4: json_keys 명시 선언 fallback → 삭제
+  T-2-5: key_paths (list[0] 경로만 대상) → 전체 경로 대상 주 메커니즘으로 승격
+
+확정된 T-2 설계
+---------------
+  utils/fill.py:
+    project_paths(row: dict, paths: list[str]) → dict
+      - dot-notation 경로 목록에 따라 row를 필터링 + None 채움하여 새 dict 반환
+      - "a.b.c", "d", "items[0].id" 등 경로 지원
+
+  JsonTransformer:
+    root_path: list | None = None   (기존 path 대체, 의미 동일)
+    key_paths: list[str] | None = None
+    transform() 수정:
+      key_paths가 설정된 경우 각 행에 project_paths 적용하여 반환
+
+  적용 대상:
+    - 기존 validate_* 메서드 보유 클래스: OrderList, Product(smartstore/api)
+    - 기존 obj[0].get() 패치 보유 클래스: Product(ecount), Option(sabangnet)
+    - DuckDBTransformer 레벨 validate_* 클래스: OrderStatus, ExposureRank
+      → 해당 JsonTransformer(OrderStatusList 등)의 key_paths 선언으로 처리
+
+T2-B 분류 제거
+--------------
+  이전: T2-B = DuckDBTransformer 레벨 obj[0].get() 패치 (T-2-3 자동화 기대)
+  현재: T2-B 분류 제거. 기존 T2-B 항목 전부 T2-A로 재분류.
+    - ecount/Product, sabangnet/Option: key_paths에 "fnlChgDt" 추가
+    - smartstore/OrderStatus: OrderStatusList.key_paths 선언
+    - searchad/ExposureRank: key_paths에 "lowPrice", "mobileLowPrice" 추가
+
+결정 사항
+---------
+  1. sqlglot 의존성 추가 없음 (pyproject.toml 수정 불필요)
+  2. utils/sql_parse.py 신설 없음
+  3. utils/fill.py: project_paths(row, paths) 구현
+  4. JsonTransformer: key_paths = list[str] | None 단일 형식으로 통일 (dict 형식 폐기)
+  5. key_paths는 필터링 + None 채움 두 역할 동시 담당
+  6. plan-transformer.md T-2-0~T-2-5 → T-2-1~T-2-3으로 단순화 완료
+  7. 구현 순서: T-2 → T-3 → T-1 (BinderException 즉각 해소 우선)
+
+JsonTransformer 서브클래스 scope/fields/on_missing 일괄 적용
+------------------------------------------------------------
+  배경:
+    - JsonTransformer 서브클래스들이 path/body 속성을 혼용하고, fields/on_missing 선언이 없었음
+    - scope(dot-notation 문자열), fields(list 또는 dict 형태), on_missing 을 각 클래스에 명시
+
+  결정 원칙:
+    - path/body → scope 로 통일 (숫자 인덱스 포함: [0,"results"] → "0.results")
+    - fields: list = flat top-level 키 추출; dict = select_values() schema (중첩 경로)
+    - on_missing: SQL에 ->, ->>, json_extract_string, FROM_BASE64, json_each 등
+      JSON 파싱 함수가 있으면 "ignore", 없으면 "raise"
+    - runtime에 path를 전달받는 클래스(CatalogItems, SalesList, SearchItems 등)는
+      scope 선언 불가 → fields/on_missing 만 추가
+    - 완전 커스텀 transform() 보유 클래스도 scope/fields/on_missing 선언 추가 (참조용)
+
+  처리된 클래스 목록:
+    cj/eflexs/stock               StockList           scope="dsRealTime", 16 fields, raise
+    ecount/api/inventory          InventoryList       scope="Data.Result", 2 fields, raise
+    ecount/api/product            ProductList         scope="Data.Result", 10 fields, raise
+    google/api/ads                AdResults           scope="0.results", 8 fields, ignore
+                                  AdList              scope="0.results", 5 fields, ignore
+                                  AssetViewList       scope="0.results", 6 fields, ignore
+    meta/api/ads                  AdObjects           scope="data", 19 fields, ignore
+    sabangnet/admin/order         OrderList           scope="data.orderList", 29 fields, raise
+                                  ProductList         scope="data.list", 7 fields, raise
+                                  SkuList             scope="data", 8 fields, raise
+    sabangnet/admin/product       ProductList         body→scope="data.list", raise
+                                  OptionList          body→scope="data.optionList", raise
+    searchad/api/keyword          KeywordList         scope="keywordList", 7 fields, raise
+    searchad/manage/exposure      AdList              body→scope="adList", ignore
+    searchad/gfa/adreport         Content             scope="content", 12 fields, ignore
+    smartstore/api/bizdata        MarketingChannelList scope="rows", 10 fields, raise
+    smartstore/api/order          OrderStatusList     body→scope="data.lastChangeStatuses", raise
+    smartstore/api/product        ProductList         scope="contents", 20 fields, ignore
+                                  OptionList          scope="originProduct.detailAttribute.optionInfo", ignore
+                                  SupplementList      scope="...supplementProducts", ignore
+    smartstore/brand/catalog      CatalogItems        no scope(runtime), 30 fields, ignore
+    smartstore/brand/pageview     PageViewItems       scope="data.storePageView.items", dict, ignore
+    smartstore/brand/sales        SalesList           no scope(runtime), dict fields, ignore
+    naver/openapi/search          SearchItems         no scope(runtime), 22 fields, ignore
+    coupang/wing/product          ProductList         scope="data.productList", 19 fields, raise
+                                  OptionList          scope="data", 10 fields, raise
+                                  RocketInventorylist scope="viProperties", 9 fields, ignore
+    coupang/wing/settlement       RocketSettlementList scope="settlementStatusReports", 6 fields, raise
+    coupang/advertising/adreport  CampaignList        (사용자 완료) scope="campaigns", 12 fields, ignore
+                                  AdgroupList         path→scope="campaigns", 8 fields, ignore
+
+  제외 대상:
+    naver/main/search     - HtmlTransformer/PropsTransformer (JsonTransformer 아님)
+    searchad/api/adreport - TsvTransformer (JsonTransformer 아님)
+    searchad/manage/adreport - AdvancedReport가 Transformer 직접 상속
+    sabangnet/admin/product/OptionDownload - DuckDBTransformer
+
+AI 가이드라인 강화 (ai-guidelines.md 수정)
+-----------------------------------------
+  배경:
+    - AI가 따라야 하는 지침문서의 강제성과 명확성을 높이기 위해 구조 및 표현 수정
+  수정 사항:
+    - 'AI Coding Guidelines (Mandatory)' 제목 및 강제 준수 선언 추가
+    - 각 항목에 명확한 식별 이름(예: 파일 수정 원칙) 부여
+    - '반드시', '엄격히 금지', '필수', '항상 수행' 등 강한 명령형 표현으로 교체
+    - 대용량 파일 처리 시 생략 금지 및 사용자 확인 절차 명시
+    - 로그 기록 및 커밋 메시지 출력 의무 재강조
+
+JsonTransformer scope/fields 추가 작업 보완
+-------------------------------------------
+  추후 발견된 JsonTransformer 서브클래스들에 대해 scope/fields/on_missing 선언을 추가함.
+
+  추가 처리된 클래스:
+    coupang/advertising/adreport  CreativeList        path→scope="adGroup.videoAds", fields 추가
+    naver/main/search             CafeArticleJson     path→scope="result", fields 추가, parse logic 유지
+    naver/openapi/search          SearchItems         scope="items" 선언 및 호출부 수정
+    smartstore/brand/catalog      CatalogItems        scope="data.contents" 선언
+    smartstore/brand/pageview     PageViewItems       parse() 내에서 self.path → self.scope 로 수정
+    smartstore/brand/sales        SalesList           scope="data.contents" 선언
+
+  기타:
+    - _PropsTransformer (naver/main/search): HTML 파싱용 base 클래스이므로 제외
+    - models.sql의 주석 처리된 필드(`-- field`)들도 fields 목록에 포함하여 BinderException 예방
+    - path 속성을 사용하는 기존 인스턴스화 코드를 scope 기준으로 정리
