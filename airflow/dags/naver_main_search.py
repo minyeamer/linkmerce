@@ -242,11 +242,11 @@ with DAG(
 
 
     def summarize_contents(raw_data: list[tuple[str, list[list[dict]]]]) -> list[dict]:
-        from linkmerce.utils.map import hier_get
+        from linkmerce.utils.nested import hier_get
         contents, labels = list(), _get_site_labels(mode="encode")
         for query, sections in raw_data:
             for seq, section in enumerate(sections, start=1):
-                heading = hier_get(section, [0,"section"])
+                heading = hier_get(section, [0, "section"])
                 if heading in {"스마트블록","웹문서"}:
                     for rank, content in enumerate(section, start=1):
                         contents.append(
@@ -382,11 +382,11 @@ with DAG(
 
 
     def select_contents(raw_data: list[tuple[str, list[list[dict]]]]) -> list[dict]:
-        from linkmerce.utils.map import hier_get
+        from linkmerce.utils.nested import hier_get
         contents = list()
         for query, sections in raw_data:
             for seq, section in enumerate(sections, start=1):
-                heading = hier_get(section, [0,"section"])
+                heading = hier_get(section, [0, "section"])
                 if heading in {"스마트블록","웹문서"}:
                     for rank, content in enumerate(section, start=1):
                         contents.append(

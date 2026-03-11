@@ -134,8 +134,9 @@ def parse_credentials(
     if skip_subpath and isinstance(credentials, (list,dict)):
         return credentials
     elif isinstance(credentials, list):
-        from linkmerce.utils.map import list_apply
-        return list_apply(credentials, read_if_path)
+        return [({key: read_if_path(value) for key, value in credential.items()}
+                    if isinstance(credential, dict) else read_if_path(credential))
+                for credential in credentials]
     elif isinstance(credentials, dict):
         return {key: read_if_path(value) for key, value in credentials.items()}
     else:

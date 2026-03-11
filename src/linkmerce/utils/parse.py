@@ -3,27 +3,41 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from typing import Hashable, Literal, Sequence, TypeVar
     from bs4 import BeautifulSoup, Tag
+    _KT = TypeVar("_KT", bound=Hashable)
 
+
+def camel_to_snake(s: str) -> str:
+    """camelCase 문자열을 snake_case로 변환한다."""
+    import re
+    s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', s)
+    return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
 ###################################################################
 ############################## Clean ##############################
 ###################################################################
 
-def clean_html(__object: str, features: str | Sequence[str] | None = "html.parser", strip: bool = True) -> str:
+def clean_html(
+        __object: str,
+        features: str | Sequence[str] | None = "html.parser",
+        strip: bool = True,
+    ) -> str:
+    """HTML 문자열을 파싱하여 태그를 제거한 순수 텍스트를 반환한다."""
     from bs4 import BeautifulSoup
     return _get_text(BeautifulSoup(__object, features), strip)
 
 
 def clean_tag(__object: str, strip: bool = True) -> str:
+    """정규식으로 HTML 태그를 제거한 텍스트를 반환한다."""
     import re
     text = re.sub("<[^>]*>", "", __object)
     return text.strip() if strip else text
 
 
 def _get_text(tag: BeautifulSoup | Tag, strip: bool = True) -> str:
+    """BeautifulSoup 객체에서 텍스트를 추출한다. `strip=True`이면 연속 공백을 단일 공백으로 정규화한다."""
     if strip:
         import re
         return re.sub(r"\s+", ' ', tag.get_text()).strip()
@@ -35,20 +49,49 @@ def _get_text(tag: BeautifulSoup | Tag, strip: bool = True) -> str:
 ############################## Select #############################
 ###################################################################
 
-def select(tag: BeautifulSoup | Tag, selector: str) -> Tag | list[Tag] | str | list[str] | None:
+def select(
+        tag: BeautifulSoup | Tag,
+        selector: str,
+        on_missing: Literal["ignore", "raise"] = "ignore",
+    ) -> Tag | list[Tag] | str | list[str] | None:
+    """CSS 선택자(Selector)로 BeautifulSoup 객체를 파싱한다.   
+    마지막 자식 선택자가 `:attr:` 형식이면 해당 속성값을 추출해 반환한다.
+
+    지원하는 가상 속성(`:attr:`) 형식:
+    - `:text():` - 요소의 텍스트 추출
+    - `:attr(name):` - `name`에 해당하는 태그 속성값 추출
+    - `:class(n):` - n번째 클래스명 추출 (`:class():`는 전체 리스트)
+    - `:id():` - 태그의 id 속성값 추출
+    - `:data(name):` - `data-name` 속성값 추출
+    - `:label():` - `aria-labelledby` 속성값 추출
+    """
     path = _split_selector(selector)
     if path[-1].startswith(':') and path[-1].endswith(':'):
-        tag = hier_select(tag, path[:-1])
-        return select_attr(tag, _unwrap(path[-1]))
+        tag = _hier_select(tag, path[:-1], on_missing)
+        return _select_attr(tag, _unwrap(path[-1]), on_missing)
     else:
-        return hier_select(tag, path)
+        return _hier_select(tag, path, on_missing)
 
 
-def select_attr(tag: BeautifulSoup | Tag | list[Tag], attr: str) -> str | list[str] | None:
+def select_attrs(
+        tag: BeautifulSoup | Tag,
+        schema: dict[_KT, str],
+        on_missing: Literal["ignore", "raise"] = "ignore",
+    ) -> dict[_KT, str | list[str]]:
+    """`{필드명: CSS_선택자}` 스키마를 입력받아 매칭되는 속성값들을 딕셔너리로 묶어서 반환한다."""
+    return {key: select(tag, selector, on_missing=on_missing) for key, selector in schema.items()}
+
+
+def _select_attr(
+        tag: BeautifulSoup | Tag | list[Tag],
+        attr: str,
+        on_missing: Literal["ignore", "raise"] = "ignore",
+    ) -> str | list[str] | None:
+    """BeautifulSoup 객체에서 가상의 속성 선택자(`attr`)에 해당하는 속성값을 추출한다."""
     if (tag is None) or (not attr):
-        return tag
+        pass
     elif isinstance(tag, list):
-        return [select_attr(tag_, attr) for tag_ in tag]
+        return [_select_attr(tag_, attr, on_missing=on_missing) for tag_ in tag]
     elif attr == "text()":
         return _get_text(tag)
     elif attr.startswith("attr(") and attr.endswith(')'):
@@ -57,36 +100,45 @@ def select_attr(tag: BeautifulSoup | Tag | list[Tag], attr: str) -> str | list[s
         names = [value] if isinstance(value := tag.get("class"), str) else value
         try:
             return names if attr == "class()" else names[int(attr[6:-1])]
-        except:
-            return None
+        except IndexError:
+            if on_missing == "raise": raise
     elif attr == "id()":
         return tag.get("id")
     elif attr.startswith("data(") and attr.endswith(')'):
         return tag.get("data-{}".format(attr[5:-1]))
     elif attr == "label()":
         return tag.get("aria-labelledby")
-    else:
-        raise ValueError(f"Unknown attribute: {attr}")
+    raise ValueError(f"Could not find element for attribute: '{attr}'")
 
 
-def hier_select(tag: BeautifulSoup | Tag | list[Tag], path: Sequence[str | int]) -> Tag | list[Tag] | None:
-    if (tag is None) or (not path):
+def _hier_select(
+        tag: BeautifulSoup | Tag | list[Tag],
+        path: Sequence[str | int],
+        on_missing: Literal["ignore", "raise"] = "ignore",
+    ) -> Tag | list[Tag] | None:
+    """셀렉터 경로를 재귀적으로 탐색한다. 경로 끝에 `:`가 붙으면 `select`로, 없으면 `select_one`으로 처리한다."""
+    if (tag is None) or (isinstance(tag, list) and (len(tag) == 0)):
+        if on_missing == "raise":
+            raise ValueError(f"Could not find element for selector path: '{path}'")
+        return tag
+    elif not path:
         return tag
     elif isinstance(tag, list):
         if isinstance(path[0], int):
-            return hier_select(tag[path[0]], path[1:])
+            return _hier_select(tag[path[0]], path[1:], on_missing)
         else:
-            return [hier_select(tag_, path) for tag_ in tag]
+            return [_hier_select(t, path, on_missing) for t in tag]
     elif path[0].endswith(':'):
-        return hier_select(tag.select(path[0][:-1]), path[1:])
+        return _hier_select(tag.select(path[0][:-1]), path[1:])
     else:
-        return hier_select(tag.select_one(path[0]), path[1:])
+        return _hier_select(tag.select_one(path[0]), path[1:])
 
 
 def _split_selector(selector: str) -> list[str]:
+    """복합 CSS 선택자 문자열을 경로 리스트로 분해한다. `all`, `nth-element(n)` 등의 특수 구문을 처리한다."""
     import re
     path = list()
-    split_pattern = '|'.join([r"> \.{3} >", r"(?<=:)all", r"(?<=:)nth-element(?=\(\d+\))", r"> (?=:)"])
+    split_pattern = '|'.join([r"(?<=:)all", r"(?<=:)nth-element(?=\(\d+\))", r"> (?=:)"])
     for part in re.split(split_pattern, selector):
         part = part.strip()
         if not part:
@@ -104,4 +156,5 @@ def _split_selector(selector: str) -> list[str]:
 
 
 def _unwrap(s: str) -> str:
+    """문자열 양 끝의 한 글자씩을 제거한다."""
     return s[1:-1]

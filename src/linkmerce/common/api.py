@@ -11,8 +11,9 @@ if TYPE_CHECKING:
 
 def update_options(__m: dict, **options) -> dict:
     if options:
-        from linkmerce.utils.map import hier_set
-        return hier_set(__m, "ignore", **options)
+        from linkmerce.utils.nested import hier_update
+        hier_update(__m, options, on_missing="create")
+        return __m
     else:
         return __m
 

@@ -361,3 +361,147 @@ JsonTransformer scope/fields 추가 작업 보완
     - _PropsTransformer (naver/main/search): HTML 파싱용 base 클래스이므로 제외
     - models.sql의 주석 처리된 필드(`-- field`)들도 fields 목록에 포함하여 BinderException 예방
     - path 속성을 사용하는 기존 인스턴스화 코드를 scope 기준으로 정리
+
+
+================================================================================
+[2026-03-11] Q12: plan.md 전면 재작성 — 아키텍처 방향 전환
+================================================================================
+
+배경
+----
+  사용자가 PostgreSQL 다이렉트 변환 방식을 검토했으나 QUALIFY 등 DuckDB 전용
+  기능 제약으로 포기. DuckDB를 변환 엔진으로 고정하고 PostgreSQL/BigQuery는
+  출력 대상(sink)으로만 사용하는 구조로 확정.
+
+아키텍처 방향 변경 결정
+-----------------------
+  1. T-1(SQL 방언 추상화) 폐기: DuckDB 전용 SQL 구문을 그대로 유지.
+  2. T-2 + T-3 병합: 두 작업을 "T-2: DuckDBTransformer 선언적 추상화 + fields
+     기반 JSON 행 정규화"로 통합.
+  3. JsonTransformer 직접 상속 폐지:
+     - 서브클래스는 DuckDBTransformer만 상속.
+     - scope / fields / on_missing / defaults 등 JSON 파싱 속성을
+       DuckDBTransformer에 직접 선언.
+     - 내부적으로 JsonTransformer 인스턴스를 생성·호출 (_parse_source()).
+     - JsonTransformer 클래스 자체는 내부 유틸리티로 유지.
+  4. HtmlTransformer 연동: html_source / html_source_selector 속성 추가.
+     CafeTab, CafeArticle 등 HTML → DuckDB 패턴 통일.
+  5. PostgreSQLTransformer 분리: extensions/postgresql.py 에
+     PostgreSQLClient(BigQueryClient 동일 패턴)로 구현.
+     DuckDB 결과를 list[dict] 또는 Parquet으로 받아 PG에 적재하는 역할만.
+
+신규 DuckDBTransformer 클래스 속성
+-----------------------------------
+  JSON 파싱: scope, fields, on_missing, defaults, json_source_scope
+  DB 삽입:   table_keys, table_prefix
+  HTML 연동: html_source, html_source_selector
+
+신규 메서드 (_parse_source)
+----------------------------
+  scope/fields 선언 시 내부 _InlineSource(JsonTransformer) 생성·호출.
+  html_source 선언 시 HtmlTransformer 인스턴스 생성·호출.
+  둘 다 None이면 None 반환 (transform() 직접 구현 모드 유지).
+
+자동화 동작
+-----------
+  queries:      table_keys 기반 자동 계산 (__init_subclass__)
+  set_tables(): table_keys + table_prefix 설정 시 자동 등록
+  create_table(): table_keys 설정 시 자동 루프
+  transform():  scope/fields 선언 시 _parse_source() → insert_into_table() 자동 분기
+
+구현 순서
+---------
+  T-2(DuckDBTransformer 수정 + 패턴 A/B/C/D 적용) →
+  HTML(CafeTab, CafeArticle html_source 적용) →
+  EXT(extensions/postgresql.py 신설)
+
+변경 파일
+---------
+  docs/plan.md    전면 재작성 (893줄 → 758줄, T-1 섹션 삭제, T-2/T-3 병합)
+  docs/size.yaml  plan.md lines/words 업데이트
+
+
+================================================================================
+[2026-03-11] Q13: HtmlTransformer 구조 개선 및 utils/parse 주석 보완
+================================================================================
+
+배경
+----
+  HtmlTransformer를 JsonTransformer와 동일한 4단계 파이프라인 구조로 통일하여
+  선언적 파싱이 가능하도록 개선. 또한 utils/parse 모듈의 가독성을 위해 한글
+  주석을 추가.
+
+HtmlTransformer 구조 개선
+-------------------------
+  1. JsonTransformer와 동일한 4단계 파이프라인 적용:
+     assert_valid_response → get_scope → parse → select_fields
+  2. 주요 설정 변수 도입:
+     - scope: 데이터를 추출할 대상 요소를 찾는 CSS 셀렉터
+     - fields: {필드명: CSS_Selector} 형식의 명시적 추출 스키마
+     - on_missing: 셀렉터 탐색 실패 시 에러 발생 여부 (raise/ignore)
+  3. 메서드 변경:
+     - get_scope: utils/parse.select 를 사용하여 scope 탐색
+     - select_fields: fields 스키마에 따라 각 요소에서 값 추출 (리스트 지원)
+     - select: utils/parse.select 호출 래퍼 및 on_missing="raise" 처리 추가
+
+utils/parse 모듈 보완
+---------------------
+  - 모든 주요 함수(clean_html, select, select_attr, hier_select 등)에
+    동작 및 목적을 설명하는 한두 줄의 한글 주석(docstring) 추가.
+
+결정 사항
+---------
+  1. HtmlTransformer를 JsonTransformer의 선언적 모델에 맞춰 재설계 완료.
+  2. 데이터 추출 시 fields 스키마를 {필드명: 셀렉터} 형식으로 사용하도록 확정.
+  3. 모든 유틸리티 함수에 한글 주석을 추가하여 유지보수성 향상.
+
+
+================================================================================
+[2026-03-11] Q14: DBTransformer / DuckDBTransformer 한글 주석 추가 및 ExcelTransformer 도입
+================================================================================
+
+배경
+----
+  ResponseTransformer / JsonTransformer / HtmlTransformer 에 이미 한글 주석이
+  적용되어 있었고, 동일한 기준으로 DBTransformer와 DuckDBTransformer에도
+  클래스 및 메서드 단위 docstring을 추가함.
+
+주요 변경 사항
+--------------
+  1. ExcelTransformer 신설 (JsonTransformer 상속)
+     - get_scope에서 excel2json(openpyxl 기반)으로 시트 데이터 로드
+     - scope = 시트 이름 (None이면 활성 시트)
+     - assert_valid_response = pass (타입 검증 생략)
+
+  2. DBTransformer 주석 추가
+     - 클래스 docstring: parser/parser_config/tables/queries 설정 변수 설명
+     - __init__: 각 인자(db_info, model_path, tables, create_options, parser,
+       parser_config) 역할 설명 포함
+     - parse: parser 유형별(dict/type/str/None) 동작 설명
+     - 나머지 메서드(CRUD, fetch, render, models, queries 등) 1줄 한글 docstring 추가
+
+  3. DuckDBTransformer 주석 추가
+     - 클래스 docstring: DuckDB UNNEST 구문 기반 배열 일괄 삽입 특징 명시
+     - bulk_insert: 데이터 없으면 None 반환 동작 명시
+     - prepare_bulk_params: render/params 준비 로직 및 반환값 설명
+     - expr_rows: UNNEST 표현식 변환 역할 설명
+     - execute/sql: 위치 인자(obj)와 키워드 인자(params) 구분 설명
+     - CRUD 메서드: create의 "tables" render 기본값 동작 포함
+
+  4. 타입 힌트 멀티라인 적용 (parser 필드)
+     - DBTransformer / DuckDBTransformer 모두 parser 타입을 괄호 사용 멀티라인 형식으로 변경
+
+  5. ParserConfig TypedDict 신설
+     - dtype, scope, fields, defaults, on_missing 를 키로 가지는
+       total=False TypedDict 로 parser_config 타입을 명확히 정의
+
+  6. dict 리터럴 표현식 통일 (core/coupang/advertising/adreport/transform.py)
+     - tables = dict(...) → tables = {...} 로 변경
+
+결정 사항
+---------
+  1. ExcelTransformer를 JsonTransformer 상속 구조로 신설 (scope = 시트명)
+  2. parser 타입 힌트는 괄호 기반 멀티라인으로 표기
+  3. ParserConfig TypedDict로 parser_config 타입 명확화
+  4. DBTransformer/DuckDBTransformer 전 메서드에 1줄 이상 한글 docstring 적용
+

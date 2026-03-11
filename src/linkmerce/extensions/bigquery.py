@@ -6,7 +6,7 @@ from linkmerce.common.load import Connection, concat_sql, where
 from typing import Sequence, TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, IO, Literal, Type, TypeVar
+    from typing import Any, IO, Literal, TypeVar
     from types import TracebackType
     JsonString = TypeVar("JsonString", str)
     Path = TypeVar("Path", str)
@@ -116,7 +116,7 @@ class BigQueryClient(Connection):
     def __enter__(self) -> BigQueryClient:
         return self
 
-    def __exit__(self, type: Type[BaseException], value: BaseException, traceback: TracebackType):
+    def __exit__(self, type: type[BaseException], value: BaseException, traceback: TracebackType):
         self.close()
 
     ############################## Fetch ##############################

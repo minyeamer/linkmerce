@@ -40,10 +40,9 @@ class ServiceAccount(dict):
 
 def worksheet2py(
         records: list[dict[_KT,_VT]],
-        keys: _KT | list[_KT] | None = None,
+        filter_headers: list[_KT] | None = None,
     ) -> list[dict[_KT,_VT]] | list[_VT]:
     """Convert worksheet values to python objects."""
-    from linkmerce.utils.map import list_apply
     import datetime as dt
     import re
 
@@ -66,7 +65,8 @@ def worksheet2py(
                     return dt.datetime.strptime(value, "%Y-%m-%d %H")
         return value
 
-    return list_apply(records, func=to_python_object, keys=keys)
+    return [{key: to_python_object(row.get(key)) for key in (filter_headers or row.keys())}
+            for row in records]
 
 
 def py2worksheet(
@@ -75,7 +75,7 @@ def py2worksheet(
         include_header: bool = False,
     ) -> list[tuple]:
     """Convert python objects to Worksheet values without keys."""
-    from linkmerce.utils.map import to_csv
+    from linkmerce.utils.nested import to_csv
     import datetime as dt
 
     def to_excel_format(value: Any) -> Any:
@@ -173,7 +173,7 @@ class WorksheetClient(Client):
             self,
             head: int = 1,
             expected_headers: Any | None = None,
-            filter_headers: _KT | list[_KT] | None = None,
+            filter_headers: list[_KT] | None = None,
             value_render_option: Any | None = None,
             default_blank: str | None = None,
             numericise_ignore: Sequence[int] | bool = list(),
@@ -186,9 +186,10 @@ class WorksheetClient(Client):
             self._numericise_ignore(numericise_ignore), allow_underscores_in_numeric_literals, empty2zero)
         if convert_dtypes:
             return worksheet2py(records, filter_headers)
+        elif filter_headers is not None:
+            return [{key: row.get(key) for key in filter_headers} for row in records]
         else:
-            from linkmerce.utils.map import list_get
-            return list_get(records, filter_headers) if filter_headers is not None else records
+            return records
 
     def count_rows(self, include_header: bool = False) -> int:
         return len(self.worksheet.get_values("A:A")) - bool(not include_header)

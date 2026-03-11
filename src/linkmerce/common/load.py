@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import overload, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Literal, Sequence, Type
+    from typing import Any, Callable, Literal, Sequence
     from types import TracebackType
     import datetime as dt
 
@@ -99,7 +99,7 @@ class Connection(metaclass=ABCMeta):
     def __enter__(self) -> Connection:
         return self
 
-    def __exit__(self, type: Type[BaseException], value: BaseException, traceback: TracebackType):
+    def __exit__(self, type: type[BaseException], value: BaseException, traceback: TracebackType):
         self.close()
 
     ############################## Fetch ##############################
@@ -235,7 +235,7 @@ class DuckDBConnection(Connection):
     def __enter__(self) -> DuckDBConnection:
         return self
 
-    def __exit__(self, type: Type[BaseException], value: BaseException, traceback: TracebackType):
+    def __exit__(self, type: type[BaseException], value: BaseException, traceback: TracebackType):
         self.close()
 
     ############################# Execute #############################

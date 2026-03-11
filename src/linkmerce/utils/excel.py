@@ -191,7 +191,7 @@ def csv2excel(
 def json2excel(
         obj: Sequence[dict] | dict[str,Sequence[dict]],
         sheet_name: str = "Sheet1",
-        header: Literal["first","all"] | None = "first",
+        extract_headers: Literal["first_row", "all_rows"] | None = "first_row",
         header_styles: StyleConfig | Literal["yellow"] = "yellow",
         column_styles: dict[Column, StyleConfig] = dict(),
         row_styles: dict[Row, StyleConfig] = dict(),
@@ -217,6 +217,27 @@ def json2excel(
         column_filters=column_filters, filter_action={"openpyxl": "hide", "xml": "list"}.get(filter_mode),
         hyperlink=hyperlink, truncate=truncate, wrap_text=wrap_text, freeze_panes=freeze_panes, zoom_scale=zoom_scale)
 
+    states = list()
+    for index, (name, records) in enumerate(obj.items(), start=1):
+        headers, values = json2csv(records, extract_headers, include_headers=True, split_headers=True)
+        header_rows = list(range(1,len(headers)+1)) if headers else list()
+        ws, state = _rows2sheet(wb, (headers + values), index, name, header_rows, header_styles, **kwargs)
+        states.append(state)
+
+    if filter_mode == "xml":
+        filtered_rows = {index: state["filtered_rows"] for index, state in enumerate(states, start=1) if state["filtered_rows"]}
+        return apply_filters(wb, filtered_rows)
+    else:
+        return wb
+
+
+def json2csv(
+        obj: Sequence[dict],
+        extract_headers: Literal["first_row", "all_rows"] | None = "first_row",
+        include_headers: bool = True,
+        split_headers: bool = False,
+    ) -> list[list] | tuple[list[list], list[list]]:
+
     def _get_all_keys(rows: Sequence[dict]) -> list:
         keys = list()
         for row in rows:
@@ -225,10 +246,10 @@ def json2excel(
                     keys.append(key)
         return keys
 
-    def _get_json_keys(rows: Sequence[dict], how: Literal["first","all"]) -> list:
+    def _get_json_keys(rows: Sequence[dict]) -> list:
         if not rows:
             return list()
-        elif how == "first":
+        elif extract_headers == "first_row":
             return list(rows[0].keys())
         else:
             return _get_all_keys(rows)
@@ -245,20 +266,10 @@ def json2excel(
         else:
             return [keys]
 
-    states = list()
-    for index, (name, rows) in enumerate(obj.items(), start=1):
-        keys = _get_json_keys(rows, how=(header or "first"))
-        values = [[row.get(key, None) for key in keys] for row in rows]
-        headers = _keys_to_rows(keys) if header else list()
-        header_rows = list(range(1,len(headers)+1)) if headers else list()
-        ws, state = _rows2sheet(wb, (headers + values), index, name, header_rows, header_styles, **kwargs)
-        states.append(state)
-
-    if filter_mode == "xml":
-        filtered_rows = {index: state["filtered_rows"] for index, state in enumerate(states, start=1) if state["filtered_rows"]}
-        return apply_filters(wb, filtered_rows)
-    else:
-        return wb
+    keys = _get_json_keys(obj)
+    values = [[row.get(key, None) for key in keys] for row in obj]
+    headers = _keys_to_rows(keys) if include_headers else list()
+    return (headers, values) if split_headers else headers + values
 
 
 def _rows2sheet(
