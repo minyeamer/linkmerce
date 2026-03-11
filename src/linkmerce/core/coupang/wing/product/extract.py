@@ -26,8 +26,8 @@ class ProductOption(CoupangWing):
                 .run(is_deleted=is_deleted))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
-        from linkmerce.utils.map import hier_get
-        return hier_get(response, ["data","pagination","totalCount"])
+        from linkmerce.utils.nested import hier_get
+        return hier_get(response, "data.pagination.totalCount")
 
     def build_request_json(self, is_deleted: bool = False, page: int = 1, page_size: int = 500, **kwargs) -> dict:
         return {
@@ -241,8 +241,8 @@ class RocketInventory(CoupangWing):
                 .run(hidden_status=hidden_status, vendor_id=vendor_id, referer=kwargs.get("referer")))
 
     def get_next_cursor(self, response: JsonObject, **context) -> dict:
-        from linkmerce.utils.map import hier_get
-        pagination = hier_get(response, ["paginationResponse"]) or dict()
+        from linkmerce.utils.nested import hier_get
+        pagination = hier_get(response, "paginationResponse") or dict()
         if pagination.get("searchAfterSortValues"):
             return {
                 "pageNumber": pagination["pageNumber"]+1,
@@ -253,7 +253,7 @@ class RocketInventory(CoupangWing):
 
     # def count_total(self, response: JsonObject, **kwargs) -> int:
     #     from linkmerce.utils.map import hier_get
-    #     return hier_get(response, ["paginationResponse","totalNumberOfElements"])
+    #     return hier_get(response, "paginationResponse.totalNumberOfElements")
 
     def build_request_json(
             self,

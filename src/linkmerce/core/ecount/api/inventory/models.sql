@@ -5,12 +5,11 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , updated_at TIMESTAMP
 );
 
--- Inventory: select
+-- Inventory: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     PROD_CD AS product_code
   , BAL_QTY AS quantity
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
-FROM {{ array }};
-
--- Inventory: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;

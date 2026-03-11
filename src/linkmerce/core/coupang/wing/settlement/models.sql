@@ -31,10 +31,11 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , end_date TIMESTAMP NOT NULL
 );
 
--- RocketSettlement: select
+-- RocketSettlement: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     settlementGroupKey AS group_key
-  , $vendor_id AS vendor_id
+  , vendorId AS vendor_id
   , SUM(settlementRatio) OVER (PARTITION BY settlementGroupKey) AS settlement_ratio -- 지급비율
   , SUM(finalSettlementAmount) OVER (PARTITION BY settlementGroupKey) AS settlement_amount -- 최종지급액 = totalFinalSettlementAmount
   , TRY_CAST(settlementStatusReportDetail.totalSalesAmount AS INTEGER) AS sales_amount -- 판매액(a)
@@ -63,14 +64,14 @@ SELECT
   , (TRY_CAST(settlementPeriodStartDate AS TIMESTAMP) + INTERVAL 9 HOUR) AS start_date -- 매출인식일(시작)
   , (TRY_CAST(settlementPeriodEndDate AS TIMESTAMP) + INTERVAL 9 HOUR) AS end_date -- 매출인식일(종료)
 FROM {{ array }}
-WHERE (settlementGroupKey IS NOT NULL) AND (settlementPeriodStartDate IS NOT NULL) AND (settlementPeriodEndDate IS NOT NULL);
+WHERE (settlementGroupKey IS NOT NULL)
+  AND (settlementPeriodStartDate IS NOT NULL)
+  AND (settlementPeriodEndDate IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
--- RocketSettlement: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 
-
--- RocketSettlementDownload: create_sales
-CREATE TABLE IF NOT EXISTS {{ table }} (
+-- RocketSettlementDownload: create
+CREATE TABLE IF NOT EXISTS {{ sales }} (
     order_id BIGINT
   , vendor_id VARCHAR
   , product_id BIGINT
@@ -98,41 +99,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (vendor_id, order_id, option_id, settlement_type)
 );
 
--- RocketSettlementDownload: select_sales
-SELECT
-    TRY_CAST("주문ID" AS BIGINT) AS order_id
-  , $vendor_id AS vendor_id
-  , TRY_CAST("등록상품 ID" AS BIGINT) AS product_id
-  , TRY_CAST("옵션ID" AS BIGINT) AS option_id
-  , TRY_CAST("SKU ID" AS BIGINT) AS sku_id
-  -- , "등록상품명" AS product_name
-  -- , "옵션명" AS option_name
-  , TRY_CAST("카테고리ID" AS INTEGER) AS category_id
-  -- , "카테고리명" AS category_name
-  , (CASE WHEN "거래유형" = '주문 정산' THEN 0 WHEN "거래유형" = '주문 정산취소' THEN 1 ELSE 99 END) AS settlement_type
-  , (CASE WHEN "정산유형" = '주정산' THEN 0 WHEN "정산유형" = '월정산' THEN 1 ELSE 99 END) AS period_type
-  , TRY_CAST("판매가(A)" AS INTEGER) AS unit_price
-  , TRY_CAST("판매수량(B)" AS INTEGER) AS order_quantity
-  -- , TRY_CAST("판매액(A*B)" AS INTEGER) AS order_amount
-  , TRY_CAST("쿠팡지원할인(C)" AS INTEGER) AS coupang_discount
-  -- , TRY_CAST("매출금액(A*B-C)" AS INTEGER) AS sales_amount
-  -- , TRY_CAST("즉시할인쿠폰(D)" AS INTEGER) AS seller_instant_discount
-  -- , TRY_CAST("다운로드쿠폰(E)" AS INTEGER) AS seller_download_discount
-  , TRY_CAST("판매자할인쿠폰(D+E)" AS INTEGER) AS seller_discount
-  , TRY_CAST("정산대상액" AS INTEGER) AS settlement_amount
-  -- , "판매수수료율(%,VAT별도)" AS commission_rate
-  -- , (TRY_CAST("판매수수료" AS INTEGER) + TRY_CAST("판매수수료 VAT" AS INTEGER)) AS commission_amount
-  , TRY_CAST("매출인식일" AS DATE) AS sales_date
-  , TRY_CAST("정산주기(종료일)" AS DATE) AS settlement_date
-FROM {{ array }}
-WHERE (TRY_CAST("주문ID" AS BIGINT) IS NOT NULL) AND (TRY_CAST("옵션ID" AS BIGINT) IS NOT NULL)
-
--- RocketSettlementDownload: insert_sales
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
-
--- RocketSettlementDownload: create_shipping
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ shipping }} (
     order_id BIGINT
   , invoice_no BIGINT
   , vendor_id VARCHAR
@@ -159,11 +126,44 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (vendor_id, order_id, option_id, settlement_type)
 );
 
--- RocketSettlementDownload: select_shipping
+-- RocketSettlementDownload: bulk_insert_sales
+INSERT INTO {{ sales }}
+SELECT
+    TRY_CAST("주문ID" AS BIGINT) AS order_id
+  , vendorId AS vendor_id
+  , TRY_CAST("등록상품 ID" AS BIGINT) AS product_id
+  , TRY_CAST("옵션ID" AS BIGINT) AS option_id
+  , TRY_CAST("SKU ID" AS BIGINT) AS sku_id
+  -- , "등록상품명" AS product_name
+  -- , "옵션명" AS option_name
+  , TRY_CAST("카테고리ID" AS INTEGER) AS category_id
+  -- , "카테고리명" AS category_name
+  , (CASE WHEN "거래유형" = '주문 정산' THEN 0 WHEN "거래유형" = '주문 정산취소' THEN 1 ELSE 99 END) AS settlement_type
+  , (CASE WHEN "정산유형" = '주정산' THEN 0 WHEN "정산유형" = '월정산' THEN 1 ELSE 99 END) AS period_type
+  , TRY_CAST("판매가(A)" AS INTEGER) AS unit_price
+  , TRY_CAST("판매수량(B)" AS INTEGER) AS order_quantity
+  -- , TRY_CAST("판매액(A*B)" AS INTEGER) AS order_amount
+  , TRY_CAST("쿠팡지원할인(C)" AS INTEGER) AS coupang_discount
+  -- , TRY_CAST("매출금액(A*B-C)" AS INTEGER) AS sales_amount
+  -- , TRY_CAST("즉시할인쿠폰(D)" AS INTEGER) AS seller_instant_discount
+  -- , TRY_CAST("다운로드쿠폰(E)" AS INTEGER) AS seller_download_discount
+  , TRY_CAST("판매자할인쿠폰(D+E)" AS INTEGER) AS seller_discount
+  , TRY_CAST("정산대상액" AS INTEGER) AS settlement_amount
+  -- , "판매수수료율(%,VAT별도)" AS commission_rate
+  -- , (TRY_CAST("판매수수료" AS INTEGER) + TRY_CAST("판매수수료 VAT" AS INTEGER)) AS commission_amount
+  , TRY_CAST("매출인식일" AS DATE) AS sales_date
+  , TRY_CAST("정산주기(종료일)" AS DATE) AS settlement_date
+FROM {{ sales_rows }}
+WHERE (TRY_CAST("주문ID" AS BIGINT) IS NOT NULL)
+  AND (TRY_CAST("옵션ID" AS BIGINT) IS NOT NULL)
+ON CONFLICT DO NOTHING;
+
+-- RocketSettlementDownload: bulk_insert_shipping
+INSERT INTO {{ shipping }}
 SELECT
     TRY_CAST("주문ID" AS BIGINT) AS order_id
   , TRY_CAST("배송ID" AS BIGINT) AS invoice_no
-  , $vendor_id AS vendor_id
+  , vendorId AS vendor_id
   , TRY_CAST("등록상품 ID" AS BIGINT) AS product_id
   , TRY_CAST("옵션ID" AS BIGINT) AS option_id
   , TRY_CAST("SKU ID" AS BIGINT) AS sku_id
@@ -185,15 +185,14 @@ SELECT
   -- , TRY_CAST("판매수량" AS INTEGER) AS order_quantity
   , TRY_CAST("발생비용(A)" AS INTEGER) AS warehousing_fee
   , TRY_CAST("할인가(B)" AS INTEGER) AS discount_amount
-  , TRY_CAST(item->'$.추가비용' AS INTEGER) AS extra_fee
+  , TRY_CAST("추가비용" AS INTEGER) AS extra_fee
   , TRY_CAST("주문일" AS DATE) AS sales_date
   , TRY_CAST("매출인식일" AS DATE) AS shipping_date
   , TRY_CAST("정산주기(종료일)" AS DATE) AS settlement_date
-FROM {{ array }} AS item
-WHERE (TRY_CAST("주문ID" AS BIGINT) IS NOT NULL) AND (TRY_CAST("옵션ID" AS BIGINT) IS NOT NULL)
-
--- RocketSettlementDownload: insert_shipping
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ shipping_rows }}
+WHERE (TRY_CAST("주문ID" AS BIGINT) IS NOT NULL)
+  AND (TRY_CAST("옵션ID" AS BIGINT) IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
 -- RocketSettlementDownload: settlement_type
 SELECT *

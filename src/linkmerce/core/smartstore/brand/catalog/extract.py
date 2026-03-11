@@ -21,8 +21,8 @@ class _VPartnerCenter(PartnerCenter):
             RequestEachPages = dict(request_delay=1, max_concurrent=3))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
-        from linkmerce.utils.map import hier_get
-        return hier_get(response, ["totalCount"])
+        from linkmerce.utils.nested import hier_get
+        return hier_get(response, "totalCount")
 
     def split_map_kwargs(
             self,

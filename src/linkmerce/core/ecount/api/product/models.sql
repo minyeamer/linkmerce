@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , updated_at TIMESTAMP
 );
 
--- Product: select
+-- Product: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     PROD_CD AS product_code
   , CONT4 AS option_id
@@ -24,7 +25,5 @@ SELECT
   , TRY_CAST(IN_PRICE AS INTEGER) AS org_price
   , COALESCE(NULLIF(CONT2, '0'), NULLIF(CONT3, '0')) AS expiration_date
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
-FROM {{ array }};
-
--- Product: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;

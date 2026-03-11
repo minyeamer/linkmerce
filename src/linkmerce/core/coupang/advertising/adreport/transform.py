@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from linkmerce.common.transform import JsonObject
-    from pathlib import Path
 
 
 class CampaignParser(JsonTransformer):
@@ -59,7 +58,6 @@ class ProductAdReport(DuckDBTransformer):
     parser = "excel"
     parser_config = dict(
         dtype = dict,
-        scope = "adGroup.videoAds",
         fields = [
             "캠페인 ID", "광고집행 옵션ID", "광고전환매출발생 옵션ID", "광고 노출 지면",
             "노출수", "클릭수", "광고비", "총 주문수(1일)", "직접 판매수량(1일)",
@@ -75,7 +73,6 @@ class NewCustomerAdReport(DuckDBTransformer):
     parser = "excel"
     parser_config = dict(
         dtype = dict,
-        scope = "adGroup.videoAds",
         fields = [
             "캠페인 ID", "소재 ID", "소재", "광고집행 옵션 ID", "광고 노출 지면",
             "노출수", "클릭수", "집행 광고비", "참여수", "평균 재생 시간", "날짜"

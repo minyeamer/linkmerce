@@ -109,7 +109,7 @@ SELECT
   -- , description
   -- , imageUrl AS image_url
   , ordering
-FROM {{ array }}
+FROM {{ rows }}
 WHERE id IS NOT NULL
 ON CONFLICT DO NOTHING;
 

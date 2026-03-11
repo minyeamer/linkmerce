@@ -43,8 +43,8 @@ class Order(SabangnetAdmin):
                 .run(**kwargs))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
-        from linkmerce.utils.map import hier_get
-        return hier_get(response, ["data","totAmtSummary","totCnt"])
+        from linkmerce.utils.nested import hier_get
+        return hier_get(response, "data.totAmtSummary.totCnt")
 
     def build_request_json(
             self,
@@ -235,8 +235,8 @@ class ProductMapping(SabangnetAdmin):
                 .run(start_date=start_date, end_date=end_date, shop_id=shop_id))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
-        from linkmerce.utils.map import hier_get
-        return hier_get(response, ["data","metaData","total"])
+        from linkmerce.utils.nested import hier_get
+        return hier_get(response, "data.metaData.total")
 
     def build_request_json(
             self,

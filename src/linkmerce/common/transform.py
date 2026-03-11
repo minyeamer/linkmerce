@@ -220,29 +220,35 @@ class ExcelTransformer(JsonTransformer):
     """Excel(openpyxl) 응답 데이터를 JSON 형식으로 변환하는 클래스.
 
     주요 설정 변수:
-    - `scope` - Excel 시트 이름 (없으면 활성 시트)
+    - `sheet_name` - Excel 시트 이름 (없으면 활성 시트)
+    - `header` - Excel 헤더 행 번호 (1부터 시작)
     - `fields` - `select_values` 함수에 전달할 스키마 정의
     - `defaults` - 각 행마다 공통으로 추가할 기본 키-값 목록
     - `on_missing` - 필드 조회 실패 시 동작 (`raise` 또는 `ignore`)
     """
 
-    scope: str | None = None
+    sheet_name: str | None = None
+    header: int = 1
     fields: dict[str, str] | None = None
     defaults: dict | None = None
     on_missing: Literal["ignore", "raise"] = "raise"
 
     def transform(self, obj: bytes | str | Path, **kwargs) -> JsonObject:
-        """Excel 파일 검증 > Excel 시트 불러오기 > 파싱 > 필드 선택 > 기본값 추가 순서로 파이프라인을 실행한다."""
+        """Excel 파일 검증 > Excel 시트 불러오기 > 필드 선택 > 기본값 추가 순서로 파이프라인을 실행한다."""
         return super().transform(obj, **kwargs)
 
-    def assert_valid_response(self, obj: BeautifulSoup | Tag, **kwargs):
+    def assert_valid_response(self, obj: bytes | str | Path, **kwargs):
         """Excel 파일의 참조 객체에 대한 검증은 사용자가 정의한다."""
         pass
 
-    def get_scope(self, obj: bytes | str | Path, **kwargs) -> list[dict]:
-        """`scope`가 지정된 경우 해당 시트를, 지정되지 않은 경우 활성 시트를 JSON 형식으로 불러온다."""
+    def get_scope(self, obj: bytes | str | Path, **kwargs) -> bytes | str | Path:
+        """`scope`는 활용하지 않고 이 과정을 건너뛴다."""
+        return obj
+
+    def parse(self, obj: bytes | str | Path, **kwargs) -> list[dict]:
+        """`sheet_name`이 지정된 경우 해당 시트를, 지정되지 않은 경우 활성 시트를 JSON 형식으로 불러온다."""
         from linkmerce.utils.excel import excel2json
-        return excel2json(obj, sheet_name=self.scope, warnings=False)
+        return excel2json(obj, sheet_name=self.sheet_name, header=self.header, warnings=False)
 
 
 ###################################################################
@@ -277,7 +283,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         type[ResponseTransformer] |
         dict[TableAlias, type[ResponseTransformer]] |
         None
-    ) = "json"
+    ) = None
     parser_config: ParserConfig | None = None
 
     def __init__(
@@ -511,7 +517,7 @@ class DuckDBTransformer(DBTransformer):
         type[ResponseTransformer] |
         dict[TableAlias, type[ResponseTransformer]] |
         None
-    ) = "json"
+    ) = None
     parser_config: ParserConfig | None = None
 
     @property
@@ -551,10 +557,12 @@ class DuckDBTransformer(DBTransformer):
                 render[f"{table}_rows"] = self.expr_rows(f"{table}_rows")
                 params[f"{table}_rows"] = rows
                 total += len(rows)
-        else:
+        elif isinstance(result, list):
             render["rows"] = self.expr_rows("rows")
             params["rows"] = result
             total += len(result)
+        else:
+            self.raise_parse_error("The result must be in JSON format (dict or list).")
 
         return render, params, total
 

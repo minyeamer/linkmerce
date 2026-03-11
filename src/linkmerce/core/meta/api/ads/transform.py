@@ -1,61 +1,57 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
+from linkmerce.common.transform import DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.transform import JsonObject
+    from typing import Literal
 
 
-class AdObjects(JsonTransformer):
-    dtype = dict
-    path = ["data"]
+def _common_config(fields: list, on_missing: Literal["ignore", "raise"] = "raise") -> dict:
+    return dict(
+        dtype = dict,
+        scope = "data",
+        fields = fields,
+        defaults = {"account_id": "$account_id"},
+        on_missing = on_missing,
+    )
 
 
-class _AdTransformer(DuckDBTransformer):
-    queries: list[str] = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, account_id: str, **kwargs):
-        objects = AdObjects().transform(obj)
-        if objects:
-            self.insert_into_table(objects, params=dict(account_id=account_id))
-
-
-class Campaigns(_AdTransformer):
-    queries = ["create", "select", "insert"]
+class Campaigns(DuckDBTransformer):
+    tables = {"table": "meta_campaigns"}
+    parser = "json"
+    parser_config = _common_config(
+        fields = ["id", "name", "objective", "effective_status", "created_time"],
+        on_missing = "raise",
+    )
 
 
-class Adsets(_AdTransformer):
-    queries = ["create", "select", "insert"]
+class Adsets(DuckDBTransformer):
+    tables = {"table": "meta_adsets"}
+    parser = "json"
+    parser_config = _common_config(
+        fields = ["id", "name", "campaign_id", "effective_status", "daily_budget", "created_time"],
+        on_missing = "ignore",
+    )
 
 
-class Ads(_AdTransformer):
-    queries = ["create", "select", "insert"]
+class Ads(DuckDBTransformer):
+    tables = {"table": "meta_ads"}
+    parser = "json"
+    parser_config = _common_config(
+        fields = ["id", "name", "campaign_id", "adset_id", "effective_status", "created_time"],
+        on_missing = "raise",
+    )
 
 
-INSIGHTS_TABLES = ["campaigns", "adsets", "ads", "metrics"]
-
-class Insights(_AdTransformer):
-    queries = [f"{keyword}_{table}"
-        for table in INSIGHTS_TABLES
-            for keyword in ["create", "select", "insert"]]
-
-    def set_tables(self, tables: dict | None = None):
-        base = {table: f'meta_{"insights" if table == "metrics" else table}' for table in INSIGHTS_TABLES}
-        super().set_tables(dict(base, **(tables or dict())))
-
-    def create_table(self, **kwargs):
-        for table in INSIGHTS_TABLES:
-            super().create_table(key=f"create_{table}", table=f":{table}:")
-
-    def transform(self, obj: JsonObject, account_id: str, **kwargs):
-        insights = AdObjects().transform(obj)
-        if insights:
-            for table in INSIGHTS_TABLES:
-                self.insert_into_table(insights,
-                    key = f"insert_{table}",
-                    table = f":{table}:",
-                    values = f":select_{table}:",
-                    params = dict(account_id=account_id),
-                )
+class Insights(DuckDBTransformer):
+    tables = {"campaigns": "meta_campaigns", "adsets": "meta_adsets", "ads": "meta_ads", "insights": "meta_insights"}
+    parser = "json"
+    parser_config = _common_config(
+        fields = [
+            "campaign_id", "campaign_name", "adset_id", "adset_name", "ad_id", "ad_name",
+            "impressions", "reach", "clicks", "inline_link_clicks", "spend", "date_start"
+        ],
+        on_missing = "raise",
+    )

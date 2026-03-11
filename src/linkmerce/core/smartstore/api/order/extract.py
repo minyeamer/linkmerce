@@ -43,8 +43,8 @@ class Order(SmartstoreAPI):
                 .run())
 
     def get_next_cursor(self, response: JsonObject, **context) -> int:
-        from linkmerce.utils.map import hier_get
-        pagination = hier_get(response, ["data","pagination"]) or dict()
+        from linkmerce.utils.nested import hier_get
+        pagination = hier_get(response, "data.pagination") or dict()
         return (pagination.get("page") + 1) if pagination.get("hasNext") else None
 
     def build_request_params(
@@ -130,8 +130,8 @@ class OrderStatus(SmartstoreAPI):
                 .run())
 
     def get_next_cursor(self, response: JsonObject, date: dt.date, **context) -> dict[str,str]:
-        from linkmerce.utils.map import hier_get
-        more = hier_get(response, ["data","more"]) or dict()
+        from linkmerce.utils.nested import hier_get
+        more = hier_get(response, "data.more") or dict()
         if more.get("moreFrom") and ((more.get("moreFrom") or str()) <= f"{date}T23:59:59.999+09:00"):
             return more
 

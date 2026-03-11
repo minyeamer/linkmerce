@@ -1,22 +1,14 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from linkmerce.common.transform import JsonObject
-
-
-class ProductList(JsonTransformer):
-    dtype = dict
-    path = ["Data","Result"]
+from linkmerce.common.transform import DuckDBTransformer
 
 
 class Product(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, **kwargs):
-        products = ProductList().transform(obj)
-        if products:
-            self.insert_into_table(products)
+    tables = {"table": "ecount_inventory"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "Data.Result",
+        fields = ["PROD_CD", "CONT4", "PROD_DES", "REMARKS_WIN", "CONT1", "SIZE_DES", "UNIT", "IN_PRICE", "CONT2", "CONT3"],
+        on_missing = "raise",
+    )

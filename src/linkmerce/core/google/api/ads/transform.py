@@ -8,97 +8,180 @@ if TYPE_CHECKING:
     from linkmerce.common.transform import JsonObject
 
 
-class AdResults(JsonTransformer):
+def _common_config(fields: dict) -> dict:
+    return dict(
+        dtype = list,
+        scope = "0.results",
+        fields = fields,
+        defaults = {"customerId": "$customer_id"},
+        on_missing = "raise",
+    )
+
+
+class _CommonParser(JsonTransformer):
     dtype = list
-    path = [0,"results"]
+    scope = "0.results"
+    defaults = {"customerId": "$customer_id"}
+    on_missing = "raise"
+    identifier: str
+
+    def parse(self, results: JsonObject, inplace: bool = True, **kwargs) -> list[dict]:
+        if not isinstance(results, list):
+            self.raise_parse_error("Could not parse the results.")
+
+        from linkmerce.utils.nested import hier_get
+        data = list()
+        for result in results:
+            if isinstance(result, dict) and hier_get(result, self.identifier):
+                result = self.parse_result(result if inplace else self.copy(result))
+                data.append(result)
+        return data
+
+    def parse_result(self, result: dict) -> dict:
+        return result
+
+    def copy(self, result: dict) -> dict:
+        from copy import deepcopy
+        return deepcopy(result)
 
 
-class _AdTransformer(DuckDBTransformer):
-    queries: list[str] = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, customer_id: str, **kwargs):
-        objects = AdResults().transform(obj)
-        if objects:
-            self.insert_into_table(objects, params=dict(customer_id=customer_id))
-
-
-class Campaign(_AdTransformer):
-    queries = ["create", "select", "insert"]
-
-
-class AdGroup(_AdTransformer):
-    queries = ["create", "select", "insert"]
+class Campaign(DuckDBTransformer):
+    tables = {"table": "google_campaign"}
+    parser = "json"
+    parser_config = _common_config(
+        fields = {
+            "campaign": ["id", "name", "advertisingChannelType", "status", "biddingStrategyType", "startDateTime"],
+            "campaignBudget.amountMicros": None,
+            "metrics": ["impressions", "clicks", "costMicros"]
+        },
+    )
 
 
-class Insight(_AdTransformer):
-    queries = ["create", "select", "insert"]
+class AdGroup(DuckDBTransformer):
+    tables = {"table": "google_adgroup"}
+    parser = "json"
+    parser_config = _common_config(
+        fields = {
+            "campaign": ["id"],
+            "adGroup": ["id", "name", "type", "status", "targetCpaMicros"],
+            "metrics": ["impressions", "clicks", "costMicros"]
+        },
+    )
 
 
-class Asset(_AdTransformer):
-    queries = ["create", "select", "insert"]
+class AdParser(_CommonParser):
+    fields = {
+        "campaign": ["id"],
+        "adGroup": ["id"],
+        "adGroupAd.ad": ["id", "name", "type"],
+        "adGroupAd": ["status"],
+        "metrics": ["impressions", "clicks", "costMicros"]
+    }
+    identifier = "adGroupAd.ad.type"
 
+    def parse_result(self, result: dict) -> dict:
+        self.set_ad_name(result["adGroupAd"]["ad"])
+        return result
 
-class AdList(JsonTransformer):
-    dtype = list
-    path = [0,"results"]
-
-    def transform(self, obj: JsonObject, **kwargs) -> list[dict]:
-        from linkmerce.utils.map import hier_get
-        obj = super().transform(obj) or list()
-        return [self.parse_ad_name(m.copy()) for m in obj
-            if isinstance(m, dict) and hier_get(m, ["adGroupAd","ad","type"])]
-
-    def parse_ad_name(self, m: dict) -> dict:
-        ad_type, ad_name = str(m["adGroupAd"]["ad"]["type"]), None
-        keywords = ad_type.lower().split('_')
+    def set_ad_name(self, ad: dict, name: str | None = None):
+        keywords = str(ad["type"]).lower().split('_')
         key = keywords[0] + ''.join([keyword.capitalize() for keyword in keywords[1:]])
-        if key in m["adGroupAd"]["ad"]:
-            details = m["adGroupAd"]["ad"][key]
+        if key in ad:
+            details = ad[key]
             if "headlines" in details:
-                ad_name = " | ".join([headline["text"] for headline in details["headlines"]])
+                name = " | ".join([headline["text"] for headline in details["headlines"]])
             elif "headline" in details:
-                ad_name = details["headline"]
+                name = details["headline"]
             elif "headline_part1" in details:
-                ad_name = details["headline_part1"]
-        m["adGroupAd"]["ad"]["name"] = ad_name
-        return m
+                name = details["headline_part1"]
+        ad["name"] = name
 
 
-class Ad(_AdTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, customer_id: str, **kwargs):
-        objects = AdList().transform(obj)
-        if objects:
-            self.insert_into_table(objects, params=dict(customer_id=customer_id))
+class Ad(DuckDBTransformer):
+    tables = {"table": "google_ad"}
+    parser = AdParser
 
 
-class AssetViewList(JsonTransformer):
-    dtype = list
-    path = [0,"results"]
+class Insight(DuckDBTransformer):
+    tables = {"table": "google_insight"}
+    parser = "json"
+    parser_config = _common_config(
+        fields = {
+            "campaign": ["id"],
+            "adGroup": ["id"],
+            "adGroupAd": ["ad.id"],
+            "segments": ["date", "device"],
+            "metrics": ["impressions", "clicks", "costMicros"]
+        },
+    )
+    identifier = "asset.type"
 
-    def transform(self, obj: JsonObject, **kwargs) -> list[dict]:
-        from linkmerce.utils.map import hier_get
-        obj = super().transform(obj) or list()
-        return [self.parse_ad_id(m.copy()) for m in obj
-            if isinstance(m, dict) and hier_get(m, ["adGroupAdAssetView","resourceName"])]
 
-    def parse_ad_id(self, m: dict) -> dict:
-        resource = str(m["adGroupAdAssetView"]["resourceName"])
+class AssetParser(_CommonParser):
+    fields = {"asset": ["id", "type", "name", "url"]}
+
+    def parse_result(self, result: dict) -> dict:
+        self.set_asset_name(result["asset"])
+        return result
+
+    def set_asset_name(self, asset: dict, name: str | None = None, url: str | None = None):
+        from linkmerce.utils.nested import hier_get
+        type = asset["type"]
+        if type == 'TEXT':
+            name = hier_get(asset, "textAsset.text")
+        elif type == 'IMAGE':
+            name = hier_get(asset, "name")
+            url = hier_get(asset, "imageAsset.fullSize.url")
+        elif type == 'YOUTUBE_VIDEO':
+            name = hier_get(asset, "youtubeVideoAsset.youtubeVideoTitle")
+        elif type == 'CALLOUT':
+            name = hier_get(asset, "calloutAsset.calloutText")
+        elif type == 'STRUCTURED_SNIPPET':
+            name = hier_get(asset, "structuredSnippetAsset.header")
+        asset.update(name=name, url=url)
+
+
+class Asset(DuckDBTransformer):
+    tables = {"table": "google_asset"}
+    parser = AssetParser
+
+
+class AssetViewList(_CommonParser):
+    fields = {
+        "adGroup": ["id"],
+        "adGroupAd": ["ad.id"],
+        "asset": ["id"],
+        "adGroupAdAssetView": ["fieldType"],
+        "segments": ["date", "device"],
+        "metrics": ["impressions", "clicks", "costMicros"]
+    }
+    identifier = "adGroupAdAssetView.resourceName"
+
+    def parse_result(self, result: dict) -> dict:
+        self.set_ad_id(result)
+        return result
+
+    def set_ad_id(self, result: dict):
+        resource = str(result["adGroupAdAssetView"]["resourceName"])
         ids = resource.split('/')[-1].split('~')
         adgroup_id, ad_id, asset_id = ids[:3] if len(ids) == 4 else ([None] * 3)
-        m.update({
+        result.update({
             "adGroup": {"id": adgroup_id},
             "adGroupAd": {"ad": {"id": ad_id}},
             "asset": {"id": asset_id},
         })
-        return m
 
 
-class AssetView(_AdTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, customer_id: str, **kwargs):
-        objects = AssetViewList().transform(obj)
-        if objects:
-            self.insert_into_table(objects, params=dict(customer_id=customer_id))
+class AssetView(DuckDBTransformer):
+    tables = {"table": "google_asset_view"}
+    parser = "json"
+    parser_config = _common_config(
+        fields = {
+            "adGroup": ["id"],
+            "adGroupAd": ["ad.id"],
+            "asset": ["id"],
+            "adGroupAdAssetView": ["fieldType"],
+            "segments": ["date", "device"],
+            "metrics": ["impressions", "clicks", "costMicros"]
+        },
+    )

@@ -25,11 +25,12 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (customer_id, campaign_id)
 );
 
--- Campaign: select
+-- Campaign: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     campaign.id AS campaign_id
   , campaign.name AS campaign_name
-  , $customer_id AS customer_id
+  , customerId AS customer_id
   , campaign.advertisingChannelType AS campaign_type
   , campaign.status AS campaign_status
   , campaign.biddingStrategyType AS bidding_strategy
@@ -38,10 +39,8 @@ SELECT
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count_30d
   , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost_30d
   , TRY_STRPTIME(campaign.startDateTime, '%Y-%m-%d %H:%M:%S') AS created_at
-FROM {{ array }};
-
--- Campaign: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 -- Campaign: campaign_type
 SELECT *
@@ -106,11 +105,12 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (customer_id, adgroup_id)
 );
 
--- AdGroup: select
+-- AdGroup: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     adGroup.id AS adgroup_id
   , adGroup.name AS adgroup_name
-  , $customer_id AS customer_id
+  , customerId AS customer_id
   , campaign.id AS campaign_id
   , adGroup.type AS adgroup_type
   , adGroup.status AS adgroup_status
@@ -118,10 +118,8 @@ SELECT
   , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count_30d
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count_30d
   , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost_30d
-FROM {{ array }};
-
--- AdGroup: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 -- AdGroup: adgroup_type
 SELECT *
@@ -163,11 +161,12 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (customer_id, ad_id)
 );
 
--- Ad: select
+-- Ad: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     adGroupAd.ad.id AS ad_id
   , adGroupAd.ad.name AS ad_name
-  , $customer_id AS customer_id
+  , customerId AS customer_id
   , campaign.id AS campaign_id
   , adGroup.id AS adgroup_id
   , adGroupAd.ad.type AS ad_type
@@ -175,10 +174,8 @@ SELECT
   , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count_30d
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count_30d
   , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost_30d
-FROM {{ array }};
-
--- Ad: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 -- Ad: ad_type
 SELECT *
@@ -234,9 +231,10 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (ymd, customer_id, ad_id, device_type)
 );
 
--- Insight: select
+-- Insight: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $customer_id AS customer_id
+    customerId AS customer_id
   , campaign.id AS campaign_id
   , adGroup.id AS adgroup_id
   , adGroupAd.ad.id AS ad_id
@@ -253,10 +251,8 @@ SELECT
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count
   , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost
   , TRY_STRPTIME(segments.date, '%Y-%m-%d') AS ymd
-FROM {{ array }};
-
--- Insight: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- Asset: create
@@ -269,25 +265,16 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (customer_id, asset_id)
 );
 
--- Asset: select
+-- Asset: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     asset.id AS asset_id
-  , (CASE
-      WHEN asset.type = 'TEXT' THEN json_extract_string(item, '$.asset.textAsset.text')
-      WHEN asset.type = 'IMAGE' THEN json_extract_string(item, '$.asset.name')
-      WHEN asset.type = 'YOUTUBE_VIDEO' THEN json_extract_string(item, '$.asset.youtubeVideoAsset.youtubeVideoTitle')
-      WHEN asset.type = 'CALLOUT' THEN json_extract_string(item, '$.asset.calloutAsset.calloutText')
-      WHEN asset.type = 'STRUCTURED_SNIPPET' THEN json_extract_string(item, '$.asset.structuredSnippetAsset.header')
-      ELSE NULL END) AS asset_name
-  , $customer_id AS customer_id
+  , asset.name AS asset_name
+  , customerId AS customer_id
   , asset.type AS asset_type
-  , (CASE
-      WHEN asset.type = 'IMAGE' THEN json_extract_string(item, '$.asset.imageAsset.fullSize.url')
-      ELSE NULL END) AS asset_url
-FROM {{ array }} AS item;
-
--- Asset: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  , asset.url AS asset_url
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 -- Asset: asset_type
 SELECT *
@@ -342,9 +329,10 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (ymd, customer_id, ad_id, asset_id, field_type, device_type)
 );
 
--- AssetView: select
+-- AssetView: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $customer_id AS customer_id
+    customerId AS customer_id
   , adGroup.id AS adgroup_id
   , adGroupAd.ad.id AS ad_id
   , asset.id AS asset_id
@@ -399,10 +387,8 @@ SELECT
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count
   , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost
   , TRY_STRPTIME(segments.date, '%Y-%m-%d') AS ymd
-FROM {{ array }};
-
--- AssetView: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 -- AssetView: field_type
 SELECT *

@@ -27,8 +27,8 @@ class _PageView(PartnerCenter):
         return isinstance(response, dict)
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
-        from linkmerce.utils.map import hier_get
-        return hier_get(response, ["data","storePageView","count"])
+        from linkmerce.utils.nested import hier_get
+        return hier_get(response, "data.storePageView.count")
 
     def build_request_json(
             self,

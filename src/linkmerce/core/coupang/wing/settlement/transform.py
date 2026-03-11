@@ -1,90 +1,98 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
+from linkmerce.common.transform import ExcelTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.transform import JsonObject
-
-
-class RocketSettlementList(JsonTransformer):
-    dtype = dict
-    path = ["settlementStatusReports"]
-
-    def transform(self, obj: JsonObject, **kwargs) -> JsonObject:
-        def filter_details(details: dict) -> dict:
-            return {key: details.get(key) for key in self.detail_keys}
-
-        return [dict(report, settlementStatusReportDetail = filter_details(report.get("settlementStatusReportDetail") or dict()))
-                for report in self.parse(obj) if isinstance(report, dict)]
-
-    @property
-    def detail_keys(self) -> list[str]:
-        return [
-            "totalSalesAmount", "totalRefundedAmount", "totalTakeRateAmountWithVat", "totalSellerDiscount",
-            "totalSellerFundedInstantDiscount", "totalSellerFundedDownloadDiscount", "totalPayableAmount",
-            "totalMilkRunDeductionAmount", "totalAdSalesDeductionAmount", "totalAdditionalDeductionAmount",
-            "totalNegativeDeductionAmount", "totalFinalCfsFeeDeductionAmount", "totalWarehousingFeeDeductionAmount",
-            "totalFulfillmentFeeDeductionAmount", "totalStorageFeeDeductionAmount",
-            "totalCreturnReverseShippingFeeDeductionAmount", "totalCreturnGradingFeeDeductionAmount",
-            "totalVreturnHandlingFeeDeductionAmount", "totalBarcodeLabelingFeeDeductionAmount",
-            "totalLastSettlementUnpaidCfsDeductionAmount", "totalPastCfsDeductionAmount",
-            "totalCarryOverSettlementDeductionAmount", "totalCfsInventoryCompensationAmount",
-        ]
 
 
 class RocketSettlement(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
+    tables = {"table": "coupang_rocket_settlement"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "settlementStatusReports",
+        fields = {
+            ".": [
+                "settlementGroupKey", "settlementRatio", "finalSettlementAmount",
+                "settlementPeriodStartDate", "settlementPeriodEndDate"
+            ],
+            "settlementStatusReportDetail": [
+                "totalSalesAmount", "totalRefundedAmount", "totalTakeRateAmountWithVat", "totalSellerDiscount",
+                "totalSellerFundedInstantDiscount", "totalSellerFundedDownloadDiscount", "totalPayableAmount",
+                "totalMilkRunDeductionAmount", "totalAdSalesDeductionAmount", "totalAdditionalDeductionAmount",
+                "totalNegativeDeductionAmount", "totalFinalCfsFeeDeductionAmount", "totalWarehousingFeeDeductionAmount",
+                "totalFulfillmentFeeDeductionAmount", "totalStorageFeeDeductionAmount",
+                "totalCreturnReverseShippingFeeDeductionAmount", "totalCreturnGradingFeeDeductionAmount",
+                "totalVreturnHandlingFeeDeductionAmount", "totalBarcodeLabelingFeeDeductionAmount",
+                "totalLastSettlementUnpaidCfsDeductionAmount", "totalPastCfsDeductionAmount",
+                "totalCarryOverSettlementDeductionAmount", "totalCfsInventoryCompensationAmount"
+            ]
+        },
+        defaults = {"vendorId": "$vendor_id"},
+        on_missing = "raise",
+    )
 
-    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
-        reports = RocketSettlementList().transform(obj)
-        if reports:
-            return self.insert_into_table(reports, params=dict(vendor_id=vendor_id))
+
+class RocketSalesParser(ExcelTransformer):
+    header = 2
+    fields = [
+        "주문ID", "등록상품 ID", "옵션ID", "SKU ID", "등록상품명", "옵션명", "카테고리ID", "카테고리명",
+        "거래유형", "정산유형", "판매가(A)", "판매수량(B)", "판매액(A*B)", "쿠팡지원할인(C)", "매출금액(A*B-C)",
+        "즉시할인쿠폰(D)", "다운로드쿠폰(E)", "판매자할인쿠폰(D+E)", "정산대상액", "판매수수료", "판매수수료 VAT",
+        "매출인식일", "정산주기(종료일)"
+    ]
+    defaults = {"vendorId": "$vendor_id"}
+    on_missing = "raise"
 
 
-class RocketSettlementDownload(DuckDBTransformer):
-    queries = ["create_sales", "select_sales", "insert_sales", "create_shipping", "select_shipping", "insert_shipping"]
+class RocketShippingParser(ExcelTransformer):
+    header = None
+    fields = [
+        "주문ID", "배송ID", "등록상품 ID", "옵션ID", "SKU ID", "등록상품명", "옵션명", "1차", "2차",
+        "개별포장 상품 사이즈", "물류센터", "거래유형", "정산유형", "단품 판매가", "단품 기준 구매 수량",
+        "판매수량", "발생비용(A)", "할인가(B)", "추가비용", "주문일", "매출인식일", "정산주기(종료일)"
+    ]
+    defaults = {"vendorId": "$vendor_id"}
+    on_missing = "ignore"
 
-    def set_tables(self, tables: dict | None = None):
-        base = dict(sales="coupang_rocket_sales", shipping="coupang_rocket_shipping")
-        super().set_tables(dict(base, **(tables or dict())))
-
-    def create_table(self, **kwargs):
-        super().create_table(key="create_sales", table=":sales:")
-        super().create_table(key="create_shipping", table=":shipping:")
-
-    def transform(self, obj: bytes, report_type: Literal["CATEGORY_TR","WAREHOUSING_SHIPPING"], vendor_id: str | None = None, **kwargs):
-        if report_type == "CATEGORY_TR":
-            return self.insert_into_sales_table(obj, vendor_id)
-        else:
-            return self.insert_into_shipping_table(obj, vendor_id)
-
-    def insert_into_sales_table(self, obj: bytes, vendor_id: str | None = None):
-        from linkmerce.utils.excel import excel2json
-        reports = excel2json(obj, header=2, warnings=False)
-        if reports:
-            return self.insert_into_table(
-                reports, key="insert_sales", table=":sales:", values=":select_sales:", params=dict(vendor_id=vendor_id))
-
-    def insert_into_shipping_table(self, obj: bytes, vendor_id: str | None = None):
+    def parse(self, obj: bytes, **kwargs) -> list[dict]:
         from linkmerce.utils.excel import filter_warnings
         from io import BytesIO
         import openpyxl
         filter_warnings()
 
         wb = openpyxl.load_workbook(BytesIO(obj))
-        results = list()
+        report = list()
 
         for sheet_name in ["입출고비", "배송비"]:
             ws = wb[sheet_name]
             headers1 = [cell.value for cell in next(ws.iter_rows(min_row=7, max_row=7))]
             headers2 = [cell.value for cell in next(ws.iter_rows(min_row=8, max_row=8))]
             headers = [(header2 if header2 else header1) for header1, header2 in zip(headers1, headers2)]
+            report += [dict(zip(headers, row)) for row in ws.iter_rows(min_row=9, values_only=True)]
 
-            reports = [dict(zip(headers, row)) for row in ws.iter_rows(min_row=9, values_only=True)]
-            if reports:
-                results.append(self.insert_into_table(
-                    reports, key="insert_shipping", table=":shipping:", values=":select_shipping:", params=dict(vendor_id=vendor_id)))
-        return results
+        return report
+
+
+class RocketSettlementDownload(DuckDBTransformer):
+    queries = ["create", "bulk_insert_sales", "bulk_insert_shipping"]
+    tables = {"sales": "coupang_rocket_sales", "shipping": "coupang_rocket_shipping"}
+
+    def parse(self, obj: bytes, report_type: Literal["CATEGORY_TR","WAREHOUSING_SHIPPING"], **kwargs) -> list[dict]:
+        config = self.parser_config or dict()
+        if report_type == "CATEGORY_TR":
+            RocketSalesParser(**config).transform(obj, **kwargs)
+        elif report_type == "WAREHOUSING_SHIPPING":
+            RocketShippingParser(**config).transform(obj, **kwargs)
+        else:
+            self.raise_parse_error(f"Parsing for report type '{report_type}' is not supported.")
+
+    def bulk_insert(self, result: list[dict], report_type: Literal["CATEGORY_TR","WAREHOUSING_SHIPPING"], **kwargs):
+        if len(result) > 0:
+            table = "sales" if report_type == "CATEGORY_TR" else "shipping"
+            render = {table: self.tables[table], f"{table}_rows": self.expr_rows(f"{table}_rows")}
+            query = self.prepare_query(key=f"bulk_insert_{table}", render=render)
+            return self.execute(query, **{f"{table}_rows": result})
