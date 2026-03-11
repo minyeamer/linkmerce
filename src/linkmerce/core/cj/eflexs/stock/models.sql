@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , updated_at TIMESTAMP
 );
 
--- Stock: select
+-- Stock: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     itemCd AS item_code
   , itemVarcode AS barcode
@@ -40,9 +41,6 @@ SELECT
   , TRY_CAST(validDatetime AS DATE) AS validate_date
   , TRY_CAST(STRPTIME(CAST(inbDate AS VARCHAR), '%Y%m%d') AS DATE) AS inbound_date
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (itemCd IS NOT NULL)
   AND (TRY_CAST(strrId AS BIGINT) IS NOT NULL);
-
--- Stock: insert
-INSERT INTO {{ table }} {{ values }};

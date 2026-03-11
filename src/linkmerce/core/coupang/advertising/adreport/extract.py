@@ -32,8 +32,8 @@ class Campaign(CoupangAds):
                 .run(goal_type=goal_type, is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
-        from linkmerce.utils.map import hier_get
-        return hier_get(response, ["pageInfo","totalCount"])
+        from linkmerce.utils.nested import hier_get
+        return hier_get(response, ["pageInfo", "totalCount"])
 
     def request_json_with_timeout(self, max_retries: int = 5, **kwargs) -> JsonObject:
         from requests.exceptions import Timeout

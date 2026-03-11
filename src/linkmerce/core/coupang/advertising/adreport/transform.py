@@ -9,88 +9,77 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-class CampaignList(JsonTransformer):
+class CampaignParser(JsonTransformer):
     dtype = dict
-    path = ["campaigns"]
+    scope = "campaigns"
+    fields = [
+        "id", "name", "campaignType", "vendorType", "goalType", "isActive", "isDeleted",
+        "roasTarget", "capType", "calculatedBudget", "spentBudget", "createdAt", "updatedAt"
+    ]
+    defaults = {"vendorId": "$vendor_id"}
+    on_missing = "ignore"
 
 
-class AdgroupList(JsonTransformer):
+class AdgroupParser(JsonTransformer):
     dtype = dict
-    path = ["campaigns"]
+    scope = "campaigns"
+    fields = ["id", "paCampaignId", "name", "isActive", "isDeleted", "roasTarget", "createdAt", "updatedAt"]
+    defaults = {"vendorId": "$vendor_id", "goalType": "$goal_type"}
+    on_missing = "ignore"
 
-    def transform(self, campaigns: list[dict], **kwargs) -> list[dict]:
-        return [self.validate_adgroup(adgroup)
-                for campaign in campaigns
-                for adgroup in (campaign.get("groupList") or list()) if isinstance(adgroup, dict)]
-
-    def validate_adgroup(self, adgroup: dict) -> dict:
-        if "paCampaignId" in adgroup:
-            adgroup["campaignId"] = adgroup["paCampaignId"]
-        if "timestamp" in adgroup:
-            adgroup.update(adgroup["timestamp"])
-        return adgroup
+    def parse(self, campaigns: JsonObject, **kwargs) -> list[dict]:
+        adgroups = list()
+        for campaign in campaigns:
+            if not isinstance(campaign, dict):
+                continue
+            for adgroup in (campaign.get("groupList") or list()):
+                adgroups.append(adgroup)
+        return adgroups
 
 
 class Campaign(DuckDBTransformer):
-    queries = ["create_campaign", "select_campaign", "insert_campaign", "create_adgroup", "select_adgroup", "insert_adgroup"]
-
-    def set_tables(self, tables: dict | None = None):
-        base = dict(campaign="coupang_campaign", adgroup="coupang_adgroup")
-        super().set_tables(dict(base, **(tables or dict())))
-
-    def create_table(self, **kwargs):
-        super().create_table(key="create_campaign", table=":campaign:")
-        super().create_table(key="create_adgroup", table=":adgroup:")
-
-    def transform(self, obj: JsonObject, goal_type: str = "SALES", vendor_id: str | None = None, **kwargs):
-        campaigns = CampaignList().transform(obj)
-        if campaigns:
-            result = self.insert_into_table(campaigns,
-                key="insert_campaign", table=":campaign:", values=":select_campaign:", params=dict(vendor_id=vendor_id))
-
-            adgroups = AdgroupList().transform(campaigns)
-            if adgroups:
-                params = dict(goal_type=goal_type, vendor_id=vendor_id)
-                return [result, self.insert_into_table(adgroups,
-                    key="insert_adgroup", table=":adgroup:", values=":select_adgroup:", params=params)]
-            else:
-                return [result]
-
-
-class CreativeList(JsonTransformer):
-    dtype = dict
-    path = ["adGroup", "videoAds"]
-
-    def transform(self, obj: JsonObject, **kwargs) -> list[dict]:
-        return [creative
-                for ad in (self.parse(obj) or list()) if isinstance(ad, dict)
-                for creative in (ad.get("creatives") or list())]
+    tables = {"campaign": "coupang_campaign", "adgroup": "coupang_adgroup"}
+    parser = {"campaign": CampaignParser, "adgroup": AdgroupParser}
 
 
 class Creative(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, vendor_id: str | None = None, **kwargs):
-        creatives = CreativeList().transform(obj)
-        if creatives:
-            return self.insert_into_table(creatives, params=dict(vendor_id=vendor_id))
+    tables = {"table": "coupang_creative"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "adGroup.videoAds",
+        fields = ["id", "vendorItemId", "creativeType", "headlineText", "description", "imageUrl", "ordering"],
+        defaults = {"vendorId": "$vendor_id"},
+        on_missing = "raise",
+    )
 
 
 class ProductAdReport(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: bytes | str | Path, vendor_id: str | None = None, **kwargs):
-        from linkmerce.utils.excel import excel2json
-        reports = excel2json(obj, warnings=False)
-        if reports:
-            return self.insert_into_table(reports, params=dict(vendor_id=vendor_id))
+    tables = {"table": "coupang_adreport_pa"}
+    parser = "excel"
+    parser_config = dict(
+        dtype = dict,
+        scope = "adGroup.videoAds",
+        fields = [
+            "캠페인 ID", "광고집행 옵션ID", "광고전환매출발생 옵션ID", "광고 노출 지면",
+            "노출수", "클릭수", "광고비", "총 주문수(1일)", "직접 판매수량(1일)",
+            "총 전환매출액(1일)", "직접 전환매출액(1일)", "날짜"
+        ],
+        defaults = {"vendorId": "$vendor_id"},
+        on_missing = "raise",
+    )
 
 
 class NewCustomerAdReport(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: bytes | str | Path, vendor_id: str | None = None, **kwargs):
-        from linkmerce.utils.excel import excel2json
-        reports = excel2json(obj, warnings=False)
-        if reports:
-            return self.insert_into_table(reports, params=dict(vendor_id=vendor_id))
+    tables = {"table": "coupang_adreport_nca"}
+    parser = "excel"
+    parser_config = dict(
+        dtype = dict,
+        scope = "adGroup.videoAds",
+        fields = [
+            "캠페인 ID", "소재 ID", "소재", "광고집행 옵션 ID", "광고 노출 지면",
+            "노출수", "클릭수", "집행 광고비", "참여수", "평균 재생 시간", "날짜"
+        ],
+        defaults = {"vendorId": "$vendor_id"},
+        on_missing = "raise",
+    )
