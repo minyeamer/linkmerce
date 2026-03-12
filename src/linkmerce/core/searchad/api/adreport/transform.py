@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import Transformer, DuckDBTransformer
+from linkmerce.common.transform import ResponseTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Callable, Literal
+    from linkmerce.common.transform import TableKey, TableName
     import datetime as dt
 
 
-def _convert(type: Literal["STRING","INTEGER","DATETIME","BOOLEAN"]) -> Callable[[str], str | float | int | dt.date]:
+def _cast(type: Literal["STRING", "INTEGER", "DATETIME", "BOOLEAN"]) -> Callable[[str], str | float | int | dt.date]:
     if type == "INTEGER":
         from linkmerce.utils.cast import safe_int
         return lambda x: safe_int(x)
@@ -22,29 +23,36 @@ def _convert(type: Literal["STRING","INTEGER","DATETIME","BOOLEAN"]) -> Callable
         return lambda x: x
 
 
-class TsvTransformer(Transformer):
+class TsvTransformer(ResponseTransformer):
+    columns: list[tuple[str, Literal["STRING", "INTEGER", "DATETIME", "BOOLEAN"]]] = list()
+    convert_dtypes: bool = True
 
-    def transform(self, obj: str, convert_dtypes: bool = True, **kwargs) -> list[list[str]]:
+    def pre_init(self, columns: list[tuple] | None = None, convert_dtypes: bool | None = None, **kwargs):
+        if columns is not None:
+            self.columns = columns
+        if convert_dtypes is not None:
+            self.convert_dtypes = convert_dtypes
+
+    def parse(self, obj: str, **kwargs) -> list[dict]:
         from io import StringIO
         import csv
+        data = list()
+
         if obj:
             reader = csv.reader(StringIO(obj), delimiter='\t')
-            header, types = zip(*self.columns)
-            apply = [_convert(dtype) if convert_dtypes else (lambda x: x) for dtype in types]
-            return [list(header)] + [[func(value) for func, value in zip(apply, row)] for row in reader]
-        else:
-            return list()
-
-    @property
-    def columns(self) -> list[tuple[str,Literal["STRING","INTEGER","DATETIME","BOOLEAN"]]]:
-        return list()
+            columns, types = zip(*self.columns)
+            apply = [_cast(dtype) if self.convert_dtypes else (lambda x: x) for dtype in types]
+            for row in reader:
+                values = [func(value) for func, value in zip(apply, row)]
+                data.append(dict(zip(columns, values)))
+        return data
 
 
-class CampaignList(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
+class Campaign(DuckDBTransformer):
+    tables = {"table": "searchad_campaign"}
+    parser = TsvTransformer
+    parser_config = dict(
+        columns = [
             ("Customer ID", "INTEGER"),
             ("Campaign ID", "STRING"),
             ("Campaign Name", "STRING"),
@@ -58,23 +66,14 @@ class CampaignList(TsvTransformer):
             ("ON/OFF", "INTEGER"),
             ("Shared budget id", "STRING"),
         ]
+    )
 
 
-class Campaign(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: str, **kwargs):
-        report_csv = CampaignList().transform(obj, convert_dtypes=True)
-        if len(report_csv) > 1:
-            report_json = [dict(zip(report_csv[0], row)) for row in report_csv[1:]]
-            self.insert_into_table(report_json)
-
-
-class AdgroupList(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
+class Adgroup(DuckDBTransformer):
+    tables = {"table": "searchad_adgroup"}
+    parser = TsvTransformer
+    parser_config = dict(
+        columns = [
             ("Customer ID", "INTEGER"),
             ("Ad Group ID", "STRING"),
             ("Campaign ID", "STRING"),
@@ -94,241 +93,211 @@ class AdgroupList(TsvTransformer):
             ("Shared budget id", "STRING"),
             ("Using Expanded Search", "INTEGER"),
         ]
-
-
-class Adgroup(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: str, **kwargs):
-        report_csv = AdgroupList().transform(obj, convert_dtypes=True)
-        if len(report_csv) > 1:
-            report_json = [dict(zip(report_csv[0], row)) for row in report_csv[1:]]
-            self.insert_into_table(report_json)
+    )
 
 
 class PowerLinkAd(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
-            ("Customer ID", "INTEGER"),
-            ("Ad Group ID", "STRING"),
-            ("Ad ID", "STRING"),
-            ("Ad Creative Inspect Status", "INTEGER"),
-            ("Subject", "STRING"),
-            ("Description", "STRING"),
-            ("Landing URL(PC)", "STRING"),
-            ("Landing URL(Mobile)", "STRING"),
-            ("ON/OFF", "INTEGER"),
-            ("regTm", "DATETIME"),
-            ("delTm", "DATETIME"),
-        ]
+    columns = [
+        ("Customer ID", "INTEGER"),
+        ("Ad Group ID", "STRING"),
+        ("Ad ID", "STRING"),
+        ("Ad Creative Inspect Status", "INTEGER"),
+        ("Subject", "STRING"),
+        ("Description", "STRING"),
+        ("Landing URL(PC)", "STRING"),
+        ("Landing URL(Mobile)", "STRING"),
+        ("ON/OFF", "INTEGER"),
+        ("regTm", "DATETIME"),
+        ("delTm", "DATETIME"),
+    ]
 
 
 class PowerContentsAd(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
-            ("Customer ID", "INTEGER"),
-            ("Ad Group ID", "STRING"),
-            ("Ad ID", "STRING"),
-            ("Ad Creative Inspect Status", "INTEGER"),
-            ("Subject", "STRING"),
-            ("Description", "STRING"),
-            ("Landing URL(PC)", "STRING"),
-            ("Landing URL(Mobile)", "STRING"),
-            ("Image URL", "STRING"),
-            ("Company Name", "STRING"),
-            ("Contents Issue Date", "DATETIME"),
-            ("Release Date", "DATETIME"),
-            ("ON/OFF", "INTEGER"),
-            ("regTm", "DATETIME"),
-            ("delTm", "DATETIME"),
-        ]
+    columns = [
+        ("Customer ID", "INTEGER"),
+        ("Ad Group ID", "STRING"),
+        ("Ad ID", "STRING"),
+        ("Ad Creative Inspect Status", "INTEGER"),
+        ("Subject", "STRING"),
+        ("Description", "STRING"),
+        ("Landing URL(PC)", "STRING"),
+        ("Landing URL(Mobile)", "STRING"),
+        ("Image URL", "STRING"),
+        ("Company Name", "STRING"),
+        ("Contents Issue Date", "DATETIME"),
+        ("Release Date", "DATETIME"),
+        ("ON/OFF", "INTEGER"),
+        ("regTm", "DATETIME"),
+        ("delTm", "DATETIME"),
+    ]
 
 
 class ShoppingProductAd(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
-            ("Customer ID", "INTEGER"),
-            ("Ad Group ID", "STRING"),
-            ("Ad ID", "STRING"),
-            ("Ad Creative Inspect Status", "INTEGER"),
-            ("ON/OFF", "INTEGER"),
-            ("Ad Product Name", "STRING"),
-            ("Ad Image URL", "STRING"),
-            ("Bid", "INTEGER"),
-            ("Using Ad Group Bid Amount", "BOOLEAN"),
-            ("Ad Link Status", "INTEGER"),
-            ("regTm", "DATETIME"),
-            ("delTm", "DATETIME"),
-            ("Product ID", "STRING"),
-            ("Product ID Of Mall", "STRING"),
-            ("Product Name", "STRING"),
-            ("Product Image URL", "STRING"),
-            ("PC Landing URL", "STRING"),
-            ("Mobile Landing URL", "STRING"),
-            ("Price", "STRING"),
-            ("Delivery Fee", "STRING"),
-            ("NAVER Shopping Category Name 1", "STRING"),
-            ("NAVER Shopping Category Name 2", "STRING"),
-            ("NAVER Shopping Category Name 3", "STRING"),
-            ("NAVER Shopping Category Name 4", "STRING"),
-            ("NAVER Shopping Category ID 1", "STRING"),
-            ("NAVER Shopping Category ID 2", "STRING"),
-            ("NAVER Shopping Category ID 3", "STRING"),
-            ("NAVER Shopping Category ID 4", "STRING"),
-            ("Category Name of Mall", "STRING"),
-        ]
+    columns = [
+        ("Customer ID", "INTEGER"),
+        ("Ad Group ID", "STRING"),
+        ("Ad ID", "STRING"),
+        ("Ad Creative Inspect Status", "INTEGER"),
+        ("ON/OFF", "INTEGER"),
+        ("Ad Product Name", "STRING"),
+        ("Ad Image URL", "STRING"),
+        ("Bid", "INTEGER"),
+        ("Using Ad Group Bid Amount", "BOOLEAN"),
+        ("Ad Link Status", "INTEGER"),
+        ("regTm", "DATETIME"),
+        ("delTm", "DATETIME"),
+        ("Product ID", "STRING"),
+        ("Product ID Of Mall", "STRING"),
+        ("Product Name", "STRING"),
+        ("Product Image URL", "STRING"),
+        ("PC Landing URL", "STRING"),
+        ("Mobile Landing URL", "STRING"),
+        ("Price", "STRING"),
+        ("Delivery Fee", "STRING"),
+        ("NAVER Shopping Category Name 1", "STRING"),
+        ("NAVER Shopping Category Name 2", "STRING"),
+        ("NAVER Shopping Category Name 3", "STRING"),
+        ("NAVER Shopping Category Name 4", "STRING"),
+        ("NAVER Shopping Category ID 1", "STRING"),
+        ("NAVER Shopping Category ID 2", "STRING"),
+        ("NAVER Shopping Category ID 3", "STRING"),
+        ("NAVER Shopping Category ID 4", "STRING"),
+        ("Category Name of Mall", "STRING"),
+    ]
 
 
 class ProductGroup(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
-            ("Customer ID", "INTEGER"),
-            ("Product group ID", "STRING"),
-            ("Business channel ID", "STRING"),
-            ("Name", "STRING"),
-            ("Registration method", "INTEGER"),
-            ("Registered product type", "INTEGER"),
-            ("Attribute json1", "STRING"),
-            ("regTm", "DATETIME"),
-            ("delTm", "DATETIME"),
-        ]
+    columns = [
+        ("Customer ID", "INTEGER"),
+        ("Product group ID", "STRING"),
+        ("Business channel ID", "STRING"),
+        ("Name", "STRING"),
+        ("Registration method", "INTEGER"),
+        ("Registered product type", "INTEGER"),
+        ("Attribute json1", "STRING"),
+        ("regTm", "DATETIME"),
+        ("delTm", "DATETIME"),
+    ]
 
 
 class ProductGroupRel(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
-            ("Customer ID", "INTEGER"),
-            ("Product Group Relation ID", "STRING"),
-            ("Product Group ID", "STRING"),
-            ("AD group ID", "STRING"),
-            ("regTm", "DATETIME"),
-            ("delTm", "DATETIME"),
-        ]
+    columns = [
+        ("Customer ID", "INTEGER"),
+        ("Product Group Relation ID", "STRING"),
+        ("Product Group ID", "STRING"),
+        ("AD group ID", "STRING"),
+        ("regTm", "DATETIME"),
+        ("delTm", "DATETIME"),
+    ]
 
 
 class BrandThumbnailAd(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
-            ("Customer ID", "INTEGER"),
-            ("Ad Group ID", "STRING"),
-            ("Ad ID", "STRING"),
-            ("Ad Creative Inspect Status", "INTEGER"),
-            ("ON/OFF", "INTEGER"),
-            ("Headline", "STRING"),
-            ("description", "STRING"),
-            ("extra Description", "STRING"),
-            ("Logo image path", "STRING"),
-            ("Link URL", "STRING"),
-            ("Thumbnail Image path", "STRING"),
-            ("regTm", "DATETIME"),
-            ("delTm", "DATETIME"),
-        ]
+    columns = [
+        ("Customer ID", "INTEGER"),
+        ("Ad Group ID", "STRING"),
+        ("Ad ID", "STRING"),
+        ("Ad Creative Inspect Status", "INTEGER"),
+        ("ON/OFF", "INTEGER"),
+        ("Headline", "STRING"),
+        ("description", "STRING"),
+        ("extra Description", "STRING"),
+        ("Logo image path", "STRING"),
+        ("Link URL", "STRING"),
+        ("Thumbnail Image path", "STRING"),
+        ("regTm", "DATETIME"),
+        ("delTm", "DATETIME"),
+    ]
 
 
 class BrandBannerAd(TsvTransformer):
-
-    @property
-    def columns(self) -> list[tuple]:
-        return [
-            ("Customer ID", "INTEGER"),
-            ("Ad Group ID", "STRING"),
-            ("Ad ID", "STRING"),
-            ("Ad Creative Inspect Status", "INTEGER"),
-            ("ON/OFF", "INTEGER"),
-            ("Headline", "STRING"),
-            ("description", "STRING"),
-            ("Logo image path", "STRING"),
-            ("Link URL", "STRING"),
-            ("Thumbnail Image path", "STRING"),
-            ("regTm", "DATETIME"),
-            ("delTm", "DATETIME"),
-        ]
+    columns = [
+        ("Customer ID", "INTEGER"),
+        ("Ad Group ID", "STRING"),
+        ("Ad ID", "STRING"),
+        ("Ad Creative Inspect Status", "INTEGER"),
+        ("ON/OFF", "INTEGER"),
+        ("Headline", "STRING"),
+        ("description", "STRING"),
+        ("Logo image path", "STRING"),
+        ("Link URL", "STRING"),
+        ("Thumbnail Image path", "STRING"),
+        ("regTm", "DATETIME"),
+        ("delTm", "DATETIME"),
+    ]
 
 
 class BrandAd(TsvTransformer):
+    columns = [
+        ("Customer ID", "INTEGER"),
+        ("Ad Group ID", "STRING"),
+        ("Ad ID", "STRING"),
+        ("Ad Creative Inspect Status", "INTEGER"),
+        ("ON/OFF", "INTEGER"),
+        ("Headline", "STRING"),
+        ("description", "STRING"),
+        ("Logo image path", "STRING"),
+        ("Link URL", "STRING"),
+        ("Image path", "STRING"),
+        ("regTm", "DATETIME"),
+        ("delTm", "DATETIME"),
+    ]
 
-    @property
-    def columns(self) -> list[tuple]:
-        return [
-            ("Customer ID", "INTEGER"),
-            ("Ad Group ID", "STRING"),
-            ("Ad ID", "STRING"),
-            ("Ad Creative Inspect Status", "INTEGER"),
-            ("ON/OFF", "INTEGER"),
-            ("Headline", "STRING"),
-            ("description", "STRING"),
-            ("Logo image path", "STRING"),
-            ("Link URL", "STRING"),
-            ("Image path", "STRING"),
-            ("regTm", "DATETIME"),
-            ("delTm", "DATETIME"),
-        ]
 
+AD_TABLE_KEYS: list[TableKey] = [
+    "power_link_ad",
+    "power_contents_ad",
+    "shopping_product_ad",
+    "brand_ad",
+    # 위 4개 테이블은 `ad` 테이블로의 `transform` 대상
+    "product_group",
+    "product_group_rel",
+    "brand_thumbnail_ad",
+    "brand_banner_ad"
+]
 
 class Ad(DuckDBTransformer):
-    queries = ([f"{keyword}_{report_table}"
-        for report_table in [
-            "power_link_ad",
-            "power_contents_ad",
-            "shopping_product_ad",
-            "product_group",
-            "product_group_rel",
-            "brand_thumbnail_ad",
-            "brand_banner_ad",
-            "brand_ad"
-        ]
-        for keyword in (
-            ["create", "select", "insert"]
-            + (["load"] if report_table in {"power_link_ad", "power_contents_ad", "shopping_product_ad", "brand_ad"} else [])
-        )
-    ] + ["create_ad"])
+    queries = (
+        ["create"]
+        + [f"bulk_insert_{key}" for key in AD_TABLE_KEYS]
+        + [f"transform_{key}" for key in AD_TABLE_KEYS[:4]]
+    )
+    tables = {"table": "searchad_ad", **{key: key for key in AD_TABLE_KEYS}}
 
-    def transform(self, obj: dict[str,str], table: str = ":default:", **kwargs):
-        transformer = self.transformer
+    def transform(self, obj: dict[str,str], **kwargs) -> dict:
+        result_set = dict()
+        table_parser = self.table_parser
+
         for report_type, tsv_data in obj.items():
-            report_table, func = transformer[report_type]
-            rows = func(tsv_data)
-            if len(rows) > 1:
-                json_data = [dict(zip(rows[0], row)) for row in rows[1:]]
-                self.insert_into_table(json_data, key=f"insert_{report_table}", table=report_table, values=f":select_{report_table}:")
-        for report_table in ["power_link_ad", "power_contents_ad", "shopping_product_ad", "brand_ad"]:
-            self.insert_into(key=f"load_{report_table}", render=dict(table=table))
+            table_key, parser = table_parser[report_type]
+            query_key = f"bulk_insert_{table_key}"
+            result_set[query_key] = self.bulk_insert(parser().transform(tsv_data), query_key, render=self.get_table(table_key))
 
-    def create_table(self, **kwargs):
-        for query in self.queries:
-            if query.startswith("create_"):
-                table = ":default:" if query == "create_ad" else query[7:]
-                super().create_table(key=query, table=table)
+        for table_key in AD_TABLE_KEYS[:4]:
+            query_key = f"transform_{table_key}"
+            result_set[query_key] = self.insert_into(query_key, render={"table": self.table, **self.get_table(table_key)})
+
+        return result_set
+
+    def get_table(self, table_key: TableKey) -> dict[TableKey, TableName]:
+        return {table_key: self.tables[table_key]}
 
     @property
-    def transformer(self) -> dict[str, tuple[str, Callable[[str],list[list[str]]]]]:
+    def table_parser(self) -> dict[str, tuple[TableKey, type[TsvTransformer]]]:
         return {
             "Ad":
-                ("power_link_ad", PowerLinkAd().transform),
+                ("power_link_ad", PowerLinkAd),
             "ContentsAd":
-                ("power_contents_ad", PowerContentsAd().transform),
+                ("power_contents_ad", PowerContentsAd),
             "ShoppingProduct":
-                ("shopping_product_ad", ShoppingProductAd().transform),
+                ("shopping_product_ad", ShoppingProductAd),
             "ProductGroup":
-                ("product_group", ProductGroup().transform),
+                ("product_group", ProductGroup),
             "ProductGroupRel":
-                ("product_group_rel", ProductGroupRel().transform),
+                ("product_group_rel", ProductGroupRel),
             "BrandThumbnailAd":
-                ("brand_thumbnail_ad", BrandThumbnailAd().transform),
+                ("brand_thumbnail_ad", BrandThumbnailAd),
             "BrandBannerAd":
-                ("brand_banner_ad", BrandBannerAd().transform),
+                ("brand_banner_ad", BrandBannerAd),
             "BrandAd":
-                ("brand_ad", BrandAd().transform),
+                ("brand_ad", BrandAd),
         }

@@ -54,11 +54,8 @@ class ProductDetail(DuckDBTransformer):
     )
 
     def bulk_insert(self, result: list[dict], referer: Literal["vendor","rfm"] | None = None, **kwargs):
-        render, params, total = self.prepare_bulk_params(result, **kwargs)
-        if total > 0:
-            key = f"bulk_insert_{referer}" if referer else "bulk_insert"
-            query = self.prepare_query(key=key, render=render)
-            return self.execute(query, **params)
+        kwargs["query_key"] = f"bulk_insert_{referer}" if referer else "bulk_insert"
+        return super().bulk_insert(result, **kwargs)
 
 
 class VendorInventoryItemParser(ExcelTransformer):

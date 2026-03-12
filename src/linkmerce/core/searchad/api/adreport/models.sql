@@ -15,17 +15,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , shared_budget_id VARCHAR
 );
 
--- Campaign: campaign_type
-SELECT *
-FROM UNNEST([
-    STRUCT(1 AS type, '파워링크' AS name)
-  , STRUCT(2 AS type, '쇼핑검색' AS name)
-  , STRUCT(3 AS type, '파워컨텐츠' AS name)
-  , STRUCT(4 AS type, '브랜드검색/신제품검색' AS name)
-  , STRUCT(5 AS type, '플레이스' AS name)
-]);
-
--- Campaign: select
+-- Campaign: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     "Campaign ID" AS campaign_id
   , "Campaign Name" AS campaign_name
@@ -40,10 +31,18 @@ SELECT
   , "regTm" AS created_at
   , "delTm" AS deleted_at
   -- , NULLIF("Shared budget id", 'null') AS shared_budget_id
-FROM {{ array }};
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
--- Campaign: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+-- Campaign: campaign_type
+SELECT *
+FROM UNNEST([
+    STRUCT(1 AS type, '파워링크' AS name)
+  , STRUCT(2 AS type, '쇼핑검색' AS name)
+  , STRUCT(3 AS type, '파워컨텐츠' AS name)
+  , STRUCT(4 AS type, '브랜드검색/신제품검색' AS name)
+  , STRUCT(5 AS type, '플레이스' AS name)
+]);
 
 
 -- Adgroup: create
@@ -69,23 +68,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , using_expanded_search TINYINT -- {0: '사용하지 않음', 1: '사용함'}
 );
 
--- Adgroup: adgroup_type
-SELECT *
-FROM UNNEST([
-    STRUCT(1 AS type, '파워링크' AS name)
-  , STRUCT(2 AS type, '쇼핑검색-쇼핑몰 상품형' AS name)
-  , STRUCT(3 AS type, '파워컨텐츠-정보형' AS name)
-  , STRUCT(4 AS type, '파워컨텐츠-상품형' AS name)
-  , STRUCT(5 AS type, '브랜드검색-일반형' AS name)
-  , STRUCT(6 AS type, '플레이스-지역소상공인' AS name)
-  , STRUCT(7 AS type, '쇼핑검색-제품 카탈로그형' AS name)
-  , STRUCT(8 AS type, '브랜드검색-브랜드형' AS name)
-  , STRUCT(9 AS type, '쇼핑검색-쇼핑 브랜드형' AS name)
-  , STRUCT(10 AS type, '플레이스-플레이스검색' AS name)
-  , STRUCT(11 AS type, '브랜드검색-신제품검색형' AS name)
-]);
-
--- Adgroup: select
+-- Adgroup: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     "Ad Group ID" AS adgroup_id
   , "Campaign ID" AS campaign_id
@@ -106,13 +90,27 @@ SELECT
   -- , NULLIF("Content Type", '') AS content_type
   -- , NULLIF("Shared budget id", 'null') AS shared_budget_id
   -- , "Using Expanded Search" AS using_expanded_search
-FROM {{ array }};
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
--- Adgroup: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+-- Adgroup: adgroup_type
+SELECT *
+FROM UNNEST([
+    STRUCT(1 AS type, '파워링크' AS name)
+  , STRUCT(2 AS type, '쇼핑검색-쇼핑몰 상품형' AS name)
+  , STRUCT(3 AS type, '파워컨텐츠-정보형' AS name)
+  , STRUCT(4 AS type, '파워컨텐츠-상품형' AS name)
+  , STRUCT(5 AS type, '브랜드검색-일반형' AS name)
+  , STRUCT(6 AS type, '플레이스-지역소상공인' AS name)
+  , STRUCT(7 AS type, '쇼핑검색-제품 카탈로그형' AS name)
+  , STRUCT(8 AS type, '브랜드검색-브랜드형' AS name)
+  , STRUCT(9 AS type, '쇼핑검색-쇼핑 브랜드형' AS name)
+  , STRUCT(10 AS type, '플레이스-플레이스검색' AS name)
+  , STRUCT(11 AS type, '브랜드검색-신제품검색형' AS name)
+]);
 
 
--- Ad: create_ad
+-- Ad: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     ad_id VARCHAR PRIMARY KEY
   , adgroup_id VARCHAR NOT NULL
@@ -133,26 +131,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , deleted_at TIMESTAMP
 );
 
--- Ad: ad_type
-SELECT *
-FROM UNNEST([
-    STRUCT(1 AS type, '파워링크-단일형 소재' AS name)
-  , STRUCT(2 AS type, '쇼핑검색-상품형 소재' AS name)
-  , STRUCT(3 AS type, '파워컨텐츠-정보형 소재' AS name)
-  , STRUCT(4 AS type, '파워컨텐츠-상품형 소재' AS name)
-  , STRUCT(5 AS type, '브랜드검색-일반형 소재' AS name)
-  , STRUCT(6 AS type, '플레이스-지역소상공인 소재' AS name)
-  , STRUCT(7 AS type, '쇼핑검색-카탈로그형 소재' AS name)
-  , STRUCT(9 AS type, '쇼핑검색-쇼핑 브랜드형 소재' AS name)
-  , STRUCT(10 AS type, '플레이스-플레이스 검색 소재' AS name)
-  , STRUCT(11 AS type, '브랜드검색-신제품검색형 소재' AS name)
-  , STRUCT(12 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 섬네일형 소재' AS name)
-  , STRUCT(13 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 배너형 소재' AS name)
-]);
-
-
--- Ad: create_power_link_ad
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ power_link_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -168,69 +147,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , deleted_at TIMESTAMP
 );
 
--- Ad: select_power_link_ad
-SELECT
-    "Customer ID" AS customer_id
-  , "Ad Group ID" AS adgroup_id
-  , "Ad ID" AS ad_id
-  , "Ad Creative Inspect Status" AS inspect_status
-  , "Subject" AS subject
-  , "Description" AS description
-  , "Landing URL(PC)" AS landing_url_pc
-  , "Landing URL(Mobile)" AS landing_url_mobile
-  , TRY_CAST((CASE
-      WHEN REGEXP_MATCHES(
-            COALESCE("Landing URL(PC)", "Landing URL(Mobile)")
-          , '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
-        THEN REGEXP_EXTRACT(
-            COALESCE("Landing URL(PC)", "Landing URL(Mobile)")
-          , '(\d+)$')
-      ELSE NULL END) AS BIGINT) AS product_id
-  , ("ON/OFF" = 0) AS is_enabled
-  , ("delTm" IS NOT NULL) AS is_deleted
-  , "regTm" AS created_at
-  , "delTm" AS deleted_at
-FROM {{ array }};
-
--- Ad: insert_power_link_ad
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- Ad: load_power_link_ad
-INSERT INTO {{ table }} (
-    ad_id
-  , adgroup_id
-  , ad_type
-  , customer_id
-  , title
-  , description
-  , landing_url_pc
-  , landing_url_mobile
-  , product_id
-  , is_enabled
-  , is_deleted
-  , created_at
-  , deleted_at
-)
-SELECT
-    ad_id
-  , adgroup_id
-  , 1 AS ad_type
-  , customer_id
-  , subject AS title
-  , description
-  , landing_url_pc
-  , landing_url_mobile
-  , product_id
-  , is_enabled
-  , is_deleted
-  , created_at
-  , deleted_at
-FROM power_link_ad
-ON CONFLICT DO NOTHING;
-
-
--- Ad: create_power_contents_ad
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ power_contents_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -249,63 +166,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , deleted_at TIMESTAMP
 );
 
--- Ad: select_power_contents_ad
-SELECT
-    "Customer ID" AS customer_id
-  , "Ad Group ID" AS adgroup_id
-  , "Ad ID" AS ad_id
-  , "Ad Creative Inspect Status" AS inspect_status
-  , "Subject" AS subject
-  , "Description" AS description
-  , "Landing URL(PC)" AS landing_url_pc
-  , "Landing URL(Mobile)" AS landing_url_mobile
-  , "Image URL" AS image_url
-  , "Company Name" AS company_name
-  , "Contents Issue Date" AS contents_issue_date
-  , "Release Date" AS contents_release_date
-  , ("ON/OFF" = 0) AS is_enabled
-  , ("delTm" IS NOT NULL) AS is_deleted
-  , "regTm" AS created_at
-  , "delTm" AS deleted_at
-FROM {{ array }};
-
--- Ad: insert_power_contents_ad
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- Ad: load_power_contents_ad
-INSERT INTO {{ table }} (
-    ad_id
-  , adgroup_id
-  , ad_type
-  , customer_id
-  , title
-  , description
-  , landing_url_pc
-  , landing_url_mobile
-  , is_enabled
-  , is_deleted
-  , created_at
-  , deleted_at
-)
-SELECT
-    ad_id
-  , adgroup_id
-  , 3 AS ad_type
-  , customer_id
-  , subject AS title
-  , description
-  , landing_url_pc
-  , landing_url_mobile
-  , is_enabled
-  , is_deleted
-  , created_at
-  , deleted_at
-FROM power_contents_ad
-ON CONFLICT DO NOTHING;
-
-
--- Ad: create_shopping_product_ad
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ shopping_product_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -336,7 +197,129 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , full_category_name VARCHAR
 );
 
--- Ad: select_shopping_product_ad
+CREATE TABLE IF NOT EXISTS {{ product_group }} (
+    customer_id BIGINT NOT NULL
+  , product_group_id VARCHAR PRIMARY KEY
+  , business_channel_id VARCHAR
+  , product_group_name VARCHAR
+  , registration_method TINYINT -- {1: '몰에 등록된 전체 상품을 등록', 2: '개별 상품 혹은 카테고리'}
+  , registered_product_type TINYINT -- {1: '일반 상품', 2: '카탈로그형(가격비교) 상품'}
+  , attribute_json VARCHAR
+  , created_at TIMESTAMP
+  , deleted_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS {{ product_group_rel }} (
+    customer_id BIGINT NOT NULL
+  , relation_id VARCHAR PRIMARY KEY
+  , product_group_id VARCHAR NOT NULL
+  , adgroup_id VARCHAR NOT NULL
+  , created_at TIMESTAMP
+  , deleted_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS {{ brand_thumbnail_ad }} (
+    customer_id BIGINT NOT NULL
+  , adgroup_id VARCHAR NOT NULL
+  , ad_id VARCHAR PRIMARY KEY
+  , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
+  , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
+  , title VARCHAR
+  , description VARCHAR
+  , extra_description VARCHAR
+  , logo_image_path VARCHAR
+  , link_url VARCHAR
+  , product_id BIGINT
+  , thumbnail_image_path VARCHAR
+  , created_at TIMESTAMP
+  , deleted_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS {{ brand_banner_ad }} (
+    customer_id BIGINT NOT NULL
+  , adgroup_id VARCHAR NOT NULL
+  , ad_id VARCHAR PRIMARY KEY
+  , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
+  , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
+  , title VARCHAR
+  , description VARCHAR
+  , logo_image_path VARCHAR
+  , link_url VARCHAR
+  , product_id BIGINT
+  , thumbnail_image_path VARCHAR
+  , created_at TIMESTAMP
+  , deleted_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS {{ brand_ad }} (
+    customer_id BIGINT NOT NULL
+  , adgroup_id VARCHAR NOT NULL
+  , ad_id VARCHAR PRIMARY KEY
+  , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
+  , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
+  , title VARCHAR
+  , description VARCHAR
+  , logo_image_path VARCHAR
+  , link_url VARCHAR
+  , product_id BIGINT
+  , image_path VARCHAR
+  , created_at TIMESTAMP
+  , deleted_at TIMESTAMP
+);
+
+-- Ad: bulk_insert_power_link_ad
+INSERT INTO {{ power_link_ad }}
+SELECT
+    "Customer ID" AS customer_id
+  , "Ad Group ID" AS adgroup_id
+  , "Ad ID" AS ad_id
+  , "Ad Creative Inspect Status" AS inspect_status
+  , "Subject" AS subject
+  , "Description" AS description
+  , "Landing URL(PC)" AS landing_url_pc
+  , "Landing URL(Mobile)" AS landing_url_mobile
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES(
+            COALESCE("Landing URL(PC)", "Landing URL(Mobile)")
+          , '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT(
+            COALESCE("Landing URL(PC)", "Landing URL(Mobile)")
+          , '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
+  , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "regTm" AS created_at
+  , "delTm" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+-- Ad: bulk_insert_power_contents_ad
+INSERT INTO {{ power_contents_ad }}
+SELECT
+    "Customer ID" AS customer_id
+  , "Ad Group ID" AS adgroup_id
+  , "Ad ID" AS ad_id
+  , "Ad Creative Inspect Status" AS inspect_status
+  , "Subject" AS subject
+  , "Description" AS description
+  , "Landing URL(PC)" AS landing_url_pc
+  , "Landing URL(Mobile)" AS landing_url_mobile
+  , "Image URL" AS image_url
+  , "Company Name" AS company_name
+  , "Contents Issue Date" AS contents_issue_date
+  , "Release Date" AS contents_release_date
+  , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "regTm" AS created_at
+  , "delTm" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+-- Ad: bulk_insert_shopping_product_ad
+INSERT INTO {{ shopping_product_ad }}
 SELECT
     "Customer ID" AS customer_id
   , "Ad Group ID" AS adgroup_id
@@ -366,12 +349,171 @@ SELECT
   , TRY_CAST("NAVER Shopping Category ID 3" AS INTEGER) AS category_id3
   , TRY_CAST("NAVER Shopping Category ID 4" AS INTEGER) AS category_id4
   , "Category Name of Mall" AS full_category_name
-FROM {{ array }};
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
--- Ad: insert_shopping_product_ad
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+-- Ad: bulk_insert_product_group
+INSERT INTO {{ product_group }}
+SELECT
+    "Customer ID" AS customer_id
+  , "Product group ID" AS product_group_id
+  , "Business channel ID" AS business_channel_id
+  , "Name" AS product_group_name
+  , "Registration method" AS registration_method
+  , "Registered product type" AS registered_product_type
+  , "Attribute json1" AS attribute_json
+  , "regTm" AS created_at
+  , "delTm" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
--- Ad: load_shopping_product_ad
+-- Ad: bulk_insert_product_group_rel
+INSERT INTO {{ product_group_rel }}
+SELECT
+    "Customer ID" AS customer_id
+  , "Product Group Relation ID" AS relation_id
+  , "Product Group ID" AS product_group_id
+  , "AD group ID" AS adgroup_id
+  , "regTm" AS created_at
+  , "delTm" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+-- Ad: bulk_insert_brand_thumbnail_ad
+INSERT INTO {{ brand_thumbnail_ad }}
+SELECT
+    "Customer ID" AS customer_id
+  , "Ad Group ID" AS adgroup_id
+  , "Ad ID" AS ad_id
+  , "Ad Creative Inspect Status" AS inspect_status
+  , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "Headline" AS title
+  , "description" AS description
+  , "extra Description" AS extra_description
+  , "Logo image path" AS logo_image_path
+  , "Link URL" AS link_url
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
+  , "Thumbnail Image path" AS thumbnail_image_path
+  , "regTm" AS created_at
+  , "delTm" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+-- Ad: bulk_insert_brand_banner_ad
+INSERT INTO {{ brand_banner_ad }}
+SELECT
+    "Customer ID" AS customer_id
+  , "Ad Group ID" AS adgroup_id
+  , "Ad ID" AS ad_id
+  , "Ad Creative Inspect Status" AS inspect_status
+  , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "Headline" AS title
+  , "description" AS description
+  , "Logo image path" AS logo_image_path
+  , "Link URL" AS link_url
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
+  , "Thumbnail Image path" AS thumbnail_image_path
+  , "regTm" AS created_at
+  , "delTm" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+-- Ad: bulk_insert_brand_ad
+INSERT INTO {{ brand_ad }}
+SELECT
+    "Customer ID" AS customer_id
+  , "Ad Group ID" AS adgroup_id
+  , "Ad ID" AS ad_id
+  , "Ad Creative Inspect Status" AS inspect_status
+  , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "Headline" AS title
+  , "description" AS description
+  , "Logo image path" AS logo_image_path
+  , "Link URL" AS link_url
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
+  , "Image path" AS image_path
+  , "regTm" AS created_at
+  , "delTm" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+-- Ad: transform_power_link_ad
+INSERT INTO {{ table }} (
+    ad_id
+  , adgroup_id
+  , ad_type
+  , customer_id
+  , title
+  , description
+  , landing_url_pc
+  , landing_url_mobile
+  , product_id
+  , is_enabled
+  , is_deleted
+  , created_at
+  , deleted_at
+)
+SELECT
+    ad_id
+  , adgroup_id
+  , 1 AS ad_type
+  , customer_id
+  , subject AS title
+  , description
+  , landing_url_pc
+  , landing_url_mobile
+  , product_id
+  , is_enabled
+  , is_deleted
+  , created_at
+  , deleted_at
+FROM {{ power_link_ad }}
+ON CONFLICT DO NOTHING;
+
+-- Ad: transform_power_contents_ad
+INSERT INTO {{ table }} (
+    ad_id
+  , adgroup_id
+  , ad_type
+  , customer_id
+  , title
+  , description
+  , landing_url_pc
+  , landing_url_mobile
+  , is_enabled
+  , is_deleted
+  , created_at
+  , deleted_at
+)
+SELECT
+    ad_id
+  , adgroup_id
+  , 3 AS ad_type
+  , customer_id
+  , subject AS title
+  , description
+  , landing_url_pc
+  , landing_url_mobile
+  , is_enabled
+  , is_deleted
+  , created_at
+  , deleted_at
+FROM {{ power_contents_ad }}
+ON CONFLICT DO NOTHING;
+
+-- Ad: transform_shopping_product_ad
 INSERT INTO {{ table }} (
     ad_id
   , adgroup_id
@@ -407,195 +549,10 @@ SELECT
   , sales_price
   , created_at
   , deleted_at
-FROM shopping_product_ad
+FROM {{ shopping_product_ad }}
 ON CONFLICT DO NOTHING;
 
-
--- Ad: create_product_group
-CREATE TABLE IF NOT EXISTS {{ table }} (
-    customer_id BIGINT NOT NULL
-  , product_group_id VARCHAR PRIMARY KEY
-  , business_channel_id VARCHAR
-  , product_group_name VARCHAR
-  , registration_method TINYINT -- {1: '몰에 등록된 전체 상품을 등록', 2: '개별 상품 혹은 카테고리'}
-  , registered_product_type TINYINT -- {1: '일반 상품', 2: '카탈로그형(가격비교) 상품'}
-  , attribute_json VARCHAR
-  , created_at TIMESTAMP
-  , deleted_at TIMESTAMP
-);
-
--- Ad: select_product_group
-SELECT
-    "Customer ID" AS customer_id
-  , "Product group ID" AS product_group_id
-  , "Business channel ID" AS business_channel_id
-  , "Name" AS product_group_name
-  , "Registration method" AS registration_method
-  , "Registered product type" AS registered_product_type
-  , "Attribute json1" AS attribute_json
-  , "regTm" AS created_at
-  , "delTm" AS deleted_at
-FROM {{ array }};
-
--- Ad: insert_product_group
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
-
--- Ad: create_product_group_rel
-CREATE TABLE IF NOT EXISTS {{ table }} (
-    customer_id BIGINT NOT NULL
-  , relation_id VARCHAR PRIMARY KEY
-  , product_group_id VARCHAR NOT NULL
-  , adgroup_id VARCHAR NOT NULL
-  , created_at TIMESTAMP
-  , deleted_at TIMESTAMP
-);
-
--- Ad: select_product_group_rel
-SELECT
-    "Customer ID" AS customer_id
-  , "Product Group Relation ID" AS relation_id
-  , "Product Group ID" AS product_group_id
-  , "AD group ID" AS adgroup_id
-  , "regTm" AS created_at
-  , "delTm" AS deleted_at
-FROM {{ array }};
-
--- Ad: insert_product_group_rel
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
-
--- Ad: create_brand_thumbnail_ad
-CREATE TABLE IF NOT EXISTS {{ table }} (
-    customer_id BIGINT NOT NULL
-  , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
-  , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
-  , is_enabled BOOLEAN
-  , is_deleted BOOLEAN
-  , title VARCHAR
-  , description VARCHAR
-  , extra_description VARCHAR
-  , logo_image_path VARCHAR
-  , link_url VARCHAR
-  , product_id BIGINT
-  , thumbnail_image_path VARCHAR
-  , created_at TIMESTAMP
-  , deleted_at TIMESTAMP
-);
-
--- Ad: select_brand_thumbnail_ad
-SELECT
-    "Customer ID" AS customer_id
-  , "Ad Group ID" AS adgroup_id
-  , "Ad ID" AS ad_id
-  , "Ad Creative Inspect Status" AS inspect_status
-  , ("ON/OFF" = 0) AS is_enabled
-  , ("delTm" IS NOT NULL) AS is_deleted
-  , "Headline" AS title
-  , "description" AS description
-  , "extra Description" AS extra_description
-  , "Logo image path" AS logo_image_path
-  , "Link URL" AS link_url
-  , TRY_CAST((CASE
-      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
-        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
-      ELSE NULL END) AS BIGINT) AS product_id
-  , "Thumbnail Image path" AS thumbnail_image_path
-  , "regTm" AS created_at
-  , "delTm" AS deleted_at
-FROM {{ array }};
-
--- Ad: insert_brand_thumbnail_ad
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
-
--- Ad: create_brand_banner_ad
-CREATE TABLE IF NOT EXISTS {{ table }} (
-    customer_id BIGINT NOT NULL
-  , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
-  , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
-  , is_enabled BOOLEAN
-  , is_deleted BOOLEAN
-  , title VARCHAR
-  , description VARCHAR
-  , logo_image_path VARCHAR
-  , link_url VARCHAR
-  , product_id BIGINT
-  , thumbnail_image_path VARCHAR
-  , created_at TIMESTAMP
-  , deleted_at TIMESTAMP
-);
-
--- Ad: select_brand_banner_ad
-SELECT
-    "Customer ID" AS customer_id
-  , "Ad Group ID" AS adgroup_id
-  , "Ad ID" AS ad_id
-  , "Ad Creative Inspect Status" AS inspect_status
-  , ("ON/OFF" = 0) AS is_enabled
-  , ("delTm" IS NOT NULL) AS is_deleted
-  , "Headline" AS title
-  , "description" AS description
-  , "Logo image path" AS logo_image_path
-  , "Link URL" AS link_url
-  , TRY_CAST((CASE
-      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
-        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
-      ELSE NULL END) AS BIGINT) AS product_id
-  , "Thumbnail Image path" AS thumbnail_image_path
-  , "regTm" AS created_at
-  , "delTm" AS deleted_at
-FROM {{ array }};
-
--- Ad: insert_brand_banner_ad
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
-
--- Ad: create_brand_ad
-CREATE TABLE IF NOT EXISTS {{ table }} (
-    customer_id BIGINT NOT NULL
-  , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
-  , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
-  , is_enabled BOOLEAN
-  , is_deleted BOOLEAN
-  , title VARCHAR
-  , description VARCHAR
-  , logo_image_path VARCHAR
-  , link_url VARCHAR
-  , product_id BIGINT
-  , image_path VARCHAR
-  , created_at TIMESTAMP
-  , deleted_at TIMESTAMP
-);
-
--- Ad: select_brand_ad
-SELECT
-    "Customer ID" AS customer_id
-  , "Ad Group ID" AS adgroup_id
-  , "Ad ID" AS ad_id
-  , "Ad Creative Inspect Status" AS inspect_status
-  , ("ON/OFF" = 0) AS is_enabled
-  , ("delTm" IS NOT NULL) AS is_deleted
-  , "Headline" AS title
-  , "description" AS description
-  , "Logo image path" AS logo_image_path
-  , "Link URL" AS link_url
-  , TRY_CAST((CASE
-      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
-        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
-      ELSE NULL END) AS BIGINT) AS product_id
-  , "Image path" AS image_path
-  , "regTm" AS created_at
-  , "delTm" AS deleted_at
-FROM {{ array }};
-
--- Ad: insert_brand_ad
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- Ad: load_brand_ad
+-- Ad: transform_brand_ad
 INSERT INTO {{ table }} (
     ad_id
   , adgroup_id
@@ -616,24 +573,41 @@ FROM (
   SELECT
       ad_id, adgroup_id, 9 AS ad_type, customer_id, title, description
     , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
-  FROM brand_ad
+  FROM {{ brand_ad }}
   UNION ALL
   SELECT
       ad_id, adgroup_id, 12 AS ad_type, customer_id, title, description
     , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
-  FROM brand_thumbnail_ad
+  FROM {{ brand_thumbnail_ad }}
   UNION ALL
   SELECT
       ad_id, adgroup_id, 13 AS ad_type, customer_id, title, description
     , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
-  FROM brand_banner_ad
+  FROM {{ brand_banner_ad }}
 ) AS ad
--- LEFT JOIN product_group_rel AS rel
+-- LEFT JOIN {{ product_group_rel }} AS rel
 --   ON ad.adgroup_id = rel.adgroup_id
 -- LEFT JOIN (
 --     SELECT product_group_id, TRY_CAST(nv_mid.unnest AS BIGINT) AS nv_mid
---     FROM product_group,
+--     FROM {{ product_group }},
 --       UNNEST(CAST(json_extract(attribute_json, '$.productNvmids') AS VARCHAR[])) AS nv_mid
 --   ) AS grp
 --   ON rel.product_group_id = grp.product_group_id
 ON CONFLICT DO NOTHING;
+
+-- Ad: ad_type
+SELECT *
+FROM UNNEST([
+    STRUCT(1 AS type, '파워링크-단일형 소재' AS name)
+  , STRUCT(2 AS type, '쇼핑검색-상품형 소재' AS name)
+  , STRUCT(3 AS type, '파워컨텐츠-정보형 소재' AS name)
+  , STRUCT(4 AS type, '파워컨텐츠-상품형 소재' AS name)
+  , STRUCT(5 AS type, '브랜드검색-일반형 소재' AS name)
+  , STRUCT(6 AS type, '플레이스-지역소상공인 소재' AS name)
+  , STRUCT(7 AS type, '쇼핑검색-카탈로그형 소재' AS name)
+  , STRUCT(9 AS type, '쇼핑검색-쇼핑 브랜드형 소재' AS name)
+  , STRUCT(10 AS type, '플레이스-플레이스 검색 소재' AS name)
+  , STRUCT(11 AS type, '브랜드검색-신제품검색형 소재' AS name)
+  , STRUCT(12 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 섬네일형 소재' AS name)
+  , STRUCT(13 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 배너형 소재' AS name)
+]);

@@ -67,10 +67,8 @@ class OrderDownload(DuckDBTransformer):
         self.parser_config = dict(fields=fields)
 
     def bulk_insert(self, result: list[dict], **kwargs):
-        render, params, total = self.prepare_bulk_params(result, **kwargs)
-        if total > 0:
-            query = self.prepare_query(key=f"bulk_insert_{self.download_type}", render=render)
-            return self.execute(query, **params)
+        kwargs["query_key"] = f"bulk_insert_{self.download_type}"
+        return super().bulk_insert(result, **kwargs)
 
 
 class OrderStatus(DuckDBTransformer):

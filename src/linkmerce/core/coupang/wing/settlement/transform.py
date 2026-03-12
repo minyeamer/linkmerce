@@ -91,5 +91,5 @@ class RocketSettlementDownload(DuckDBTransformer):
         if len(result) > 0:
             table = "sales" if report_type == "CATEGORY_TR" else "shipping"
             render = {table: self.tables[table], f"{table}_rows": self.expr_rows(f"{table}_rows")}
-            query = self.prepare_query(key=f"bulk_insert_{table}", render=render)
+            query = self.prepare_query(f"bulk_insert_{table}", render=render)
             return self.execute(query, **{f"{table}_rows": result})

@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     Expression = TypeVar("Expression", bound=str)
     TableKey = TypeVar("TableKey", bound=str)
     TableName = TypeVar("TableName", bound=str)
-    QueryKey = TypeVar("QueryKey", bound=str)
 
     from bs4 import BeautifulSoup, Tag
 
@@ -451,17 +450,17 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         name = self.__class__.__name__ if name == "self" else name
         self.__queires = self.get_models().read_models(name, keys=(self.queries if keys is None else keys))
 
-    def get_query(self, key: str, render: dict | None = None) -> str:
+    def get_query(self, query_key: str, render: dict | None = None) -> str:
         """지정한 키의 SQL 쿼리를 반환한다. `render`가 주어지면 Jinja 렌더링을 적용한다."""
-        if self.has_query(key):
-            query = self.get_queries()[key]
+        if self.has_query(query_key):
+            query = self.get_queries()[query_key]
             return self.render_query(query, **render) if isinstance(render, dict) else query
         else:
-            raise KeyError(f"'{key}' query does not exist.")
+            raise KeyError(f"'{query_key}' query does not exist.")
 
-    def has_query(self, key: str) -> bool:
+    def has_query(self, query_key: str) -> bool:
         """지정한 키의 쿼리가 있는지 확인한다."""
-        return key in self.get_queries()
+        return query_key in self.get_queries()
 
     ############################## Fetch ##############################
 
@@ -483,44 +482,44 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
 
     ############################### CRUD ##############################
 
-    def create(self, query: str = str(), key: str = "create", render: dict | None = None) -> Any:
+    def create(self, query_key: str = "create", query: str = str(), render: dict | None = None) -> Any:
         """테이블 생성 쿼리를 실행한다. 쿼리가 없으면 `key = "create"`로 검색한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query)
 
-    def select(self, query: str = str(), key: str = "select", render: dict | None = None) -> Any:
+    def select(self, query_key: str = "select", query: str = str(), render: dict | None = None) -> Any:
         """조회 쿼리를 실행한다. 쿼리가 없으면 `key = "select"`로 검색한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query)
 
-    def update(self, query: str = str(), key: str = "update", render: dict | None = None) -> Any:
+    def update(self, query_key: str = "update", query: str = str(), render: dict | None = None) -> Any:
         """수정 쿼리를 실행한다. 쿼리가 없으면 `key = "update"`로 검색한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query)
 
-    def delete(self, query: str = str(), key: str = "delete", render: dict | None = None) -> Any:
+    def delete(self, query_key: str = "delete", query: str = str(), render: dict | None = None) -> Any:
         """삭제 쿼리를 실행한다. 쿼리가 없으면 `key = "delete"`로 검색한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query)
 
-    def insert_into(self, query: str = str(), key: str = "insert", render: dict | None = None) -> Any:
+    def insert_into(self, query_key: str = "insert", query: str = str(), render: dict | None = None) -> Any:
         """삽입 쿼리를 실행한다. 쿼리가 없으면 `key = "insert"`로 검색한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query)
 
-    def merge_into(self, query: str = str(), key: str = "merge", render: dict | None = None) -> Any:
+    def merge_into(self, query_key: str = "merge", query: str = str(), render: dict | None = None) -> Any:
         """병합 쿼리를 실행한다. 쿼리가 없으면 `key = "merge"`로 검색한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query)
 
     ############################## Render #############################
 
-    def prepare_query(self, query: str = str(), key: str = str(), render: dict | None = None) -> str:
+    def prepare_query(self, query_key: str = str(), query: str = str(), render: dict | None = None) -> str:
         """`query`가 있으면 그대로 사용하고, 없으면 `key`로 쿼리를 검색한다. `render`가 있으면 Jinja 렌더링을 적용한다."""
         if query:
             return self.render_query(query, **render) if isinstance(render, dict) else query
         else:
-            return self.get_query(key, render)
+            return self.get_query(query_key, render)
 
     def render_query(self, query_: str, **kwargs) -> str:
         """Jinja 템플릿 문법으로 쿼리 문자열을 렌더링한다."""
@@ -560,11 +559,18 @@ class DuckDBTransformer(DBTransformer):
         """현재 DuckDB 연결 객체를 반환한다."""
         return self.get_connection()
 
-    def bulk_insert(self, result: list | dict[TableKey, list], **kwargs) -> DuckDBPyConnection | None:
+    def bulk_insert(
+            self,
+            result: list | dict[TableKey, list],
+            query_key: str = "bulk_insert",
+            render: dict | Literal["tables"] | None = "tables",
+            params: dict | None = None,
+            **kwargs
+        ) -> DuckDBPyConnection | None:
         """파싱된 데이터를 DuckDB에 일괄 삽입한다. 데이터가 없으면 삽입하지 않는다."""
-        render, params, total = self.prepare_bulk_params(result, **kwargs)
+        render, params, total = self.prepare_bulk_params(result, render, params, **kwargs)
         if total > 0:
-            query = self.prepare_query(key="bulk_insert", render=render)
+            query = self.prepare_query(query_key, render=render)
             return self.execute(query, **params)
 
     def prepare_bulk_params(
@@ -657,67 +663,67 @@ class DuckDBTransformer(DBTransformer):
 
     def create(
             self,
+            query_key: str = "create",
             query: str = str(),
-            key: str = "create",
             render: dict | Literal["tables"] | None = "tables",
             params: dict | None = None,
         ) -> DuckDBPyConnection:
         """테이블 생성 쿼리를 실행한다. `render = "tables"` → `self.tables`를 렌더 컨텍스트로 사용한다."""
         render = self.tables if render == "tables" else render
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query, **(params or dict()))
 
     def select(
             self,
+            query_key: str = "select",
             query: str = str(),
-            key: str = "select",
             render: dict | None = None,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
         """조회 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query, **(params or dict()))
 
     def update(
             self,
+            query_key: str = "update",
             query: str = str(),
-            key: str = "update",
             render: dict | None = None,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
         """수정 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query, **(params or dict()))
 
     def delete(
             self,
+            query_key: str = "delete",
             query: str = str(),
-            key: str = "delete",
             render: dict | None = None,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
         """삭제 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query, **(params or dict()))
 
     def insert_into(
             self,
+            query_key: str = "insert",
             query: str = str(),
-            key: str = "insert",
             render: dict | None = None,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
         """삽입 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query, **(params or dict()))
 
     def merge_into(
             self,
+            query_key: str = "merge",
             query: str = str(),
-            key: str = "merge",
             render: dict | None = None,
             params: dict | None = None,
         ) -> DuckDBPyConnection:
         """UPSERT 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
-        query = self.prepare_query(query, key, render=render)
+        query = self.prepare_query(query_key, query, render=render)
         return self.conn.execute(query, **(params or dict()))

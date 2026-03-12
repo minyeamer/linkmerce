@@ -38,10 +38,11 @@ class Option(DuckDBTransformer):
 
 class OptionParser(ExcelTransformer):
     header = 2
-    fields = [{key: None} for key in [
+    fields = [
         "사방넷상품코드", "바코드", "옵션제목", "옵션상세명칭", "연결상품코드", "공급상태",
         "옵션구분", "EA", "단품추가금액", "등록일시"
-    ]]
+    ]
+    on_missing = "ignore"
 
     def parse(self, obj: bytes, **kwargs) -> list[dict]:
         data: list[dict[str, Any]] = super().parse(obj)[1:]
@@ -77,7 +78,7 @@ class AddProduct(DuckDBTransformer):
         result = self.parse(obj, **kwargs)
         render, params, total = self.prepare_bulk_params(result, **kwargs)
         if total > 0:
-            query = self.prepare_query(key="bulk_insert", render=render)
+            query = self.prepare_query("bulk_insert", render=render)
             params.update(meta=self.parse_metadata(obj))
             return self.execute(query, **params)
 
