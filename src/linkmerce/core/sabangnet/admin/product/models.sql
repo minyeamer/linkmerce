@@ -17,20 +17,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , modify_dt TIMESTAMP
 );
 
--- Product: product_status
-SELECT *
-FROM UNNEST([
-    STRUCT(1 AS code, '대기중' AS name)
-  , STRUCT(2 AS code, '공급중' AS name)
-  , STRUCT(3 AS code, '일시중지' AS name)
-  , STRUCT(4 AS code, '완전품절' AS name)
-  , STRUCT(5 AS code, '미사용' AS name)
-  , STRUCT(6 AS code, '삭제' AS name)
-  , STRUCT(7 AS code, '자료없음' AS name)
-  , STRUCT(8 AS code, '비노출' AS name)
-]);
-
--- Product: select
+-- Product: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     prdNo AS product_id
   , modlNm AS model_code
@@ -47,11 +35,22 @@ SELECT
   , string_split(prdImgFilePathNm, '/')[-1] AS image_file
   , TRY_CAST(fstRegsDt AS TIMESTAMP) AS register_dt
   , TRY_CAST(fnlChgDt AS TIMESTAMP) AS modify_dt
-FROM {{ array }}
-WHERE prdNo IS NOT NULL;
+FROM {{ rows }}
+WHERE prdNo IS NOT NULL
+ON CONFLICT DO NOTHING;
 
--- Product: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+-- Product: product_status
+SELECT *
+FROM UNNEST([
+    STRUCT(1 AS code, '대기중' AS name)
+  , STRUCT(2 AS code, '공급중' AS name)
+  , STRUCT(3 AS code, '일시중지' AS name)
+  , STRUCT(4 AS code, '완전품절' AS name)
+  , STRUCT(5 AS code, '미사용' AS name)
+  , STRUCT(6 AS code, '삭제' AS name)
+  , STRUCT(7 AS code, '자료없음' AS name)
+  , STRUCT(8 AS code, '비노출' AS name)
+]);
 
 
 -- Option: create
@@ -68,15 +67,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (product_id, sku_id)
 );
 
--- Option: option_status
-SELECT *
-FROM UNNEST([
-  , STRUCT(2 AS code, '판매' AS name)
-  , STRUCT(4 AS code, '품절' AS name)
-  , STRUCT(5 AS code, '미사용' AS name)
-]);
-
--- Option: select
+-- Option: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     prdNo AS product_id
   , skuNo AS sku_id
@@ -87,11 +79,17 @@ SELECT
   , skuAddAmt AS option_price
   , TRY_CAST(fstRegsDt AS TIMESTAMP) AS register_dt
   , TRY_CAST(fnlChgDt AS TIMESTAMP) AS modify_dt
-FROM {{ array }}
-WHERE (prdNo IS NOT NULL) AND (skuNo IS NOT NULL);
+FROM {{ rows }}
+WHERE (prdNo IS NOT NULL) AND (skuNo IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
--- Option: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+-- Option: option_status
+SELECT *
+FROM UNNEST([
+  , STRUCT(2 AS code, '판매' AS name)
+  , STRUCT(4 AS code, '품절' AS name)
+  , STRUCT(5 AS code, '미사용' AS name)
+]);
 
 
 -- OptionDownload: create
@@ -107,6 +105,23 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , option_price INTEGER
   , register_dt TIMESTAMP
 );
+
+-- OptionDownload: bulk_insert
+INSERT INTO {{ table }}
+SELECT
+    "사방넷상품코드" AS option_id
+  , TRY_CAST("바코드" AS BIGINT) AS barcode
+  , "옵션제목" AS option_group
+  , "옵션상세명칭" AS option_name
+  , "연결상품코드" AS bundle_option_ids
+  , TRY_CAST("공급상태" AS INTEGER) AS option_status
+  , TRY_CAST("옵션구분" AS INTEGER) AS option_type
+  , "EA" AS option_quantity
+  , TRY_CAST("단품추가금액" AS INTEGER) AS option_price
+  , TRY_CAST("등록일시" AS TIMESTAMP) AS register_dt
+FROM {{ rows }}
+WHERE "사방넷상품코드" IS NOT NULL
+ON CONFLICT DO NOTHING;
 
 -- OptionDownload: option_status
 SELECT *
@@ -124,24 +139,6 @@ FROM UNNEST([
   , STRUCT(3 AS code, '일반옵션' AS name)
 ]);
 
--- OptionDownload: select
-SELECT
-    "사방넷상품코드" AS option_id
-  , TRY_CAST("바코드" AS BIGINT) AS barcode
-  , "옵션제목" AS option_group
-  , "옵션상세명칭" AS option_name
-  , "연결상품코드" AS bundle_option_ids
-  , TRY_CAST("공급상태" AS INTEGER) AS option_status
-  , TRY_CAST("옵션구분" AS INTEGER) AS option_type
-  , "EA" AS option_quantity
-  , TRY_CAST("단품추가금액" AS INTEGER) AS option_price
-  , TRY_CAST("등록일시" AS TIMESTAMP) AS register_dt
-FROM {{ array }}
-WHERE "사방넷상품코드" IS NOT NULL;
-
--- OptionDownload: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
 
 -- AddProductGroup: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
@@ -151,16 +148,15 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , modify_dt TIMESTAMP
 );
 
--- AddProductGroup: select
+-- AddProductGroup: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     addPrdGrpId AS group_id
   , addPrdGrpNm AS group_name
   -- , TRY_STRPTIME(SUBSTR(fstRegsDt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
   -- , TRY_STRPTIME(SUBSTR(fnlChgDt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS modify_dt
-FROM {{ array }};
-
--- AddProductGroup: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- AddProduct: create
@@ -177,7 +173,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (group_id, option_seq)
 );
 
--- AddProduct: select
+-- AddProduct: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     addPrdGrpId AS group_id
   , $meta.addPrdGrpNm AS group_name
@@ -188,7 +185,5 @@ SELECT
   , sepr AS sales_price
   , TRY_STRPTIME(SUBSTR($meta.fstRegsDt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
   , TRY_STRPTIME(SUBSTR($meta.fnlChgDt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS modify_dt
-FROM {{ array }};
-
--- AddProduct: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;

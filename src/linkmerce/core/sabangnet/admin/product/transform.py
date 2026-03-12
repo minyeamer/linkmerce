@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
+from linkmerce.common.transform import ExcelTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
@@ -9,69 +9,79 @@ if TYPE_CHECKING:
     from linkmerce.common.transform import JsonObject
 
 
-class ProductList(JsonTransformer):
-    dtype = dict
-    path = ["data", "list"]
-
-
 class Product(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, **kwargs):
-        products = ProductList().transform(obj)
-        if products:
-            products[0]["fnlChgDt"] = products[0].get("fnlChgDt")
-            return self.insert_into_table(products)
-
-
-class OptionList(JsonTransformer):
-    dtype = dict
-    path = ["data", "optionList"]
+    tables = {"table": "sabangnet_product"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "data.list",
+        fields = [
+            "prdNo", "modlNm", "onsfPrdCd", "prdNm", "prdAbbrRmrk", "brndNm", "mkcpNm",
+            "lgstscSvcAcntIdK", "prdSplyStsCd", "prdcYy", "sepr", "splyCprc", "prdImgFilePathNm",
+            "fstRegsDt", "fnlChgDt"
+        ],
+    )
 
 
 class Option(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
+    tables = {"table": "sabangnet_option"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "data.optionList",
+        fields = [
+            "prdNo", "skuNo", "optCnfgNm", "optDtlNm", "skuSplyStsCd", "skuQt", "skuAddAmt",
+            "fstRegsDt", "fnlChgDt"
+        ],
+    )
 
-    def transform(self, obj: JsonObject, **kwargs):
-        options = OptionList().transform(obj)
-        if options:
-            options[0]["fnlChgDt"] = options[0].get("fnlChgDt")
-            return self.insert_into_table(options)
+
+class OptionParser(ExcelTransformer):
+    header = 2
+    fields = [{key: None} for key in [
+        "사방넷상품코드", "바코드", "옵션제목", "옵션상세명칭", "연결상품코드", "공급상태",
+        "옵션구분", "EA", "단품추가금액", "등록일시"
+    ]]
+
+    def parse(self, obj: bytes, **kwargs) -> list[dict]:
+        data: list[dict[str, Any]] = super().parse(obj)[1:]
+        keys = {key: key.split('\n')[0].strip() for key in data[0].keys()}
+        return [{key_nowrap: option.get(key_wrap) for key_wrap, key_nowrap in keys.items()} for option in data]
 
 
 class OptionDownload(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: bytes, **kwargs):
-        from linkmerce.utils.excel import excel2json
-        options = excel2json(obj, header=2, warnings=False)[1:]
-        if options:
-            options = self.validate_options(options)
-            return self.insert_into_table(options)
-
-    def validate_options(self, options: list[dict[str,Any]]) -> list[dict]:
-        keys = {key: key.split('\n')[0].strip() for key in options[0].keys()}
-        options = [{key_abb: option.get(key_org) for key_org, key_abb in keys.items()} for option in options]
-        for key in ["사방넷상품코드", "바코드", "옵션상세명칭", "공급상태", "단품추가금액", "옵션구분", "연결상품코드", "EA", "옵션제목", "등록일시"]:
-            if key not in options[0]:
-                options[0][key] = None
-        return options
+    tables = {"table": "sabangnet_option_download"}
+    parser = OptionParser
 
 
 class AddProductGroup(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, **kwargs):
-        groups = obj["data"]
-        if groups:
-            return self.insert_into_table(groups)
+    tables = {"table": "sabangnet_add_product_group"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "data",
+        fields = ["addPrdGrpId", "addPrdGrpNm", "fstRegsDt", "fnlChgDt"],
+    )
 
 
 class AddProduct(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
+    tables = {"table": "sabangnet_add_product"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "data.list",
+        fields = ["addPrdGrpId", "addPrdSkuCnfgSrno", "prdNo", "skuNo", "addPrdSkuCnfgNm", "sepr"],
+    )
 
     def transform(self, obj: JsonObject, **kwargs):
-        products = ProductList().transform(obj)
-        if products:
-            meta = obj["data"]["meta"]
-            return self.insert_into_table(products, params=dict(meta=meta))
+        result = self.parse(obj, **kwargs)
+        render, params, total = self.prepare_bulk_params(result, **kwargs)
+        if total > 0:
+            query = self.prepare_query(key="bulk_insert", render=render)
+            params.update(meta=self.parse_metadata(obj))
+            return self.execute(query, **params)
+
+    def parse_metadata(self, obj: JsonObject) -> dict:
+        from linkmerce.utils.nested import select_values
+        meta = obj["data"]["meta"]
+        return select_values(meta, ["addPrdGrpNm", "shmaId", "fstRegsDt", "fnlChgDt"], on_missing="raise")

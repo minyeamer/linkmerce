@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , invoice_date DATE
 );
 
--- Order: select
+-- Order: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     ordNo AS order_seq
   , NULLIF(orgnOrdNo, 0) AS order_seq_org
@@ -62,15 +63,13 @@ SELECT
   , TRY_CAST(fstRegsDt AS TIMESTAMP) AS register_dt
   , TRY_CAST(shpmtHopeYmd AS DATE) AS ship_hope_date
   , TRY_CAST(wyblTrnmDt AS DATE) AS invoice_date
-FROM {{ array }}
-WHERE ordNo IS NOT NULL;
-
--- Order: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+WHERE ordNo IS NOT NULL
+ON CONFLICT DO NOTHING;
 
 
--- OrderDownload: create_order
-CREATE TABLE IF NOT EXISTS {{ table }} (
+-- OrderDownload: create
+CREATE TABLE IF NOT EXISTS {{ order }} (
     order_seq BIGINT PRIMARY KEY
   , order_seq_org BIGINT
   , order_id VARCHAR
@@ -86,29 +85,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , register_dt TIMESTAMP NOT NULL
 );
 
--- OrderDownload: select_order
-SELECT
-    TRY_CAST("주문번호(사방넷)" AS BIGINT) AS order_seq
-  , NULLIF(TRY_CAST("원주문번호(사방넷)" AS BIGINT), 0) AS order_seq_org
-  , "주문번호(쇼핑몰)" AS order_id
-  , "부주문번호" AS order_id_dup
-  , TRY_CAST("계정등록순번" AS INTEGER) AS account_no
-  , "상품코드(사방넷)" AS option_id
-  , "상품코드(쇼핑몰)" AS product_id_shop
-  , TRY_CAST("수량" AS INTEGER) AS order_quantity
-  , TRY_CAST("EA(확정)" AS INTEGER) AS sku_quantity
-  , TRY_CAST("결제금액" AS INTEGER) AS payment_amount
-  , TRY_CAST("주문금액" AS INTEGER) AS order_amount
-  , COALESCE(TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP), TRY_CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP)) AS order_dt
-  , TRY_CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP) AS register_dt
-FROM {{ array }};
-
--- OrderDownload: insert_order
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
-
--- OrderDownload: create_option
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ option }} (
     option_id VARCHAR
   , product_id_shop VARCHAR
   , account_no INTEGER
@@ -126,7 +103,57 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (account_no, product_id_shop, option_id)
 );
 
--- OrderDownload: select_option
+CREATE TABLE IF NOT EXISTS {{ invoice }} (
+    order_seq BIGINT PRIMARY KEY
+  , account_no INTEGER
+  , invoice_no VARCHAR NOT NULL
+  , delivery_company VARCHAR
+  , order_status_div INTEGER
+  , order_status INTEGER
+  , order_dt TIMESTAMP NOT NULL
+  , invoice_date DATE
+);
+
+CREATE TABLE IF NOT EXISTS {{ dispatch }} (
+    order_seq BIGINT PRIMARY KEY
+  , order_id VARCHAR
+  , account_no INTEGER
+  , option_id VARCHAR
+  , sku_quantity INTEGER
+  , orderer_name VARCHAR
+  , receiver_name VARCHAR
+  , zipcode VARCHAR
+  , address VARCHAR
+  , phone1 VARCHAR
+  , phone2 VARCHAR
+  , delivery_message VARCHAR
+  , box_type VARCHAR
+  , delivery_type VARCHAR
+  , register_dt TIMESTAMP NOT NULL
+  , order_dt TIMESTAMP
+);
+
+-- OrderDownload: bulk_insert_order
+INSERT INTO {{ order }}
+SELECT
+    TRY_CAST("주문번호(사방넷)" AS BIGINT) AS order_seq
+  , NULLIF(TRY_CAST("원주문번호(사방넷)" AS BIGINT), 0) AS order_seq_org
+  , "주문번호(쇼핑몰)" AS order_id
+  , "부주문번호" AS order_id_dup
+  , TRY_CAST("계정등록순번" AS INTEGER) AS account_no
+  , "상품코드(사방넷)" AS option_id
+  , "상품코드(쇼핑몰)" AS product_id_shop
+  , TRY_CAST("수량" AS INTEGER) AS order_quantity
+  , TRY_CAST("EA(확정)" AS INTEGER) AS sku_quantity
+  , TRY_CAST("결제금액" AS INTEGER) AS payment_amount
+  , TRY_CAST("주문금액" AS INTEGER) AS order_amount
+  , COALESCE(TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP), TRY_CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP)) AS order_dt
+  , TRY_CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP) AS register_dt
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+-- OrderDownload: bulk_insert_option
+INSERT INTO {{ option }}
 SELECT DISTINCT
     "상품코드(사방넷)" AS option_id
   , "상품코드(쇼핑몰)" AS product_id_shop
@@ -142,31 +169,17 @@ SELECT DISTINCT
   , TRY_CAST("판매가(상품)" AS INTEGER) AS sales_price
   , "주문번호(쇼핑몰)" AS order_id
   , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS DATE) AS order_date
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (TRY_CAST("계정등록순번" AS INTEGER) IS NOT NULL)
   AND ("상품코드(쇼핑몰)" IS NOT NULL)
   AND ("상품코드(사방넷)" IS NOT NULL)
 QUALIFY ROW_NUMBER() OVER (
   PARTITION BY TRY_CAST("계정등록순번" AS INTEGER), "상품코드(쇼핑몰)", "상품코드(사방넷)"
-  ORDER BY TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) DESC) = 1;
+  ORDER BY TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) DESC) = 1
+ON CONFLICT DO NOTHING;
 
--- OrderDownload: insert_option
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
-
--- OrderDownload: create_invoice
-CREATE TABLE IF NOT EXISTS {{ table }} (
-    order_seq BIGINT PRIMARY KEY
-  , account_no INTEGER
-  , invoice_no VARCHAR NOT NULL
-  , delivery_company VARCHAR
-  , order_status_div INTEGER
-  , order_status INTEGER
-  , order_dt TIMESTAMP NOT NULL
-  , invoice_date DATE
-);
-
--- OrderDownload: select_invoice
+-- OrderDownload: bulk_insert_invoice
+INSERT INTO {{ invoice }}
 SELECT
     TRY_CAST("주문번호(사방넷)" AS BIGINT) AS order_seq
   , TRY_CAST("계정등록순번" AS INTEGER) AS account_no
@@ -204,35 +217,13 @@ SELECT
     ) AS order_status
   , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) AS order_dt
   , TRY_CAST("송장등록일자(YYYY-MM-DD)" AS DATE) AS invoice_date
-FROM {{ array }}
+FROM {{ rows }}
 WHERE ("송장번호" IS NOT NULL)
-  AND (TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) IS NOT NULL);
+  AND (TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
--- OrderDownload: insert_invoice
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
-
--- OrderDownload: create_dispatch
-CREATE TABLE IF NOT EXISTS {{ table }} (
-    order_seq BIGINT PRIMARY KEY
-  , order_id VARCHAR
-  , account_no INTEGER
-  , option_id VARCHAR
-  , sku_quantity INTEGER
-  , orderer_name VARCHAR
-  , receiver_name VARCHAR
-  , zipcode VARCHAR
-  , address VARCHAR
-  , phone1 VARCHAR
-  , phone2 VARCHAR
-  , delivery_message VARCHAR
-  , box_type VARCHAR
-  , delivery_type VARCHAR
-  , register_dt TIMESTAMP NOT NULL
-  , order_dt TIMESTAMP
-);
-
--- OrderDownload: select_dispatch
+-- OrderDownload: bulk_insert_dispatch
+INSERT INTO {{ table }}
 SELECT
     "주문번호(사방넷)" AS order_seq
   , "주문번호(쇼핑몰)" AS order_id
@@ -250,10 +241,8 @@ SELECT
   , "운임구분" AS delivery_type
   , TRY_CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP) AS register_dt
   , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) AS order_dt
-FROM {{ array }};
-
--- OrderDownload: insert_dispatch
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- OrderStatus: create
@@ -265,7 +254,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (order_seq, order_status)
 );
 
--- OrderStatus: select
+-- OrderStatus: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     TRY_CAST("주문번호(사방넷)" AS BIGINT) AS order_seq
   , (CASE
@@ -280,13 +270,11 @@ SELECT
     ) AS order_status
   , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) AS order_dt
   , TRY_CAST(STRPTIME("{{ date_type }}자({{ date_format }})", '{{ time_format }}') AS DATE) AS update_date
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (TRY_CAST("주문번호(사방넷)" AS BIGINT) IS NOT NULL)
   AND (TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) IS NOT NULL)
-  AND TRY_CAST(STRPTIME("{{ date_type }}자({{ date_format }})", '{{ time_format }}') AS DATE) IS NOT NULL;
-
--- OrderStatus: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  AND TRY_CAST(STRPTIME("{{ date_type }}자({{ date_format }})", '{{ time_format }}') AS DATE) IS NOT NULL
+ON CONFLICT DO NOTHING;
 
 
 -- ProductMapping: create
@@ -304,7 +292,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (account_no, product_id_shop)
 );
 
--- ProductMapping: select
+-- ProductMapping: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     shmaPrdNo AS product_id_shop
   , prdNo AS product_id
@@ -316,13 +305,11 @@ SELECT
   -- , onsfPrdCd AS model_id
   , sepr AS sales_price
   , COALESCE(mpngCnt, 0) AS mapping_count
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (prdNo IS NOT NULL)
   AND (shmaPrdNo IS NOT NULL)
-  AND (TRY_CAST(acntRegsSrno AS INTEGER) IS NOT NULL);
-
--- ProductMapping: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  AND (TRY_CAST(acntRegsSrno AS INTEGER) IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
 
 -- SkuMapping: create
@@ -338,20 +325,19 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (shop_id, product_id_shop, sku_seq)
 );
 
--- SkuMapping: select
+-- SkuMapping: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     shmaPrdNo AS product_id_shop
   , CONCAT(prdNo, '-', COALESCE(skuNo, '0001')) AS option_id
-  , $shop_id AS shop_id
+  , shopId AS shop_id
   , prdNm AS product_name
   , optDtlNm AS option_name
   , rn AS sku_seq
   , skuDscr AS sku_name
   , TRY_CAST(fstRegsDt AS TIMESTAMP) AS register_dt
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (prdNo IS NOT NULL)
   AND (shmaPrdNo IS NOT NULL)
-  AND (rn IS NOT NULL);
-
--- SkuMapping: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  AND (rn IS NOT NULL)
+ON CONFLICT DO NOTHING;

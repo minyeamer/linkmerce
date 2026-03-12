@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , end_date DATE
 );
 
--- Keyword: select
+-- Keyword: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     relKeyword AS keyword
   , (CASE
@@ -28,9 +29,7 @@ SELECT
       WHEN compIdx = '높음' THEN 2
       ELSE NULL END) AS comp_idx
   , plAvgDepth AS avg_depth_pc
-  , CURRENT_DATE - INTERVAL 31 DAY AS start_date
-  , CURRENT_DATE - INTERVAL 1 DAY AS end_date
-FROM {{ array }};
-
--- Keyword: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  , (CURRENT_DATE - INTERVAL 31 DAY) AS start_date
+  , (CURRENT_DATE - INTERVAL 1 DAY) AS end_date
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;

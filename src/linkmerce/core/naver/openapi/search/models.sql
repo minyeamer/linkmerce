@@ -11,20 +11,19 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- BlogSearch: select
+-- BlogSearch: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $keyword AS keyword
-  , (ROW_NUMBER() OVER () + $start) AS display_rank
+    keyword
+  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS title
   , link AS url
   , REGEXP_REPLACE(description, '<[^>]+>', '', 'g') AS description
   , bloggername AS address
   , bloggerlink AS blogger_url
   , TRY_CAST(TRY_STRPTIME(postdate, '%Y%m%d') AS DATE) AS post_date
-FROM {{ array }};
-
--- BlogSearch: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- NewsSearch: create
@@ -38,18 +37,17 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- NewsSearch: select
+-- NewsSearch: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $keyword AS keyword
-  , (ROW_NUMBER() OVER () + $start) AS display_rank
+    keyword
+  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS title
   , originallink AS url
   , REGEXP_REPLACE(description, '<[^>]+>', '', 'g') AS description
   , TRY_CAST(TRY_STRPTIME(pubDate, '%a, %d %b %Y %H:%M:%S %z') AS TIMESTAMP) AS publish_dt
-FROM {{ array }};
-
--- NewsSearch: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- BookSearch: create
@@ -68,10 +66,11 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- BookSearch: select
+-- BookSearch: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $keyword AS keyword
-  , (ROW_NUMBER() OVER () + $start) AS display_rank
+    keyword
+  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
   , title
   , link AS url
   , NULLIF(description, '') AS description
@@ -81,10 +80,8 @@ SELECT
   , publisher
   , TRY_CAST(isbn AS BIGINT) AS isbn
   , TRY_CAST(TRY_STRPTIME(pubdate, '%Y%m%d') AS DATE) AS publish_date
-FROM {{ array }};
-
--- BookSearch: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- CafeSearch: create
@@ -99,19 +96,18 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- CafeSearch: select
+-- CafeSearch: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $keyword AS keyword
-  , (ROW_NUMBER() OVER () + $start) AS display_rank
+    keyword
+  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
   , title
   , link AS url
   , description
   , cafename AS address
   , cafeurl AS cafe_url
-FROM {{ array }};
-
--- CafeSearch: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- KiNSearch: create
@@ -124,17 +120,16 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- KiNSearch: select
+-- KiNSearch: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $keyword AS keyword
-  , (ROW_NUMBER() OVER () + $start) AS display_rank
+    keyword
+  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
   , title
   , link AS url
   , description
-FROM {{ array }};
-
--- KiNSearch: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- ImageSearch: create
@@ -149,19 +144,18 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- ImageSearch: select
+-- ImageSearch: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $keyword AS keyword
-  , (ROW_NUMBER() OVER () + $start) AS display_rank
+    keyword
+  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
   , title
   , link AS url
   , thumbnail
   , TRY_CAST(sizeheight AS BIGINT) AS size_height
   , TRY_CAST(sizewidth AS BIGINT) AS size_width
-FROM {{ array }};
-
--- ImageSearch: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
 -- ShoppingSearch: create
@@ -185,10 +179,11 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- ShoppingSearch: select
+-- ShoppingSearch: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $keyword AS keyword
-  , (ROW_NUMBER() OVER () + $start) AS display_rank
+    keyword
+  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
   , TRY_CAST(productId AS BIGINT) AS id
   , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS product_id
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS product_name
@@ -203,14 +198,12 @@ SELECT
   , category4 AS category_name4
   , image AS image_url
   , TRY_CAST(lprice AS INTEGER) AS sales_price
-FROM {{ array }};
-
--- ShoppingSearch: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
 
--- ShoppingRank: create_rank
-CREATE TABLE IF NOT EXISTS {{ table }} (
+-- ShoppingRank: create
+CREATE TABLE IF NOT EXISTS {{ rank }} (
     keyword VARCHAR
   , id BIGINT
   , product_id BIGINT
@@ -220,22 +213,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- ShoppingRank: select_rank
-SELECT
-    $keyword AS keyword
-  , TRY_CAST(productId AS BIGINT) AS id
-  , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS product_id
-  , ((TRY_CAST(productType AS TINYINT) + 2) % 3) AS product_type
-  , (ROW_NUMBER() OVER () + $start) AS display_rank
-  , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
-FROM {{ array }}
-WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL;
-
--- ShoppingRank: insert_rank
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- ShoppingRank: create_product
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ product }} (
     id BIGINT PRIMARY KEY
   , product_id BIGINT
   , product_type TINYINT -- {0: '가격비교 상품', 1: '일반상품', 3: '광고상품'}
@@ -248,7 +226,20 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , updated_at TIMESTAMP NOT NULL
 );
 
--- ShoppingRank: select_product
+-- ShoppingRank: bulk_insert
+INSERT INTO {{ rank }}
+SELECT
+    keyword
+  , TRY_CAST(productId AS BIGINT) AS id
+  , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS product_id
+  , ((TRY_CAST(productType AS TINYINT) + 2) % 3) AS product_type
+  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+  , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
+FROM {{ rows }}
+WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO {{ product }}
 SELECT
     TRY_CAST(productId AS BIGINT) AS id
   , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS product_id
@@ -260,11 +251,8 @@ SELECT
   , NULLIF(brand, '') AS brand_name
   , TRY_CAST(lprice AS INTEGER) AS sales_price
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
-FROM {{ array }}
-WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL;
-
--- ShoppingRank: upsert_product
-INSERT INTO {{ table }} {{ values }}
+FROM {{ rows }}
+WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL
 ON CONFLICT DO UPDATE SET
     product_id = COALESCE(excluded.product_id, product_id)
   , product_name = COALESCE(excluded.product_name, product_name)

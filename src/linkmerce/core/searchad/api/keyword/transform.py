@@ -10,15 +10,25 @@ if TYPE_CHECKING:
 
 class KeywordList(JsonTransformer):
     dtype = dict
-    path = ["keywordList"]
+    scope = "keywordList"
+    fields = [
+        "relKeyword", "monthlyPcQcCnt", "monthlyMobileQcCnt",
+        "monthlyAvePcClkCnt", "monthlyAveMobileClkCnt", "compIdx", "plAvgDepth",
+    ]
 
 
 class Keyword(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
+    tables = {"table": "searchad_keyword"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "keywordList",
+        fields = [
+            "relKeyword", "monthlyPcQcCnt", "monthlyMobileQcCnt",
+            "monthlyAvePcClkCnt", "monthlyAveMobileClkCnt", "compIdx", "plAvgDepth",
+        ],
+    )
 
-    def transform(self, obj: JsonObject, max_rank: int | None = None, **kwargs):
-        keywords = KeywordList().transform(obj)
-        if keywords:
-            if isinstance(max_rank, int):
-                keywords = keywords[:max_rank]
-            return self.insert_into_table(keywords)
+    def parse(self, obj: JsonObject, max_rank: int | None = None, **kwargs) -> list[dict]:
+        keyword_list = super().parse(obj, **kwargs)
+        return keyword_list[:max_rank] if isinstance(max_rank, int) else keyword_list

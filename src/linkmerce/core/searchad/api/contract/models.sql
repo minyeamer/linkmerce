@@ -20,18 +20,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , cancel_date DATE
 );
 
--- TimeContract: contract_status
-SELECT *
-FROM UNNEST([
-    STRUCT(20 AS type, 'UPCOMING_EXPOSE' AS code, '집행 대기' AS name)
-  , STRUCT(21 AS type, 'ON_EXPOSING' AS code, '집행 중' AS name)
-  , STRUCT(22 AS type, 'CANCELED_BEFORE_EXPOSING' AS code, '집행 전 취소' AS name)
-  , STRUCT(23 AS type, 'CANCELED_ON_EXPOSING' AS code, '집행 중 취소' AS name)
-  , STRUCT(24 AS type, 'UPCOMING_CANCEL' AS code, '취소 대기' AS name)
-  , STRUCT(30 AS type, 'EXPOSE_COMPLETED' AS code, '종료' AS name)
-]);
-
--- TimeContract: select
+-- TimeContract: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     nccTimeContractId AS contract_id
   , nccAdgroupId AS adgroup_id
@@ -58,14 +48,23 @@ SELECT
   , TRY_CAST((TRY_CAST(exposureStartDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS exposure_start_date
   , TRY_CAST((TRY_CAST(exposureEndDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS exposure_end_date
   , TRY_CAST((TRY_CAST(cancelTm AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS cancel_date
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (nccTimeContractId IS NOT NULL)
   AND (nccAdgroupId IS NOT NULL)
   AND (customerId IS NOT NULL)
-  AND (TRY_CAST(contractEndDt AS TIMESTAMP) IS NOT NULL);
+  AND (TRY_CAST(contractEndDt AS TIMESTAMP) IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
--- TimeContract: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+-- TimeContract: contract_status
+SELECT *
+FROM UNNEST([
+    STRUCT(20 AS type, 'UPCOMING_EXPOSE' AS code, '집행 대기' AS name)
+  , STRUCT(21 AS type, 'ON_EXPOSING' AS code, '집행 중' AS name)
+  , STRUCT(22 AS type, 'CANCELED_BEFORE_EXPOSING' AS code, '집행 전 취소' AS name)
+  , STRUCT(23 AS type, 'CANCELED_ON_EXPOSING' AS code, '집행 중 취소' AS name)
+  , STRUCT(24 AS type, 'UPCOMING_CANCEL' AS code, '취소 대기' AS name)
+  , STRUCT(30 AS type, 'EXPOSE_COMPLETED' AS code, '종료' AS name)
+]);
 
 
 -- BrandNewContract: create
@@ -94,24 +93,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , cancel_date DATE
 );
 
--- BrandNewContract: contract_status
-SELECT *
-FROM UNNEST([
-    STRUCT(10 AS type, 'BIDDING' AS code, '입찰중' AS name)
-  , STRUCT(11 AS type, 'BILLING' AS code, '낙찰(계약 완료 전)' AS name)
-  , STRUCT(12 AS type, 'CANCELED_ON_BIDDING' AS code, '입찰 중 취소' AS name)
-  , STRUCT(13 AS type, 'REBIDDING' AS code, '재입찰중' AS name)
-  , STRUCT(20 AS type, 'UPCOMING_EXPOSE' AS code, '집행 대기(계약 완료)' AS name)
-  , STRUCT(21 AS type, 'ON_EXPOSING' AS code, '집행 중' AS name)
-  , STRUCT(22 AS type, 'CANCELED_BEFORE_EXPOSING' AS code, '집행 전 취소' AS name)
-  , STRUCT(23 AS type, 'CANCELED_ON_EXPOSING' AS code, '집행 중 취소' AS name)
-  , STRUCT(30 AS type, 'EXPOSE_COMPLETED' AS code, '종료' AS name)
-  , STRUCT(31 AS type, 'DEFEATED' AS code, '종료(낙찰 실패)' AS name)
-  , STRUCT(32 AS type, 'BILLING_DEFEATED' AS code, '종료(비즈머니 부족)' AS name)
-  , STRUCT(33 AS type, 'FAILED_CONTRACT' AS code, '종료(계약실패)' AS name)
-]);
-
--- BrandNewContract: select
+-- BrandNewContract: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     brandNewContractId AS contract_id
   , nccAdgroupId AS adgroup_id
@@ -148,11 +131,26 @@ SELECT
   , TRY_CAST((TRY_CAST(exposureEndDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS exposure_end_date
   -- , TRY_CAST((TRY_CAST(winningBidDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS winning_bid_date
   , TRY_CAST((TRY_CAST(cancelTm AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS cancel_date
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (brandNewContractId IS NOT NULL)
   AND (nccAdgroupId IS NOT NULL)
   AND (customerId IS NOT NULL)
-  AND (TRY_CAST(contractEndDt AS TIMESTAMP) IS NOT NULL);
+  AND (TRY_CAST(contractEndDt AS TIMESTAMP) IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
--- BrandNewContract: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+-- BrandNewContract: contract_status
+SELECT *
+FROM UNNEST([
+    STRUCT(10 AS type, 'BIDDING' AS code, '입찰중' AS name)
+  , STRUCT(11 AS type, 'BILLING' AS code, '낙찰(계약 완료 전)' AS name)
+  , STRUCT(12 AS type, 'CANCELED_ON_BIDDING' AS code, '입찰 중 취소' AS name)
+  , STRUCT(13 AS type, 'REBIDDING' AS code, '재입찰중' AS name)
+  , STRUCT(20 AS type, 'UPCOMING_EXPOSE' AS code, '집행 대기(계약 완료)' AS name)
+  , STRUCT(21 AS type, 'ON_EXPOSING' AS code, '집행 중' AS name)
+  , STRUCT(22 AS type, 'CANCELED_BEFORE_EXPOSING' AS code, '집행 전 취소' AS name)
+  , STRUCT(23 AS type, 'CANCELED_ON_EXPOSING' AS code, '집행 중 취소' AS name)
+  , STRUCT(30 AS type, 'EXPOSE_COMPLETED' AS code, '종료' AS name)
+  , STRUCT(31 AS type, 'DEFEATED' AS code, '종료(낙찰 실패)' AS name)
+  , STRUCT(32 AS type, 'BILLING_DEFEATED' AS code, '종료(비즈머니 부족)' AS name)
+  , STRUCT(33 AS type, 'FAILED_CONTRACT' AS code, '종료(계약실패)' AS name)
+]);

@@ -1,65 +1,93 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
+from linkmerce.common.transform import DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.transform import JsonObject
-
-
-class OrderList(JsonTransformer):
-    dtype = dict
-    path = ["data", "orderList"]
 
 
 class Order(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, **kwargs):
-        orders = OrderList().transform(obj)
-        if orders:
-            return self.insert_into_table(orders)
+    tables = {"table": "sabangnet_order_detail"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "data.orderList",
+        fields = [
+            "ordNo", "orgnOrdNo", "shmaOrdNo", "ordStsTpDivCd", "ordStsCd", "shmaId", "shmaNm",
+            "shmaCnctnLoginId", "acntRegsSrno", "prdNo", "skuNo", "onsfPrdCd", "prdSplyStsNm",
+            "clctPrdNm", "dcdPrdNm", "prdAbbrRmrk", "clctSkuNm", "dcdSkuNm", "modlNm", "wyblNo",
+            "pcscpNm", "ordQt", "skuQt", "ordSumAmt", "shmaSplyUprc", "cprcSumAmt",
+            "fstRegsDt", "shpmtHopeYmd", "wyblTrnmDt"
+        ],
+    )
 
 
 class OrderDownload(DuckDBTransformer):
-    download_type: Literal["order","option","invoice","dispatch"]
-    queries = [f"{keyword}_{type}"
-        for type in ["order", "option", "invoice", "dispatch"]
-            for keyword in ["create", "select", "insert"]]
+    queries = [
+        "create", "bulk_insert_order", "bulk_insert_option", "bulk_insert_invoice", "bulk_insert_dispatch"
+    ]
+    tables = {
+        "order": "sabangnet_order",
+        "option": "sabangnet_option",
+        "invoice": "sabangnet_invoice",
+        "dispatch": "sabangnet_dispatch"
+    }
+    parser = "excel"
 
-    def __init__(
-            self,
-            download_type: Literal["order","option","invoice","dispatch"],
-            db_info: dict = dict(),
-            model_path: Literal["this"] | str = "this",
-            tables: dict | None = None,
-            create_options: dict | None = dict(),
-        ):
-        if isinstance(create_options, dict):
-            create_options["key"] = create_options["key"] if "key" in create_options else f"create_{download_type}"
-        super().__init__(db_info, model_path, tables, create_options)
+    def pre_init(self, download_type: Literal["order", "option", "invoice", "dispatch"], **kwargs):
+        if download_type == "order":
+            fields = [
+                "주문번호(사방넷)", "원주문번호(사방넷)", "주문번호(쇼핑몰)", "부주문번호", "계정등록순번",
+                "상품코드(사방넷)", "상품코드(쇼핑몰)", "수량", "EA(확정)", "결제금액", "주문금액",
+                "주문일시(YYYY-MM-DD HH:MM)", "수집일시(YYYY-MM-DD HH:MM:SS)"
+            ]
+        elif download_type == "option":
+            fields = [
+                "상품코드(사방넷)", "상품코드(쇼핑몰)", "계정등록순번", "모델명", "자체상품코드",
+                "상품명(확정)", "상품명(수집)", "상품약어", "옵션(확정)", "옵션(수집)", "옵션별칭",
+                "판매가(상품)", "주문번호(쇼핑몰)", "주문일시(YYYY-MM-DD HH:MM)"
+            ]
+        elif download_type == "invoice":
+            fields = [
+                "주문번호(사방넷)", "계정등록순번", "송장번호", "택배사", "주문구분", "주문상태",
+                "주문일시(YYYY-MM-DD HH:MM)", "송장등록일자(YYYY-MM-DD)"
+            ]
+        elif download_type == "dispatch":
+            fields = [
+                "주문번호(사방넷)", "주문번호(쇼핑몰)", "계정등록순번", "상품코드(사방넷)", "EA(확정)",
+                "주문자명", "수취인명", "수취인우편번호1", "수취인주소1", "수취인전화번호1", "수취인전화번호2",
+                "배송메세지1", "박스타입", "운임구분", "수집일시(YYYY-MM-DD HH:MM:SS)", "주문일시(YYYY-MM-DD HH:MM)"
+            ]
+        else:
+            self.raise_parse_error(f"Parsing for download type '{download_type}' is not supported.")
+
         self.download_type = download_type
+        self.parser_config = dict(fields=fields)
 
-    def transform(self, obj: bytes, **kwargs):
-        from linkmerce.utils.excel import excel2json
-        orders = excel2json(obj, warnings=False)
-        if orders:
-            return self.insert_into_table(orders, key=f"insert_{self.download_type}", values=f":select_{self.download_type}:")
+    def bulk_insert(self, result: list[dict], **kwargs):
+        render, params, total = self.prepare_bulk_params(result, **kwargs)
+        if total > 0:
+            query = self.prepare_query(key=f"bulk_insert_{self.download_type}", render=render)
+            return self.execute(query, **params)
 
 
 class OrderStatus(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
+    tables = {"table": "sabangnet_order_status"}
+    parser = "excel"
+    # parser_config = dict(
+    #     fields = None, # ["주문번호(사방넷)", "주문일시(YYYY-MM-DD HH:MM)", ...],
+    # )
 
-    def transform(self, obj: bytes, date_type: str, **kwargs):
-        from linkmerce.utils.excel import excel2json
-        orders = excel2json(obj, warnings=False)
-        if orders:
-            date_format = self.date_format[date_type]
-            time_format = "%Y%m%d" if date_format == "YYYYMMDD" else "%Y-%m-%d"
-            render = dict(date_type=self.date_type[date_type], date_format=date_format, time_format=time_format)
-            return self.insert_into_table(orders, render=render)
+    def prepare_bulk_params(self, result: list[dict], date_type: str, **kwargs) -> tuple[dict, dict, int]:
+        render, params, total = super().prepare_bulk_params(result, **kwargs)
+
+        date_format = self.date_format[date_type]
+        time_format = "%Y%m%d" if date_format == "YYYYMMDD" else "%Y-%m-%d"
+        render.update(date_type=self.date_type[date_type], date_format=date_format, time_format=time_format)
+
+        return render, params, total
 
     @property
     def date_type(self) -> dict[str,str]:
@@ -80,29 +108,25 @@ class OrderStatus(DuckDBTransformer):
         }
 
 
-class ProductList(JsonTransformer):
-    dtype = dict
-    path = ["data", "list"]
-
-
 class ProductMapping(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, **kwargs):
-        mapping = ProductList().transform(obj)
-        if mapping:
-            return self.insert_into_table(mapping)
-
-
-class SkuList(JsonTransformer):
-    dtype = dict
-    path = ["data"]
+    tables = {"table": "sabangnet_product_mapping"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "data.list",
+        fields = [
+            "shmaPrdNo", "prdNo", "acntRegsSrno", "shmaId", "shmaNm", "shmaCnctnLoginId",
+            "prdNm", "onsfPrdCd", "sepr", "mpngCnt"
+        ],
+    )
 
 
 class SkuMapping(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, query: dict, **kwargs):
-        mapping = SkuList().transform(obj)
-        if mapping:
-            return self.insert_into_table(mapping, params=dict(shop_id=query["shop_id"]))
+    tables = {"table": "sabangnet_sku_mapping"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "data",
+        fields = ["shmaPrdNo", "prdNo", "skuNo", "prdNm", "optDtlNm", "rn", "skuDscr", "fstRegsDt"],
+        defaults = {"shopId": "$query.shop_id"},
+    )

@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal, Sequence, TypeVar
     from types import TracebackType
     Expression = TypeVar("Expression", bound=str)
-    TableAlias = TypeVar("TableAlias", bound=str)
+    TableKey = TypeVar("TableKey", bound=str)
     TableName = TypeVar("TableName", bound=str)
     QueryKey = TypeVar("QueryKey", bound=str)
 
@@ -60,7 +60,6 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
     5. `set_defaults` - 필드 선택 결과에 기본값 추가
     """
 
-    dtype: type | None = None
     scope: str | None = None
     fields: dict | list | None = None
     defaults: dict | None = None
@@ -69,11 +68,12 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
     def __init__(
             self,
             scope: str | None = None,
-            fields: dict | None = None,
+            fields: dict | list | None = None,
             defaults: dict | None = None,
             on_missing: Literal["ignore", "raise"] | None = None,
             **kwargs
         ):
+        self.pre_init(**kwargs)
         if scope is not None:
             self.scope = scope
         if fields is not None:
@@ -82,6 +82,15 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
             self.defaults = defaults
         if on_missing is not None:
             self.on_missing = on_missing
+        self.post_init(**kwargs)
+
+    def pre_init(self, **kwargs):
+        """초기화 전에 호출되는 후크 메서드."""
+        ...
+
+    def post_init(self, **kwargs):
+        """초기화가 완료된 후에 호출되는 후크 메서드."""
+        ...
 
     def transform(self, obj: Any, **kwargs) -> JsonObject:
         """HTTP 응답 데이터 검증 > scope 탐색 > 파싱 > 필드 선택 > 기본값 추가 순서로 파이프라인을 실행한다."""
@@ -92,9 +101,8 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
         return self.set_defaults(result, **kwargs)
 
     def assert_valid_response(self, obj: Any, **kwargs):
-        """`dtype`이 지정된 경우 HTTP 응답 데이터의 타입을 검증하고, 불일치 시 `RequestError`를 발생시킨다."""
-        if not ((self.dtype is None) or isinstance(obj, self.dtype)):
-            self.raise_request_error("HTTP response is not valid.")
+        """HTTP 응답 데이터의 타입을 검증하고, 불일치 시 `RequestError`를 발생시킨다."""
+        ...
 
     def get_scope(self, obj: Any, **kwargs) -> Any:
         """HTTP 응답 데이터에서 대상 데이터 범위를 탐색해 반환한다. 구현하지 않으면 입력을 그대로 반환한다."""
@@ -123,10 +131,11 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
 
     def init_defaults(self, **kwargs) -> dict:
         """`defaults` 딕셔너리를 평가한다. `$key` 형식의 값은 키워드 인자에서 참조한 값으로 치환한다."""
+        from linkmerce.utils.nested import hier_get
         defaults = dict()
         for path, value in (self.defaults or dict()).items():
             if isinstance(value, str) and value.startswith('$'):
-                value = kwargs.get(value[1:])
+                value = hier_get(kwargs, value[1:], on_missing=self.on_missing)
             defaults[path] = value
         return defaults
 
@@ -135,21 +144,31 @@ class JsonTransformer(ResponseTransformer):
     """`dict` 또는 `list` 형태의 JSON 데이터를 변환하는 클래스.
 
     주요 설정 변수:
+    - `dtype` - HTTP 응답 데이터에 기대되는 JSON 타입
     - `scope` - `hier_get` 함수로 탐색할 데이터의 중첩 키 경로
     - `fields` - `select_values` 함수에 전달할 스키마 정의
     - `defaults` - 각 행마다 공통으로 추가할 기본 키-값 목록
     - `on_missing` - 필드 조회 실패 시 동작 (`raise` 또는 `ignore`)
     """
 
-    dtype: type = dict
+    dtype: type[dict | list] = dict
     scope: str | None = None
     fields: dict | list | None = None
     defaults: dict | None = None
     on_missing: Literal["ignore", "raise"] = "raise"
 
+    def pre_init(self, dtype: type[dict | list] | None = None, **kwargs):
+        if dtype is not None:
+            self.dtype = dtype
+
     def transform(self, obj: JsonObject, **kwargs) -> JsonObject:
         """JSON 객체 검증 > scope 탐색 > 파싱 > 필드 선택 > 기본값 추가 순서로 파이프라인을 실행한다."""
         return super().transform(obj, **kwargs)
+
+    def assert_valid_response(self, obj: Any, **kwargs):
+        """HTTP 응답 데이터의 타입이 `dtype`과 일치하는지 검증하고, 불일치 시 `RequestError`를 발생시킨다."""
+        if not ((self.dtype is None) or isinstance(obj, self.dtype)):
+            self.raise_request_error("HTTP response is not valid.")
 
     def get_scope(self, obj: JsonObject, **kwargs) -> JsonObject:
         """`scope`가 지정된 경우 `hier_get` 함수로 중첩 경로를 탐색해 대상 데이터를 반환한다."""
@@ -233,17 +252,15 @@ class ExcelTransformer(JsonTransformer):
     defaults: dict | None = None
     on_missing: Literal["ignore", "raise"] = "raise"
 
+    def pre_init(self, sheet_name: str | None = None, header: int | None = None, **kwargs):
+        if sheet_name is not None:
+            self.sheet_name = sheet_name
+        if header is not None:
+            self.header = header
+
     def transform(self, obj: bytes | str | Path, **kwargs) -> JsonObject:
         """Excel 파일 검증 > Excel 시트 불러오기 > 필드 선택 > 기본값 추가 순서로 파이프라인을 실행한다."""
         return super().transform(obj, **kwargs)
-
-    def assert_valid_response(self, obj: bytes | str | Path, **kwargs):
-        """Excel 파일의 참조 객체에 대한 검증은 사용자가 정의한다."""
-        pass
-
-    def get_scope(self, obj: bytes | str | Path, **kwargs) -> bytes | str | Path:
-        """`scope`는 활용하지 않고 이 과정을 건너뛴다."""
-        return obj
 
     def parse(self, obj: bytes | str | Path, **kwargs) -> list[dict]:
         """`sheet_name`이 지정된 경우 해당 시트를, 지정되지 않은 경우 활성 시트를 JSON 형식으로 불러온다."""
@@ -257,7 +274,6 @@ class ExcelTransformer(JsonTransformer):
 
 class ParserConfig(TypedDict, total=False):
     """`ResponseTransformer` 객체 초기화 시 전달할 설정 변수."""
-    dtype: type | None
     scope: str | None
     fields: dict | list | None
     defaults: dict | None
@@ -277,11 +293,11 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
     """
 
     queries: list[str] = ["create", "bulk_insert"]
-    tables: dict[TableAlias, TableName] = {"table": "data"}
+    tables: dict[TableKey, TableName] = {"table": "data"}
     parser: (
         Literal["json", "html", "excel"] |
         type[ResponseTransformer] |
-        dict[TableAlias, type[ResponseTransformer]] |
+        dict[TableKey, type[ResponseTransformer]] |
         None
     ) = None
     parser_config: ParserConfig | None = None
@@ -290,10 +306,11 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             self,
             db_info: dict = dict(),
             model_path: Literal["this"] | str | Path = "this",
-            tables: dict[TableAlias, TableName] | None = None,
+            tables: dict[TableKey, TableName] | None = None,
             create_options: dict[str, TableName] | None = None,
             parser: type[ResponseTransformer] | None = None,
             parser_config: ParserConfig | None = None,
+            **kwargs
         ):
         """DB 연결 및 SQL 쿼리를 불러오고 테이블을 생성한다.
 
@@ -304,7 +321,10 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             `create_options`: 초기화 시 테이블 생성에 사용할 옵션.
             `parser`: 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
             `parser_config`: 파서 객체 초기화 시 전달할 설정 변수.
+            `**kwargs`: 하위 클래스에서 `post_init`을 통해 처리할 추가 인자.
         """
+        self.pre_init(**kwargs)
+
         self.set_connection(**db_info)
         self.set_models(model_path)
         self.set_queries(keys=self.queries)
@@ -319,10 +339,25 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         if parser_config is not None:
             self.parser_config = parser_config
 
+        self.post_init(**kwargs)
+
+    def pre_init(self, **kwargs):
+        """초기화 전에 호출되는 후크 메서드."""
+        ...
+
+    def post_init(self, **kwargs):
+        """초기화가 완료된 후에 호출되는 후크 메서드."""
+        ...
+
     @property
     def conn(self) -> Connection:
         """현재 DB 연결 객체를 반환한다."""
         return self.get_connection()
+
+    @property
+    def table(self) -> TableName:
+        """기본 테이블명을 반환한다. `table` 키가 없으면 `KeyError`를 발생시킨다."""
+        return self.tables["table"]
 
     @property
     def table_count(self) -> int:
@@ -334,7 +369,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         result = self.parse(obj, **kwargs)
         return self.bulk_insert(result, **kwargs)
 
-    def parse(self, obj: Any, **kwargs) -> list | dict[TableAlias, list]:
+    def parse(self, obj: Any, **kwargs) -> list | dict[TableKey, list]:
         """`parser` 설정에 따라 원본 데이터를 파싱해 삽입 가능한 형태로 변환한다.
 
         - `parser`가 문자열(`"json"`, `"html"`, `"excel"`) → 해당 `ResponseTransformer`를 사용한다.
@@ -359,7 +394,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         self.raise_parse_error("Could not determine the parser for the HTTP response.")
 
     @abstractmethod
-    def bulk_insert(self, result: list | dict[TableAlias, list], **kwargs) -> Any:
+    def bulk_insert(self, result: list | dict[TableKey, list], **kwargs) -> Any:
         """파싱된 데이터를 DB에 일괄 삽입한다. 서브클래스에서 반드시 구현해야 한다."""
         raise NotImplementedError("The 'bulk_insert' method must be implemented.")
 
@@ -511,11 +546,11 @@ class DuckDBTransformer(DBTransformer):
     """
 
     queries: list[str] = ["create", "bulk_insert"]
-    tables: dict[TableAlias, TableName] = {"table": "data"}
+    tables: dict[TableKey, TableName] = {"table": "data"}
     parser: (
         Literal["json", "html", "excel"] |
         type[ResponseTransformer] |
-        dict[TableAlias, type[ResponseTransformer]] |
+        dict[TableKey, type[ResponseTransformer]] |
         None
     ) = None
     parser_config: ParserConfig | None = None
@@ -525,7 +560,7 @@ class DuckDBTransformer(DBTransformer):
         """현재 DuckDB 연결 객체를 반환한다."""
         return self.get_connection()
 
-    def bulk_insert(self, result: list | dict[TableAlias, list], **kwargs) -> DuckDBPyConnection | None:
+    def bulk_insert(self, result: list | dict[TableKey, list], **kwargs) -> DuckDBPyConnection | None:
         """파싱된 데이터를 DuckDB에 일괄 삽입한다. 데이터가 없으면 삽입하지 않는다."""
         render, params, total = self.prepare_bulk_params(result, **kwargs)
         if total > 0:
@@ -534,7 +569,7 @@ class DuckDBTransformer(DBTransformer):
 
     def prepare_bulk_params(
             self,
-            result: list | dict[TableAlias, list],
+            result: list | dict[TableKey, list],
             render: dict | Literal["tables"] | None = "tables",
             params: dict | None = None,
             **kwargs
