@@ -32,7 +32,6 @@ class RocketSettlement(DuckDBTransformer):
             ]
         },
         defaults = {"vendorId": "$vendor_id"},
-        on_missing = "raise",
     )
 
 
@@ -45,7 +44,6 @@ class RocketSalesParser(ExcelTransformer):
         "매출인식일", "정산주기(종료일)"
     ]
     defaults = {"vendorId": "$vendor_id"}
-    on_missing = "raise"
 
 
 class RocketShippingParser(ExcelTransformer):
@@ -53,10 +51,9 @@ class RocketShippingParser(ExcelTransformer):
     fields = [
         "주문ID", "배송ID", "등록상품 ID", "옵션ID", "SKU ID", "등록상품명", "옵션명", "1차", "2차",
         "개별포장 상품 사이즈", "물류센터", "거래유형", "정산유형", "단품 판매가", "단품 기준 구매 수량",
-        "판매수량", "발생비용(A)", "할인가(B)", "추가비용", "주문일", "매출인식일", "정산주기(종료일)"
+        "판매수량", "발생비용(A)", "할인가(B)", {"추가비용": None}, "주문일", "매출인식일", "정산주기(종료일)"
     ]
     defaults = {"vendorId": "$vendor_id"}
-    on_missing = "ignore"
 
     def parse(self, obj: bytes, **kwargs) -> list[dict]:
         from linkmerce.utils.excel import filter_warnings

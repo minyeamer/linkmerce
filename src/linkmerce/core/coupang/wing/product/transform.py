@@ -19,7 +19,6 @@ class ProductParser(JsonTransformer):
         "stockQuantity", "createdOn", "modifiedOn"
     ]
     defaults = {"isDeleted": "$is_deleted"}
-    on_missing = "raise"
     product_type: Literal["product", "option"] = "product"
 
     def parse(self, products: JsonObject, **kwargs) -> JsonObject:
@@ -52,7 +51,6 @@ class ProductDetail(DuckDBTransformer):
             "vendorInventoryId", "vendorInventoryItemId", "vendorItemId", "productId", "itemId",
             "barcode", "itemName", "originalPrice", "salePrice", "stockQuantity"
         ],
-        on_missing = "raise",
     )
 
     def bulk_insert(self, result: list[dict], referer: Literal["vendor","rfm"] | None = None, **kwargs):
@@ -70,7 +68,6 @@ class VendorInventoryItemParser(ExcelTransformer):
         "등록 옵션명", "판매상태", "할인율기준가", "판매가격", "판매수량", "잔여수량(재고)"
     ]
     defaults = {"vendorId": "$vendor_id", "isDeleted": "$is_deleted"}
-    on_missing = "raise"
 
 
 class EditableCatalogueParser(ExcelTransformer):
@@ -78,7 +75,6 @@ class EditableCatalogueParser(ExcelTransformer):
     header = 4
     fields = ["등록상품ID", "등록상품명", "쿠팡 노출상품명", "카테고리", "제조사", "브랜드", "검색어", "성인상품여부(Y/N)"]
     defaults = {"vendorId": "$vendor_id", "isDeleted": "$is_deleted"}
-    on_missing = "raise"
 
     def select_fields(self, data: list[dict], **kwargs) -> list[dict]:
         info = {field: None for field in self.fields}
@@ -110,14 +106,13 @@ class RocketInventory(DuckDBTransformer):
         fields = {
             ".": ["vendorItemId", "gmvForLast7Days", "gmvForLast30Days", "unitsSoldForLast7Days", "unitsSoldForLast30Days"],
             "listingDetails": ["vendorInventoryId", "productId"],
-            "creturnConfigViewDto": ["vendorInventoryItemId", "externalSkuId", "vendorId"],
+            "creturnConfigViewDto": [{key: None} for key in ["vendorInventoryItemId", "externalSkuId", "vendorId"]],
             "inventoryDetails": [
-                "orderableQuantity", "inProgressInboundStatistics.inProgressInboundQuantity",
-                "daysOfCover", "storageFee.monthlyStorageFeeAmount.amount"
+                "orderableQuantity", {"inProgressInboundStatistics.inProgressInboundQuantity": None},
+                "daysOfCover", {"storageFee.monthlyStorageFeeAmount.amount": None}
             ]
         },
         defaults = {"vendorId": "$vendor_id"},
-        on_missing = "ignore",
     )
 
 
@@ -130,15 +125,14 @@ class RocketOption(DuckDBTransformer):
         fields = {
             ".": ["vendorItemId", "unitsSoldForLast30Days"],
             "listingDetails": ["vendorInventoryId", "productId", "vendorInventoryName", "productRegistrationDate"],
-            "creturnConfigViewDto": [
+            "creturnConfigViewDto": [{key: None} for key in [
                 "vendorInventoryItemId", "itemId", "externalSkuId", "vendorId", "productName", "itemName",
                 "displayCategoryCodeLevel1", "displayCategoryCodeLevel2", "displayCategoryCodeLevel3",
-                "displayCategoryCodeLevel4", "displayCategoryCodeLevel5", "onSale"
-            ],
-            "creturnConfigViewDto.creturnCategoryLevelThresholdDto": ["categoryId", "kanNameEn"],
+                "displayCategoryCodeLevel4", "displayCategoryCodeLevel5", "onSale",
+                "creturnCategoryLevelThresholdDto.categoryId", "creturnCategoryLevelThresholdDto.kanNameEn"
+            ]],
             "inventoryDetails": ["isHiddenByVendor", "orderableQuantity"],
             "pricing": ["salesPrice.amount"]
         },
         defaults = {"vendorId": "$vendor_id"},
-        on_missing = "ignore",
     )

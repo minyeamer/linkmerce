@@ -13,18 +13,16 @@ class CampaignParser(JsonTransformer):
     scope = "campaigns"
     fields = [
         "id", "name", "campaignType", "vendorType", "goalType", "isActive", "isDeleted",
-        "roasTarget", "capType", "calculatedBudget", "spentBudget", "createdAt", "updatedAt"
+        {"roasTarget": None}, "capType", "calculatedBudget", "spentBudget", "createdAt", "updatedAt"
     ]
     defaults = {"vendorId": "$vendor_id"}
-    on_missing = "ignore"
 
 
 class AdgroupParser(JsonTransformer):
     dtype = dict
     scope = "campaigns"
-    fields = ["id", "paCampaignId", "name", "isActive", "isDeleted", "roasTarget", "createdAt", "updatedAt"]
+    fields = ["id", "paCampaignId", "name", "isActive", "isDeleted", {"roasTarget": None}, "createdAt", "updatedAt"]
     defaults = {"vendorId": "$vendor_id", "goalType": "$goal_type"}
-    on_missing = "ignore"
 
     def parse(self, campaigns: JsonObject, **kwargs) -> list[dict]:
         adgroups = list()
@@ -49,7 +47,6 @@ class Creative(DuckDBTransformer):
         scope = "adGroup.videoAds",
         fields = ["id", "vendorItemId", "creativeType", "headlineText", "description", "imageUrl", "ordering"],
         defaults = {"vendorId": "$vendor_id"},
-        on_missing = "raise",
     )
 
 
@@ -64,7 +61,6 @@ class ProductAdReport(DuckDBTransformer):
             "총 전환매출액(1일)", "직접 전환매출액(1일)", "날짜"
         ],
         defaults = {"vendorId": "$vendor_id"},
-        on_missing = "raise",
     )
 
 
@@ -78,5 +74,4 @@ class NewCustomerAdReport(DuckDBTransformer):
             "노출수", "클릭수", "집행 광고비", "참여수", "평균 재생 시간", "날짜"
         ],
         defaults = {"vendorId": "$vendor_id"},
-        on_missing = "raise",
     )

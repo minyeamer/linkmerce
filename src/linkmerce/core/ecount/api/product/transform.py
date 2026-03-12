@@ -10,5 +10,4 @@ class Product(DuckDBTransformer):
         dtype = dict,
         scope = "Data.Result",
         fields = ["PROD_CD", "CONT4", "PROD_DES", "REMARKS_WIN", "CONT1", "SIZE_DES", "UNIT", "IN_PRICE", "CONT2", "CONT3"],
-        on_missing = "raise",
     )

@@ -9,9 +9,21 @@ if TYPE_CHECKING:
     KeyPath = TypeVar("KeyPath", Sequence[_KT], str)
 
 
+def _concat_path(path1: KeyPath, path2: KeyPath, delimiter: str = '.') -> KeyPath:
+    """Dot notation 경로를 합친다. 반환 타입은 `path1`에 맞춰진다."""
+    if isinstance(path1, str):
+        path2 = path2 if isinstance(path2, str) else delimiter.join(map(str, path2))
+        return (path1 + '.' + path2) if path1 != delimiter else path2
+    else:
+        path2 = _split_path(path2) if isinstance(path2, str) else path2
+        return path1 + path2
+
+
 def _split_path(path: KeyPath, delimiter: str = '.') -> list[_KT]:
     """Dot notation 경로를 구분한다."""
-    return path.split(delimiter) if isinstance(path, str) else path
+    if isinstance(path, str):
+        return path.split(delimiter) if path != delimiter else list()
+    return path
 
 
 def hier_get(
@@ -27,10 +39,10 @@ def hier_get(
             if isinstance(path, str) and isinstance(key, str) and key.isdigit():
                 key = int(key)
             __m = __m[key]
+        return __m
     except (KeyError, IndexError, TypeError):
         if on_missing == "raise": raise
         return default
-    return __m
 
 
 def hier_set(
@@ -75,9 +87,9 @@ def select_values(
     중첩된 딕셔너리에서 지정된 스키마에 맞춰서 각각의 경로의 값을 추출한다.
 
     ### schema
-    1. `{"path": None}`           → key 값을 그대로 추출, 없으면 스키마 값 반환
-    2. `{"path": ["key1", ...]}`  → path 하위 dict에서 list의 키값을 추출
-    3. `{"path": dict}`           → path 하위 dict에 대해 재귀 적용
+    1. `{"path": ["key1", ...]}`  → path 하위 dict에서 list의 키값을 추출
+    2. `{"path": dict}`           → path 하위 dict에 대해 재귀 적용 (list 내 중첩 가능)
+    3. `{"path": None}`           → 단일 경로의 값을 그대로 추출, 없으면 스키마 값을 추가
     4. `["key1", ...]`            → 최상위 dict에서 list의 키값을 추출
     """
     result = dict()
@@ -85,19 +97,26 @@ def select_values(
     common_set = dict(delimiter=delimiter, on_missing="create")
 
     for path, spec in (schema if isinstance(schema, dict) else {delimiter: schema}).items():
-        fallback = dict() if isinstance(spec, (dict, list)) else spec
-        __n = __m if path == delimiter else hier_get(__m, path, fallback, **common_get)
-
-        if isinstance(spec, list): # CASE 2 + 4
+        if isinstance(spec, list): # CASE 1 + 4
+            __n = hier_get(__m, path, default=dict(), **common_get)
             for key in spec:
-                value = hier_get(__n, key, default, **common_get)
-                hier_set(result, key, value, **common_set)
-        elif isinstance(spec, dict): # CASE 3
-            for subpath, subschema in spec.items():
+                if isinstance(key, dict): # list 내 dict 중첩 (재귀 호출)
+                    key_values = select_values(__n, key, default, **common_get)
+                    path_values = {_concat_path(path, subpath): value for subpath, value in key_values.items()}
+                    hier_update(result, path_values, **common_set)
+                else: # dict에서 list의 키값 조회
+                    value = hier_get(__n, key, default, **common_get)
+                    hier_set(result, _concat_path(path, key), value, **common_set)
+
+        elif isinstance(spec, dict): # CASE 2
+            __n = hier_get(__m, path, default=dict(), **common_get)
+            for subpath, subschema in spec.items(): # 하위 스키마에 대해 재귀 호출
                 value = select_values(__n, {subpath: subschema}, default, **common_get)
-                hier_set(result, subpath, value, **common_set)
-        else: # CASE 1
-            hier_set(result, path, __n, **common_set)
+                hier_set(result, _concat_path(path, subpath), value, **common_set)
+
+        else: # CASE 3
+            value = hier_get(__m, path, default=spec, delimiter=delimiter, on_missing="ignore")
+            hier_set(result, path, value, **common_set)
 
     return result
 

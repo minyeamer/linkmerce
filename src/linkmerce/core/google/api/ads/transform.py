@@ -14,7 +14,6 @@ def _common_config(fields: dict) -> dict:
         scope = "0.results",
         fields = fields,
         defaults = {"customerId": "$customer_id"},
-        on_missing = "raise",
     )
 
 
@@ -22,7 +21,6 @@ class _CommonParser(JsonTransformer):
     dtype = list
     scope = "0.results"
     defaults = {"customerId": "$customer_id"}
-    on_missing = "raise"
     identifier: str
 
     def parse(self, results: JsonObject, inplace: bool = True, **kwargs) -> list[dict]:
@@ -51,7 +49,7 @@ class Campaign(DuckDBTransformer):
     parser_config = _common_config(
         fields = {
             "campaign": ["id", "name", "advertisingChannelType", "status", "biddingStrategyType", "startDateTime"],
-            "campaignBudget.amountMicros": None,
+            "campaignBudget": ["amountMicros"],
             "metrics": ["impressions", "clicks", "costMicros"]
         },
     )

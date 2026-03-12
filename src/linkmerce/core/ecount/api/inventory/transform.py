@@ -10,5 +10,4 @@ class Inventory(DuckDBTransformer):
         dtype = dict,
         scope = "Data.Result",
         fields = ["PROD_CD", "BAL_QTY"],
-        on_missing = "raise",
     )

@@ -14,5 +14,4 @@ class Stock(DuckDBTransformer):
             "lotNo", "invnQty", "avlbQty", "hldQty", "prcsQty", "remainInvnDays",
             "validDatetime", "inbDate",
         ],
-        on_missing = "raise",
     )
