@@ -1,23 +1,17 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from linkmerce.common.transform import JsonObject
-    import datetime as dt
-
-
-class MarketingChannelList(JsonTransformer):
-    dtype = dict
-    path = ["rows"]
+from linkmerce.common.transform import DuckDBTransformer
 
 
 class MarketingChannel(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, channel_seq: int | str, date: dt.date, **kwargs):
-        channels = MarketingChannelList().transform(obj)
-        if channels:
-            self.insert_into_table(channels, params=dict(channel_seq=channel_seq, ymd=date))
+    tables = {"table": "marketing_channel"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "rows",
+        fields = [
+            "deviceCategory", "ntSource", "ntMedium", "ntDetail", "ntKeyword",
+            "numUsers", "numInteractions", "pv", "numPurchases", "payAmount",
+        ],
+        defaults = {"channelSeq": "$channel_seq", "ymd": "$date"},
+    )

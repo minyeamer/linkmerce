@@ -106,7 +106,7 @@ def to_unique_headers(headers: list[str]) -> list[str]:
 
 def csv2json(
         io: _ZipFileFileProtocol,
-        header: int = 0,
+        header: int = 1,
         delimiter: str = ",",
         lineterminator: str = "\r\n",
         encoding: str | None = "utf-8",
@@ -121,8 +121,8 @@ def csv2json(
         from io import BytesIO, TextIOWrapper
         io = TextIOWrapper(BytesIO(io), encoding=encoding)
     rows = list(csv.reader(io, delimiter=delimiter, lineterminator=lineterminator))
-    header_row = to_unique_headers(rows[header])
-    return [dict(zip(header_row, row)) for row in rows[(header+1):]]
+    header_row = to_unique_headers(rows[header-1])
+    return [dict(zip(header_row, row)) for row in rows[header:]]
 
 
 def excel2json(

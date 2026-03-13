@@ -13,9 +13,10 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- ExposureDiagnosis: select
+-- ExposureDiagnosis: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    $keyword AS keyword
+    keyword
   , rank AS display_rank
   , (CASE
       WHEN PREFIX(imageUrl, 'https://shopping-') THEN
@@ -30,15 +31,13 @@ SELECT
   , NULLIF(fmpMaker, '') AS maker_name
   , imageUrl AS image_url
   , TRY_CAST(COALESCE(lowPrice, mobileLowPrice) AS INTEGER) AS sales_price
-FROM {{ array }}
-WHERE ($is_own IS NULL) OR (isOwn = $is_own);
-
--- ExposureDiagnosis: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+WHERE ($is_own IS NULL) OR (isOwn = $is_own)
+ON CONFLICT DO NOTHING;
 
 
--- ExposureRank: create_rank
-CREATE TABLE IF NOT EXISTS {{ table }} (
+-- ExposureRank: create
+CREATE TABLE IF NOT EXISTS {{ rank }} (
     keyword VARCHAR
   , id BIGINT
   , display_rank SMALLINT
@@ -46,29 +45,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- ExposureRank: select_rank
-SELECT exposure.*
-FROM (
-  SELECT
-      $keyword AS keyword
-    , (CASE
-        WHEN PREFIX(imageUrl, 'https://shopping-') THEN
-          TRY_CAST(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/main_\d+/(\d+)', 1) AS BIGINT)
-        WHEN PREFIX(imageUrl, 'https://searchad-') THEN
-          TRY_CAST(TRY_CAST(FROM_BASE64(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/[^/]+/([^.]+)', 1)) AS VARCHAR) AS BIGINT)
-        ELSE NULL END) AS id
-    , rank AS display_rank
-    , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
-  FROM {{ array }}
-  WHERE ($is_own IS NULL) OR (isOwn = $is_own)
-) AS exposure
-WHERE exposure.id IS NOT NULL;
-
--- ExposureRank: insert_rank
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- ExposureRank: create_product
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ product }} (
     id BIGINT PRIMARY KEY
   , product_id BIGINT NULL -- Placeholder
   , product_type TINYINT -- {0: '가격비교 상품', 1: '일반상품', 3: '광고상품'}
@@ -81,8 +58,28 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , updated_at TIMESTAMP NOT NULL
 );
 
--- ExposureRank: select_product
-SELECT product.*
+-- ExposureRank: bulk_insert
+INSERT INTO {{ rank }}
+SELECT exposure.*
+FROM (
+  SELECT
+      $keyword AS keyword
+    , (CASE
+        WHEN PREFIX(imageUrl, 'https://shopping-') THEN
+          TRY_CAST(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/main_\d+/(\d+)', 1) AS BIGINT)
+        WHEN PREFIX(imageUrl, 'https://searchad-') THEN
+          TRY_CAST(TRY_CAST(FROM_BASE64(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/[^/]+/([^.]+)', 1)) AS VARCHAR) AS BIGINT)
+        ELSE NULL END) AS id
+    , rank AS display_rank
+    , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
+  FROM {{ rows }}
+  WHERE ($is_own IS NULL) OR (isOwn = $is_own)
+) AS exposure
+WHERE exposure.id IS NOT NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO {{ product }}
+SELECT exposure.*
 FROM (
   SELECT
       (CASE
@@ -100,15 +97,12 @@ FROM (
     , NULLIF(fmpBrand, '') AS brand_name
     , TRY_CAST(COALESCE(lowPrice, mobileLowPrice) AS INTEGER) AS sales_price
     , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
-  FROM {{ array }}
+  FROM {{ rows }}
   WHERE ($is_own IS NULL) OR (isOwn = $is_own)
-) AS product
-WHERE product.id IS NOT NULL;
-
--- ExposureRank: upsert_product
-INSERT INTO {{ table }} {{ values }}
+) AS exposure
+WHERE exposure.id IS NOT NULL
 ON CONFLICT DO UPDATE SET
-    product_name = COALESCE(excluded.product_name, product_name)
-  , full_category_name = COALESCE(excluded.full_category_name, full_category_name)
-  , mall_name = COALESCE(excluded.mall_name, mall_name)
-  , updated_at = excluded.updated_at;
+    product_name = COALESCE(EXCLUDED.product_name, product_name)
+  , full_category_name = COALESCE(EXCLUDED.full_category_name, full_category_name)
+  , mall_name = COALESCE(EXCLUDED.mall_name, mall_name)
+  , updated_at = EXCLUDED.updated_at;

@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (ymd, customer_id, pc_mobile_type, network_type, media_name, ad_id)
 );
 
--- DailyReport: select
+-- DailyReport: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     REPLACE(nccAdId, '(삭제)', '') AS ad_id
   , TRY_CAST($customer_id AS INTEGER) AS customer_id
@@ -37,8 +38,6 @@ SELECT
   , pv AS page_view_per_visit
   , stayTm AS stay_time_per_visit
   , ymd
-FROM {{ array }}
-WHERE (nccAdId IS NOT NULL) AND (ymd IS NOT NULL);
-
--- DailyReport: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+WHERE (nccAdId IS NOT NULL) AND (ymd IS NOT NULL)
+ON CONFLICT DO NOTHING;

@@ -254,9 +254,9 @@ SELECT
 FROM {{ rows }}
 WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL
 ON CONFLICT DO UPDATE SET
-    product_id = COALESCE(excluded.product_id, product_id)
-  , product_name = COALESCE(excluded.product_name, product_name)
-  , full_category_name = COALESCE(excluded.full_category_name, full_category_name)
-  , mall_name = COALESCE(excluded.mall_name, mall_name)
-  , brand_name = COALESCE(excluded.brand_name, brand_name)
-  , updated_at = excluded.updated_at;
+    product_id = COALESCE(EXCLUDED.product_id, product_id)
+  , product_name = COALESCE(EXCLUDED.product_name, product_name)
+  , full_category_name = COALESCE(EXCLUDED.full_category_name, full_category_name)
+  , mall_name = COALESCE(EXCLUDED.mall_name, mall_name)
+  , brand_name = COALESCE(EXCLUDED.brand_name, brand_name)
+  , updated_at = EXCLUDED.updated_at;

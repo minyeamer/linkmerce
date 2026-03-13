@@ -1,52 +1,49 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from linkmerce.common.transform import JsonObject
-
-
-class Content(JsonTransformer):
-    path = ["content"]
+from linkmerce.common.transform import ExcelTransformer, DuckDBTransformer
 
 
 class Campaign(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, **kwargs):
-        campaigns = Content().transform(obj)
-        if campaigns:
-            self.insert_into_table(campaigns)
+    tables = {"table": "searchad_campaign_gfa"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "content",
+        fields = ["no", "name", "objective", "adAccountNo", "activated", "deleted"],
+    )
 
 
 class AdSet(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: JsonObject, account_no: int | str, **kwargs):
-        adsets = Content().transform(obj)
-        if adsets:
-            self.insert_into_table(adsets, params=dict(account_no=account_no))
+    tables = {"table": "searchad_adgroup_gfa"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "content",
+        fields = ["no", "campaignNo", "name", "bidGoal", "activated", "status", "bidPrice"],
+        defaults = {"accountNo": "$account_no"},
+    )
 
 
 class Creative(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
+    tables = {"table": "searchad_creative_gfa"}
+    parser = "json"
+    parser_config = dict(
+        dtype = dict,
+        scope = "content",
+        fields = [
+            "realCreativeNo", "adSetNo", "creativeType", "name", {"message": None},
+            {"medias.1.content.linkUrl": None}, "activated", "status"
+        ],
+        defaults = {"accountNo": "$account_no"},
+    )
 
-    def transform(self, obj: JsonObject, account_no: int | str, **kwargs):
-        adsets = Content().transform(obj)
-        if adsets:
-            self.insert_into_table(adsets, params=dict(account_no=account_no))
 
+class CsvTransformer(ExcelTransformer):
+    header = 1
 
-class _PerformanceReport(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: bytes, account_no: int | str, **kwargs):
+    def parse(self, obj: bytes, **kwargs) -> list[dict]:
         from linkmerce.utils.excel import csv2json
-        report_json = csv2json(self.unzip(obj), header=0, encoding="utf-8-sig")
-        if report_json:
-            self.insert_into_table(report_json, params=dict(account_no=account_no))
+        return csv2json(self.unzip(obj), header=self.header, encoding="utf-8-sig")
 
     def unzip(self, obj: bytes) -> bytes:
         from io import BytesIO
@@ -55,11 +52,25 @@ class _PerformanceReport(DuckDBTransformer):
             for name in zf.namelist():
                 if name.endswith(".csv"):
                     return zf.read(name)
+        self.raise_parse_error("No CSV file found in the compressed file.")
 
 
-class CampaignReport(_PerformanceReport):
-    queries = ["create", "select", "insert"]
+class CampaignReport(DuckDBTransformer):
+    tables = {"table": "searchad_campaign_report"}
+    parser = CsvTransformer
+    parser_config = dict(
+        fields = ["캠페인 ID", "노출", "클릭", "총 비용", "총 전환수", "총 전환 매출액", "기간"],
+        defaults = {"accountNo": "$account_no"},
+    )
 
 
-class CreativeReport(_PerformanceReport):
-    queries = ["create", "select", "insert"]
+class CreativeReport(DuckDBTransformer):
+    tables = {"table": "searchad_creative_report"}
+    parser = CsvTransformer
+    parser_config = dict(
+        fields = [
+            "캠페인 ID", "광고 그룹 ID", "광고 소재 ID", "노출", "클릭", "도달",
+            "총 비용", "총 전환수", "총 전환 매출액", "기간"
+        ],
+        defaults = {"accountNo": "$account_no"},
+    )

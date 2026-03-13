@@ -5,12 +5,14 @@ from linkmerce.common.transform import ResponseTransformer, DuckDBTransformer
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Callable, Literal
+    from typing import Callable, Literal, TypeVar
     from linkmerce.common.transform import TableKey, TableName
     import datetime as dt
+    Column = TypeVar("Column", bound=str)
+    ColumnType = Literal["STRING", "INTEGER", "DATETIME", "BOOLEAN"]
 
 
-def _cast(type: Literal["STRING", "INTEGER", "DATETIME", "BOOLEAN"]) -> Callable[[str], str | float | int | dt.date]:
+def _cast(type: ColumnType) -> Callable[[str], str | float | int | dt.date]:
     if type == "INTEGER":
         from linkmerce.utils.cast import safe_int
         return lambda x: safe_int(x)
@@ -24,14 +26,19 @@ def _cast(type: Literal["STRING", "INTEGER", "DATETIME", "BOOLEAN"]) -> Callable
 
 
 class TsvTransformer(ResponseTransformer):
-    columns: list[tuple[str, Literal["STRING", "INTEGER", "DATETIME", "BOOLEAN"]]] = list()
+    columns: list[tuple[Column, ColumnType]] = list()
     convert_dtypes: bool = True
 
     def pre_init(self, columns: list[tuple] | None = None, convert_dtypes: bool | None = None, **kwargs):
-        if columns is not None:
-            self.columns = columns
+        self.set_columns(columns)
         if convert_dtypes is not None:
             self.convert_dtypes = convert_dtypes
+
+    def set_columns(self, columns: list[tuple] | None = None):
+        if columns is not None:
+            self.columns = columns
+        if not self.columns:
+            self.raise_parse_error("TSV data parsing requires columns list.")
 
     def parse(self, obj: str, **kwargs) -> list[dict]:
         from io import StringIO
@@ -41,9 +48,9 @@ class TsvTransformer(ResponseTransformer):
         if obj:
             reader = csv.reader(StringIO(obj), delimiter='\t')
             columns, types = zip(*self.columns)
-            apply = [_cast(dtype) if self.convert_dtypes else (lambda x: x) for dtype in types]
+            functions = [_cast(dtype) if self.convert_dtypes else (lambda x: x) for dtype in types]
             for row in reader:
-                values = [func(value) for func, value in zip(apply, row)]
+                values = [cast(value) for cast, value in zip(functions, row)]
                 data.append(dict(zip(columns, values)))
         return data
 

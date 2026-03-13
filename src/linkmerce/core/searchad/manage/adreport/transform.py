@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import Transformer, DuckDBTransformer
+from linkmerce.common.transform import ExcelTransformer, DuckDBTransformer
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Callable, Literal
+    from typing import Callable, Literal, TypeVar
     import datetime as dt
+    ColumnKr = TypeVar("ColumnKr", bound=str)
+    ColumnEn = TypeVar("ColumnEn", bound=str)
+    ColumnType = Literal["STRING", "FLOAT", "INTEGER", "DATE"]
 
 
-def _convert(type: Literal["STRING","FLOAT","INTEGER","DATE"]) -> Callable[[str], str | float | int | dt.date]:
+def _cast(type: ColumnType) -> Callable[[str], str | float | int | dt.date]:
     if type == "FLOAT":
         from linkmerce.utils.cast import safe_float
         return lambda x: safe_float(x)
@@ -23,105 +26,135 @@ def _convert(type: Literal["STRING","FLOAT","INTEGER","DATE"]) -> Callable[[str]
         return lambda x: x
 
 
-class AdvancedReport(Transformer):
+class AdvancedReport(ExcelTransformer):
+    header: int = 2
+    columns: list[ColumnKr] = ['*']
+    convert_dtypes: bool = True
 
-    def transform(self, obj: str, convert_dtypes: bool = True, **kwargs) -> list[list[str]]:
+    def pre_init(
+            self,
+            header: int | None = None,
+            columns: list[tuple] | None = None,
+            convert_dtypes: bool | None = None,
+            **kwargs
+        ):
+        if header is not None:
+            self.header = header
+        self.set_columns(columns)
+        if convert_dtypes is not None:
+            self.convert_dtypes = convert_dtypes
+
+    def set_columns(self, columns: list[tuple] | None = None):
+        if columns is not None:
+            self.columns = columns
+        if '*' not in self.columns:
+            self.fields = self.get_columns(self.columns)[0]
+
+    def parse(self, obj: str, **kwargs) -> list[dict]:
         from io import StringIO
         import csv
+        data = list()
+
         if obj:
             reader = csv.reader(StringIO(obj), delimiter=',')
-            _, header = next(reader), next(reader)
-            info = self.info
-            apply = [_convert(info[column]["type"]) if convert_dtypes else (lambda x: x) for column in header]
-            header = [info[column]["name"] for column in header]
-            return [header] + [[func(value) for func, value in zip(apply, row)] for row in reader]
-        else:
-            return list()
+            columns, types = self.get_columns(*[next(reader) for _ in range(self.header)])
+            functions = [_cast(dtype) if self.convert_dtypes else (lambda x: x) for dtype in types]
+            for row in reader:
+                values = [cast(value) for cast, value in zip(functions, row)]
+                data.append(dict(zip(columns, values)))
+        return data
+
+    def get_columns(self, *headers: list[ColumnKr]) -> tuple[list[ColumnEn], list[ColumnType]]:
+        total = list()
+        for name in ["ad_info", "targeting", "ad_performance", "conv_performance", "time"]:
+            attr: dict[ColumnKr, tuple[ColumnEn, ColumnType]] = getattr(self, name)
+            total += list(attr.items())
+        attrs = dict(total)
+        return tuple(zip(*[attrs[name] for name in headers[-1]]))
 
     @property
-    def info(self) -> dict[str,dict]:
-        return {k: v for kv in [self.ad_info, self.targeting, self.ad_performance, self.conv_performance, self.time] for k, v in kv.items()}
-
-    @property
-    def ad_info(self) -> dict[str,dict]:
+    def ad_info(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
         return { # 광고 정보
-            "캠페인": dict(name="nccCampaignName", type="STRING"),
-            "캠페인유형": dict(name="nccCampaignTp", type="STRING"),
-            "광고그룹": dict(name="nccAdgroupName", type="STRING"),
-            "광고그룹유형": dict(name="nccAdgroupTp", type="STRING"),
-            "키워드": dict(name="keyword", type="STRING"),
-            "소재": dict(name="nccAdId", type="STRING"),
-            "소재 유형": dict(name="nccAdId", type="STRING"),
-            "URL": dict(name="viewUrl", type="STRING"),
-            "확장 소재": dict(name="nccAdExtensionId", type="STRING"),
-            "확장 소재 유형": dict(name="nccAdExtTp", type="STRING"),
-            "검색 유형": dict(name="schTp", type="STRING"),
-            "검색어": dict(name="expKeyword", type="STRING"),
+            "캠페인": ("nccCampaignName", "STRING"),
+            "캠페인유형": ("nccCampaignTp", "STRING"),
+            "광고그룹": ("nccAdgroupName", "STRING"),
+            "광고그룹유형": ("nccAdgroupTp", "STRING"),
+            "키워드": ("keyword", "STRING"),
+            "소재": ("nccAdId", "STRING"),
+            "소재 유형": ("nccAdId", "STRING"),
+            "URL": ("viewUrl", "STRING"),
+            "확장 소재": ("nccAdExtensionId", "STRING"),
+            "확장 소재 유형": ("nccAdExtTp", "STRING"),
+            "검색 유형": ("schTp", "STRING"),
+            "검색어": ("expKeyword", "STRING"),
         }
 
     @property
-    def targeting(self) -> dict[str,dict]:
+    def targeting(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
         return { # 타겟팅 구분
-            "매체이름": dict(name="mediaNm", type="STRING"),
-            "PC/모바일 매체": dict(name="pcMblTp", type="STRING"),
-            "검색/콘텐츠 매체": dict(name="ntwkTp", type="STRING"),
-            "지역": dict(name="regnNo", type="STRING"),
-            "상세지역": dict(name="regnR2Nm", type="STRING"),
-            "성별": dict(name="criterionGenderNm", type="STRING"),
-            "연령대": dict(name="criterionAgeTpNm", type="STRING"),
+            "매체이름": ("mediaNm", "STRING"),
+            "PC/모바일 매체": ("pcMblTp", "STRING"),
+            "검색/콘텐츠 매체": ("ntwkTp", "STRING"),
+            "지역": ("regnNo", "STRING"),
+            "상세지역": ("regnR2Nm", "STRING"),
+            "성별": ("criterionGenderNm", "STRING"),
+            "연령대": ("criterionAgeTpNm", "STRING"),
         }
 
     @property
-    def ad_performance(self) -> dict[str,dict]:
+    def ad_performance(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
         return { # 광고 성과
-            "노출수": dict(name="impCnt", type="INTEGER"),
-            "클릭수": dict(name="clkCnt", type="INTEGER"),
-            "클릭률(%)": dict(name="ctr", type="FLOAT"),
-            "평균클릭비용(VAT포함,원)": dict(name="cpc", type="INTEGER"),
-            "총비용(VAT포함,원)": dict(name="salesAmt", type="INTEGER"),
-            "평균노출순위": dict(name="avgRnk", type="FLOAT"),
-            "동영상조회수": dict(name="viewCnt", type="INTEGER"),
-            "반응수": dict(name="actCnt", type="INTEGER"),
+            "노출수": ("impCnt", "INTEGER"),
+            "클릭수": ("clkCnt", "INTEGER"),
+            "클릭률(%)": ("ctr", "FLOAT"),
+            "평균클릭비용(VAT포함,원)": ("cpc", "INTEGER"),
+            "총비용(VAT포함,원)": ("salesAmt", "INTEGER"),
+            "평균노출순위": ("avgRnk", "FLOAT"),
+            "동영상조회수": ("viewCnt", "INTEGER"),
+            "반응수": ("actCnt", "INTEGER"),
         }
 
     @property
-    def conv_performance(self) -> dict[str,dict]:
+    def conv_performance(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
         return { # 전환 성과
-            "총 전환수": dict(name="ccnt", type="INTEGER"),
-            "직접전환수": dict(name="drtCcnt", type="INTEGER"),
-            "간접전환수": dict(name="idrtCcnt", type="INTEGER"),
-            "전환율(%)": dict(name="crto", type="FLOAT"),
-            "총 전환매출액(원)": dict(name="convAmt", type="INTEGER"),
-            "직접전환매출액(원)": dict(name="drtConvAmt", type="INTEGER"),
-            "간접전환매출액(원)": dict(name="idrtConvAmt", type="INTEGER"),
-            "전환당비용(원)": dict(name="cpConv", type="INTEGER"),
-            "광고수익률(%)": dict(name="ror", type="FLOAT"),
-            "전환유형": dict(name="convTp", type="STRING"),
-            "방문당 평균페이지뷰": dict(name="pv", type="FLOAT"),
-            "pv": dict(name="pv", type="FLOAT"),
-            "방문당 평균체류시간(초)": dict(name="stayTm", type="FLOAT"),
-            "stayTm": dict(name="stayTm", type="FLOAT"),
-            "총 전환수(네이버페이)": dict(name="npCcnt", type="INTEGER"),
-            "총 전환매출액(네이버페이)": dict(name="npConvAmt", type="INTEGER"),
+            "총 전환수": ("ccnt", "INTEGER"),
+            "직접전환수": ("drtCcnt", "INTEGER"),
+            "간접전환수": ("idrtCcnt", "INTEGER"),
+            "전환율(%)": ("crto", "FLOAT"),
+            "총 전환매출액(원)": ("convAmt", "INTEGER"),
+            "직접전환매출액(원)": ("drtConvAmt", "INTEGER"),
+            "간접전환매출액(원)": ("idrtConvAmt", "INTEGER"),
+            "전환당비용(원)": ("cpConv", "INTEGER"),
+            "광고수익률(%)": ("ror", "FLOAT"),
+            "전환유형": ("convTp", "STRING"),
+            "방문당 평균페이지뷰": ("pv", "FLOAT"),
+            "pv": ("pv", "FLOAT"),
+            "방문당 평균체류시간(초)": ("stayTm", "FLOAT"),
+            "stayTm": ("stayTm", "FLOAT"),
+            "총 전환수(네이버페이)": ("npCcnt", "INTEGER"),
+            "총 전환매출액(네이버페이)": ("npConvAmt", "INTEGER"),
         }
 
     @property
-    def time(self) -> dict[str,dict]:
+    def time(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
         return { # 시간구분
-            "일별": dict(name="ymd", type="DATE"),
-            "주별": dict(name="ww", type="STRING"),
-            "요일별": dict(name="dayw", type="STRING"),
-            "시간대별": dict(name="hh24", type="STRING"),
-            "월별": dict(name="yyyymm", type="STRING"),
-            "분기별": dict(name="yyyyqq", type="STRING"),
+            "일별": ("ymd", "DATE"),
+            "주별": ("ww", "STRING"),
+            "요일별": ("dayw", "STRING"),
+            "시간대별": ("hh24", "STRING"),
+            "월별": ("yyyymm", "STRING"),
+            "분기별": ("yyyyqq", "STRING"),
         }
 
 
 class DailyReport(DuckDBTransformer):
-    queries = ["create", "select", "insert"]
-
-    def transform(self, obj: str, customer_id: int | str, **kwargs):
-        report_csv = AdvancedReport().transform(obj, convert_dtypes=True)
-        if len(report_csv) > 1:
-            report_json = [dict(zip(report_csv[0], row)) for row in report_csv[1:]]
-            self.insert_into_table(report_json, params=dict(customer_id=customer_id))
+    tables = {"table": "searchad_report"}
+    parser = AdvancedReport
+    parser_config = dict(
+        columns = [
+            "소재 유형", "매체이름", "PC/모바일 매체", "검색/콘텐츠 매체", "노출수", "클릭수",
+            "총비용(VAT포함,원)", "총 전환수", "직접전환수", "총 전환매출액(원)", "직접전환매출액(원)",
+            "평균노출순위", "pv", "stayTm", "일별"
+        ],
+        defaults = {"customerId": "$customer_id"},
+    )
