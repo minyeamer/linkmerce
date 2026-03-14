@@ -12,6 +12,7 @@ class ExposureParser(JsonTransformer):
     ]
 
     def assert_valid_response(self, obj: dict, **kwargs):
+        super().assert_valid_response(obj)
         if obj.get("code"):
             self.raise_request_error(obj.get("title") or obj.get("message") or str())
 

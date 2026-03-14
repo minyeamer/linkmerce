@@ -594,14 +594,14 @@ class DuckDBTransformer(DBTransformer):
         total = 0
 
         if isinstance(result, dict):
-            for table, rows in result.items():
-                render[f"{table}_rows"] = self.expr_rows(f"{table}_rows")
-                params[f"{table}_rows"] = rows
-                total += len(rows)
-        elif isinstance(result, list):
+            for name, rows in result.items():
+                render[f"{name}_rows"] = self.expr_rows(f"{name}_rows")
+                params[f"{name}_rows"] = rows or list()
+                if rows: total += len(rows)
+        elif isinstance(result, list) or (not result):
             render["rows"] = self.expr_rows("rows")
-            params["rows"] = result
-            total += len(result)
+            params["rows"] = result or list()
+            if result: total += len(result)
         else:
             self.raise_parse_error("The result must be in JSON format (dict or list).")
 

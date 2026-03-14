@@ -9,9 +9,10 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (ymd, mall_seq, device_type)
 );
 
--- PageViewByDevice: select
+-- PageViewByDevice: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+    TRY_CAST(mallSeq AS BIGINT) AS mall_seq
   , (CASE
       WHEN measuredThrough.device = 'Pc' THEN 0
       WHEN measuredThrough.device = 'Mobile' THEN 1
@@ -21,12 +22,10 @@ SELECT
   , visit.userClick AS user_click
   , visit.timeOnSite AS time_on_site
   , TRY_CAST(ymd AS DATE) AS ymd
-FROM {{ array }}
-WHERE (measuredThrough.device IN ('Pc','Mobile','All'))
-  AND (TRY_CAST(ymd AS DATE) IS NOT NULL);
-
--- PageViewByDevice: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+WHERE (measuredThrough.device IN ('Pc', 'Mobile', 'All'))
+  AND (TRY_CAST(ymd AS DATE) IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
 
 -- PageViewByProduct: create
@@ -40,11 +39,12 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (ymd, mall_seq, product_id)
 );
 
--- PageViewByProduct: select
+-- PageViewByProduct: bulk_insert
+INSERT INTO {{ table }}
 SELECT items.*
 FROM (
   SELECT
-      TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+      TRY_CAST(mallSeq AS BIGINT) AS mall_seq
     , (CASE
         WHEN REGEXP_MATCHES(measuredThrough.url, '^/[^/]+/products/\d+$')
           THEN CAST(REGEXP_EXTRACT(measuredThrough.url, '(\d+)$') AS BIGINT)
@@ -55,14 +55,12 @@ FROM (
     , visit.userClick AS user_click
     , visit.timeOnSite AS time_on_site
     , TRY_CAST(ymd AS DATE) AS ymd
-  FROM {{ array }}
+  FROM {{ rows }}
   WHERE (measuredThrough.url IS NOT NULL)
     AND (TRY_CAST(ymd AS DATE) IS NOT NULL)
 ) AS items
-WHERE items.product_id IS NOT NULL;
-
--- PageViewByProduct: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+WHERE items.product_id IS NOT NULL
+ON CONFLICT DO NOTHING;
 
 
 -- PageViewByUrl: create
@@ -76,17 +74,16 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (ymd, mall_seq, page_url)
 );
 
--- PageViewByUrl: select
+-- PageViewByUrl: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+    TRY_CAST(mallSeq AS BIGINT) AS mall_seq
   , measuredThrough.url AS page_url
   , visit.pageClick AS page_click
   , visit.userClick AS user_click
   , visit.timeOnSite AS time_on_site
   , TRY_CAST(ymd AS DATE) AS ymd
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (measuredThrough.url IS NOT NULL)
-  AND (TRY_CAST(ymd AS DATE) IS NOT NULL);
-
--- PageViewByUrl: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  AND (TRY_CAST(ymd AS DATE) IS NOT NULL)
+ON CONFLICT DO NOTHING;

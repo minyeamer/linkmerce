@@ -1,5 +1,5 @@
--- Order: create_order
-CREATE TABLE IF NOT EXISTS {{ table }} (
+-- Order: create
+CREATE TABLE IF NOT EXISTS {{ order }} (
     order_id BIGINT PRIMARY KEY
   , channel_seq BIGINT NOT NULL
   , orderer_no BIGINT
@@ -8,8 +8,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_dt TIMESTAMP NOT NULL
 );
 
--- Order: create_product_order
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ product_order }} (
     product_order_id BIGINT PRIMARY KEY
   , order_id BIGINT NOT NULL
   , channel_seq BIGINT NOT NULL
@@ -32,8 +31,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_dt TIMESTAMP NOT NULL
 );
 
--- Order: create_delivery
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ delivery }} (
     product_order_id BIGINT PRIMARY KEY
   , order_id BIGINT NOT NULL
   , channel_seq BIGINT NOT NULL
@@ -48,8 +46,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_dt TIMESTAMP NOT NULL
 );
 
--- Order: create_option
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ option }} (
     product_id BIGINT
   , option_id BIGINT PRIMARY KEY
   , channel_seq BIGINT NOT NULL
@@ -63,7 +60,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , update_date DATE
 );
 
--- Order: select_order
+-- Order: bulk_insert
+INSERT INTO {{ order }}
 SELECT
     TRY_CAST(content.order.orderId AS BIGINT) AS order_id
   , TRY_CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
@@ -74,10 +72,11 @@ SELECT
       ELSE NULL END) AS payment_location
   , TRY_STRPTIME(SUBSTR(content.order.orderDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS order_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
-FROM {{ array }}
-WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL;
+FROM {{ rows }}
+WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL
+ON CONFLICT DO NOTHING;
 
--- Order: select_product_order
+INSERT INTO {{ product_order }}
 SELECT
     TRY_CAST(productOrderId AS BIGINT) AS product_order_id
   , TRY_CAST(content.order.orderId AS BIGINT) AS order_id
@@ -125,10 +124,11 @@ SELECT
   , content.productOrder.expectedSettlementAmount AS supply_amount
   , content.productOrder.deliveryFeeAmount AS delivery_fee
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
-FROM {{ array }}
-WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL;
+FROM {{ rows }}
+WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL
+ON CONFLICT DO NOTHING;
 
--- Order: select_delivery
+INSERT INTO {{ delivery }}
 SELECT
     TRY_CAST(productOrderId AS BIGINT) AS product_order_id
   , TRY_CAST(content.order.orderId AS BIGINT) AS order_id
@@ -154,11 +154,12 @@ SELECT
   , TRY_STRPTIME(SUBSTR(content.delivery.pickupDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS pickup_dt
   , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS send_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (content.delivery.trackingNumber IS NOT NULL)
-  AND (TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL);
+  AND (TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
--- Order: select_option
+INSERT INTO {{ option }}
 SELECT
     TRY_CAST(content.productOrder.productId AS BIGINT) AS product_id
   , TRY_CAST(content.productOrder.optionCode AS BIGINT) AS option_id
@@ -175,32 +176,20 @@ SELECT
   , content.productOrder.unitPrice AS sales_price
   , content.productOrder.optionPrice AS option_price
   , TRY_CAST(content.order.paymentDate AS DATE) AS update_date
-FROM {{ array }}
+FROM {{ rows }}
 WHERE TRY_CAST(content.productOrder.optionCode AS BIGINT) IS NOT NULL
-QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.optionCode) = 1;
-
--- Order: insert_order
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- Order: insert_product_order
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- Order: insert_delivery
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- Order: insert_option
-INSERT INTO {{ table }} {{ values }}
+QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.optionCode) = 1
 ON CONFLICT DO UPDATE SET
-    product_id = COALESCE(excluded.product_id, product_id)
-  , channel_seq = COALESCE(excluded.channel_seq, channel_seq)
-  , seller_product_code = COALESCE(excluded.seller_product_code, seller_product_code)
-  , seller_option_code = COALESCE(excluded.seller_option_code, seller_option_code)
-  , product_type = COALESCE(excluded.product_type, product_type)
-  , product_name = COALESCE(excluded.product_name, product_name)
-  , option_name = COALESCE(excluded.option_name, option_name)
-  , sales_price = COALESCE(excluded.sales_price, sales_price)
-  , option_price = COALESCE(excluded.option_price, option_price)
-  , update_date = GREATEST(excluded.update_date, update_date);
+    product_id = COALESCE(EXCLUDED.product_id, product_id)
+  , channel_seq = COALESCE(EXCLUDED.channel_seq, channel_seq)
+  , seller_product_code = COALESCE(EXCLUDED.seller_product_code, seller_product_code)
+  , seller_option_code = COALESCE(EXCLUDED.seller_option_code, seller_option_code)
+  , product_type = COALESCE(EXCLUDED.product_type, product_type)
+  , product_name = COALESCE(EXCLUDED.product_name, product_name)
+  , option_name = COALESCE(EXCLUDED.option_name, option_name)
+  , sales_price = COALESCE(EXCLUDED.sales_price, sales_price)
+  , option_price = COALESCE(EXCLUDED.option_price, option_price)
+  , update_date = GREATEST(EXCLUDED.update_date, update_date);
 
 -- Order: product_type
 SELECT *
@@ -273,13 +262,14 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (product_order_id, order_status)
 );
 
--- OrderTime: select
-SELECT os.*
+-- OrderTime: bulk_insert
+INSERT INTO {{ table }}
+SELECT orders.*
 FROM (
   SELECT
       product_order_id
     , order_id
-    , $channel_seq AS channel_seq
+    , channelSeq AS channel_seq
     , (CASE
         WHEN dt_column = 'dispatch_dt' THEN 2
         WHEN dt_column = 'delivery_dt' THEN 3
@@ -298,16 +288,16 @@ FROM (
       , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS dispatch_dt
       , TRY_STRPTIME(SUBSTR(content.delivery.deliveredDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS delivery_dt
       , TRY_STRPTIME(SUBSTR(content.productOrder.decisionDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS decision_dt
-      , (CASE WHEN content.completedClaims[1].claimType = 'EXCHANGE'
-          THEN TRY_STRPTIME(SUBSTR(content.completedClaims[1].claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+      , (CASE WHEN content.completedClaims.0.claimType = 'EXCHANGE'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims.0.claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
         ELSE NULL END) AS exchange_complete_dt
-      , (CASE WHEN content.completedClaims[1].claimType = 'CANCEL'
-          THEN TRY_STRPTIME(SUBSTR(content.completedClaims[1].claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+      , (CASE WHEN content.completedClaims.0.claimType = 'CANCEL'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims.0.claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
         ELSE NULL END) AS cancel_complete_dt
-      , (CASE WHEN content.completedClaims[1].claimType = 'RETURN'
-          THEN TRY_STRPTIME(SUBSTR(content.completedClaims[1].claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+      , (CASE WHEN content.completedClaims.0.claimType = 'RETURN'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims.0.claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
         ELSE NULL END) AS return_complete_dt
-    FROM {{ array }}
+    FROM {{ rows }}
   ) AS ord
   UNPIVOT (
     updated_dt
@@ -320,11 +310,9 @@ FROM (
       , return_complete_dt
     )
   )
-) AS os
-WHERE (os.payment_dt IS NOT NULL) AND (os.updated_dt IS NOT NULL);
-
--- OrderTime: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+) AS orders
+WHERE (orders.payment_dt IS NOT NULL) AND (orders.updated_dt IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
 
 -- OrderStatus: create
@@ -343,13 +331,14 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (product_order_id, order_status)
 );
 
--- OrderStatus: select
-SELECT os.*
+-- OrderStatus: bulk_insert
+INSERT INTO {{ table }}
+SELECT orders.*
 FROM (
   SELECT
       TRY_CAST(productOrderId AS BIGINT) AS product_order_id
     , TRY_CAST(orderId AS BIGINT) AS order_id
-    , $channel_seq AS channel_seq
+    , channelSeq AS channel_seq
     -- , lastChangedType AS last_changed_type
     , (CASE
         WHEN productOrderStatus = 'PAYMENT_WAITING' THEN 0
@@ -369,12 +358,12 @@ FROM (
     -- , giftReceivingStatus AS gift_receiving_status
     , TRY_STRPTIME(SUBSTR(paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
     , TRY_STRPTIME(SUBSTR(lastChangedDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS updated_dt
-  FROM {{ array }}
-) AS os
-WHERE (os.payment_dt IS NOT NULL) AND (os.updated_dt IS NOT NULL) AND (os.order_status > 1);
-
--- OrderStatus: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  FROM {{ rows }}
+) AS orders
+WHERE (orders.payment_dt IS NOT NULL)
+  AND (orders.updated_dt IS NOT NULL)
+  AND (orders.order_status > 1)
+ON CONFLICT DO NOTHING;
 
 -- OrderStatus: last_changed_type
 SELECT *

@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , register_dt TIMESTAMP
 );
 
--- BrandCatalog: select
+-- BrandCatalog: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     identifier AS id
   , prodName AS catalog_name
@@ -54,11 +55,9 @@ SELECT
   , totalReviewCount AS review_count
   , TRY_CAST(reviewRating AS INT8) AS review_rating
   , TRY_STRPTIME(SUBSTR(registerDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
-FROM {{ array }}
-WHERE identifier IS NOT NULL;
-
--- BrandCatalog: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+FROM {{ rows }}
+WHERE identifier IS NOT NULL
+ON CONFLICT DO NOTHING;
 
 
 -- BrandProduct: create
@@ -92,7 +91,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , register_dt TIMESTAMP
 );
 
--- BrandProduct: select
+-- BrandProduct: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     identifier AS id
   , mallProductId AS product_id
@@ -102,7 +102,7 @@ SELECT
   , makerName AS maker_name
   , brandSeq AS brand_id
   , brandName AS brand_name
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
   , mallName AS mall_name
   , TRY_CAST(categoryId AS INTEGER) AS category_id
   , categoryName AS category_name
@@ -121,16 +121,14 @@ SELECT
   , clickCount AS click_count
   , totalReviewCount AS review_count
   , TRY_STRPTIME(SUBSTR(registerDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (identifier IS NOT NULL)
-  AND (mallProductId IS NOT NULL);
-
--- BrandProduct: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  AND (mallProductId IS NOT NULL)
+ON CONFLICT DO NOTHING;
 
 
--- BrandPrice: create_price
-CREATE TABLE IF NOT EXISTS {{ table }} (
+-- BrandPrice: create
+CREATE TABLE IF NOT EXISTS {{ price }} (
     product_id BIGINT PRIMARY KEY
   , mall_seq BIGINT
   , category_id INTEGER
@@ -138,22 +136,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , created_at TIMESTAMP NOT NULL
 );
 
--- BrandPrice: select_price
-SELECT
-    TRY_CAST(mallProductId AS BIGINT) AS product_id
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
-  , TRY_CAST(categoryId AS INTEGER) AS category_id
-  , lowestPrice AS sales_price
-  , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
-FROM {{ array }}
-WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
-  AND (lowestPrice IS NOT NULL);
-
--- BrandPrice: insert_price
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- BrandPrice: create_product
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ product }} (
     product_id BIGINT PRIMARY KEY
   , mall_seq BIGINT
   , category_id INTEGER
@@ -164,28 +147,38 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , update_date DATE NOT NULL
 );
 
--- BrandPrice: select_product
+-- BrandPrice: bulk_insert
+INSERT INTO {{ price }}
 SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
+  , TRY_CAST(categoryId AS INTEGER) AS category_id
+  , lowestPrice AS sales_price
+  , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
+FROM {{ rows }}
+WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
+  AND (lowestPrice IS NOT NULL)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO {{ product }}
+SELECT
+    TRY_CAST(mallProductId AS BIGINT) AS product_id
+  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
   , TRY_CAST(categoryId AS INTEGER) AS category_id
   , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 3) AS INTEGER) AS category_id3
   , name AS product_name
   , lowestPrice AS sales_price
   , TRY_CAST(registerDate AS DATE) AS register_date
   , CURRENT_DATE AS update_date
-FROM {{ array }}
-WHERE TRY_CAST(mallProductId AS BIGINT) IS NOT NULL;
-
--- BrandPrice: upsert_product
-INSERT INTO {{ table }} {{ values }}
+FROM {{ rows }}
+WHERE TRY_CAST(mallProductId AS BIGINT) IS NOT NULL
 ON CONFLICT DO UPDATE SET
-    category_id = COALESCE(excluded.category_id, category_id)
-  , category_id3 = COALESCE(excluded.category_id3, category_id3)
-  , product_name = COALESCE(excluded.product_name, product_name)
-  , sales_price = COALESCE(excluded.sales_price, sales_price)
-  , register_date = LEAST(excluded.register_date, register_date)
-  , update_date = excluded.update_date;
+    category_id = COALESCE(EXCLUDED.category_id, category_id)
+  , category_id3 = COALESCE(EXCLUDED.category_id3, category_id3)
+  , product_name = COALESCE(EXCLUDED.product_name, product_name)
+  , sales_price = COALESCE(EXCLUDED.sales_price, sales_price)
+  , register_date = LEAST(EXCLUDED.register_date, register_date)
+  , update_date = EXCLUDED.update_date;
 
 
 -- ProductCatalog: create
@@ -195,14 +188,13 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , created_at TIMESTAMP NOT NULL
 );
 
--- ProductCatalog: select
+-- ProductCatalog: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
   , catalogId AS catalog_id
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
-  AND (catalogId IS NOT NULL);
-
--- ProductCatalog: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+  AND (catalogId IS NOT NULL)
+ON CONFLICT DO NOTHING;

@@ -28,29 +28,13 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , modify_dt TIMESTAMP
 );
 
--- ProductOrder: delivery_type
-SELECT *
-FROM UNNEST([
-    STRUCT(0 AS seq, 'NORMAL' AS code, '일반배송' AS name)
-  , STRUCT(1 AS seq, 'TODAY' AS code, '오늘출발' AS name)
-  , STRUCT(2 AS seq, 'OPTION_TODAY' AS code, '옵션별 오늘출발' AS name)
-  , STRUCT(3 AS seq, 'HOPE' AS code, '희망일배송' AS name)
-  , STRUCT(4 AS seq, 'TODAY_ARRIVAL' AS code, '당일배송' AS name)
-  , STRUCT(5 AS seq, 'DAWN_ARRIVAL' AS code, '새벽배송' AS name)
-  , STRUCT(6 AS seq, 'PRE_ORDER' AS code, '예약구매' AS name)
-  , STRUCT(7 AS seq, 'ARRIVAL_GUARANTEE' AS code, 'N배송' AS name)
-  , STRUCT(8 AS seq, 'SELLER_GUARANTEE' AS code, 'N판매자배송' AS name)
-  , STRUCT(9 AS seq, 'HOPE_SELLER_GUARANTEE' AS code, 'N희망일배송' AS name)
-  , STRUCT(10 AS seq, 'PICKUP' AS code, '픽업' AS name)
-  , STRUCT(11 AS seq, 'QUICK' AS code, '즉시배달' AS name)
-]);
-
--- Product: select
+-- Product: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     TRY_CAST(channelProductNo AS BIGINT) AS product_id
   , TRY_CAST(originProductNo AS BIGINT) AS product_no
   , TRY_CAST(modelId AS BIGINT) AS catalog_id
-  , CAST($channel_seq AS BIGINT) AS channel_seq
+  , CAST(channelSeq AS BIGINT) AS channel_seq
   -- , channelServiceType AS channel_type
   , name AS product_name
   , sellerManagementCode AS management_code
@@ -63,7 +47,7 @@ SELECT
   , statusType AS status_type
   , channelProductDisplayStatusType AS display_type
   -- , representativeImage.url AS image_url
-  , (SELECT STRING_AGG(json_extract_string(value, '$')) FROM json_each(sellerTags->'$[*].text')) AS tags
+  , sellerTags AS tags
   , salePrice AS price
   , discountedPrice AS sales_price
   -- , stockQuantity AS stock_quantity
@@ -86,10 +70,25 @@ SELECT
   -- , exchangeFee AS exchange_fee
   , TRY_STRPTIME(SUBSTR(regDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
   , TRY_STRPTIME(SUBSTR(modifiedDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS modify_dt
-FROM {{ array }};
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
 
--- Product: insert
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
+-- ProductOrder: delivery_type
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'NORMAL' AS code, '일반배송' AS name)
+  , STRUCT(1 AS seq, 'TODAY' AS code, '오늘출발' AS name)
+  , STRUCT(2 AS seq, 'OPTION_TODAY' AS code, '옵션별 오늘출발' AS name)
+  , STRUCT(3 AS seq, 'HOPE' AS code, '희망일배송' AS name)
+  , STRUCT(4 AS seq, 'TODAY_ARRIVAL' AS code, '당일배송' AS name)
+  , STRUCT(5 AS seq, 'DAWN_ARRIVAL' AS code, '새벽배송' AS name)
+  , STRUCT(6 AS seq, 'PRE_ORDER' AS code, '예약구매' AS name)
+  , STRUCT(7 AS seq, 'ARRIVAL_GUARANTEE' AS code, 'N배송' AS name)
+  , STRUCT(8 AS seq, 'SELLER_GUARANTEE' AS code, 'N판매자배송' AS name)
+  , STRUCT(9 AS seq, 'HOPE_SELLER_GUARANTEE' AS code, 'N희망일배송' AS name)
+  , STRUCT(10 AS seq, 'PICKUP' AS code, '픽업' AS name)
+  , STRUCT(11 AS seq, 'QUICK' AS code, '즉시배달' AS name)
+]);
 
 
 -- Option: create
@@ -111,22 +110,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , register_order INTEGER
 );
 
--- Option: select_option
-SELECT
-    id AS option_id
-  , TRY_CAST($product_id AS BIGINT) AS product_id
-  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
-  , 0 AS product_type
-  , groupName AS option_group1
-  , name AS option_name1
-  , usable
-  , COALESCE(TRY_CAST(json_extract_path_text(item, 'price') AS INTEGER), 0) AS option_price
-  , TRY_CAST(json_extract_path_text(item, 'stockQuantity') AS INTEGER) AS stock_quantity
-  , ROW_NUMBER() OVER () AS register_order
-FROM {{ array }} AS item
-WHERE id IS NOT NULL;
-
--- Option: insert_option
+-- Option: bulk_insert
 INSERT INTO {{ table }} (
     option_id
   , product_id
@@ -138,29 +122,22 @@ INSERT INTO {{ table }} (
   , option_price
   , stock_quantity
   , register_order
-) {{ values }} ON CONFLICT DO NOTHING;
-
--- Option: select_option_comb
+)
 SELECT
     id AS option_id
-  , TRY_CAST($product_id AS BIGINT) AS product_id
-  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
-  , 1 AS product_type
-  , optionGroupName1 AS option_group1
-  , optionName1 AS option_name1
-  , item->>'$.optionGroupName2' AS option_group2
-  , item->>'$.optionName2' AS option_name2
-  , item->>'$.optionGroupName3' AS option_group3
-  , item->>'$.optionName3' AS option_name3
-  , item->>'$.sellerManagerCode' AS management_code
+  , TRY_CAST(productId AS BIGINT) AS product_id
+  , TRY_CAST(channelSeq AS BIGINT) AS channel_seq
+  , 0 AS product_type
+  , groupName AS option_group1
+  , name AS option_name1
   , usable
-  , price AS option_price
-  , stockQuantity AS stock_quantity
+  , COALESCE(TRY_CAST(price AS INTEGER), 0) AS option_price
+  , TRY_CAST(stockQuantity AS INTEGER) AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
-FROM {{ array }} AS item
-WHERE id IS NOT NULL;
+FROM {{ option_simple_rows }}
+WHERE id IS NOT NULL
+ON CONFLICT DO NOTHING;
 
--- Option: insert_option_comb
 INSERT INTO {{ table }} (
     option_id
   , product_id
@@ -177,25 +154,27 @@ INSERT INTO {{ table }} (
   , option_price
   , stock_quantity
   , register_order
-) {{ values }} ON CONFLICT DO NOTHING;
-
--- Option: select_supplement
+)
 SELECT
     id AS option_id
-  , TRY_CAST($product_id AS BIGINT) AS product_id
-  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
-  , 2 AS product_type
-  , groupName AS option_group1
-  , name AS option_name1
-  , item->>'$.sellerManagerCode' AS management_code
+  , TRY_CAST(productId AS BIGINT) AS product_id
+  , TRY_CAST(channelSeq AS BIGINT) AS channel_seq
+  , 1 AS product_type
+  , optionGroupName1 AS option_group1
+  , optionName1 AS option_name1
+  , optionGroupName2 AS option_group2
+  , optionName2 AS option_name2
+  , optionGroupName3 AS option_group3
+  , optionName3 AS option_name3
+  , sellerManagerCode AS management_code
   , usable
   , price AS option_price
   , stockQuantity AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
-FROM {{ array }} AS item
-WHERE id IS NOT NULL;
+FROM {{ option_comb_rows }}
+WHERE id IS NOT NULL
+ON CONFLICT DO NOTHING;
 
--- Option: insert_supplement
 INSERT INTO {{ table }} (
     option_id
   , product_id
@@ -208,4 +187,19 @@ INSERT INTO {{ table }} (
   , option_price
   , stock_quantity
   , register_order
-) {{ values }} ON CONFLICT DO NOTHING;
+)
+SELECT
+    id AS option_id
+  , TRY_CAST(productId AS BIGINT) AS product_id
+  , TRY_CAST(channelSeq AS BIGINT) AS channel_seq
+  , 2 AS product_type
+  , groupName AS option_group1
+  , name AS option_name1
+  , sellerManagerCode AS management_code
+  , usable
+  , price AS option_price
+  , stockQuantity AS stock_quantity
+  , ROW_NUMBER() OVER () AS register_order
+FROM {{ supplement_rows }}
+WHERE id IS NOT NULL
+ON CONFLICT DO NOTHING;

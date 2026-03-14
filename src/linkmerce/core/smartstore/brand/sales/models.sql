@@ -7,19 +7,17 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_date DATE NOT NULL
 );
 
--- StoreSales: select
+-- StoreSales: bulk_insert
+INSERT INTO {{ table }}
 SELECT
-    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+    TRY_CAST(mallSeq AS BIGINT) AS mall_seq
   , sales.paymentCount AS payment_count
   , sales.paymentAmount AS payment_amount
   , sales.refundAmount AS refund_amount
-  , TRY_CAST($end_date AS DATE) AS payment_date
-FROM {{ array }}
-WHERE (TRY_CAST($mall_seq AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST($end_date AS DATE) IS NOT NULL);
-
--- StoreSales: insert
-INSERT INTO {{ table }} {{ values }};
+  , TRY_CAST(endDate AS DATE) AS payment_date
+FROM {{ rows }}
+WHERE (TRY_CAST(mallSeq AS BIGINT) IS NOT NULL)
+  AND (TRY_CAST(endDate AS DATE) IS NOT NULL);
 
 
 -- CategorySales: create
@@ -33,21 +31,19 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_date DATE NOT NULL
 );
 
--- CategorySales: select
+-- CategorySales: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
   , product.category.fullName AS full_category_name
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
   , visit.click AS click_count
   , sales.paymentCount AS payment_count
   , sales.paymentAmount AS payment_amount
-  , TRY_CAST($end_date AS DATE) AS payment_date
-FROM {{ array }}
+  , TRY_CAST(endDate AS DATE) AS payment_date
+FROM {{ rows }}
 WHERE (TRY_CAST(product.category.identifier AS INTEGER) IS NOT NULL)
-  AND (TRY_CAST($end_date AS DATE) IS NOT NULL);
-
--- CategorySales: insert
-INSERT INTO {{ table }} {{ values }};
+  AND (TRY_CAST(endDate AS DATE) IS NOT NULL);
 
 
 -- ProductSales: create
@@ -64,28 +60,26 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_date DATE NOT NULL
 );
 
--- ProductSales: select
+-- ProductSales: bulk_insert
+INSERT INTO {{ table }}
 SELECT
     TRY_CAST(product.identifier AS BIGINT) AS product_id
   , product.name AS product_name
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
   , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
   , product.category.name AS category_name3
   , product.category.fullName AS full_category_name
   , visit.click AS click_count
   , sales.paymentCount AS payment_count
   , sales.paymentAmount AS payment_amount
-  , TRY_CAST($end_date AS DATE) AS payment_date
-FROM {{ array }}
+  , TRY_CAST(endDate AS DATE) AS payment_date
+FROM {{ rows }}
 WHERE (TRY_CAST(product.identifier AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST($end_date AS DATE) IS NOT NULL);
-
--- ProductSales: insert
-INSERT INTO {{ table }} {{ values }};
+  AND (TRY_CAST(endDate AS DATE) IS NOT NULL);
 
 
--- AggregatedSales: create_sales
-CREATE TABLE IF NOT EXISTS {{ table }} (
+-- AggregatedSales: create
+CREATE TABLE IF NOT EXISTS {{ sales }} (
     product_id BIGINT
   , mall_seq BIGINT
   , category_id3 INTEGER
@@ -96,35 +90,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (payment_date, product_id)
 );
 
--- AggregatedSales: select_sales
-SELECT
-    sales.product_id
-  , MAX(sales.mall_seq) AS mall_seq
-  , MAX(sales.category_id3) AS category_id3
-  , SUM(sales.click_count) AS click_count
-  , SUM(sales.payment_count) AS payment_count
-  , SUM(sales.payment_amount) AS payment_amount
-  , sales.payment_date
-FROM (
-  SELECT DISTINCT
-      TRY_CAST(product.identifier AS BIGINT) AS product_id
-    , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
-    , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
-    , visit.click AS click_count
-    , sales.paymentCount AS payment_count
-    , sales.paymentAmount AS payment_amount
-    , CAST($end_date AS DATE) AS payment_date
-  FROM {{ array }}
-  WHERE (TRY_CAST(product.identifier AS BIGINT) IS NOT NULL)
-    AND (TRY_CAST($end_date AS DATE) IS NOT NULL)
-) AS sales
-GROUP BY sales.product_id, sales.payment_date;
-
--- AggregatedSales: insert_sales
-INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
-
--- AggregatedSales: create_product
-CREATE TABLE IF NOT EXISTS {{ table }} (
+CREATE TABLE IF NOT EXISTS {{ product }} (
     product_id BIGINT PRIMARY KEY
   , mall_seq BIGINT
   , category_id INTEGER
@@ -135,26 +101,49 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , update_date DATE
 );
 
--- AggregatedSales: select_product
+-- AggregatedSales: bulk_insert
+INSERT INTO {{ sales }}
+SELECT
+    items.product_id
+  , MAX(items.mall_seq) AS mall_seq
+  , MAX(items.category_id3) AS category_id3
+  , SUM(items.click_count) AS click_count
+  , SUM(items.payment_count) AS payment_count
+  , SUM(items.payment_amount) AS payment_amount
+  , items.payment_date
+FROM (
+  SELECT DISTINCT
+      TRY_CAST(product.identifier AS BIGINT) AS product_id
+    , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
+    , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
+    , visit.click AS click_count
+    , sales.paymentCount AS payment_count
+    , sales.paymentAmount AS payment_amount
+    , CAST(endDate AS DATE) AS payment_date
+  FROM {{ rows }}
+  WHERE (TRY_CAST(product.identifier AS BIGINT) IS NOT NULL)
+    AND (TRY_CAST(endDate AS DATE) IS NOT NULL)
+) AS items
+GROUP BY items.product_id, items.payment_date
+ON CONFLICT DO NOTHING;
+
+INSERT INTO {{ product }}
 SELECT
     TRY_CAST(product.identifier AS BIGINT) AS product_id
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
   , NULL AS category_id
   , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
   , product.name AS product_name
   , NULL AS sales_price
-  , $start_date AS register_date
-  , $start_date AS update_date
-FROM {{ array }}
+  , startDate AS register_date
+  , endDate AS update_date
+FROM {{ rows }}
 WHERE TRY_CAST(product.identifier AS BIGINT) IS NOT NULL
-QUALIFY ROW_NUMBER() OVER (PARTITION BY product.identifier) = 1;
-
--- AggregatedSales: upsert_product
-INSERT INTO {{ table }} {{ values }}
+QUALIFY ROW_NUMBER() OVER (PARTITION BY product.identifier) = 1
 ON CONFLICT DO UPDATE SET
-    category_id = COALESCE(excluded.category_id, category_id)
-  , category_id3 = COALESCE(excluded.category_id3, category_id3)
-  , product_name = COALESCE(excluded.product_name, product_name)
-  , sales_price = COALESCE(excluded.sales_price, sales_price)
-  , register_date = LEAST(excluded.register_date, register_date)
-  , update_date = GREATEST(excluded.update_date, update_date);
+    category_id = COALESCE(EXCLUDED.category_id, category_id)
+  , category_id3 = COALESCE(EXCLUDED.category_id3, category_id3)
+  , product_name = COALESCE(EXCLUDED.product_name, product_name)
+  , sales_price = COALESCE(EXCLUDED.sales_price, sales_price)
+  , register_date = LEAST(EXCLUDED.register_date, register_date)
+  , update_date = GREATEST(EXCLUDED.update_date, update_date);
