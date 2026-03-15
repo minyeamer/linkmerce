@@ -4,6 +4,8 @@ from linkmerce.common.transform import ExcelTransformer, DuckDBTransformer
 
 
 class Campaign(DuckDBTransformer):
+    """네이버 성과형 디스플레이 광고 캠페인 목록을 `searchad_campaign_gfa` 테이블에 적재하는 클래스."""
+
     tables = {"table": "searchad_campaign_gfa"}
     parser = "json"
     parser_config = dict(
@@ -14,17 +16,21 @@ class Campaign(DuckDBTransformer):
 
 
 class AdSet(DuckDBTransformer):
+    """네이버 성과형 디스플레이 광고그룹 목록을 `searchad_adgroup_gfa` 테이블에 적재하는 클래스."""
+
     tables = {"table": "searchad_adgroup_gfa"}
     parser = "json"
     parser_config = dict(
         dtype = dict,
         scope = "content",
         fields = ["no", "campaignNo", "name", "bidGoal", "activated", "status", "bidPrice"],
-        defaults = {"accountNo": "$account_no"},
     )
+    params = {"account_no": "$account_no"}
 
 
 class Creative(DuckDBTransformer):
+    """네이버 성과형 디스플레이 광고 소재 목록을 `searchad_creative_gfa` 테이블에 적재하는 클래스."""
+
     tables = {"table": "searchad_creative_gfa"}
     parser = "json"
     parser_config = dict(
@@ -34,18 +40,22 @@ class Creative(DuckDBTransformer):
             "realCreativeNo", "adSetNo", "creativeType", "name", {"message": None},
             {"medias.1.content.linkUrl": None}, "activated", "status"
         ],
-        defaults = {"accountNo": "$account_no"},
     )
+    params = {"account_no": "$account_no"}
 
 
 class CsvTransformer(ExcelTransformer):
+    """압축(ZIP) 파일 내 CSV 보고서 데이터를 추출하는 파서 클래스."""
+
     header = 1
 
     def parse(self, obj: bytes, **kwargs) -> list[dict]:
+        """ZIP 압축 파일에서 CSV를 추출한 후 UTF-8 BOM 인코딩으로 읽어서 반환한다."""
         from linkmerce.utils.excel import csv2json
         return csv2json(self.unzip(obj), header=self.header, encoding="utf-8-sig")
 
     def unzip(self, obj: bytes) -> bytes:
+        """ZIP 압축 파일에서 첫 번째 CSV 파일을 추출한다."""
         from io import BytesIO
         import zipfile
         with zipfile.ZipFile(BytesIO(obj)) as zf:
@@ -56,15 +66,18 @@ class CsvTransformer(ExcelTransformer):
 
 
 class CampaignReport(DuckDBTransformer):
+    """네이버 성과형 디스플레이 광고 캠페인 성과 리포트를 `searchad_campaign_report` 테이블에 적재하는 클래스."""
+
     tables = {"table": "searchad_campaign_report"}
     parser = CsvTransformer
     parser_config = dict(
         fields = ["캠페인 ID", "노출", "클릭", "총 비용", "총 전환수", "총 전환 매출액", "기간"],
-        defaults = {"accountNo": "$account_no"},
     )
+    params = {"account_no": "$account_no"}
 
 
 class CreativeReport(DuckDBTransformer):
+    """네이버 성과형 디스플레이 광고 소재 성과 리포트를 `searchad_creative_report` 테이블에 적재하는 클래스."""
     tables = {"table": "searchad_creative_report"}
     parser = CsvTransformer
     parser_config = dict(
@@ -72,5 +85,5 @@ class CreativeReport(DuckDBTransformer):
             "캠페인 ID", "광고 그룹 ID", "광고 소재 ID", "노출", "클릭", "도달",
             "총 비용", "총 전환수", "총 전환 매출액", "기간"
         ],
-        defaults = {"accountNo": "$account_no"},
     )
+    params = {"account_no": "$account_no"}

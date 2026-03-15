@@ -4,10 +4,13 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 
 class CatalogItems(JsonTransformer):
+    """네이버 브랜드 카탈로그 목록을 추출하는 파서 클래스."""
+
     dtype = dict
     scope = "items"
 
     def assert_valid_response(self, obj: dict, **kwargs):
+        """`errors` 필드가 있으면 `RequestError`를 발생시킨다."""
         super().assert_valid_response(obj)
         if obj.get("errors"):
             from linkmerce.utils.nested import hier_get
@@ -16,6 +19,8 @@ class CatalogItems(JsonTransformer):
 
 
 class BrandCatalog(DuckDBTransformer):
+    """네이버 브랜드 카탈로그 목록을 `naver_brand_catalog` 테이블에 적재하는 클래스."""
+
     tables = {"table": "naver_brand_catalog"}
     parser = CatalogItems
     parser_config = dict(
@@ -31,6 +36,8 @@ class BrandCatalog(DuckDBTransformer):
 
 
 class BrandProduct(DuckDBTransformer):
+    """네이버 브랜드 상품 목록을 `naver_brand_product` 테이블에 적재하는 클래스."""
+
     tables = {"product": "naver_brand_product"}
     parser = CatalogItems
     parser_config = dict(
@@ -40,20 +47,28 @@ class BrandProduct(DuckDBTransformer):
             "fullCategoryId", "fullCategoryName", "outLinkUrl", "imageInfo.src",
             "lowestPrice", "deliveryFee", "clickCount", "totalReviewCount", "registerDate"
         ],
-        defaults = {"mallSeq": "$mall_seq"},
     )
+    params = {"mall_seq": "$mall_seq"}
 
 
 class BrandPrice(BrandProduct):
+    """네이버 브랜드 상품 조회 결과로부터 상품 가격 및 상품 목록을 각각의 테이블에 변환 및 적재하는 클래스.
+
+    테이블 키 | 테이블명 | 설명
+    - `price` | `naver_price_history` | 네이버 브랜드 상품 가격
+    - `product` | `naver_product` | 네이버 브랜드 상품 목록"""
+
     tables = {"price": "naver_price_history", "product": "naver_product"}
     parser = CatalogItems
     parser_config = dict(
         fields = ["mallProductId", "categoryId", "fullCategoryId", "lowestPrice", "registerDate"],
-        defaults = {"mallSeq": "$mall_seq"},
     )
+    params = {"mall_seq": "$mall_seq"}
 
 
 class ProductCatalog(BrandProduct):
+    """네이버 카탈로그-상품 매핑 데이터를 `naver_catalog_product` 테이블에 적재하는 클래스."""
+
     tables = {"product": "naver_catalog_product"}
     parser = CatalogItems
     parser_config = dict(

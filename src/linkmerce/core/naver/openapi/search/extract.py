@@ -186,7 +186,3 @@ class ShoppingSearch(_SearchExtractor):
             **kwargs
         ) -> JsonObject:
         return await self._extract_async_backend(query, start, display=display, sort=sort, **kwargs)
-
-
-class ShoppingRank(ShoppingSearch):
-    content_type = "shop"

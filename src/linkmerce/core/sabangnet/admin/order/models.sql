@@ -330,7 +330,7 @@ INSERT INTO {{ table }}
 SELECT
     shmaPrdNo AS product_id_shop
   , CONCAT(prdNo, '-', COALESCE(skuNo, '0001')) AS option_id
-  , shopId AS shop_id
+  , $shop_id AS shop_id
   , prdNm AS product_name
   , optDtlNm AS option_name
   , rn AS sku_seq

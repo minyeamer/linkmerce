@@ -6,9 +6,12 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
+    from linkmerce.common.transform import TableKey
 
 
 class Order(DuckDBTransformer):
+    """사방넷 주문서 확인 처리 조회 결과를 `sabangnet_order_detail` 테이블에 적재하는 클래스."""
+
     tables = {"table": "sabangnet_order_detail"}
     parser = "json"
     parser_config = dict(
@@ -24,19 +27,23 @@ class Order(DuckDBTransformer):
     )
 
 
+ORDER_TABLE_KEYS: list[TableKey] = ["order", "option", "invoice", "dispatch"]
+
 class OrderDownload(DuckDBTransformer):
-    queries = [
-        "create", "bulk_insert_order", "bulk_insert_option", "bulk_insert_invoice", "bulk_insert_dispatch"
-    ]
-    tables = {
-        "order": "sabangnet_order",
-        "option": "sabangnet_option",
-        "invoice": "sabangnet_invoice",
-        "dispatch": "sabangnet_dispatch"
-    }
+    """사방넷 주문서 확인 처리 다운로드 결과를 `download_type`에 따라 정해진 테이블에 변환 및 적재하는 클래스.
+
+    테이블 키 | 테이블명 | 설명
+    - `order` | `sabangnet_order` | 사방넷 주문 내역
+    - `option` | `sabangnet_option` | 사방넷 주문 옵션 목록
+    - `invoice` | `sabangnet_invoice` | 사방넷 발주 내역
+    - `dispatch` | `sabangnet_dispatch` | 사방넷 발송 내역"""
+
+    queries = ["create", *[f"bulk_insert_{key}" for key in ORDER_TABLE_KEYS]]
+    tables = {key: f"sabangnet_{key}" for key in ORDER_TABLE_KEYS}
     parser = "excel"
 
     def pre_init(self, download_type: Literal["order", "option", "invoice", "dispatch"], **kwargs):
+        """`download_type`에 따라 필드 스키마를 선택해 `parser_config`를 설정한다."""
         if download_type == "order":
             fields = [
                 "주문번호(사방넷)", "원주문번호(사방넷)", "주문번호(쇼핑몰)", "부주문번호", "계정등록순번",
@@ -66,12 +73,16 @@ class OrderDownload(DuckDBTransformer):
         self.download_type = download_type
         self.parser_config = dict(fields=fields)
 
-    def bulk_insert(self, result: list[dict], **kwargs):
-        kwargs["query_key"] = f"bulk_insert_{self.download_type}"
-        return super().bulk_insert(result, **kwargs)
+    def bulk_insert(self, result: list[dict], query_key: str = "bulk_insert", **kwargs):
+        """`download_type`에 맞는 `bulk_insert` 삽입 쿼리를 선택해 실행한다."""
+        query_key = f"bulk_insert_{self.download_type}"
+        return super().bulk_insert(result, query_key, **kwargs)
 
 
 class OrderStatus(DuckDBTransformer):
+    """사방넷 주문서 확인 처리 다운로드 결과로부터 주문 상태에 따른 변경 날짜를 파싱해
+    `sabangnet_order_status` 테이블에 적재하는 클래스."""
+
     tables = {"table": "sabangnet_order_status"}
     parser = "excel"
     # parser_config = dict(
@@ -79,11 +90,12 @@ class OrderStatus(DuckDBTransformer):
     # )
 
     def prepare_bulk_params(self, result: list[dict], date_type: str, **kwargs) -> tuple[dict, dict, int]:
+        """`date_type`에 따라 한글 날짜 칼럼 명칭을 구성하는 값을 렌더 컨텍스트에 추가한다."""
         render, params, total = super().prepare_bulk_params(result, **kwargs)
 
         date_format = self.date_format[date_type]
         time_format = "%Y%m%d" if date_format == "YYYYMMDD" else "%Y-%m-%d"
-        render.update(date_type=self.date_type[date_type], date_format=date_format, time_format=time_format)
+        render.update({"date_type": self.date_type[date_type], "date_format": date_format, "time_format": time_format})
 
         return render, params, total
 
@@ -107,6 +119,8 @@ class OrderStatus(DuckDBTransformer):
 
 
 class ProductMapping(DuckDBTransformer):
+    """사방넷 품번코드 매핑 내역을 `sabangnet_product_mapping` 테이블에 적재하는 클래스."""
+
     tables = {"table": "sabangnet_product_mapping"}
     parser = "json"
     parser_config = dict(
@@ -120,11 +134,13 @@ class ProductMapping(DuckDBTransformer):
 
 
 class SkuMapping(DuckDBTransformer):
+    """사방넷 단품코드 매핑 내역을 `sabangnet_sku_mapping` 테이블에 적재하는 클래스."""
+
     tables = {"table": "sabangnet_sku_mapping"}
     parser = "json"
     parser_config = dict(
         dtype = dict,
         scope = "data",
         fields = ["shmaPrdNo", "prdNo", "skuNo", "prdNm", "optDtlNm", "rn", "skuDscr", "fstRegsDt"],
-        defaults = {"shopId": "$query.shop_id"},
     )
+    params = {"shop_id": "$query.shop_id"}

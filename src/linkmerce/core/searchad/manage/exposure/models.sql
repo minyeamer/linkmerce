@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- ExposureDiagnosis: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    keyword
+    $keyword AS keyword
   , rank AS display_rank
   , (CASE
       WHEN PREFIX(imageUrl, 'https://shopping-') THEN

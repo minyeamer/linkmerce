@@ -68,7 +68,7 @@ SELECT
       WHEN bidGoal = 'MAX_CONV_VALUE' THEN 103
       WHEN bidGoal = 'NONE' THEN 104
       ELSE NULL END) AS adgroup_type
-  , TRY_CAST(accountNo AS BIGINT) AS customer_id
+  , TRY_CAST($account_no AS BIGINT) AS customer_id
   , activated AS is_enabled
   , (status = 'DELETED') AS is_deleted
   , bidPrice AS bid_amount
@@ -113,7 +113,7 @@ SELECT
       WHEN creativeType = 'CATALOG' THEN 105
       WHEN creativeType = 'COMPOSITION' THEN 106
       ELSE NULL END) AS ad_type
-  , TRY_CAST(accountNo AS BIGINT) AS customer_id
+  , TRY_CAST($account_no AS BIGINT) AS customer_id
   , name AS title
   , message AS description
   , medias.1.content.linkUrl AS landing_url_pc
@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 INSERT INTO {{ table }}
 SELECT
     TRY_CAST("캠페인 ID" AS BIGINT) AS campaign_no
-  , TRY_CAST(accountNo AS BIGINT) AS account_no
+  , TRY_CAST($account_no AS BIGINT) AS account_no
   , TRY_CAST("노출" AS BIGINT) AS impression_count
   , TRY_CAST("클릭" AS BIGINT) AS click_count
   , NULL AS reach_count
@@ -190,7 +190,7 @@ SELECT
     COALESCE(TRY_CAST("캠페인 ID" AS BIGINT), 0) AS campaign_no
   , COALESCE(TRY_CAST("광고 그룹 ID" AS BIGINT), 0) AS adset_no
   , TRY_CAST("광고 소재 ID" AS BIGINT) AS creative_no
-  , TRY_CAST(accountNo AS BIGINT) AS account_no
+  , TRY_CAST($account_no AS BIGINT) AS account_no
   , TRY_CAST("노출" AS BIGINT) AS impression_count
   , TRY_CAST("클릭" AS BIGINT) AS click_count
   , TRY_CAST("도달" AS BIGINT) AS reach_count

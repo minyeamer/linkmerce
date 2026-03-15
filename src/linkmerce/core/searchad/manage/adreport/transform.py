@@ -27,7 +27,13 @@ def _cast(type: ColumnType) -> Callable[[str], str | float | int | dt.date]:
 
 
 class AdvancedReport(ExcelTransformer):
-    header: int = 2
+    """네이버 검색광고 다차원 보고서 (CSV 형식) 데이터를 파싱하는 클래스.
+
+    주요 설정 변수:
+    - `header` - Excel 헤더 행 번호 (1부터 시작)
+    - `columns` - 한국어 칼럼명 (기본값 `['*']` → 원본 칼럼명 추출)
+    - `convert_dtypes` - 데이터 타입 변환 여부 (기본값 `True`)"""
+
     columns: list[ColumnKr] = ['*']
     convert_dtypes: bool = True
 
@@ -45,12 +51,14 @@ class AdvancedReport(ExcelTransformer):
             self.convert_dtypes = convert_dtypes
 
     def set_columns(self, columns: list[tuple] | None = None):
+        """칼럼 목록을 설정한다. 칼럼 목록에 `*`이 없으면 특정 칼럼만 선택하도록 `fields`를 추가로 설정한다."""
         if columns is not None:
             self.columns = columns
         if '*' not in self.columns:
             self.fields = self.get_columns(self.columns)[0]
 
     def parse(self, obj: str, **kwargs) -> list[dict]:
+        """CSV 문자열을 읽어 헤더를 영어 칼럼명으로 매핑하고, `convert_dtypes` 여부에 따라 형변환한다."""
         from io import StringIO
         import csv
         data = list()
@@ -65,6 +73,7 @@ class AdvancedReport(ExcelTransformer):
         return data
 
     def get_columns(self, *headers: list[ColumnKr]) -> tuple[list[ColumnEn], list[ColumnType]]:
+        """마지막 헤더 행을 기준으로 영어 칼럼명 및 데이터 타입 매핑을 반환한다."""
         total = list()
         for name in ["ad_info", "targeting", "ad_performance", "conv_performance", "time"]:
             attr: dict[ColumnKr, tuple[ColumnEn, ColumnType]] = getattr(self, name)
@@ -74,7 +83,8 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def ad_info(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        return { # 광고 정보
+        """광고 정보 - 칼럼 명칭 및 타입"""
+        return {
             "캠페인": ("nccCampaignName", "STRING"),
             "캠페인유형": ("nccCampaignTp", "STRING"),
             "광고그룹": ("nccAdgroupName", "STRING"),
@@ -91,7 +101,8 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def targeting(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        return { # 타겟팅 구분
+        """타겟팅 구분 - 칼럼 명칭 및 타입"""
+        return {
             "매체이름": ("mediaNm", "STRING"),
             "PC/모바일 매체": ("pcMblTp", "STRING"),
             "검색/콘텐츠 매체": ("ntwkTp", "STRING"),
@@ -103,7 +114,8 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def ad_performance(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        return { # 광고 성과
+        """광고 성과 - 칼럼 명칭 및 타입"""
+        return {
             "노출수": ("impCnt", "INTEGER"),
             "클릭수": ("clkCnt", "INTEGER"),
             "클릭률(%)": ("ctr", "FLOAT"),
@@ -116,7 +128,8 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def conv_performance(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        return { # 전환 성과
+        """전환 성과 - 칼럼 명칭 및 타입"""
+        return {
             "총 전환수": ("ccnt", "INTEGER"),
             "직접전환수": ("drtCcnt", "INTEGER"),
             "간접전환수": ("idrtCcnt", "INTEGER"),
@@ -137,7 +150,8 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def time(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        return { # 시간구분
+        """시간구분 - 칼럼 명칭 및 타입"""
+        return {
             "일별": ("ymd", "DATE"),
             "주별": ("ww", "STRING"),
             "요일별": ("dayw", "STRING"),
@@ -148,6 +162,8 @@ class AdvancedReport(ExcelTransformer):
 
 
 class DailyReport(DuckDBTransformer):
+    """네이버 검색광고 다차원 보고서를 일별로 구분하여 `searchad_report` 테이블에 적재하는 클래스."""
+
     tables = {"table": "searchad_report"}
     parser = AdvancedReport
     parser_config = dict(
@@ -156,5 +172,5 @@ class DailyReport(DuckDBTransformer):
             "총비용(VAT포함,원)", "총 전환수", "직접전환수", "총 전환매출액(원)", "직접전환매출액(원)",
             "평균노출순위", "pv", "stayTm", "일별"
         ],
-        defaults = {"customerId": "$customer_id"},
     )
+    params = {"customer_id": "$customer_id"}

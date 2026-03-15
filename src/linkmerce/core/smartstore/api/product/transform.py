@@ -4,6 +4,8 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 
 class ProductParser(JsonTransformer):
+    """스마트스토어 상품 목록 조회 API 응답 데이터로부터 상품 목록을 추출하는 파서 클래스."""
+
     scope = "contents"
     fields = [
         "channelProductNo", "originProductNo", "modelId", "channelServiceType", "name",
@@ -14,9 +16,9 @@ class ProductParser(JsonTransformer):
         "deliveryAttributeType", "deliveryFee", "returnFee", "exchangeFee",
         "regDate", "modifiedDate", "groupProductNo"
     ]
-    defaults = {"channelSeq": "$channel_seq"}
 
     def parse(self, contents: list[dict], **kwargs) -> list[dict]:
+        """콘텐츠 목록에서 `channelProducts`를 평탄화해 상품 목록을 반환한다."""
         products = list()
         for content in contents:
             for product in content["channelProducts"]:
@@ -26,16 +28,23 @@ class ProductParser(JsonTransformer):
 
 
 class Product(DuckDBTransformer):
+    """스마트스토어 상품 목록 조회 API 응답 데이터를 `smartstore_product` 테이블에 적재하는 클래스."""
+
     tables = {"table": "smartstore_product"}
     parser = ProductParser
+    params = {"channel_seq": "$channel_seq"}
 
 
-class OpeionSimpleParser(JsonTransformer):
+class OptionSimpleParser(JsonTransformer):
+    """스마트스토어 채널 상품 조회 API 응답 데이터로부터 단독형 옵션 목록을 추출하는 파서 클래스."""
+
     scope = "originProduct.detailAttribute.optionInfo.optionSimple"
     fields = ["id", "groupName", "name", "usable", {"price": None}, {"stockQuantity": None}]
 
 
-class OpeionCombParser(JsonTransformer):
+class OptionCombParser(JsonTransformer):
+    """스마트스토어 채널 상품 조회 API 응답 데이터로부터 조합형 옵션 목록을 추출하는 파서 클래스."""
+
     scope = "originProduct.detailAttribute.optionInfo"
     fields = [
         "id", "optionGroupName1", "optionName1", *[{key: None} for key in [
@@ -44,6 +53,7 @@ class OpeionCombParser(JsonTransformer):
     ]
 
     def parse(self, option_info: dict, **kwargs) -> list[dict]:
+        """옵션 정보로부터 옵션명을 추출해 조합형 옵션 목록에 추가한다."""
         options = list()
         option_groups = option_info.get("optionCombinationGroupNames") or dict()
         for option in (option_info.get("optionCombinations") or list()):
@@ -53,6 +63,8 @@ class OpeionCombParser(JsonTransformer):
 
 
 class SupplementParser(JsonTransformer):
+    """스마트스토어 채널 상품 조회 API 응답 데이터로부터 추가 상품 목록을 추출하는 파서 클래스."""
+
     scope = "originProduct.detailAttribute.supplementProductInfo.supplementProducts"
     fields = [
         "id", "groupName", "name", {"sellerManagerCode": None}, "usable", "price", "stockQuantity"
@@ -60,12 +72,18 @@ class SupplementParser(JsonTransformer):
 
 
 class Option(DuckDBTransformer):
+    """스마트스토어 채널 상품 조회 API 응답 데이터를 `smartstore_option` 테이블에 적재하는 클래스.
+    
+    API 응답 데이터로부터 아래 3가지 옵션 상품을 추출한다:
+    - 단독형 옵션 상품 (`product_type = 0`)
+    - 조합형 옵션 상품 (`product_type = 1`)
+    - 추가 상품 (`product_type = 2`)
+    """
+
     tables = {"table": "smartstore_option"}
     parser = {
-        "option_simple": OpeionSimpleParser,
-        "option_comb": OpeionCombParser,
+        "option_simple": OptionSimpleParser,
+        "option_comb": OptionCombParser,
         "supplement": SupplementParser
     }
-    parser_config = dict(
-        defaults = {"productId": "$product_id", "channelSeq": "$channel_seq"},
-    )
+    params = {"product_id": "$product_id", "channel_seq": "$channel_seq"}

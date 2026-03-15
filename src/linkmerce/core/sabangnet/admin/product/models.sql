@@ -86,7 +86,7 @@ ON CONFLICT DO NOTHING;
 -- Option: option_status
 SELECT *
 FROM UNNEST([
-  , STRUCT(2 AS code, '판매' AS name)
+    STRUCT(2 AS code, '판매' AS name)
   , STRUCT(4 AS code, '품절' AS name)
   , STRUCT(5 AS code, '미사용' AS name)
 ]);
@@ -126,7 +126,7 @@ ON CONFLICT DO NOTHING;
 -- OptionDownload: option_status
 SELECT *
 FROM UNNEST([
-  , STRUCT(1 AS code, '판매' AS name)
+    STRUCT(1 AS code, '판매' AS name)
   , STRUCT(2 AS code, '품절' AS name)
   , STRUCT(3 AS code, '미사용' AS name)
 ]);
@@ -134,7 +134,7 @@ FROM UNNEST([
 -- OptionDownload: option_type
 SELECT *
 FROM UNNEST([
-  , STRUCT(1 AS code, '세트' AS name)
+    STRUCT(1 AS code, '세트' AS name)
   , STRUCT(2 AS code, '모음전' AS name)
   , STRUCT(3 AS code, '일반옵션' AS name)
 ]);

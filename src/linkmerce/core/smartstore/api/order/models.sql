@@ -269,7 +269,7 @@ FROM (
   SELECT
       product_order_id
     , order_id
-    , channelSeq AS channel_seq
+    , $channel_seq AS channel_seq
     , (CASE
         WHEN dt_column = 'dispatch_dt' THEN 2
         WHEN dt_column = 'delivery_dt' THEN 3
@@ -338,7 +338,7 @@ FROM (
   SELECT
       TRY_CAST(productOrderId AS BIGINT) AS product_order_id
     , TRY_CAST(orderId AS BIGINT) AS order_id
-    , channelSeq AS channel_seq
+    , $channel_seq AS channel_seq
     -- , lastChangedType AS last_changed_type
     , (CASE
         WHEN productOrderStatus = 'PAYMENT_WAITING' THEN 0

@@ -30,7 +30,7 @@ INSERT INTO {{ table }}
 SELECT
     campaign.id AS campaign_id
   , campaign.name AS campaign_name
-  , customerId AS customer_id
+  , $customer_id AS customer_id
   , campaign.advertisingChannelType AS campaign_type
   , campaign.status AS campaign_status
   , campaign.biddingStrategyType AS bidding_strategy
@@ -110,7 +110,7 @@ INSERT INTO {{ table }}
 SELECT
     adGroup.id AS adgroup_id
   , adGroup.name AS adgroup_name
-  , customerId AS customer_id
+  , $customer_id AS customer_id
   , campaign.id AS campaign_id
   , adGroup.type AS adgroup_type
   , adGroup.status AS adgroup_status
@@ -166,7 +166,7 @@ INSERT INTO {{ table }}
 SELECT
     adGroupAd.ad.id AS ad_id
   , adGroupAd.ad.name AS ad_name
-  , customerId AS customer_id
+  , $customer_id AS customer_id
   , campaign.id AS campaign_id
   , adGroup.id AS adgroup_id
   , adGroupAd.ad.type AS ad_type
@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- Insight: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    customerId AS customer_id
+    $customer_id AS customer_id
   , campaign.id AS campaign_id
   , adGroup.id AS adgroup_id
   , adGroupAd.ad.id AS ad_id
@@ -270,7 +270,7 @@ INSERT INTO {{ table }}
 SELECT
     asset.id AS asset_id
   , asset.name AS asset_name
-  , customerId AS customer_id
+  , $customer_id AS customer_id
   , asset.type AS asset_type
   , asset.url AS asset_url
 FROM {{ rows }}
@@ -332,7 +332,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- AssetView: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    customerId AS customer_id
+    $customer_id AS customer_id
   , adGroup.id AS adgroup_id
   , adGroupAd.ad.id AS ad_id
   , asset.id AS asset_id

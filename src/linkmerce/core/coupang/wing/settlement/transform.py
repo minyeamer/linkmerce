@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 
 
 class RocketSettlement(DuckDBTransformer):
+    """쿠팡 로켓 정산 현황을 `coupang_rocket_settlement` 테이블에 적재하는 클래스."""
+
     tables = {"table": "coupang_rocket_settlement"}
     parser = "json"
     parser_config = dict(
@@ -31,11 +33,13 @@ class RocketSettlement(DuckDBTransformer):
                 "totalCarryOverSettlementDeductionAmount", "totalCfsInventoryCompensationAmount"
             ]
         },
-        defaults = {"vendorId": "$vendor_id"},
     )
+    params = {"vendor_id": "$vendor_id"}
 
 
 class RocketSalesParser(ExcelTransformer):
+    """쿠팡 로켓 정산 현황의 판매 수수료 Excel 보고서를 파싱하는 클래스."""
+
     header = 2
     fields = [
         "주문ID", "등록상품 ID", "옵션ID", "SKU ID", "등록상품명", "옵션명", "카테고리ID", "카테고리명",
@@ -43,19 +47,20 @@ class RocketSalesParser(ExcelTransformer):
         "즉시할인쿠폰(D)", "다운로드쿠폰(E)", "판매자할인쿠폰(D+E)", "정산대상액", "판매수수료", "판매수수료 VAT",
         "매출인식일", "정산주기(종료일)"
     ]
-    defaults = {"vendorId": "$vendor_id"}
 
 
 class RocketShippingParser(ExcelTransformer):
+    """쿠팡 로켓 정산 현황의 입출고비/배송비 Excel 보고서를 파싱하는 클래스."""
+
     header = None
     fields = [
         "주문ID", "배송ID", "등록상품 ID", "옵션ID", "SKU ID", "등록상품명", "옵션명", "1차", "2차",
         "개별포장 상품 사이즈", "물류센터", "거래유형", "정산유형", "단품 판매가", "단품 기준 구매 수량",
         "판매수량", "발생비용(A)", "할인가(B)", {"추가비용": None}, "주문일", "매출인식일", "정산주기(종료일)"
     ]
-    defaults = {"vendorId": "$vendor_id"}
 
     def parse(self, obj: bytes, **kwargs) -> list[dict]:
+        """`입출고비`, `배송비` 시트별로 각각 데이터를 읽고 동일한 스키마로 병합해 반환한다."""
         from linkmerce.utils.excel import filter_warnings
         from io import BytesIO
         import openpyxl
@@ -75,19 +80,26 @@ class RocketShippingParser(ExcelTransformer):
 
 
 class RocketSettlementDownload(DuckDBTransformer):
+    """쿠팡 로켓 정산 현황 다운로드 결과를 `coupang_rocket_settlement` 테이블에 적재하는 클래스.
+
+    `report_type`에 따라 적절한 파서를 선택한다."""
+
     queries = ["create", "bulk_insert_sales", "bulk_insert_shipping"]
     tables = {"sales": "coupang_rocket_sales", "shipping": "coupang_rocket_shipping"}
+    params = {"vendor_id": "$vendor_id"}
 
-    def parse(self, obj: bytes, report_type: Literal["CATEGORY_TR","WAREHOUSING_SHIPPING"], **kwargs) -> list[dict]:
+    def parse(self, obj: bytes, report_type: Literal["CATEGORY_TR", "WAREHOUSING_SHIPPING"], **kwargs) -> list[dict]:
+        """`report_type`에 따라 `CATEGORY_TR` 또는 `WAREHOUSING_SHIPPING` 파서를 선택해 실행한다."""
         config = self.parser_config or dict()
         if report_type == "CATEGORY_TR":
-            RocketSalesParser(**config).transform(obj, **kwargs)
+            return RocketSalesParser(**config).transform(obj, **kwargs)
         elif report_type == "WAREHOUSING_SHIPPING":
-            RocketShippingParser(**config).transform(obj, **kwargs)
+            return RocketShippingParser(**config).transform(obj, **kwargs)
         else:
             self.raise_parse_error(f"Parsing for report type '{report_type}' is not supported.")
 
-    def bulk_insert(self, result: list[dict], report_type: Literal["CATEGORY_TR","WAREHOUSING_SHIPPING"], **kwargs):
+    def bulk_insert(self, result: list[dict], report_type: Literal["CATEGORY_TR", "WAREHOUSING_SHIPPING"], **kwargs):
+        """`report_type`에 따라 대상 테이블과 삽입 쿼리를 선택해 실행한다."""
         if len(result) > 0:
             table = "sales" if report_type == "CATEGORY_TR" else "shipping"
             render = {table: self.tables[table], f"{table}_rows": self.expr_rows(f"{table}_rows")}

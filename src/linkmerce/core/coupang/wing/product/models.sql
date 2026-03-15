@@ -43,7 +43,7 @@ SELECT
   , brand AS brand_name
   , manufacture AS maker_name
   , (CASE WHEN valid = 'VALID' THEN 0 WHEN valid = 'INVALID' THEN 1 ELSE NULL END) AS product_status
-  , isDeleted AS is_deleted
+  , $is_deleted AS is_deleted
   , NULL AS price
   , salePrice AS sales_price
   , deliveryCharge AS delivery_fee
@@ -153,12 +153,12 @@ SELECT
   , TRY_CAST("Product ID" AS BIGINT) AS product_id
   , TRY_CAST("옵션 ID" AS BIGINT) AS option_id
   , "바코드" AS barcode
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , "쿠팡 노출 상품명" AS vendor_inventory_name
   , "업체 등록 상품명" AS product_name
   , "등록 옵션명" AS option_name
   , (CASE WHEN "판매상태" = '판매중' THEN 0 WHEN "판매상태" = '판매중지' THEN 1 ELSE NULL END) AS product_status -- {0: '판매중', 1: '판매중지'}
-  , isDeleted AS is_deleted
+  , $is_deleted AS is_deleted
   , TRY_CAST("할인율기준가" AS INTEGER) AS price
   , TRY_CAST("판매가격" AS INTEGER) AS sales_price
   , TRY_CAST("판매수량" AS INTEGER) AS order_quantity
@@ -195,7 +195,7 @@ SELECT
   , listingDetails.productId AS product_id
   , vendorItemId AS option_id
   , creturnConfigViewDto.externalSkuId AS sku_id
-  , COALESCE(creturnConfigViewDto.vendorId, vendorId) AS vendor_id
+  , COALESCE(creturnConfigViewDto.vendorId, $vendor_id) AS vendor_id
   , inventoryDetails.orderableQuantity AS stock_quantity
   , inventoryDetails.inProgressInboundStatistics.inProgressInboundQuantity AS inprogress_quantity
   , gmvForLast7Days AS sales_amount_7d
@@ -241,7 +241,7 @@ SELECT
   , vendorItemId AS option_id
   , creturnConfigViewDto.itemId AS item_id
   , NULL AS barcode
-  , COALESCE(creturnConfigViewDto.vendorId, vendorId) AS vendor_id
+  , COALESCE(creturnConfigViewDto.vendorId, $vendor_id) AS vendor_id
   , COALESCE(creturnConfigViewDto.productName, listingDetails.vendorInventoryName) AS product_name
   , creturnConfigViewDto.itemName AS option_name
   , COALESCE(

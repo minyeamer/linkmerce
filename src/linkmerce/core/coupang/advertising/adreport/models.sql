@@ -35,7 +35,7 @@ SELECT
     id AS campaign_id
   , name AS campaign_name
   , campaignType AS campaign_type
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , (CASE
       WHEN vendorType = '3P' THEN 0
       WHEN vendorType = 'Retail' THEN 1
@@ -62,7 +62,7 @@ SELECT
     id AS adgroup_id
   , paCampaignId AS campaign_id
   , name AS adgroup_name
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , (CASE
       WHEN goalType = 'SALES' THEN 0
       WHEN goalType = 'NCA' THEN 1
@@ -80,7 +80,7 @@ ON CONFLICT DO NOTHING;
 -- Campaign: goal_type
 SELECT *
 FROM UNNEST([
-  , STRUCT(0 AS seq, 'SALES' AS code, '매출 성장' AS name)
+    STRUCT(0 AS seq, 'SALES' AS code, '매출 성장' AS name)
   , STRUCT(1 AS seq, 'NCA' AS code, '신규 구매 고객 확보' AS name)
   , STRUCT(2 AS seq, 'REACH' AS code, '인지도 상승' AS name)
 ]);
@@ -103,7 +103,7 @@ INSERT INTO {{ table }}
 SELECT
     id AS creative_id
   , vendorItemId AS option_id
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , creativeType AS creative_type
   , headlineText AS headline
   -- , description
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 INSERT INTO {{ table }}
 SELECT
     campaign_id
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , option_id
   , option_conv_id
   , placement_group
@@ -219,11 +219,11 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (ymd, vendor_id, campaign_id, creative_id, placement_group)
 );
 
--- NewCustomerAdReport: select
+-- NewCustomerAdReport: bulk_insert
 INSERT INTO {{ table }}
 SELECT
     campaign_id
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , creative_id
   , MIN(creative_type) AS creative_type
   , MIN(option_id) AS option_id

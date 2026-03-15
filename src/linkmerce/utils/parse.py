@@ -63,8 +63,7 @@ def select(
     - `:class(n):` - n번째 클래스명 추출 (`:class():`는 전체 리스트)
     - `:id():` - 태그의 id 속성값 추출
     - `:data(name):` - `data-name` 속성값 추출
-    - `:label():` - `aria-labelledby` 속성값 추출
-    """
+    - `:label():` - `aria-labelledby` 속성값 추출"""
     path = _split_selector(selector)
     if path[-1].startswith(':') and path[-1].endswith(':'):
         tag = _hier_select(tag, path[:-1], on_missing)
@@ -78,8 +77,10 @@ def select_attrs(
         schema: dict[_KT, str],
         on_missing: Literal["ignore", "raise"] = "ignore",
     ) -> dict[_KT, str | list[str]]:
-    """`{필드명: CSS_선택자}` 스키마를 입력받아 매칭되는 속성값들을 딕셔너리로 묶어서 반환한다."""
-    return {key: select(tag, selector, on_missing=on_missing) for key, selector in schema.items()}
+    """`{필드명: CSS_선택자}` 스키마를 입력받아 매칭되는 속성값들을 딕셔너리로 묶어서 반환한다.   
+    `CSS_선택자`가 문자열이 아니라면 상수로 인식하고 값으로 추가한다."""
+    return {key: (select(tag, selector, on_missing=on_missing) if isinstance(selector, str) else selector)
+            for key, selector in schema.items()}
 
 
 def _select_attr(
@@ -116,7 +117,7 @@ def _hier_select(
         path: Sequence[str | int],
         on_missing: Literal["ignore", "raise"] = "ignore",
     ) -> Tag | list[Tag] | None:
-    """셀렉터 경로를 재귀적으로 탐색한다. 경로 끝에 `:`가 붙으면 `select`로, 없으면 `select_one`으로 처리한다."""
+    """복합 CSS 선택자 경로를 탐색한다. 경로 끝에 `:`가 붙으면 `select`로, 없으면 `select_one`으로 처리한다."""
     if (tag is None) or (isinstance(tag, list) and (len(tag) == 0)):
         if on_missing == "raise":
             raise ValueError(f"Could not find element for selector path: '{path}'")

@@ -90,8 +90,7 @@ def select_values(
     1. `{"path": ["key1", ...]}`  → path 하위 dict에서 list의 키값을 추출
     2. `{"path": dict}`           → path 하위 dict에 대해 재귀 적용 (list 내 중첩 가능)
     3. `{"path": None}`           → 단일 경로의 값을 그대로 추출, 없으면 스키마 값을 추가
-    4. `["key1", ...]`            → 최상위 dict에서 list의 키값을 추출
-    """
+    4. `["key1", ...]`            → 최상위 dict에서 list의 키값을 추출"""
     result = dict()
     common_get = dict(delimiter=delimiter, on_missing=on_missing)
     common_set = dict(delimiter=delimiter, on_missing="create")

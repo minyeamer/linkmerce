@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- MarketingChannel: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    CAST(channelSeq AS BIGINT) AS channel_seq
+    CAST($channel_seq AS BIGINT) AS channel_seq
   , IFNULL(deviceCategory, '-') AS device_category
   , IFNULL(ntSource, '-') AS nt_source
   , IFNULL(ntMedium, '-') AS nt_medium
@@ -29,6 +29,6 @@ SELECT
   , TRY_CAST(pv AS INTEGER) AS page_view
   , TRY_CAST(numPurchases AS INTEGER) AS num_purchases
   , TRY_CAST(payAmount AS INTEGER) AS payment_amount
-  , CAST(ymd AS DATE) AS ymd
-FROM {{ array }}
+  , CAST($ymd AS DATE) AS ymd
+FROM {{ rows }}
 ON CONFLICT DO NOTHING;

@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- BlogSearch: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    keyword
-  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+    $keyword AS keyword
+  , (ROW_NUMBER() OVER () + $start - 1) AS display_rank
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS title
   , link AS url
   , REGEXP_REPLACE(description, '<[^>]+>', '', 'g') AS description
@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- NewsSearch: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    keyword
-  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+    $keyword AS keyword
+  , (ROW_NUMBER() OVER () + $start - 1) AS display_rank
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS title
   , originallink AS url
   , REGEXP_REPLACE(description, '<[^>]+>', '', 'g') AS description
@@ -69,8 +69,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- BookSearch: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    keyword
-  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+    $keyword AS keyword
+  , (ROW_NUMBER() OVER () + $start - 1) AS display_rank
   , title
   , link AS url
   , NULLIF(description, '') AS description
@@ -99,8 +99,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- CafeSearch: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    keyword
-  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+    $keyword AS keyword
+  , (ROW_NUMBER() OVER () + $start - 1) AS display_rank
   , title
   , link AS url
   , description
@@ -123,8 +123,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- KiNSearch: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    keyword
-  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+    $keyword AS keyword
+  , (ROW_NUMBER() OVER () + $start - 1) AS display_rank
   , title
   , link AS url
   , description
@@ -147,8 +147,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- ImageSearch: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    keyword
-  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+    $keyword AS keyword
+  , (ROW_NUMBER() OVER () + $start - 1) AS display_rank
   , title
   , link AS url
   , thumbnail
@@ -182,8 +182,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- ShoppingSearch: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    keyword
-  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+    $keyword AS keyword
+  , (ROW_NUMBER() OVER () + $start - 1) AS display_rank
   , TRY_CAST(productId AS BIGINT) AS id
   , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS product_id
   , REGEXP_REPLACE(title, '<[^>]+>', '', 'g') AS product_name
@@ -229,11 +229,11 @@ CREATE TABLE IF NOT EXISTS {{ product }} (
 -- ShoppingRank: bulk_insert
 INSERT INTO {{ rank }}
 SELECT
-    keyword
+    $keyword AS keyword
   , TRY_CAST(productId AS BIGINT) AS id
   , TRY_CAST(REGEXP_EXTRACT(link, '/products/(\d+)$', 1) AS BIGINT) AS product_id
   , ((TRY_CAST(productType AS TINYINT) + 2) % 3) AS product_type
-  , (ROW_NUMBER() OVER () + start - 1) AS display_rank
+  , (ROW_NUMBER() OVER () + $start - 1) AS display_rank
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
 FROM {{ rows }}
 WHERE TRY_CAST(productId AS BIGINT) IS NOT NULL

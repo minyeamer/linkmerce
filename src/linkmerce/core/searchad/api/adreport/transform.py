@@ -26,6 +26,12 @@ def _cast(type: ColumnType) -> Callable[[str], str | float | int | dt.date]:
 
 
 class TsvTransformer(ResponseTransformer):
+    """네이버 검색광고 대용량 다운로드 보고서 (TSV 형식) 데이터를 파싱하는 클래스.
+
+    주요 설정 변수:
+    - `columns` - `(칼럼명, 타입)` 리스트
+    - `convert_dtypes` - 데이터 타입 변환 여부 (기본값 `True`)"""
+
     columns: list[tuple[Column, ColumnType]] = list()
     convert_dtypes: bool = True
 
@@ -35,12 +41,14 @@ class TsvTransformer(ResponseTransformer):
             self.convert_dtypes = convert_dtypes
 
     def set_columns(self, columns: list[tuple] | None = None):
+        """칼럼 목록을 설정하고, 칼럼 목록이 없으면 `ParseError`를 발생시킨다."""
         if columns is not None:
             self.columns = columns
         if not self.columns:
             self.raise_parse_error("TSV data parsing requires columns list.")
 
     def parse(self, obj: str, **kwargs) -> list[dict]:
+        """TSV 문자열을 `csv` 모듈로 파싱하고, `convert_dtypes` 여부에 따라 형변환한다."""
         from io import StringIO
         import csv
         data = list()
@@ -56,6 +64,8 @@ class TsvTransformer(ResponseTransformer):
 
 
 class Campaign(DuckDBTransformer):
+    """네이버 검색광고 캠페인 마스터 데이터를 `searchad_campaign` 테이블에 적재하는 클래스."""
+
     tables = {"table": "searchad_campaign"}
     parser = TsvTransformer
     parser_config = dict(
@@ -77,6 +87,8 @@ class Campaign(DuckDBTransformer):
 
 
 class Adgroup(DuckDBTransformer):
+    """네이버 검색광고 광고그룹 마스터 데이터를 `searchad_adgroup` 테이블에 적재하는 클래스."""
+
     tables = {"table": "searchad_adgroup"}
     parser = TsvTransformer
     parser_config = dict(
@@ -90,7 +102,7 @@ class Adgroup(DuckDBTransformer):
             ("Using contents network bid", "INTEGER"),
             ("Contents network bid", "INTEGER"),
             ("PC network bidding weight", "INTEGER"),
-            ("Mobile network bidding weight", "BIDDING"),
+            ("Mobile network bidding weight", "INTEGER"),
             ("Business Channel Id(Mobile)", "STRING"),
             ("Business Channel Id(PC)", "STRING"),
             ("regTm", "DATETIME"),
@@ -104,6 +116,8 @@ class Adgroup(DuckDBTransformer):
 
 
 class PowerLinkAd(TsvTransformer):
+    """네이버 검색광고 소재 마스터 데이터로부터 파워링크 소재 목록을 추출하는 파서 클래스."""
+
     columns = [
         ("Customer ID", "INTEGER"),
         ("Ad Group ID", "STRING"),
@@ -120,6 +134,8 @@ class PowerLinkAd(TsvTransformer):
 
 
 class PowerContentsAd(TsvTransformer):
+    """네이버 검색광고 콘텐츠소재 마스터 데이터로부터 파워컨텐츠 소재 목록을 추출하는 파서 클래스."""
+
     columns = [
         ("Customer ID", "INTEGER"),
         ("Ad Group ID", "STRING"),
@@ -140,6 +156,8 @@ class PowerContentsAd(TsvTransformer):
 
 
 class ShoppingProductAd(TsvTransformer):
+    """네이버 검색광고 쇼핑상품 마스터 데이터로부터 쇼핑상품 소재 목록을 추출하는 파서 클래스."""
+
     columns = [
         ("Customer ID", "INTEGER"),
         ("Ad Group ID", "STRING"),
@@ -174,6 +192,8 @@ class ShoppingProductAd(TsvTransformer):
 
 
 class ProductGroup(TsvTransformer):
+    """네이버 검색광고 상품그룹 마스터 데이터로부터 쇼핑브랜드 상품 그룹을 추출하는 파서 클래스."""
+
     columns = [
         ("Customer ID", "INTEGER"),
         ("Product group ID", "STRING"),
@@ -188,6 +208,8 @@ class ProductGroup(TsvTransformer):
 
 
 class ProductGroupRel(TsvTransformer):
+    """네이버 검색광고 상품그룹관계 마스터 데이터로부터 쇼핑브랜드 상품그룹-광고그룹 관계를 추출하는 파서 클래스."""
+
     columns = [
         ("Customer ID", "INTEGER"),
         ("Product Group Relation ID", "STRING"),
@@ -199,6 +221,8 @@ class ProductGroupRel(TsvTransformer):
 
 
 class BrandThumbnailAd(TsvTransformer):
+    """네이버 검색광고 브랜드썸네일소재 마스터 데이터로부터 쇼핑브랜드 썸네일 이미지형 소재 목록을 추출하는 파서 클래스."""
+
     columns = [
         ("Customer ID", "INTEGER"),
         ("Ad Group ID", "STRING"),
@@ -217,6 +241,8 @@ class BrandThumbnailAd(TsvTransformer):
 
 
 class BrandBannerAd(TsvTransformer):
+    """네이버 검색광고 브랜드배너소재 마스터 데이터로부터 쇼핑브랜드 배너 이미지형 소재 목록을 추출하는 파서 클래스."""
+
     columns = [
         ("Customer ID", "INTEGER"),
         ("Ad Group ID", "STRING"),
@@ -234,6 +260,8 @@ class BrandBannerAd(TsvTransformer):
 
 
 class BrandAd(TsvTransformer):
+    """네이버 검색광고 BrandAd 마스터 데이터로부터 쇼핑브랜드 소재 목록을 추출하는 파서 클래스."""
+
     columns = [
         ("Customer ID", "INTEGER"),
         ("Ad Group ID", "STRING"),
@@ -263,6 +291,20 @@ AD_TABLE_KEYS: list[TableKey] = [
 ]
 
 class Ad(DuckDBTransformer):
+    """모든 소재 유형의 네이버 검색광고 마스터 데이터를 파싱하고,
+    통합된 소재 목록을 `searchad_ad` 테이블에 적재하는 클래스.
+
+    테이블 키 | 테이블명 | 설명
+    - `table` | `searchad_ad` | 모든 유형의 소재 목록
+    - `power_link_ad` | `power_link_ad` | 파워링크 소재 목록
+    - `power_contents_ad` | `power_contents_ad` | 파워컨텐츠 소재 목록
+    - `shopping_product_ad` | `shopping_product_ad` | 쇼핑상품 소재 목록
+    - `brand_ad` | `brand_ad` | 모든 유형의 쇼핑브랜드 소재 목록
+    - `product_group` | `product_group` | 쇼핑브랜드 상품 그룹
+    - `product_group_rel` | `product_group_rel` | 쇼핑브랜드 상품그룹-광고그룹 관계
+    - `brand_thumbnail_ad` | `brand_thumbnail_ad` | 쇼핑브랜드 썸네일 이미지형 소재 목록
+    - `brand_banner_ad` | `brand_banner_ad` | 쇼핑브랜드 배너 이미지형 소재 목록"""
+
     queries = (
         ["create"]
         + [f"bulk_insert_{key}" for key in AD_TABLE_KEYS]
@@ -270,26 +312,33 @@ class Ad(DuckDBTransformer):
     )
     tables = {"table": "searchad_ad", **{key: key for key in AD_TABLE_KEYS}}
 
-    def transform(self, obj: dict[str,str], **kwargs) -> dict:
+    def transform(self, obj: dict[str, str], **kwargs) -> dict:
+        """`{report_type: tsv_string}` 인자로부터
+        각각의 `report_type`에 맞는 파서로 TSV 형식의 마스터 데이터를 변환하고,   
+        개별 테이블 및 `searchad_ad` 테이블에 적재한다."""
         result_set = dict()
         table_parser = self.table_parser
 
         for report_type, tsv_data in obj.items():
             table_key, parser = table_parser[report_type]
             query_key = f"bulk_insert_{table_key}"
-            result_set[query_key] = self.bulk_insert(parser().transform(tsv_data), query_key, render=self.get_table(table_key))
+            result = parser().transform(tsv_data)
+            result_set[query_key] = self.bulk_insert(result, query_key, render=self.get_table(table_key))
 
         for table_key in AD_TABLE_KEYS[:4]:
             query_key = f"transform_{table_key}"
-            result_set[query_key] = self.insert_into(query_key, render={"table": self.table, **self.get_table(table_key)})
+            tables = {"table": self.table} | self.get_table(table_key)
+            result_set[query_key] = self.insert_into(query_key, render=tables)
 
         return result_set
 
     def get_table(self, table_key: TableKey) -> dict[TableKey, TableName]:
+        """`transform` 쿼리의 렌더 컨텍스트에 추가될 소스 테이블 명칭을 반환한다."""
         return {table_key: self.tables[table_key]}
 
     @property
     def table_parser(self) -> dict[str, tuple[TableKey, type[TsvTransformer]]]:
+        """`{report_type: (table_key, parser)}` 객체를 반환한다."""
         return {
             "Ad":
                 ("power_link_ad", PowerLinkAd),

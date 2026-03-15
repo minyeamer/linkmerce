@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- PageViewByDevice: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    TRY_CAST(mallSeq AS BIGINT) AS mall_seq
+    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
   , (CASE
       WHEN measuredThrough.device = 'Pc' THEN 0
       WHEN measuredThrough.device = 'Mobile' THEN 1
@@ -44,7 +44,7 @@ INSERT INTO {{ table }}
 SELECT items.*
 FROM (
   SELECT
-      TRY_CAST(mallSeq AS BIGINT) AS mall_seq
+      TRY_CAST($mall_seq AS BIGINT) AS mall_seq
     , (CASE
         WHEN REGEXP_MATCHES(measuredThrough.url, '^/[^/]+/products/\d+$')
           THEN CAST(REGEXP_EXTRACT(measuredThrough.url, '(\d+)$') AS BIGINT)
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- PageViewByUrl: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    TRY_CAST(mallSeq AS BIGINT) AS mall_seq
+    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
   , measuredThrough.url AS page_url
   , visit.pageClick AS page_click
   , visit.userClick AS user_click

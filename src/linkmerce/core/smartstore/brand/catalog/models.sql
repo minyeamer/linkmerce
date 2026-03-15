@@ -102,7 +102,7 @@ SELECT
   , makerName AS maker_name
   , brandSeq AS brand_id
   , brandName AS brand_name
-  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
+  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
   , mallName AS mall_name
   , TRY_CAST(categoryId AS INTEGER) AS category_id
   , categoryName AS category_name
@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS {{ product }} (
 INSERT INTO {{ price }}
 SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
-  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
+  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
   , TRY_CAST(categoryId AS INTEGER) AS category_id
   , lowestPrice AS sales_price
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
@@ -163,7 +163,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO {{ product }}
 SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
-  , TRY_CAST(mallSeq AS BIGINT) AS mall_seq
+  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
   , TRY_CAST(categoryId AS INTEGER) AS category_id
   , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 3) AS INTEGER) AS category_id3
   , name AS product_name

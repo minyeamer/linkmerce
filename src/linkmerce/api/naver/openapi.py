@@ -265,11 +265,11 @@ def rank_shop(
         transform_options: dict = dict(),
     ) -> dict[str,JsonObject]:
     """`tables = {'rank': 'naver_rank_shop', 'product': 'naver_product'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import ShoppingRank
+    # from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
     # from linkmerce.core.naver.openapi.search.transform import ShoppingRank
     return run_with_duckdb(
         module = get_module(".search"),
-        extractor = "ShoppingRank",
+        extractor = "ShoppingSearch",
         transformer = "ShoppingRank",
         connection = connection,
         tables = tables,

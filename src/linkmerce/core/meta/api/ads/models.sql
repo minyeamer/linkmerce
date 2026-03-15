@@ -32,7 +32,7 @@ INSERT INTO {{ table }}
 SELECT
     id AS campaign_id
   , name AS campaign_name
-  , account_id
+  , $account_id AS account_id
   , objective
   , effective_status
   , TRY_STRPTIME(SUBSTR(created_time, 1, 19), '%Y-%m-%dT%H:%M:%S') AS created_at
@@ -42,27 +42,27 @@ ON CONFLICT DO NOTHING;
 -- Campaigns: objective
 SELECT *
 FROM UNNEST([
-, STRUCT(0 AS seq, 'OUTCOME_AWARENESS' AS code, '인지도' AS name)
-, STRUCT(1 AS seq, 'OUTCOME_ENGAGEMENT' AS code, '참여' AS name)
-, STRUCT(2 AS seq, 'OUTCOME_LEADS' AS code, '리드' AS name)
-, STRUCT(3 AS seq, 'OUTCOME_SALES' AS code, '판매' AS name)
-, STRUCT(4 AS seq, 'OUTCOME_TRAFFIC' AS code, '트래픽' AS name)
-, STRUCT(5 AS seq, 'OUTCOME_APP_PROMOTION' AS code, '앱 홍보' AS name)
-, STRUCT(6 AS seq, 'OFFER_CLAIMS' AS code, '오퍼 수령' AS name)
-, STRUCT(7 AS seq, 'PAGE_LIKES' AS code, '페이지 좋아요' AS name)
-, STRUCT(8 AS seq, 'EVENT_RESPONSES' AS code, '이벤트 응답' AS name)
-, STRUCT(9 AS seq, 'POST_ENGAGEMENT' AS code, '게시물 참여' AS name)
-, STRUCT(10 AS seq, 'WEBSITE_CONVERSIONS' AS code, '웹사이트 전환' AS name)
-, STRUCT(11 AS seq, 'LINK_CLICKS' AS code, '링크 클릭' AS name)
-, STRUCT(12 AS seq, 'VIDEO_VIEWS' AS code, '동영상 조회' AS name)
-, STRUCT(13 AS seq, 'LOCAL_AWARENESS' AS code, '지역 인지도' AS name)
-, STRUCT(14 AS seq, 'PRODUCT_CATALOG_SALES' AS code, '카탈로그 판매' AS name)
-, STRUCT(15 AS seq, 'LEAD_GENERATION' AS code, '리드 생성' AS name)
-, STRUCT(16 AS seq, 'BRAND_AWARENESS' AS code, '브랜드 인지도' AS name)
-, STRUCT(17 AS seq, 'STORE_VISITS' AS code, '매장 방문' AS name)
-, STRUCT(18 AS seq, 'REACH' AS code, '도달' AS name)
-, STRUCT(19 AS seq, 'APP_INSTALLS' AS code, '앱 설치' AS name)
-, STRUCT(20 AS seq, 'MESSAGES' AS code, '메시지' AS name)
+    STRUCT(0 AS seq, 'OUTCOME_AWARENESS' AS code, '인지도' AS name)
+  , STRUCT(1 AS seq, 'OUTCOME_ENGAGEMENT' AS code, '참여' AS name)
+  , STRUCT(2 AS seq, 'OUTCOME_LEADS' AS code, '리드' AS name)
+  , STRUCT(3 AS seq, 'OUTCOME_SALES' AS code, '판매' AS name)
+  , STRUCT(4 AS seq, 'OUTCOME_TRAFFIC' AS code, '트래픽' AS name)
+  , STRUCT(5 AS seq, 'OUTCOME_APP_PROMOTION' AS code, '앱 홍보' AS name)
+  , STRUCT(6 AS seq, 'OFFER_CLAIMS' AS code, '오퍼 수령' AS name)
+  , STRUCT(7 AS seq, 'PAGE_LIKES' AS code, '페이지 좋아요' AS name)
+  , STRUCT(8 AS seq, 'EVENT_RESPONSES' AS code, '이벤트 응답' AS name)
+  , STRUCT(9 AS seq, 'POST_ENGAGEMENT' AS code, '게시물 참여' AS name)
+  , STRUCT(10 AS seq, 'WEBSITE_CONVERSIONS' AS code, '웹사이트 전환' AS name)
+  , STRUCT(11 AS seq, 'LINK_CLICKS' AS code, '링크 클릭' AS name)
+  , STRUCT(12 AS seq, 'VIDEO_VIEWS' AS code, '동영상 조회' AS name)
+  , STRUCT(13 AS seq, 'LOCAL_AWARENESS' AS code, '지역 인지도' AS name)
+  , STRUCT(14 AS seq, 'PRODUCT_CATALOG_SALES' AS code, '카탈로그 판매' AS name)
+  , STRUCT(15 AS seq, 'LEAD_GENERATION' AS code, '리드 생성' AS name)
+  , STRUCT(16 AS seq, 'BRAND_AWARENESS' AS code, '브랜드 인지도' AS name)
+  , STRUCT(17 AS seq, 'STORE_VISITS' AS code, '매장 방문' AS name)
+  , STRUCT(18 AS seq, 'REACH' AS code, '도달' AS name)
+  , STRUCT(19 AS seq, 'APP_INSTALLS' AS code, '앱 설치' AS name)
+  , STRUCT(20 AS seq, 'MESSAGES' AS code, '메시지' AS name)
 ]);
 
 
@@ -83,7 +83,7 @@ INSERT INTO {{ table }}
 SELECT
     id AS adset_id
   , name AS adset_name
-  , account_id
+  , $account_id AS account_id
   , campaign_id AS campaign_id
   , effective_status
   , daily_budget
@@ -110,7 +110,7 @@ INSERT INTO {{ table }}
 SELECT
     id AS ad_id
   , name AS ad_name
-  , account_id
+  , $account_id AS account_id
   , campaign_id AS campaign_id
   , adset_id AS adset_id
   -- , creative.id AS creative_id
@@ -175,7 +175,7 @@ INSERT INTO {{ campaigns }}
 SELECT
     campaign_id
   , campaign_name
-  , account_id
+  , $account_id AS account_id
   , NULL AS is_active
   , NULL AS is_deleted
   , NULL AS objective
@@ -187,7 +187,7 @@ INSERT INTO {{ adsets }}
 SELECT
     adset_id
   , adset_name
-  , account_id
+  , $account_id AS account_id
   , campaign_id
   , NULL AS is_active
   , NULL AS is_deleted
@@ -200,7 +200,7 @@ INSERT INTO {{ ads }}
 SELECT
     ad_id
   , ad_name
-  , account_id
+  , $account_id AS account_id
   , campaign_id
   , adset_id
   , NULL AS is_active
@@ -211,7 +211,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ insights }}
 SELECT
-    account_id
+    $account_id AS account_id
   , campaign_id
   , adset_id
   , ad_id

@@ -4,6 +4,8 @@ from linkmerce.common.transform import DuckDBTransformer
 
 
 class Stock(DuckDBTransformer):
+    """CJ eFLEXs 재고 검색 결과를 `eflexs_stock` 테이블에 변환 및 적재하는 클래스."""
+
     tables = {"table": "eflexs_stock"}
     parser = "json"
     parser_config = dict(

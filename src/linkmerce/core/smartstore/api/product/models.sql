@@ -34,7 +34,7 @@ SELECT
     TRY_CAST(channelProductNo AS BIGINT) AS product_id
   , TRY_CAST(originProductNo AS BIGINT) AS product_no
   , TRY_CAST(modelId AS BIGINT) AS catalog_id
-  , CAST(channelSeq AS BIGINT) AS channel_seq
+  , CAST($channel_seq AS BIGINT) AS channel_seq
   -- , channelServiceType AS channel_type
   , name AS product_name
   , sellerManagementCode AS management_code
@@ -125,8 +125,8 @@ INSERT INTO {{ table }} (
 )
 SELECT
     id AS option_id
-  , TRY_CAST(productId AS BIGINT) AS product_id
-  , TRY_CAST(channelSeq AS BIGINT) AS channel_seq
+  , TRY_CAST($product_id AS BIGINT) AS product_id
+  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
   , 0 AS product_type
   , groupName AS option_group1
   , name AS option_name1
@@ -157,8 +157,8 @@ INSERT INTO {{ table }} (
 )
 SELECT
     id AS option_id
-  , TRY_CAST(productId AS BIGINT) AS product_id
-  , TRY_CAST(channelSeq AS BIGINT) AS channel_seq
+  , TRY_CAST($product_id AS BIGINT) AS product_id
+  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
   , 1 AS product_type
   , optionGroupName1 AS option_group1
   , optionName1 AS option_name1
@@ -190,8 +190,8 @@ INSERT INTO {{ table }} (
 )
 SELECT
     id AS option_id
-  , TRY_CAST(productId AS BIGINT) AS product_id
-  , TRY_CAST(channelSeq AS BIGINT) AS channel_seq
+  , TRY_CAST($product_id AS BIGINT) AS product_id
+  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
   , 2 AS product_type
   , groupName AS option_group1
   , name AS option_name1

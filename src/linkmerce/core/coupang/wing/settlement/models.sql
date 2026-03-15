@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 INSERT INTO {{ table }}
 SELECT
     settlementGroupKey AS group_key
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , SUM(settlementRatio) OVER (PARTITION BY settlementGroupKey) AS settlement_ratio -- 지급비율
   , SUM(finalSettlementAmount) OVER (PARTITION BY settlementGroupKey) AS settlement_amount -- 최종지급액 = totalFinalSettlementAmount
   , TRY_CAST(settlementStatusReportDetail.totalSalesAmount AS INTEGER) AS sales_amount -- 판매액(a)
@@ -63,7 +63,7 @@ SELECT
   , settlementStatusReportDetail.totalCfsInventoryCompensationAmount AS cfs_inventory_compensation_amount -- 재고 손실 보상 (K)
   , (TRY_CAST(settlementPeriodStartDate AS TIMESTAMP) + INTERVAL 9 HOUR) AS start_date -- 매출인식일(시작)
   , (TRY_CAST(settlementPeriodEndDate AS TIMESTAMP) + INTERVAL 9 HOUR) AS end_date -- 매출인식일(종료)
-FROM {{ array }}
+FROM {{ rows }}
 WHERE (settlementGroupKey IS NOT NULL)
   AND (settlementPeriodStartDate IS NOT NULL)
   AND (settlementPeriodEndDate IS NOT NULL)
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS {{ shipping }} (
 INSERT INTO {{ sales }}
 SELECT
     TRY_CAST("주문ID" AS BIGINT) AS order_id
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , TRY_CAST("등록상품 ID" AS BIGINT) AS product_id
   , TRY_CAST("옵션ID" AS BIGINT) AS option_id
   , TRY_CAST("SKU ID" AS BIGINT) AS sku_id
@@ -163,7 +163,7 @@ INSERT INTO {{ shipping }}
 SELECT
     TRY_CAST("주문ID" AS BIGINT) AS order_id
   , TRY_CAST("배송ID" AS BIGINT) AS invoice_no
-  , vendorId AS vendor_id
+  , $vendor_id AS vendor_id
   , TRY_CAST("등록상품 ID" AS BIGINT) AS product_id
   , TRY_CAST("옵션ID" AS BIGINT) AS option_id
   , TRY_CAST("SKU ID" AS BIGINT) AS sku_id
