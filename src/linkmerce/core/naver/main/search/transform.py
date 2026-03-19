@@ -616,21 +616,22 @@ class Search(DuckDBTransformer):
     tables = {"sections": "naver_search_sections", "summary": "naver_search_summary"}
     parser = SearchSectionParser
 
-    def transform(self, obj: str, query: str, mobile: bool = True, sep: str = '\n', **kwargs):
+    def transform(self, obj: str, query: str, mobile: bool = True, sep: str = '\n', **kwargs) -> list:
         """네이버 검색 결과의 각 섹션별 하위 블럭을 직렬화 또는 요약하여 각각의 테이블에 적재한다."""
         sections = SearchSectionParser().transform(obj, mobile, sep)
         if sections:
-            self.insert_serialized_sections(query, sections)
-
+            results = self.insert_serialized_sections(query, sections)
             summary = self.summarize_sections(query, sections, sep)
-            self.bulk_insert(summary, render={"summary": self.tables["summary"]})
+            return results + self.bulk_insert(summary, render={"summary": self.tables["summary"]})
+        else:
+            return list()
 
-    def insert_serialized_sections(self, query: str, sections: list[list[dict]]):
+    def insert_serialized_sections(self, query: str, sections: list[list[dict]]) -> list:
         """네이버 검색 결과를 JSON으로 직렬화하여 `naver_search_sections` 테이블에 삽입한다."""
         import json
         json_str = json.dumps(sections, ensure_ascii=False, separators=(',', ':'))
         table = self.tables["sections"]
-        return self.conn.conn.execute(f"INSERT INTO {table} (query, sections) VALUES (?, ?)", (query, json_str))
+        return self.conn.execute(f"INSERT INTO {table} (query, sections) VALUES (?, ?)", params=(query, json_str))
 
     def summarize_sections(self, query: str, sections: list[list[dict]], sep: str = '\n') -> list[dict]:
         """각 섹션별 하위 블럭을 요약하여 리스트로 반환한다."""

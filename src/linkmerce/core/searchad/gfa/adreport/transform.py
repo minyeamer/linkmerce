@@ -37,7 +37,7 @@ class Creative(DuckDBTransformer):
         dtype = dict,
         scope = "content",
         fields = [
-            "realCreativeNo", "adSetNo", "creativeType", "name", {"message": None},
+            "no", "realCreativeNo", "adSetNo", "creativeType", "name", {"message": None},
             {"medias.1.content.linkUrl": None}, "activated", "status"
         ],
     )

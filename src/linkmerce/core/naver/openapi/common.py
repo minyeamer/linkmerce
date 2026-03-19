@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import Variables
 
 
-class NaverOpenAPI(Extractor):
+class NaverOpenApi(Extractor):
     method: str | None = None
     origin: str = "https://openapi.naver.com"
     version: str = "v1"

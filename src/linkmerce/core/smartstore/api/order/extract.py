@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.smartstore.api import SmartstoreAPI
+from linkmerce.core.smartstore.api import SmartstoreApi
 
 from typing import TYPE_CHECKING
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class Order(SmartstoreAPI):
+class Order(SmartstoreApi):
     method = "GET"
     version = "v1"
     path = "/pay-order/seller/product-orders"
@@ -19,8 +19,8 @@ class Order(SmartstoreAPI):
     def default_options(self) -> dict:
         return dict(CursorAll = dict(request_delay=1))
 
-    @SmartstoreAPI.with_session
-    @SmartstoreAPI.with_token
+    @SmartstoreApi.with_session
+    @SmartstoreApi.with_token
     def extract(
             self,
             start_date: dt.date | str,
@@ -102,7 +102,7 @@ class Order(SmartstoreAPI):
         return {"NOT_YET": "발주 미확인", "OK": "발주 확인", "CANCEL": "발주 확인 해제"}
 
 
-class OrderStatus(SmartstoreAPI):
+class OrderStatus(SmartstoreApi):
     method = "GET"
     version = "v1"
     path = "/pay-order/seller/product-orders/last-changed-statuses"
@@ -112,8 +112,8 @@ class OrderStatus(SmartstoreAPI):
     def default_options(self) -> dict:
         return dict(CursorAll = dict(request_delay=1))
 
-    @SmartstoreAPI.with_session
-    @SmartstoreAPI.with_token
+    @SmartstoreApi.with_session
+    @SmartstoreApi.with_token
     def extract(
             self,
             start_date: dt.date | str,

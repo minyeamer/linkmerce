@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.ecount.api import EcountAPI
+from linkmerce.core.ecount.api import EcountApi
 
 from typing import TYPE_CHECKING
 
@@ -9,13 +9,13 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class Inventory(EcountAPI):
+class Inventory(EcountApi):
     method = "POST"
     path = "/InventoryBalance/GetListInventoryBalanceStatus"
     date_format = "%Y%m%d"
 
-    @EcountAPI.with_session
-    @EcountAPI.with_oapi
+    @EcountApi.with_session
+    @EcountApi.with_oapi
     def extract(
             self,
             base_date: dt.date | str | Literal[":today:"] = ":today:",

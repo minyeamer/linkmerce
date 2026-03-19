@@ -1,1 +1,1 @@
-from linkmerce.core.searchad.api.common import NaverSearchAdAPI
+from linkmerce.core.searchad.api.common import NaverSearchAdApi

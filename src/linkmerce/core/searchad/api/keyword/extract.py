@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.searchad.api import NaverSearchAdAPI
+from linkmerce.core.searchad.api import NaverSearchAdApi
 
 from typing import Iterable, TYPE_CHECKING
 
@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import JsonObject
 
 
-class Keyword(NaverSearchAdAPI):
+class Keyword(NaverSearchAdApi):
     method = "GET"
     uri = "/keywordstool"
 
@@ -15,7 +15,7 @@ class Keyword(NaverSearchAdAPI):
     def default_options(self) -> dict:
         return dict(RequestEach = dict(request_delay=1))
 
-    @NaverSearchAdAPI.with_session
+    @NaverSearchAdApi.with_session
     def extract(
             self,
             keywords: str | Iterable[str],

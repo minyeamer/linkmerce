@@ -41,10 +41,10 @@ class PageViewByDevice(DuckDBTransformer):
     params = {"mall_seq": "$mall_seq"}
 
 
-class PageViewByProduct(DuckDBTransformer):
-    """네이버 브랜드 스토어의 일별/상품별 페이지뷰 데이터를 `naver_pv_by_product` 테이블에 적재하는 클래스."""
+class PageViewByUrl(DuckDBTransformer):
+    """네이버 브랜드 스토어의 일별/URL별 페이지뷰 데이터를 `naver_pv_by_url` 테이블에 적재하는 클래스."""
 
-    tables = {"table": "naver_pv_by_product"}
+    tables = {"table": "naver_pv_by_url"}
     parser = PageViewParser
     parser_config = dict(
         fields = ["measuredThrough.url", {"visit": ["pageClick", "userClick", "timeOnSite"]}, "ymd"],
@@ -52,10 +52,10 @@ class PageViewByProduct(DuckDBTransformer):
     params = {"mall_seq": "$mall_seq"}
 
 
-class PageViewByUrl(DuckDBTransformer):
-    """네이버 브랜드 스토어의 일별/URL별 페이지뷰 데이터를 `naver_pv_by_url` 테이블에 적재하는 클래스."""
+class PageViewByProduct(DuckDBTransformer):
+    """네이버 브랜드 스토어의 일별/상품별 페이지뷰 데이터를 `naver_pv_by_product` 테이블에 적재하는 클래스."""
 
-    tables = {"table": "naver_pv_by_url"}
+    tables = {"table": "naver_pv_by_product"}
     parser = PageViewParser
     parser_config = dict(
         fields = ["measuredThrough.url", {"visit": ["pageClick", "userClick", "timeOnSite"]}, "ymd"],

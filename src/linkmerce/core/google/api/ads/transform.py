@@ -163,7 +163,7 @@ class Asset(DuckDBTransformer):
     params = {"customer_id": "$customer_id"}
 
 
-class AssetViewList(_CommonParser):
+class AssetViewParser(_CommonParser):
     """구글 광고 소재-애셋 관계를 파싱하는 클래스."""
 
     fields = {
@@ -196,15 +196,5 @@ class AssetView(DuckDBTransformer):
     """구글 광고 소재-애셋 관계를 `google_asset_view` 테이블에 적재하는 클래스."""
 
     tables = {"table": "google_asset_view"}
-    parser = "json"
-    parser_config = _common_config(
-        fields = {
-            "adGroup": ["id"],
-            "adGroupAd": ["ad.id"],
-            "asset": ["id"],
-            "adGroupAdAssetView": ["fieldType"],
-            "segments": ["date", "device"],
-            "metrics": ["impressions", "clicks", "costMicros"]
-        },
-    )
+    parser = AssetViewParser
     params = {"customer_id": "$customer_id"}

@@ -98,10 +98,11 @@ class RocketSettlementDownload(DuckDBTransformer):
         else:
             self.raise_parse_error(f"Parsing for report type '{report_type}' is not supported.")
 
-    def bulk_insert(self, result: list[dict], report_type: Literal["CATEGORY_TR", "WAREHOUSING_SHIPPING"], **kwargs):
+    def bulk_insert(self, result: list[dict], report_type: Literal["CATEGORY_TR", "WAREHOUSING_SHIPPING"], **kwargs) -> list:
         """`report_type`에 따라 대상 테이블과 삽입 쿼리를 선택해 실행한다."""
         if len(result) > 0:
             table = "sales" if report_type == "CATEGORY_TR" else "shipping"
             render = {table: self.tables[table], f"{table}_rows": self.expr_rows(f"{table}_rows")}
             query = self.prepare_query(f"bulk_insert_{table}", render=render)
-            return self.execute(query, **{f"{table}_rows": result})
+            params = self.render_params(kwargs=kwargs) | {f"{table}_rows": result}
+            return self.execute(query, params)

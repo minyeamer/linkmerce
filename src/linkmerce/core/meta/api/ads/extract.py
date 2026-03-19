@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.meta.api import MetaAPI
+from linkmerce.core.meta.api import MetaApi
 
 from typing import TypedDict, TYPE_CHECKING
 
@@ -15,7 +15,7 @@ class AdAccount(TypedDict):
     name: str
 
 
-class MetaAds(MetaAPI):
+class MetaAds(MetaApi):
     """https://developers.facebook.com/docs/marketing-api/reference/v24.0"""
     method: str = "GET"
     version: str = "v24.0"

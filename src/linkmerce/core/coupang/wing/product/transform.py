@@ -65,13 +65,14 @@ class ProductDetail(DuckDBTransformer):
             self,
             result: list[dict],
             query_key: str = "bulk_insert",
-            *args,
+            render: dict | Literal["tables"] | None = "tables",
+            params: dict | None = None,
             referer: Literal["vendor", "rfm"] | None = None,
             **kwargs
-        ):
+        ) -> list:
         """`referer`가 전달되면 전용 `bulk_insert` 쿼리를 선택해 실행한다."""
         query_key = f"bulk_insert_{referer}" if referer else query_key
-        return super().bulk_insert(result, query_key, *args, **kwargs)
+        return super().bulk_insert(result, query_key, render, params, **kwargs)
 
 
 class VendorInventoryItemParser(ExcelTransformer):

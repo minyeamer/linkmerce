@@ -14,7 +14,7 @@ class OAuthException(Exception):
     ...
 
 
-class MetaAPI(Extractor):
+class MetaApi(Extractor):
     method: str = "GET"
     origin: str = "https://graph.facebook.com/"
 
@@ -47,7 +47,7 @@ class MetaAPI(Extractor):
 
     def auto_refresh_token(func):
         @functools.wraps(func)
-        def wrapper(self: MetaAPI, *args, **kwargs):
+        def wrapper(self: MetaApi, *args, **kwargs):
             try:
                 return func(self, *args, **kwargs)
             except OAuthException as exception:

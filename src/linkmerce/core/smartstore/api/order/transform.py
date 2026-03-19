@@ -18,8 +18,9 @@ class Order(DuckDBTransformer):
                 "productOrder": [
                     "merchantChannelId", "productId", "optionCode", "productClass", "deliveryAttributeType",
                     "deliveryTagType", "inflowPath", "inflowPathAdd", "quantity", "unitPrice", "optionPrice",
-                    "totalProductAmount", "productDiscountAmount", "sellerBurdenDiscountAmount", "totalPaymentAmount",
-                    "expectedSettlementAmount", "deliveryFeeAmount", {"shippingAddress": ["zipCode", "latitude", "longitude"]},
+                    "totalProductAmount", "productDiscountAmount", {"sellerBurdenDiscountAmount": None},
+                    {"sellerBurdenStoreDiscountAmount": None}, "totalPaymentAmount", "expectedSettlementAmount",
+                    "deliveryFeeAmount", {"shippingAddress": ["zipCode", "latitude", "longitude"]},
                     "sellerProductCode", "optionManageCode", "productName", "productOption", "decisionDate"
                 ],
                 "delivery": ["trackingNumber", "deliveryCompany", "deliveryMethod", "pickupDate", "sendDate"],

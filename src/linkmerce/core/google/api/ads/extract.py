@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.google.api import GoogleAPI
+from linkmerce.core.google.api import GoogleApi
 
 from typing import TYPE_CHECKING
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class GoogleAds(GoogleAPI):
+class GoogleAds(GoogleApi):
     """https://developers.google.com/google-ads/api/fields/v23/overview"""
     service: str = "googleads"
     method: str = "POST"
@@ -21,8 +21,8 @@ class GoogleAds(GoogleAPI):
     def url(self) -> str:
         return self.concat_path(self.origin, self.version, "/customers/", self.customer_id, "/googleAds:searchStream")
 
-    @GoogleAPI.with_session
-    @GoogleAPI.with_token
+    @GoogleApi.with_session
+    @GoogleApi.with_token
     def extract(
             self,
             start_date: dt.date | str | None = None,
@@ -54,7 +54,7 @@ class GoogleAds(GoogleAPI):
         ):
         super().set_service_account(
             service_account = service_account,
-            scope = "https://www.googleapis.com/auth/adwords",
+            scope = "https://www.GoogleApis.com/auth/adwords",
             customer_id = customer_id,
             manager_id = manager_id,
             developer_token = developer_token,
@@ -219,8 +219,8 @@ class Insight(GoogleAds):
     def default_options(self) -> dict:
         return dict(RequestEach = dict(request_delay=1))
 
-    @GoogleAPI.with_session
-    @GoogleAPI.with_token
+    @GoogleApi.with_session
+    @GoogleApi.with_token
     def extract(
             self,
             start_date: dt.date | str | None = None,
@@ -267,8 +267,8 @@ class Asset(GoogleAds):
     """https://developers.google.com/google-ads/api/fields/v23/asset"""
     table = "asset"
 
-    @GoogleAPI.with_session
-    @GoogleAPI.with_token
+    @GoogleApi.with_session
+    @GoogleApi.with_token
     def extract(self, fields: Sequence[str] = list(), **kwargs) -> JsonObject:
         response = self.request_json(fields = fields)
         return self.parse(response, customer_id=self.customer_id)

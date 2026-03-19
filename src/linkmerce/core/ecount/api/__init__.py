@@ -1,1 +1,1 @@
-from linkmerce.core.ecount.api.common import EcountAPI, EcountTestAPI
+from linkmerce.core.ecount.api.common import EcountApi, EcountRequestApi, EcountTestApi

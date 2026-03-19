@@ -31,7 +31,7 @@ class AdvancedReport(ExcelTransformer):
 
     주요 설정 변수:
     - `header` - Excel 헤더 행 번호 (1부터 시작)
-    - `columns` - 한국어 칼럼명 (기본값 `['*']` → 원본 칼럼명 추출)
+    - `columns` - 한국어 칼럼명 (기본값 `['*']` -> 원본 칼럼명 추출)
     - `convert_dtypes` - 데이터 타입 변환 여부 (기본값 `True`)"""
 
     columns: list[ColumnKr] = ['*']

@@ -28,6 +28,32 @@ WHERE (measuredThrough.device IN ('Pc', 'Mobile', 'All'))
 ON CONFLICT DO NOTHING;
 
 
+-- PageViewByUrl: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    mall_seq BIGINT
+  , page_url VARCHAR
+  , page_click BIGINT
+  , user_click BIGINT
+  , time_on_site BIGINT
+  , ymd DATE
+  , PRIMARY KEY (ymd, mall_seq, page_url)
+);
+
+-- PageViewByUrl: bulk_insert
+INSERT INTO {{ table }}
+SELECT
+    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , measuredThrough.url AS page_url
+  , visit.pageClick AS page_click
+  , visit.userClick AS user_click
+  , visit.timeOnSite AS time_on_site
+  , TRY_CAST(ymd AS DATE) AS ymd
+FROM {{ rows }}
+WHERE (measuredThrough.url IS NOT NULL)
+  AND (TRY_CAST(ymd AS DATE) IS NOT NULL)
+ON CONFLICT DO NOTHING;
+
+
 -- PageViewByProduct: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     mall_seq BIGINT
@@ -60,30 +86,4 @@ FROM (
     AND (TRY_CAST(ymd AS DATE) IS NOT NULL)
 ) AS items
 WHERE items.product_id IS NOT NULL
-ON CONFLICT DO NOTHING;
-
-
--- PageViewByUrl: create
-CREATE TABLE IF NOT EXISTS {{ table }} (
-    mall_seq BIGINT
-  , page_url VARCHAR
-  , page_click BIGINT
-  , user_click BIGINT
-  , time_on_site BIGINT
-  , ymd DATE
-  , PRIMARY KEY (ymd, mall_seq, page_url)
-);
-
--- PageViewByUrl: bulk_insert
-INSERT INTO {{ table }}
-SELECT
-    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
-  , measuredThrough.url AS page_url
-  , visit.pageClick AS page_click
-  , visit.userClick AS user_click
-  , visit.timeOnSite AS time_on_site
-  , TRY_CAST(ymd AS DATE) AS ymd
-FROM {{ rows }}
-WHERE (measuredThrough.url IS NOT NULL)
-  AND (TRY_CAST(ymd AS DATE) IS NOT NULL)
 ON CONFLICT DO NOTHING;

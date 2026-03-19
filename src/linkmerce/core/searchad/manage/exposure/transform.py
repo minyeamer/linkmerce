@@ -10,7 +10,7 @@ class ExposureParser(JsonTransformer):
     scope = "adList"
     fields = [
         "rank", "imageUrl", "productTitle", "isOwn", "categoryNames",
-        "fmpBrand", "fmpMaker", "lowPrice", "mobileLowPrice"
+        "fmpBrand", "fmpMaker", "lowPrice", {"mobileLowPrice": None}
     ]
 
     def assert_valid_response(self, obj: dict, **kwargs):

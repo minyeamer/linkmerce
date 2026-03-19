@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import Variables, JsonObject
 
 
-class EcountAPI(Extractor):
+class EcountApi(Extractor):
     method: str = "POST"
     origin: str = "https://oapi{ZONE}.ecount.com/OAPI/"
     version: str = "V2"
@@ -45,7 +45,7 @@ class EcountAPI(Extractor):
 
     def with_oapi(func):
         @functools.wraps(func)
-        def wrapper(self: EcountAPI, *args, **kwargs):
+        def wrapper(self: EcountApi, *args, **kwargs):
             self.zone = self.oapi_zone(self.com_code)
             self.session_id = self.oapi_login(self.com_code, self.userid, self.api_key)
             return func(self, *args, **kwargs)
@@ -80,10 +80,10 @@ class EcountAPI(Extractor):
         super().set_request_headers(headers={"content-type": "application/json"})
 
 
-class EcountRequestAPI(EcountAPI):
+class EcountRequestApi(EcountApi):
 
-    @EcountAPI.with_session
-    @EcountAPI.with_oapi
+    @EcountApi.with_session
+    @EcountApi.with_oapi
     def extract(self, path: str, body: dict | None = None, **kwargs) -> JsonObject:
         self.path = path
         message = self.build_request_message(**kwargs)
@@ -95,11 +95,11 @@ class EcountRequestAPI(EcountAPI):
             return response.json()
 
 
-class EcountTestAPI(EcountAPI):
+class EcountTestApi(EcountApi):
     origin: str = "https://sboapi{ZONE}.ecount.com/OAPI/"
 
-    @EcountAPI.with_session
-    @EcountAPI.with_oapi
+    @EcountApi.with_session
+    @EcountApi.with_oapi
     def extract(self, path: str, body: dict | None = None, **kwargs) -> JsonObject:
         self.path = path
         message = self.build_request_message(**kwargs)

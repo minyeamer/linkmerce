@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.cj.eflexs import CJeFLEXs
+from linkmerce.core.cj.eflexs import CjEflexs
 
 from typing import TYPE_CHECKING
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class Stock(CJeFLEXs):
+class Stock(CjEflexs):
     menu = "IMSI0002M"
     path = "/selectDtlStckSearch.do"
     date_format = "%Y%m%d"
@@ -18,8 +18,8 @@ class Stock(CJeFLEXs):
     def default_options(self) -> dict:
         return dict(RequestEach = dict(request_delay=1))
 
-    @CJeFLEXs.with_session
-    @CJeFLEXs.with_auth_info
+    @CjEflexs.with_session
+    @CjEflexs.with_auth_info
     def extract(
             self,
             customer_id: int | str | Iterable,

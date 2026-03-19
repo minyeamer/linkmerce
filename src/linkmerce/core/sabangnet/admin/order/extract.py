@@ -201,7 +201,7 @@ class OrderStatus(OrderDownload):
         from linkmerce.core.sabangnet.admin import get_order_date_pair
         kwargs = dict(
             dict(zip(["start_date","end_date"], get_order_date_pair(start_date, end_date))),
-            excel_form=excel_form, order_seq=order_seq, order_status_div=order_status_div, order_status=order_status,
+            download_no=excel_form, order_seq=order_seq, order_status_div=order_status_div, order_status=order_status,
             shop_id=shop_id, sort_type=sort_type)
 
         keys = [self.date_type[dt] for dt in date_type]

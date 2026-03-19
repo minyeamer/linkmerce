@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import Variables, JsonObject
 
 
-class SmartstoreAPI(Extractor):
+class SmartstoreApi(Extractor):
     method: str | None = None
     origin: str = "https://api.commerce.naver.com/external"
     version: str = "v1"
@@ -38,7 +38,7 @@ class SmartstoreAPI(Extractor):
 
     def with_token(func):
         @functools.wraps(func)
-        def wrapper(self: SmartstoreAPI, *args, **kwargs):
+        def wrapper(self: SmartstoreApi, *args, **kwargs):
             authorization = self.authorize(self.client_id, self.client_secret)
             self.set_request_headers(headers={"Authorization": f"Bearer {authorization}"})
             return func(self, *args, **kwargs)
@@ -90,10 +90,10 @@ class SmartstoreAPI(Extractor):
         return True
 
 
-class SmartstoreTestAPI(SmartstoreAPI):
+class SmartstoreTestAPI(SmartstoreApi):
 
-    @SmartstoreAPI.with_session
-    @SmartstoreAPI.with_token
+    @SmartstoreApi.with_session
+    @SmartstoreApi.with_token
     def extract(
             self,
             method: str,

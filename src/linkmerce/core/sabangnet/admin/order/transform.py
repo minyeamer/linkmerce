@@ -73,7 +73,7 @@ class OrderDownload(DuckDBTransformer):
         self.download_type = download_type
         self.parser_config = dict(fields=fields)
 
-    def bulk_insert(self, result: list[dict], query_key: str = "bulk_insert", **kwargs):
+    def bulk_insert(self, result: list[dict], query_key: str = "bulk_insert", **kwargs) -> list:
         """`download_type`에 맞는 `bulk_insert` 삽입 쿼리를 선택해 실행한다."""
         query_key = f"bulk_insert_{self.download_type}"
         return super().bulk_insert(result, query_key, **kwargs)
@@ -141,6 +141,6 @@ class SkuMapping(DuckDBTransformer):
     parser_config = dict(
         dtype = dict,
         scope = "data",
-        fields = ["shmaPrdNo", "prdNo", "skuNo", "prdNm", "optDtlNm", "rn", "skuDscr", "fstRegsDt"],
+        fields = ["shmaPrdNo", "prdNo", "skuNo", "prdNm", "optDtlNm", "rn", "skuDscr", {"fstRegsDt": None}],
     )
     params = {"shop_id": "$query.shop_id"}

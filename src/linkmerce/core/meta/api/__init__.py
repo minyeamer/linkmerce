@@ -1,1 +1,1 @@
-from linkmerce.core.meta.api.common import MetaAPI, MetaTokenManager
+from linkmerce.core.meta.api.common import MetaApi, MetaTokenManager

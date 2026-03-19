@@ -145,10 +145,10 @@ def fetch_all_from_duckdb_table(
         transformer: DuckDBTransformer,
         return_type: Literal["csv","json","parquet","none"] = "json",
     ) -> Any | dict[str,Any]:
-    tables = transformer.get_tables()
+    tables = transformer.tables
     if (return_type == "none") or (not tables):
         return
     elif len(tables) == 1:
-        return transformer.fetch_all(return_type, list(tables.values())[0])
+        return transformer.fetch_all(return_type, f"SELECT * FROM {list(tables.values())[0]}")
     else:
-        return {key: transformer.fetch_all(return_type, table) for key, table in tables.items()}
+        return {key: transformer.fetch_all(return_type, f"SELECT * FROM {table}") for key, table in tables.items()}

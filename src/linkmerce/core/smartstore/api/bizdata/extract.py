@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.smartstore.api import SmartstoreAPI
+from linkmerce.core.smartstore.api import SmartstoreApi
 
 from typing import TYPE_CHECKING
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class MarketingChannel(SmartstoreAPI):
+class MarketingChannel(SmartstoreApi):
     method = "GET"
     version = "v1"
     path = "/bizdata-stats/channels/:channelNo/marketing/custom/detail"
@@ -19,8 +19,8 @@ class MarketingChannel(SmartstoreAPI):
     def default_options(self) -> dict:
         return dict(RequestEach = dict(request_delay=1))
 
-    @SmartstoreAPI.with_session
-    @SmartstoreAPI.with_token
+    @SmartstoreApi.with_session
+    @SmartstoreApi.with_token
     def extract(
             self,
             channel_seq: int | str,

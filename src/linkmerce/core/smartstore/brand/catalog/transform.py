@@ -38,7 +38,7 @@ class BrandCatalog(DuckDBTransformer):
 class BrandProduct(DuckDBTransformer):
     """네이버 브랜드 상품 목록을 `naver_brand_product` 테이블에 적재하는 클래스."""
 
-    tables = {"product": "naver_brand_product"}
+    tables = {"table": "naver_brand_product"}
     parser = CatalogItems
     parser_config = dict(
         fields = [
@@ -69,7 +69,7 @@ class BrandPrice(BrandProduct):
 class ProductCatalog(BrandProduct):
     """네이버 카탈로그-상품 매핑 데이터를 `naver_catalog_product` 테이블에 적재하는 클래스."""
 
-    tables = {"product": "naver_catalog_product"}
+    tables = {"table": "naver_catalog_product"}
     parser = CatalogItems
     parser_config = dict(
         fields = ["mallProductId", "catalogId"],

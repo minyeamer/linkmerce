@@ -20,7 +20,7 @@ class AdgroupParser(JsonTransformer):
     dtype = dict
     scope = "campaigns"
     fields = [
-        "id", "paCampaignId", "name", "goalType", "isActive", "isDeleted",
+        "id", {"campaignId": None}, "paCampaignId", "name", "goalType", "isActive", "isDeleted",
         {"roasTarget": None}, "createdAt", "updatedAt"
     ]
 
@@ -32,7 +32,10 @@ class AdgroupParser(JsonTransformer):
                 continue
             for adgroup in (campaign.get("groupList") or list()):
                 if isinstance(adgroup, dict):
-                    adgroups.append(adgroup | {"goalType": campaign.get("goalType", goal_type)})
+                    adgroups.append(adgroup | {
+                        "goalType": campaign.get("goalType", goal_type),
+                        "campaignId": adgroup.get("paCampaignId", campaign.get("id")),
+                    })
         return adgroups
 
 

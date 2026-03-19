@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from linkmerce.common.tasks import Task
 from pathlib import Path
 
-from typing import overload, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Literal, Sequence
@@ -240,35 +240,43 @@ class DuckDBConnection(Connection):
 
     ############################# Execute #############################
 
-    @overload
-    def execute(self, query: str, **params) -> DuckDBPyConnection:
-        ...
+    def execute(self, query: str, params: object | None = None) -> list[DuckDBPyConnection]:
+        if ';' not in query:
+            return self.conn.execute(query, parameters=params)
 
-    @overload
-    def execute(self, query: str, obj: list, **params) -> DuckDBPyConnection:
-        ...
+        # DuckDB does not support to pass parameters to multiple statements
+        statements = [s for statement in query.split(';') if (s := statement.strip())]
+        if (params is not None) and (len(statements) > 1):
+            import re
+            results = list()
+            for statement in statements:
+                if isinstance(params, dict) and params:
+                    used_keys = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", statement))
+                    used_params = {key: value for key, value in params.items() if key in used_keys}
+                    results.append(self.conn.execute(statement, parameters=(used_params or None)))
+                else:
+                    results.append(self.conn.execute(statement, parameters=params))
+            return results
+        return [self.conn.execute(query, parameters=params)]
 
-    def execute(self, query: str, obj: list | None = None, **params) -> DuckDBPyConnection:
-        if obj is None:
-            return self.conn.execute(query, parameters=(params or None))
-        else:
-            return self.conn.execute(query, parameters=dict(obj=obj, **params))
+    def sql(self, query: str, params: object | None = None) -> list[DuckDBPyRelation]:
+        if ';' not in query:
+            return self.conn.sql(query, params=params)
 
-    ############################### SQL ###############################
-
-    @overload
-    def sql(self, query: str, **params) -> DuckDBPyRelation:
-        ...
-
-    @overload
-    def sql(self, query: str, obj: list, **params) -> DuckDBPyRelation:
-        ...
-
-    def sql(self, query: str, obj: list | None = None, **params) -> DuckDBPyRelation:
-        if obj is None:
-            return self.conn.sql(query, params=(params or None))
-        else:
-            return self.conn.sql(query, params=dict(obj=obj, **params))
+        # DuckDB does not support to pass parameters to multiple statements
+        statements = [s for statement in query.split(';') if (s := statement.strip())]
+        if (params is not None) and (len(statements) > 1):
+            import re
+            results = list()
+            for statement in statements:
+                if isinstance(params, dict) and params:
+                    used_keys = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", statement))
+                    used_params = {key: value for key, value in params.items() if key in used_keys}
+                    results.append(self.conn.sql(statement, params=(used_params or None)))
+                else:
+                    results.append(self.conn.sql(statement, params=params))
+            return results
+        return [self.conn.sql(query, params=params)]
 
     ############################## Fetch ##############################
 
@@ -276,7 +284,7 @@ class DuckDBConnection(Connection):
             self,
             format: Literal["csv","json","parquet"],
             query: str,
-            params: dict | None = None,
+            params: object | None = None,
             save_to: str | Path | None = None,
         ) -> list[tuple] | list[tuple] | bytes | None:
         try:
@@ -287,7 +295,7 @@ class DuckDBConnection(Connection):
     def fetch_all_to_csv(
             self,
             query: str,
-            params: dict | None = None,
+            params: object | None = None,
             save_to: str | Path | None = None,
             header: bool = True,
         ) -> list[tuple] | None:
@@ -302,7 +310,7 @@ class DuckDBConnection(Connection):
     def fetch_all_to_json(
             self,
             query: str,
-            params: dict | None = None,
+            params: object | None = None,
             save_to: str | Path | None = None,
         ) -> list[dict] | None:
         relation = self.conn.execute(query, parameters=params)
@@ -316,7 +324,7 @@ class DuckDBConnection(Connection):
     def fetch_all_to_parquet(
             self,
             query: str,
-            params: dict | None = None,
+            params: object | None = None,
             save_to: str | Path | None = None,
         ) -> bytes | None:
         relation = self.conn.sql(query, params=params)
@@ -333,7 +341,7 @@ class DuckDBConnection(Connection):
             self,
             format: Literal["csv","json","parquet"],
             values: list[tuple] | list[dict] | bytes | str | Path,
-            params: dict | None = None,
+            params: object | None = None,
             prefix: str | None = None,
             suffix: str | None = None,
         ) -> DuckDBPyConnection:
@@ -345,7 +353,7 @@ class DuckDBConnection(Connection):
     def read_csv(
             self,
             values: list[tuple] | str | Path,
-            params: dict | None = None,
+            params: object | None = None,
             prefix: str | None = None,
             suffix: str | None = None,
         ) -> DuckDBPyConnection:
@@ -353,13 +361,13 @@ class DuckDBConnection(Connection):
             query = f"SELECT * FROM read_csv('{values}')"
         else:
             query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
-            params = dict(params or dict(), values=csv_to_json(values))
+            params = (params or dict()) | {"values": csv_to_json(values)}
         return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
 
     def read_json(
             self,
             values: list[dict] | str | Path,
-            params: dict | None = None,
+            params: object | None = None,
             prefix: str | None = None,
             suffix: str | None = None,
         ) -> DuckDBPyConnection:
@@ -367,13 +375,13 @@ class DuckDBConnection(Connection):
             query = f"SELECT * FROM read_json_auto('{values}')"
         else:
             query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
-            params = dict(params or dict(), values=values)
+            params = (params or dict()) | {"values": values}
         return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
 
     def read_parquet(
             self,
             values: bytes | str | Path,
-            params: dict | None = None,
+            params: object | None = None,
             prefix: str | None = None,
             suffix: str | None = None,
         ) -> DuckDBPyConnection:
@@ -395,7 +403,7 @@ class DuckDBConnection(Connection):
             format: Literal["csv","json","parquet"],
             option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyConnection:
         try:
             return getattr(self, f"create_table_from_{format}")(table, values, option, temp, params)
@@ -408,7 +416,7 @@ class DuckDBConnection(Connection):
             values: list[tuple] | str | Path,
             option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyConnection:
         return self.read_csv(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
 
@@ -418,7 +426,7 @@ class DuckDBConnection(Connection):
             values: list[dict] | str | Path,
             option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyConnection:
         return self.read_json(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
 
@@ -428,7 +436,7 @@ class DuckDBConnection(Connection):
             values: bytes | str | Path,
             option: Literal["replace","ignore"] | None = None,
             temp: bool = False,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyConnection:
         return self.read_parquet(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
 
@@ -454,7 +462,7 @@ class DuckDBConnection(Connection):
             values: list[tuple] | list[dict] | bytes | str | Path,
             format: Literal["csv","json","parquet"],
             on_conflict: str | None = None,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyConnection:
         try:
             return getattr(self, f"insert_into_table_from_{format}")(table, values, on_conflict, params)
@@ -466,7 +474,7 @@ class DuckDBConnection(Connection):
             table: str,
             values: list[tuple] | str | Path,
             on_conflict: str | None = None,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyConnection:
         suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
         return self.read_csv(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
@@ -476,7 +484,7 @@ class DuckDBConnection(Connection):
             table: str,
             values: list[dict] | str | Path,
             on_conflict: str | None = None,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyConnection:
         suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
         return self.read_json(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
@@ -486,7 +494,7 @@ class DuckDBConnection(Connection):
             table: str,
             values: bytes | str | Path,
             on_conflict: str | None = None,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyConnection:
         suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
         return self.read_parquet(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
@@ -499,7 +507,7 @@ class DuckDBConnection(Connection):
             by: str | Sequence[str],
             agg: str | dict[str,Literal["count","sum","avg","min","max","first","last","list"]],
             dropna: bool = True,
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBPyRelation:
         by = [by] if isinstance(by, str) else by
         where = "WHERE " + " AND ".join([f"{col} IS NOT NULL" for col in by]) if dropna else None
@@ -576,7 +584,7 @@ class DuckDBIterator(Task):
             self,
             values: list[tuple] | list[dict] | bytes | str | Path,
             format: Literal["csv","json","parquet"],
-            params: dict | None = None,
+            params: object | None = None,
         ) -> DuckDBIterator:
         self.conn.create_table(self.temp_table, values, format, option="replace", temp=True, params=params)
         return self.setattr("table", self.temp_table)

@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import Variables
 
 
-class CJeFLEXs(Extractor):
+class CjEflexs(Extractor):
     method: str = "POST"
     origin = "https://eflexs-x.cjlogistics.com"
     menu: str
@@ -44,7 +44,7 @@ class CJeFLEXs(Extractor):
 
     def with_auth_info(func):
         @functools.wraps(func)
-        def wrapper(self: CJeFLEXs, *args, **kwargs):
+        def wrapper(self: CjEflexs, *args, **kwargs):
             self.login(self.userid, self.passwd, self.mail_info)
             return func(self, *args, **kwargs)
         return wrapper

@@ -10,14 +10,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-class GoogleAPI(Extractor):
+class GoogleApi(Extractor):
     service: str
     method: str = "POST"
     access_token: str | None = None
 
     @property
     def origin(self) -> str:
-        return f"https://{self.service}.googleapis.com/"
+        return f"https://{self.service}.GoogleApis.com/"
 
     def set_variables(self, variables: Variables = dict()):
         try:
@@ -58,7 +58,7 @@ class GoogleAPI(Extractor):
 
     def with_token(func):
         @functools.wraps(func)
-        def wrapper(self: GoogleAPI, *args, **kwargs):
+        def wrapper(self: GoogleApi, *args, **kwargs):
             self.set_access_token()
             return func(self, *args, **kwargs)
         return wrapper
@@ -91,7 +91,7 @@ class GoogleAuth:
         payload_dict = {
             "iss": self.service_account["client_email"],
             "scope": self.scope,
-            "aud": "https://oauth2.googleapis.com/token",
+            "aud": "https://oauth2.GoogleApis.com/token",
             "exp": now + self.ttl,
             "iat": now,
         }
@@ -109,7 +109,7 @@ class GoogleAuth:
         signature_b64 = base64.urlsafe_b64encode(signature).decode().rstrip('=')
 
         # Token Request
-        token_url = "https://oauth2.googleapis.com/token"
+        token_url = "https://oauth2.GoogleApis.com/token"
         data = {
             "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
             "assertion": f"{jwt_unsigned}.{signature_b64}"

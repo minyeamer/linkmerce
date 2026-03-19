@@ -1,1 +1,1 @@
-from linkmerce.core.google.api.common import GoogleAPI, GoogleAuth
+from linkmerce.core.google.api.common import GoogleApi, GoogleAuth

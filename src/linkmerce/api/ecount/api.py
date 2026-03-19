@@ -24,8 +24,8 @@ def request(
         extract_options: dict = dict(),
         **kwargs
     ) -> JsonObject:
-    from linkmerce.core.ecount.api.common import EcountRequestAPI
-    extractor = EcountRequestAPI(**update_options(
+    from linkmerce.core.ecount.api import EcountRequestApi
+    extractor = EcountRequestApi(**update_options(
         extract_options,
         variables = dict(com_code=com_code, userid=userid, api_key=api_key),
     ))
@@ -41,8 +41,8 @@ def test(
         extract_options: dict = dict(),
         **kwargs
     ) -> JsonObject:
-    from linkmerce.core.ecount.api.common import EcountTestAPI
-    extractor = EcountTestAPI(**update_options(
+    from linkmerce.core.ecount.api import EcountTestApi
+    extractor = EcountTestApi(**update_options(
         extract_options,
         variables = dict(com_code=com_code, userid=userid, api_key=api_key),
     ))

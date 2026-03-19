@@ -8,13 +8,13 @@ class ProductParser(JsonTransformer):
 
     scope = "contents"
     fields = [
-        "channelProductNo", "originProductNo", "modelId", "channelServiceType", "name",
-        "sellerManagementCode", "modelName", "brandName", "manufacturerName",
+        "channelProductNo", "originProductNo", {"modelId": None}, "channelServiceType", "name",
+        {"sellerManagementCode": None}, {"modelName": None}, "brandName", {"manufacturerName": None},
         "categoryId", "wholeCategoryId", "wholeCategoryName", "statusType",
         "channelProductDisplayStatusType", "representativeImage.url", "sellerTags",
-        "salePrice", "discountedPrice", "stockQuantity",
-        "deliveryAttributeType", "deliveryFee", "returnFee", "exchangeFee",
-        "regDate", "modifiedDate", "groupProductNo"
+        "salePrice", {"discountedPrice": None}, "stockQuantity",
+        "deliveryAttributeType", "deliveryFee", {"returnFee": None}, {"exchangeFee": None},
+        "regDate", "modifiedDate", {"groupProductNo": None}
     ]
 
     def parse(self, contents: list[dict], **kwargs) -> list[dict]:

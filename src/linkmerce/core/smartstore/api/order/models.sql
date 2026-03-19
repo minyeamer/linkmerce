@@ -119,7 +119,9 @@ SELECT
   , content.productOrder.optionPrice AS option_price
   -- , content.productOrder.totalProductAmount AS product_amount = unit_price + option_price
   , content.productOrder.productDiscountAmount AS discount_amount
-  , content.productOrder.sellerBurdenDiscountAmount AS seller_discount_amount
+  , COALESCE(
+      content.productOrder.sellerBurdenDiscountAmount
+    , content.productOrder.sellerBurdenStoreDiscountAmount) AS seller_discount_amount
   -- , content.productOrder.totalPaymentAmount AS payment_amount = product_amount * order_quantity - discount_amount
   , content.productOrder.expectedSettlementAmount AS supply_amount
   , content.productOrder.deliveryFeeAmount AS delivery_fee

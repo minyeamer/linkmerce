@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 
-from typing import TypedDict, Union, overload, TYPE_CHECKING
+from typing import TypedDict, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Literal, Sequence, TypeVar
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from linkmerce.common.load import Connection, DuckDBConnection
     from linkmerce.common.models import Models
 
-    from duckdb import DuckDBPyConnection, DuckDBPyRelation
+    from duckdb import DuckDBPyConnection
     from pathlib import Path
 
 JsonObject = Union[dict, list]
@@ -46,13 +46,10 @@ class Transformer(metaclass=ABCMeta):
     def render_kwargs(
             self,
             template: dict,
+            kwargs: dict,
             on_missing: Literal["ignore", "raise"] = "raise",
-            **kwargs
         ) -> dict:
         """딕셔너리를 변환한다. `$key` 형식의 키는 키워드 인자(kwargs) 값으로 치환한다."""
-        if not (isinstance(template, dict) and template):
-            return dict()
-
         from linkmerce.utils.nested import hier_get
         render = dict()
         for path, value in template.items():
@@ -134,16 +131,17 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
 
     def extend_fields(self, item: dict, extends: dict | None = None, **kwargs) -> dict:
         """필드를 추출한 후 파생 필드를 생성하거나 값을 변환한다. 구현하지 않으면 입력을 그대로 반환한다."""
-        extends = self.get_extends(extends)
-        if extends is not None:
-            render = self.render_kwargs(extends, on_missing=self.on_missing, **kwargs)
+        extends = self.render_extends(extends, kwargs)
+        if extends:
             from linkmerce.utils.nested import hier_update
-            hier_update(item, render, on_missing="create")
+            hier_update(item, extends, on_missing="create")
         return item
 
-    def get_extends(self, extends: dict | None = None) -> dict:
-        """클래스 기본 파생 필드와 실행 시 전달된 파생 필드를 병합하여 반환한다."""
-        return (self.extends or dict()) | (extends or dict())
+    def render_extends(self, m: dict | None = None, kwargs: dict = dict()) -> dict:
+        """클래스 기본 파생 필드와 실행 시 전달된 파생 필드를 병합하여 반환한다.   
+        클래스 기본 파생 필드에서 `$key` 형식의 값은 `kwargs`에서 찾아 치환한다."""
+        extends = self.render_kwargs(self.extends, kwargs, self.on_missing) if self.extends else dict()
+        return (extends | m) if isinstance(m, dict) else extends
 
 
 class JsonTransformer(ResponseTransformer):
@@ -369,7 +367,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
 
         Args:
             `db_info`: DB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
-            `model_path`: `models.sql` 파일 경로. `"this"` → 현재 모듈 경로 내에서 자동 탐색한다.
+            `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
             `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
             `create_options`: 초기화 시 테이블 생성에 사용할 옵션.
             `parser`: 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
@@ -427,10 +425,10 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
     def parse(self, obj: Any, **kwargs) -> list | dict[TableKey, list]:
         """`parser` 설정에 따라 원본 데이터를 파싱해 삽입 가능한 형태로 변환한다.
 
-        - `parser`가 문자열(`"json"`, `"html"`, `"excel"`) → 해당 `ResponseTransformer`를 사용한다.
-        - `parser`가 클래스 → 해당 클래스를 인스턴스화해 `transform` 메서드로 원본 데이터를 변환한다.
-        - `parser`가 `dict` → 테이블 별칭별로 각 파서를 실행해 `{테이블_별칭: list}` 형태로 반환한다.
-        - `parser`가 `None` → 원본 데이터를 그대로 반환한다."""
+        - `parser`가 문자열(`"json"`, `"html"`, `"excel"`) -> 해당 `ResponseTransformer`를 사용한다.
+        - `parser`가 클래스 -> 해당 클래스를 인스턴스화해 `transform` 메서드로 원본 데이터를 변환한다.
+        - `parser`가 `dict` -> 테이블 별칭별로 각 파서를 실행해 `{테이블_별칭: list}` 형태로 반환한다.
+        - `parser`가 `None` -> 원본 데이터를 그대로 반환한다."""
 
         config = self.parser_config or dict()
         if isinstance(self.parser, dict):
@@ -457,10 +455,6 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         """클래스 기본 렌더 컨텍스트와 실행 시 전달된 렌더 컨텍스트를 병합하여 반환한다."""
         return (self.render or dict()) | (render or dict())
 
-    def execute(self, *args, **kwargs) -> Any:
-        """DB 연결을 통해 쿼리를 실행한다."""
-        return self.get_connection().execute(*args, **kwargs)
-
     def close(self):
         """DB 연결을 닫는다."""
         self.conn.close()
@@ -477,6 +471,10 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         """DB 연결을 초기화한다. 서브클래스에서 반드시 구현해야 한다."""
         raise NotImplementedError("The 'set_connection' method must be implemented.")
 
+    def execute(self, *args, **kwargs) -> Any:
+        """DB 연결을 통해 쿼리를 실행한다."""
+        return self.get_connection().execute(*args, **kwargs)
+
     def __enter__(self) -> DBTransformer:
         return self
 
@@ -489,7 +487,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         return self.__models
 
     def set_models(self, models: Literal["this"] | str | Path = "this"):
-        """`Models` 객체를 초기화한다. `models = "this"` → 현재 모듈 경로 내에서 자동 탐색한다."""
+        """`Models` 객체를 초기화한다. `models = "this"` -> 현재 모듈 경로 내에서 자동 탐색한다."""
         from linkmerce.common.models import Models
         self.__models = Models(self.default_models if models == "this" else models)
 
@@ -506,7 +504,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         return self.__queires
 
     def set_queries(self, name: Literal["self"] | str = "self", keys: Sequence[str] | None = None):
-        """`models.sql` 파일에서 쿼리를 불러온다. `name = "self"` → 현재 클래스명을 키로 사용한다."""
+        """`models.sql` 파일에서 쿼리를 불러온다. `name = "self"` -> 현재 클래스명을 키로 사용한다."""
         name = self.__class__.__name__ if name == "self" else name
         self.__queires = self.get_models().read_models(name, keys=(self.queries if keys is None else keys))
 
@@ -545,32 +543,32 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
     def create(self, query_key: str = "create", query: str = str(), render: dict | None = None) -> Any:
         """테이블 생성 쿼리를 실행한다. 쿼리가 없으면 `key = "create"`로 검색한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query)
+        return self.execute(query)
 
     def select(self, query_key: str = "select", query: str = str(), render: dict | None = None) -> Any:
         """조회 쿼리를 실행한다. 쿼리가 없으면 `key = "select"`로 검색한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query)
+        return self.execute(query)
 
     def update(self, query_key: str = "update", query: str = str(), render: dict | None = None) -> Any:
         """수정 쿼리를 실행한다. 쿼리가 없으면 `key = "update"`로 검색한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query)
+        return self.execute(query)
 
     def delete(self, query_key: str = "delete", query: str = str(), render: dict | None = None) -> Any:
         """삭제 쿼리를 실행한다. 쿼리가 없으면 `key = "delete"`로 검색한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query)
+        return self.execute(query)
 
     def insert_into(self, query_key: str = "insert", query: str = str(), render: dict | None = None) -> Any:
         """삽입 쿼리를 실행한다. 쿼리가 없으면 `key = "insert"`로 검색한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query)
+        return self.execute(query)
 
     def merge_into(self, query_key: str = "merge", query: str = str(), render: dict | None = None) -> Any:
         """병합 쿼리를 실행한다. 쿼리가 없으면 `key = "merge"`로 검색한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query)
+        return self.execute(query)
 
     ############################## Render #############################
 
@@ -635,7 +633,7 @@ class DuckDBTransformer(DBTransformer):
 
         Args:
             `db_info`: DB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
-            `model_path`: `models.sql` 파일 경로. `"this"` → 현재 모듈 경로 내에서 자동 탐색한다.
+            `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
             `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
             `create_options`: 초기화 시 테이블 생성에 사용할 옵션.
             `parser`: 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
@@ -678,12 +676,15 @@ class DuckDBTransformer(DBTransformer):
             render: dict | Literal["tables"] | None = "tables",
             params: dict | None = None,
             **kwargs
-        ) -> DuckDBPyConnection | None:
+        ) -> list[DuckDBPyConnection]:
         """파싱된 데이터를 DuckDB에 일괄 삽입한다. 데이터가 없으면 삽입하지 않는다."""
         render, params, total = self.prepare_bulk_params(result, render, params, **kwargs)
         if total > 0:
             query = self.prepare_query(query_key, render=render)
-            return self.execute(query, **params)
+            print(query)
+            return self.execute(query, params)
+        else:
+            return list()
 
     def prepare_bulk_params(
             self,
@@ -694,15 +695,15 @@ class DuckDBTransformer(DBTransformer):
         ) -> tuple[dict, dict, int]:
         """삽입 쿼리에 필요한 Jinja 렌더 변수와 SQL 파라미터를 준비한다.
 
-        - `result: dict` → `{테이블_별칭}_rows` 파라미터를 사용한다.
-        - `result: list` → `rows` 파라미터를 사용한다.
-        - `render = "tables"` → `self.tables`로 초기화한다.
+        - `result: dict` -> `{테이블_별칭}_rows` 파라미터를 사용한다.
+        - `result: list` -> `rows` 파라미터를 사용한다.
+        - `render = "tables"` -> `self.tables`로 초기화한다.
 
         Returns:
             `(render, params, total)` — 렌더 컨텍스트, SQL 파라미터, 전체 행 수
         """
-        render = self.get_render(self.tables if render == "tables" else render)
-        params = self.get_params(params)
+        render = self.render_context(self.tables if render == "tables" else render, kwargs)
+        params = self.render_params(params, kwargs)
         total = 0
 
         if isinstance(result, dict):
@@ -719,9 +720,17 @@ class DuckDBTransformer(DBTransformer):
 
         return render, params, total
 
-    def get_params(self, params: dict | None = None) -> dict:
-        """클래스 기본 파라미터와 실행 시 전달된 파라미터를 병합하여 반환한다."""
-        return (self.params or dict()) | (params or dict())
+    def render_context(self, m: dict | None = None, kwargs: dict = dict()) -> dict:
+        """클래스 기본 렌더 컨텍스트와 실행 시 전달된 렌더 컨텍스트를 병합하여 반환한다.   
+        클래스 기본 렌더 컨텍스트에서 `$key` 형식의 값은 `kwargs`에서 찾아 치환한다."""
+        render = self.render_kwargs(self.render, kwargs, on_missing="ignore") if self.render else dict()
+        return (render | m) if isinstance(m, dict) else render
+
+    def render_params(self, m: dict | None = None, kwargs: dict = dict()) -> dict:
+        """클래스 기본 파라미터와 실행 시 전달된 파라미터를 병합하여 반환한다.   
+        클래스 기본 파라미터에 `$key` 형식의 값은 `kwargs`에서 찾아 치환한다."""
+        params = self.render_kwargs(self.params, kwargs, on_missing="ignore") if self.params else dict()
+        return (params | m) if isinstance(m, dict) else params
 
     def expr_rows(self, param_name: str) -> str:
         """DuckDB `UNNEST` 구문을 사용해 `list[dict]` 파라미터를 인라인 테이블 표현식으로 변환한다."""
@@ -738,42 +747,12 @@ class DuckDBTransformer(DBTransformer):
         from linkmerce.common.load import DuckDBConnection
         self.__conn = conn if isinstance(conn, DuckDBConnection) else DuckDBConnection(**kwargs)
 
+    def execute(self, query: str, params: dict | None = None) -> list[DuckDBPyConnection]:
+        """DuckDB 연결을 통해 쿼리를 실행한다."""
+        return self.get_connection().execute(query, params)
+
     def __enter__(self) -> DuckDBTransformer:
         return self
-
-    ############################# Execute #############################
-
-    @overload
-    def execute(self, query: str, **params) -> DuckDBPyConnection:
-        ...
-
-    @overload
-    def execute(self, query: str, obj: list, **params) -> DuckDBPyConnection:
-        ...
-
-    def execute(self, query: str, obj: list | None = None, **params) -> DuckDBPyConnection:
-        """DuckDB 쿼리를 실행한다. `obj`는 위치 인자, `params`는 키워드 인자로 전달한다."""
-        if obj is None:
-            return self.conn.execute(query, **params)
-        else:
-            return self.conn.execute(query, obj, **params)
-
-    ############################### SQL ###############################
-
-    @overload
-    def sql(self, query: str, **params) -> DuckDBPyRelation:
-        ...
-
-    @overload
-    def sql(self, query: str, obj: list, **params) -> DuckDBPyRelation:
-        ...
-
-    def sql(self, query: str, obj: list | None = None, **params) -> DuckDBPyRelation:
-        """SQL 쿼리를 실행한다. `obj`는 위치 인자, `params`는 키워드 인자로 전달한다."""
-        if obj is None:
-            return self.conn.sql(query, **params)
-        else:
-            return self.conn.sql(query, obj, **params)
 
     ############################### CRUD ##############################
 
@@ -783,11 +762,11 @@ class DuckDBTransformer(DBTransformer):
             query: str = str(),
             render: dict | Literal["tables"] | None = "tables",
             params: dict | None = None,
-        ) -> DuckDBPyConnection:
-        """테이블 생성 쿼리를 실행한다. `render = "tables"` → `self.tables`를 렌더 컨텍스트로 사용한다."""
+        ) -> list[DuckDBPyConnection]:
+        """테이블 생성 쿼리를 실행한다. `render = "tables"` -> `self.tables`를 렌더 컨텍스트로 사용한다."""
         render = self.tables if render == "tables" else render
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query, **(params or dict()))
+        return self.execute(query, params)
 
     def select(
             self,
@@ -795,10 +774,10 @@ class DuckDBTransformer(DBTransformer):
             query: str = str(),
             render: dict | None = None,
             params: dict | None = None,
-        ) -> DuckDBPyConnection:
+        ) -> list[DuckDBPyConnection]:
         """조회 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query, **(params or dict()))
+        return self.execute(query, params)
 
     def update(
             self,
@@ -806,10 +785,10 @@ class DuckDBTransformer(DBTransformer):
             query: str = str(),
             render: dict | None = None,
             params: dict | None = None,
-        ) -> DuckDBPyConnection:
+        ) -> list[DuckDBPyConnection]:
         """수정 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query, **(params or dict()))
+        return self.execute(query, params)
 
     def delete(
             self,
@@ -817,10 +796,10 @@ class DuckDBTransformer(DBTransformer):
             query: str = str(),
             render: dict | None = None,
             params: dict | None = None,
-        ) -> DuckDBPyConnection:
+        ) -> list[DuckDBPyConnection]:
         """삭제 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query, **(params or dict()))
+        return self.execute(query, params)
 
     def insert_into(
             self,
@@ -828,10 +807,10 @@ class DuckDBTransformer(DBTransformer):
             query: str = str(),
             render: dict | None = None,
             params: dict | None = None,
-        ) -> DuckDBPyConnection:
+        ) -> list[DuckDBPyConnection]:
         """삽입 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query, **(params or dict()))
+        return self.execute(query, params)
 
     def merge_into(
             self,
@@ -839,7 +818,7 @@ class DuckDBTransformer(DBTransformer):
             query: str = str(),
             render: dict | None = None,
             params: dict | None = None,
-        ) -> DuckDBPyConnection:
+        ) -> list[DuckDBPyConnection]:
         """UPSERT 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.conn.execute(query, **(params or dict()))
+        return self.execute(query, params)

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.ecount.api import EcountAPI
+from linkmerce.core.ecount.api import EcountApi
 
 from typing import TYPE_CHECKING
 
@@ -7,12 +7,12 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import JsonObject
 
 
-class Product(EcountAPI):
+class Product(EcountApi):
     method = "POST"
     path = "/InventoryBasic/GetBasicProductsList"
 
-    @EcountAPI.with_session
-    @EcountAPI.with_oapi
+    @EcountApi.with_session
+    @EcountApi.with_oapi
     def extract(self, product_code: str | None = None, comma_yn: bool = False, **kwargs) -> JsonObject:
         message = self.build_request_message(product_code=product_code, comma_yn=comma_yn)
         with self.request(**message) as response:

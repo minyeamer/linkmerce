@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.naver.openapi import NaverOpenAPI
+from linkmerce.core.naver.openapi import NaverOpenApi
 
 from typing import TYPE_CHECKING
 
@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import JsonObject
 
 
-class _SearchExtractor(NaverOpenAPI):
+class _SearchExtractor(NaverOpenApi):
     """
     Search various types of content using the Naver Open API.
 
@@ -41,7 +41,7 @@ class _SearchExtractor(NaverOpenAPI):
             RequestEachLoop = dict(request_delay=0.3, max_concurrent=3),
         )
 
-    @NaverOpenAPI.with_session
+    @NaverOpenApi.with_session
     def extract(
             self,
             query: str | Iterable[str],
@@ -51,7 +51,7 @@ class _SearchExtractor(NaverOpenAPI):
         ) -> JsonObject:
         return self._extract_backend(query, start, display=display, sort=sort)
 
-    @NaverOpenAPI.async_with_session
+    @NaverOpenApi.async_with_session
     async def extract_async(
             self,
             query: str | Iterable[str],
@@ -111,7 +111,7 @@ class CafeSearch(_SearchExtractor):
 class KiNSearch(_SearchExtractor):
     content_type = "kin"
 
-    @NaverOpenAPI.with_session
+    @NaverOpenApi.with_session
     def extract(
             self,
             query: str | Iterable[str],
@@ -122,7 +122,7 @@ class KiNSearch(_SearchExtractor):
         ) -> JsonObject:
         return self._extract_backend(query, start, display=display, sort=sort, **kwargs)
 
-    @NaverOpenAPI.async_with_session
+    @NaverOpenApi.async_with_session
     async def extract_async(
             self,
             query: str | Iterable[str],
@@ -137,7 +137,7 @@ class KiNSearch(_SearchExtractor):
 class ImageSearch(_SearchExtractor):
     content_type = "image"
 
-    @NaverOpenAPI.with_session
+    @NaverOpenApi.with_session
     def extract(
             self,
             query: str | Iterable[str],
@@ -149,7 +149,7 @@ class ImageSearch(_SearchExtractor):
         ) -> JsonObject:
         return self._extract_backend(query, start, display=display, sort=sort, filter=filter, **kwargs)
 
-    @NaverOpenAPI.async_with_session
+    @NaverOpenApi.async_with_session
     async def extract_async(
             self,
             query: str | Iterable[str],
@@ -165,7 +165,7 @@ class ImageSearch(_SearchExtractor):
 class ShoppingSearch(_SearchExtractor):
     content_type = "shop"
 
-    @NaverOpenAPI.with_session
+    @NaverOpenApi.with_session
     def extract(
             self,
             query: str | Iterable[str],
@@ -176,7 +176,7 @@ class ShoppingSearch(_SearchExtractor):
         ) -> JsonObject:
         return self._extract_backend(query, start, display=display, sort=sort, **kwargs)
 
-    @NaverOpenAPI.async_with_session
+    @NaverOpenApi.async_with_session
     async def extract_async(
             self,
             query: str | Iterable[str],

@@ -1,1 +1,1 @@
-from linkmerce.core.cj.eflexs.common import CJeFLEXs
+from linkmerce.core.cj.eflexs.common import CjEflexs

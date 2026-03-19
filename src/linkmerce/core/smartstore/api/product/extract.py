@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.smartstore.api import SmartstoreAPI
+from linkmerce.core.smartstore.api import SmartstoreApi
 
 from typing import TYPE_CHECKING
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class Product(SmartstoreAPI):
+class Product(SmartstoreApi):
     method = "POST"
     version = "v1"
     path = "/products/search"
@@ -19,8 +19,8 @@ class Product(SmartstoreAPI):
     def default_options(self) -> dict:
         return dict(PaginateAll = dict(request_delay=1))
 
-    @SmartstoreAPI.with_session
-    @SmartstoreAPI.with_token
+    @SmartstoreApi.with_session
+    @SmartstoreApi.with_token
     def extract(
             self,
             search_keyword: Sequence[int] = list(),
@@ -87,7 +87,7 @@ class Product(SmartstoreAPI):
         return {"PROD_REG_DAY": "상품 등록일", "SALE_START_DAY": "판매 시작일", "SALE_END_DAY": "판매 종료일", "PROD_MOD_DAY": "최종 수정일"}
 
 
-class Option(SmartstoreAPI):
+class Option(SmartstoreApi):
     method = "GET"
     version = "v2"
     path = "/products/channel-products/{}"
@@ -96,8 +96,8 @@ class Option(SmartstoreAPI):
     def default_options(self) -> dict:
         return dict(RequestEach = dict(request_delay=1))
 
-    @SmartstoreAPI.with_session
-    @SmartstoreAPI.with_token
+    @SmartstoreApi.with_session
+    @SmartstoreApi.with_token
     def extract(
             self,
             product_id: Sequence[int | str],

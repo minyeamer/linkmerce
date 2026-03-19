@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import Variables
 
 
-class NaverSearchAdAPI(Extractor):
+class NaverSearchAdApi(Extractor):
     method: str | None = None
     origin: str = "https://api.searchad.naver.com"
     uri: str | None = None

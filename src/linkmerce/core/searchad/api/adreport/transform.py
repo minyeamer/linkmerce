@@ -62,6 +62,10 @@ class TsvTransformer(ResponseTransformer):
                 data.append(dict(zip(columns, values)))
         return data
 
+    def select_fields(self, data: list[dict], **kwargs) -> list[dict]:
+        """TSV 파싱 결과를 그대로 반환한다. (칼럼 선택은 `columns` 속성으로 이미 처리됨)"""
+        return data
+
 
 class Campaign(DuckDBTransformer):
     """네이버 검색광고 캠페인 마스터 데이터를 `searchad_campaign` 테이블에 적재하는 클래스."""
@@ -327,8 +331,7 @@ class Ad(DuckDBTransformer):
 
         for table_key in AD_TABLE_KEYS[:4]:
             query_key = f"transform_{table_key}"
-            tables = {"table": self.table} | self.get_table(table_key)
-            result_set[query_key] = self.insert_into(query_key, render=tables)
+            result_set[query_key] = self.insert_into(query_key, render=self.tables)
 
         return result_set
 

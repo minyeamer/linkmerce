@@ -87,13 +87,16 @@ class AddProduct(DuckDBTransformer):
         fields = ["addPrdGrpId", "addPrdSkuCnfgSrno", "prdNo", "skuNo", "addPrdSkuCnfgNm", "sepr"],
     )
 
-    def transform(self, obj: JsonObject, **kwargs):
+    def transform(self, obj: JsonObject, **kwargs) -> list:
         """추가상품 조회 결과 파싱 후 메타 데이터를 SQL 파라미터에 추가해 삽입 쿼리를 실행한다."""
         result = self.parse(obj, **kwargs)
         render, params, total = self.prepare_bulk_params(result, **kwargs)
         if total > 0:
             query = self.prepare_query("bulk_insert", render=render)
-            return self.execute(query, **(params | {"meta": self.parse_metadata(obj)}))
+            params = params | {"meta": self.parse_metadata(obj)}
+            return self.execute(query, params)
+        else:
+            return list()
 
     def parse_metadata(self, obj: JsonObject) -> dict:
         """추가상품 조회 결과에서 메타 데이터를 추출해 반환한다."""

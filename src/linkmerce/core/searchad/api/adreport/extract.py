@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.searchad.api import NaverSearchAdAPI
+from linkmerce.core.searchad.api import NaverSearchAdApi
 
 from typing import TYPE_CHECKING
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class _ReportsDownload(NaverSearchAdAPI):
+class _ReportsDownload(NaverSearchAdApi):
     """
     The Extractor workflow operates as follows:
     1. Sends a POST request to the Naver Search Ad API to create a report.
@@ -23,7 +23,7 @@ class _ReportsDownload(NaverSearchAdAPI):
     job_type: Literal["master-reports", "stat-reports"]
     report_type: str
 
-    @NaverSearchAdAPI.with_session
+    @NaverSearchAdApi.with_session
     def extract(self, from_date: dt.date | str | None = None) -> JsonObject:
         tsv_data = self._extract_backend(self.report_type, from_date)
         return self.parse(tsv_data)
@@ -138,7 +138,7 @@ class BrandAd(_MasterReport):
 class Ad(_MasterReport):
     report_type = None
 
-    @NaverSearchAdAPI.with_session
+    @NaverSearchAdApi.with_session
     def extract(self, from_date: dt.date | str | None = None) -> JsonObject:
         report_types = ["Ad", "ContentsAd", "ShoppingProduct", "ProductGroup", "ProductGroupRel", "BrandThumbnailAd", "BrandBannerAd", "BrandAd"]
         tsv_data = {report_type: self._extract_backend(report_type, from_date) for report_type in report_types}
