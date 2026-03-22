@@ -17,7 +17,7 @@ class GoogleApi(Extractor):
 
     @property
     def origin(self) -> str:
-        return f"https://{self.service}.GoogleApis.com/"
+        return f"https://{self.service}.googleapis.com/"
 
     def set_variables(self, variables: Variables = dict()):
         try:
@@ -91,7 +91,7 @@ class GoogleAuth:
         payload_dict = {
             "iss": self.service_account["client_email"],
             "scope": self.scope,
-            "aud": "https://oauth2.GoogleApis.com/token",
+            "aud": "https://oauth2.googleapis.com/token",
             "exp": now + self.ttl,
             "iat": now,
         }
@@ -109,7 +109,7 @@ class GoogleAuth:
         signature_b64 = base64.urlsafe_b64encode(signature).decode().rstrip('=')
 
         # Token Request
-        token_url = "https://oauth2.GoogleApis.com/token"
+        token_url = "https://oauth2.googleapis.com/token"
         data = {
             "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
             "assertion": f"{jwt_unsigned}.{signature_b64}"

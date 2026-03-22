@@ -54,7 +54,7 @@ class GoogleAds(GoogleApi):
         ):
         super().set_service_account(
             service_account = service_account,
-            scope = "https://www.GoogleApis.com/auth/adwords",
+            scope = "https://www.googleapis.com/auth/adwords",
             customer_id = customer_id,
             manager_id = manager_id,
             developer_token = developer_token,

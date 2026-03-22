@@ -117,7 +117,7 @@ class _AdReport(CoupangAds):
             start_date: dt.date | str, 
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             date_type: Literal["total","daily"] = "daily",
-            report_level: Literal["campaign","adGroup","ad","vendorItem","keyword","creative"] = "campaign",
+            report_level: Literal["campaign","adGroup","ad","vendorItem","keyword","creative"] = "vendorItem",
             campaign_ids: Sequence[int | str] = list(),
             vendor_id: str | None = None,
             wait_seconds: int = 60,
@@ -139,7 +139,7 @@ class _AdReport(CoupangAds):
         report_id = report["data"]["requestReport"]["id"]
 
         self.wait_report(report_id, wait_seconds, wait_interval)
-        file_name = f"{vendor_id or str()}_{self.report_type}_{date_type}_{report_level}_{start_date}_{end_date}.xlsx"
+        file_name = f"{vendor_id or 'A00000000'}_{self.report_type}_{date_type}_{report_level}_{start_date}_{end_date}.xlsx"
         return {file_name: self.download_excel(report_id, vendor_id)}
 
     def fetch_dashboard(self):
