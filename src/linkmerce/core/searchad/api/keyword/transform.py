@@ -6,6 +6,7 @@ from linkmerce.common.transform import DuckDBTransformer
 class Keyword(DuckDBTransformer):
     """네이버 검색광고 키워드 도구의 연관키워드 조회 결과를 `searchad_keyword` 테이블에 적재하는 클래스."""
 
+    extractor = "Keyword"
     tables = {"table": "searchad_keyword"}
     parser = "json"
     parser_config = dict(

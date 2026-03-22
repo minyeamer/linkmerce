@@ -19,6 +19,7 @@ class SearchParser(JsonTransformer):
 class BlogSearch(DuckDBTransformer):
     """네이버 블로그 검색 결과를 `naver_blog` 테이블에 적재하는 클래스."""
 
+    extractor = "BlogSearch"
     tables = {"table": "naver_blog"}
     parser = SearchParser
     parser_config = dict(
@@ -30,6 +31,7 @@ class BlogSearch(DuckDBTransformer):
 class NewsSearch(DuckDBTransformer):
     """네이버 뉴스 검색 결과를 `naver_news` 테이블에 적재하는 클래스."""
 
+    extractor = "NewsSearch"
     tables = {"table": "naver_news"}
     parser = SearchParser
     parser_config = dict(
@@ -41,6 +43,7 @@ class NewsSearch(DuckDBTransformer):
 class BookSearch(DuckDBTransformer):
     """네이버 책 검색 결과를 `naver_book` 테이블에 적재하는 클래스."""
 
+    extractor = "BookSearch"
     tables = {"table": "naver_book"}
     parser = SearchParser
     parser_config = dict(
@@ -52,6 +55,7 @@ class BookSearch(DuckDBTransformer):
 class CafeSearch(DuckDBTransformer):
     """네이버 카페 검색 결과를 `naver_cafe` 테이블에 적재하는 클래스."""
 
+    extractor = "CafeSearch"
     tables = {"table": "naver_cafe"}
     parser = SearchParser
     parser_config = dict(
@@ -63,6 +67,7 @@ class CafeSearch(DuckDBTransformer):
 class KiNSearch(DuckDBTransformer):
     """네이버 지식iN 검색 결과를 `naver_kin` 테이블에 적재하는 클래스."""
 
+    extractor = "KiNSearch"
     tables = {"table": "naver_kin"}
     parser = SearchParser
     parser_config = dict(
@@ -74,6 +79,7 @@ class KiNSearch(DuckDBTransformer):
 class ImageSearch(DuckDBTransformer):
     """네이버 이미지 검색 결과를 `naver_image` 테이블에 적재하는 클래스."""
 
+    extractor = "ImageSearch"
     tables = {"table": "naver_image"}
     parser = SearchParser
     parser_config = dict(
@@ -85,6 +91,7 @@ class ImageSearch(DuckDBTransformer):
 class ShoppingSearch(DuckDBTransformer):
     """네이버 쇼핑 검색 결과를 `naver_shop` 테이블에 적재하는 클래스."""
 
+    extractor = "ShoppingSearch"
     tables = {"table": "naver_shop"}
     parser = SearchParser
     parser_config = dict(
@@ -103,6 +110,7 @@ class ShoppingRank(ShoppingSearch):
     - `rank` | `naver_shop_rank` | 네이버 쇼핑 상품 순위
     - `product` | `naver_shop_product` | 네이버 쇼핑 상품 목록"""
 
+    extractor = "ShoppingSearch"
     tables = {"rank": "naver_shop_rank", "product": "naver_shop_product"}
     parser = SearchParser
     parser_config = dict(

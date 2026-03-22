@@ -44,6 +44,7 @@ class _CommonParser(JsonTransformer):
 class Campaign(DuckDBTransformer):
     """구글 광고 캠페인 목록을 `google_campaign` 테이블에 적재하는 클래스."""
 
+    extractor = "Campaign"
     tables = {"table": "google_campaign"}
     parser = "json"
     parser_config = _common_config(
@@ -59,6 +60,7 @@ class Campaign(DuckDBTransformer):
 class AdGroup(DuckDBTransformer):
     """구글 광고그룹 목록을 `google_adgroup` 테이블에 적재하는 클래스."""
 
+    extractor = "AdGroup"
     tables = {"table": "google_adgroup"}
     parser = "json"
     parser_config = _common_config(
@@ -105,6 +107,7 @@ class AdParser(_CommonParser):
 class Ad(DuckDBTransformer):
     """구글 광고 소재 목록을 `google_ad` 테이블에 적재하는 클래스."""
 
+    extractor = "Ad"
     tables = {"table": "google_ad"}
     parser = AdParser
     params = {"customer_id": "$customer_id"}
@@ -113,6 +116,7 @@ class Ad(DuckDBTransformer):
 class Insight(DuckDBTransformer):
     """구글 광고 소재의 측정값을 일자/기기별로 구분하여 `google_insight` 테이블에 적재하는 클래스."""
 
+    extractor = "Insight"
     tables = {"table": "google_insight"}
     parser = "json"
     parser_config = _common_config(
@@ -158,6 +162,7 @@ class AssetParser(_CommonParser):
 class Asset(DuckDBTransformer):
     """구글 광고 자산 데이터를 `google_asset` 테이블에 적재하는 클래스."""
 
+    extractor = "Asset"
     tables = {"table": "google_asset"}
     parser = AssetParser
     params = {"customer_id": "$customer_id"}
@@ -195,6 +200,7 @@ class AssetViewParser(_CommonParser):
 class AssetView(DuckDBTransformer):
     """구글 광고 소재-애셋 관계를 `google_asset_view` 테이블에 적재하는 클래스."""
 
+    extractor = "AssetView"
     tables = {"table": "google_asset_view"}
     parser = AssetViewParser
     params = {"customer_id": "$customer_id"}

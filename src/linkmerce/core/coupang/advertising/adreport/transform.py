@@ -46,6 +46,7 @@ class Campaign(DuckDBTransformer):
     - `campaign` | `coupang_campaign` | 쿠팡 광고 캠페인 목록
     - `adgroup` | `coupang_adgroup` | 쿠팡 광고그룹 목록"""
 
+    extractor = "Campaign"
     tables = {"campaign": "coupang_campaign", "adgroup": "coupang_adgroup"}
     parser = {"campaign": CampaignParser, "adgroup": AdgroupParser}
     params = {"vendor_id": "$vendor_id"}
@@ -54,6 +55,7 @@ class Campaign(DuckDBTransformer):
 class Creative(DuckDBTransformer):
     """쿠팡 광고 동영상 소재 데이터를 `coupang_creative` 테이블에 적재하는 클래스."""
 
+    extractor = "Creative"
     tables = {"table": "coupang_creative"}
     parser = "json"
     parser_config = dict(
@@ -67,6 +69,7 @@ class Creative(DuckDBTransformer):
 class ProductAdReport(DuckDBTransformer):
     """쿠팡 PA(Product Ad) 광고 성과 보고서(Excel) 데이터를 `coupang_adreport_pa` 테이블에 적재하는 클래스."""
 
+    extractor = "ProductAdReport"
     tables = {"table": "coupang_adreport_pa"}
     parser = "excel"
     parser_config = dict(
@@ -82,6 +85,7 @@ class ProductAdReport(DuckDBTransformer):
 class NewCustomerAdReport(DuckDBTransformer):
     """쿠팡 신규고객광고(NCA) 성과 보고서(Excel) 데이터를 `coupang_adreport_nca` 테이블에 적재하는 클래스."""
 
+    extractor = "NewCustomerAdReport"
     tables = {"table": "coupang_adreport_nca"}
     parser = "excel"
     parser_config = dict(

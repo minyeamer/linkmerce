@@ -23,6 +23,7 @@ class SalesParser(JsonTransformer):
 class StoreSales(DuckDBTransformer):
     """네이버 스토어 일별 매출 데이터를 `naver_store_sales` 테이블에 적재하는 클래스."""
 
+    extractor = "StoreSales"
     tables = {"table": "naver_store_sales"}
     parser = SalesParser
     parser_config = dict(
@@ -35,6 +36,7 @@ class StoreSales(DuckDBTransformer):
 class CategorySales(DuckDBTransformer):
     """네이버 스토어 일별/카테고리별 매출 데이터를 `naver_category_sales` 테이블에 적재하는 클래스."""
 
+    extractor = "CategorySales"
     tables = {"table": "naver_category_sales"}
     parser = SalesParser
     parser_config = dict(
@@ -51,6 +53,7 @@ class CategorySales(DuckDBTransformer):
 class ProductSales(DuckDBTransformer):
     """네이버 스토어 일별/상품별 매출 데이터를 `naver_product_sales` 테이블에 적재하는 클래스."""
 
+    extractor = "ProductSales"
     tables = {"table": "naver_product_sales"}
     parser = SalesParser
     parser_config = dict(
@@ -72,5 +75,6 @@ class AggregatedSales(ProductSales):
     - `sales` | `naver_sales` | 네이버 스토어 상품별 매출
     - `product` | `naver_product` | 네이버 스토어 상품 목록"""
 
+    extractor = "ProductSales"
     tables = {"sales": "naver_sales", "product": "naver_product"}
     params = {"mall_seq": "$mall_seq", "start_date": "$start_date", "end_date": "$end_date"}

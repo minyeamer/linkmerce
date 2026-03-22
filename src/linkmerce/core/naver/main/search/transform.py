@@ -613,6 +613,7 @@ class Search(DuckDBTransformer):
     - `sections` | `naver_search_sections` | 네이버 검색 결과의 각 섹션 목록
     - `summary` | `naver_search_summary` | 네이버 검색 결과 요약"""
 
+    extractor = "Search"
     tables = {"sections": "naver_search_sections", "summary": "naver_search_summary"}
     parser = SearchSectionParser
 
@@ -738,6 +739,7 @@ class CafeParser(HtmlTransformer):
 class CafeTab(DuckDBTransformer):
     """네이버 모바일 카페 탭 검색 결과를 `naver_cafe` 테이블에 적재하는 클래스."""
 
+    extractor = "SearchTab"
     tables = {"table": "naver_cafe"}
     parser = CafeParser
     params = {"query": "$query"}
@@ -786,5 +788,6 @@ class CafeArticleParser(JsonTransformer):
 class CafeArticle(DuckDBTransformer):
     """네이버 카페 게시글 API 응답 데이터를 `naver_cafe_article` 테이블에 적재하는 클래스."""
 
+    extractor = "CafeArticle"
     tables = {"table": "naver_cafe_article"}
     parser = CafeArticleParser

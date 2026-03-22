@@ -30,6 +30,7 @@ class ProductParser(JsonTransformer):
 class Product(DuckDBTransformer):
     """스마트스토어 상품 목록 조회 API 응답 데이터를 `smartstore_product` 테이블에 적재하는 클래스."""
 
+    extractor = "Product"
     tables = {"table": "smartstore_product"}
     parser = ProductParser
     params = {"channel_seq": "$channel_seq"}
@@ -80,6 +81,7 @@ class Option(DuckDBTransformer):
     - 추가 상품 (`product_type = 2`)
     """
 
+    extractor = "Option"
     tables = {"table": "smartstore_option"}
     parser = {
         "option_simple": OptionSimpleParser,

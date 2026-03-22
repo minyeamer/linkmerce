@@ -600,11 +600,13 @@ class DuckDBTransformer(DBTransformer):
     DuckDB 전용 구문을 지원한다. (문서 참조: https://duckdb.org/docs/stable/)
 
     주요 설정 변수:
+    - `extractor` - 변환할 HTTP 응답 데이터를 가져오는 `Extractor` 클래스명 매핑
     - `queries` - SQL 모델 파일에서 불러올 쿼리 키 목록
     - `tables` - `{테이블_별칭: 실제_테이블명}` 형식의 테이블 매핑
     - `parser` - 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
     - `parser_config` - 파서 객체 초기화 시 전달할 설정 변수 (`ParserConfig`)"""
 
+    extractor: str | None = None
     queries: list[str] = ["create", "bulk_insert"]
     tables: dict[TableKey, TableName] = {"table": "data"}
     parser: (

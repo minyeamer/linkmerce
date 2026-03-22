@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 class Product(DuckDBTransformer):
     """사방넷 상품 조회 결과를 `sabangnet_product` 테이블에 적재하는 클래스."""
 
+    extractor = "Product"
     tables = {"table": "sabangnet_product"}
     parser = "json"
     parser_config = dict(
@@ -28,6 +29,7 @@ class Product(DuckDBTransformer):
 class Option(DuckDBTransformer):
     """사방넷 단품 옵션 조회 결과를 `sabangnet_option` 테이블에 적재하는 클래스."""
 
+    extractor = "Option"
     tables = {"table": "sabangnet_option"}
     parser = "json"
     parser_config = dict(
@@ -60,6 +62,7 @@ class OptionParser(ExcelTransformer):
 class OptionDownload(DuckDBTransformer):
     """사방넷 옵션 다운로드 결과를 `sabangnet_option_download` 테이블에 적재하는 클래스."""
 
+    extractor = "OptionDownload"
     tables = {"table": "sabangnet_option_download"}
     parser = OptionParser
 
@@ -67,6 +70,7 @@ class OptionDownload(DuckDBTransformer):
 class AddProductGroup(DuckDBTransformer):
     """사방넷 추가상품 그룹을 `sabangnet_add_product_group` 테이블에 적재하는 클래스."""
 
+    extractor = "AddProductGroup"
     tables = {"table": "sabangnet_add_product_group"}
     parser = "json"
     parser_config = dict(
@@ -79,6 +83,7 @@ class AddProductGroup(DuckDBTransformer):
 class AddProduct(DuckDBTransformer):
     """사방넷 추가상품 목록을 `sabangnet_add_product` 테이블에 적재하는 클래스."""
 
+    extractor = "AddProduct"
     tables = {"table": "sabangnet_add_product"}
     parser = "json"
     parser_config = dict(

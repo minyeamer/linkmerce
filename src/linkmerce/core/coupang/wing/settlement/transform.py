@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 class RocketSettlement(DuckDBTransformer):
     """쿠팡 로켓 정산 현황을 `coupang_rocket_settlement` 테이블에 적재하는 클래스."""
 
+    extractor = "RocketSettlement"
     tables = {"table": "coupang_rocket_settlement"}
     parser = "json"
     parser_config = dict(
@@ -84,6 +85,7 @@ class RocketSettlementDownload(DuckDBTransformer):
 
     `report_type`에 따라 적절한 파서를 선택한다."""
 
+    extractor = "RocketSettlementDownload"
     queries = ["create", "bulk_insert_sales", "bulk_insert_shipping"]
     tables = {"sales": "coupang_rocket_sales", "shipping": "coupang_rocket_shipping"}
     params = {"vendor_id": "$vendor_id"}

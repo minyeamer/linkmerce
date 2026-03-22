@@ -29,6 +29,7 @@ class ExposureDiagnosis(DuckDBTransformer):
     - `None`: 모든 광고 소재의 진단 결과 추출
     """
 
+    extractor = "ExposureDiagnosis"
     tables = {"table": "searchad_exposure"}
     parser = ExposureParser
     params = {"keyword": "$keyword", "is_own": "$is_own"}
@@ -46,4 +47,5 @@ class ExposureRank(ExposureDiagnosis):
     - `False`: 소유하지 않은 광고 소재만 필터
     - `None`: 모든 광고 소재의 진단 결과 추출"""
 
+    extractor = "ExposureDiagnosis"
     tables = {"rank": "searchad_rank", "product": "searchad_product"}

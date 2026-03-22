@@ -21,6 +21,7 @@ class CatalogItems(JsonTransformer):
 class BrandCatalog(DuckDBTransformer):
     """네이버 브랜드 카탈로그 목록을 `naver_brand_catalog` 테이블에 적재하는 클래스."""
 
+    extractor = "BrandCatalog"
     tables = {"table": "naver_brand_catalog"}
     parser = CatalogItems
     parser_config = dict(
@@ -38,6 +39,7 @@ class BrandCatalog(DuckDBTransformer):
 class BrandProduct(DuckDBTransformer):
     """네이버 브랜드 상품 목록을 `naver_brand_product` 테이블에 적재하는 클래스."""
 
+    extractor = "BrandProduct"
     tables = {"table": "naver_brand_product"}
     parser = CatalogItems
     parser_config = dict(
@@ -58,6 +60,7 @@ class BrandPrice(BrandProduct):
     - `price` | `naver_price_history` | 네이버 브랜드 상품 가격
     - `product` | `naver_product` | 네이버 브랜드 상품 목록"""
 
+    extractor = "BrandProduct"
     tables = {"price": "naver_price_history", "product": "naver_product"}
     parser = CatalogItems
     parser_config = dict(
@@ -69,6 +72,7 @@ class BrandPrice(BrandProduct):
 class ProductCatalog(BrandProduct):
     """네이버 카탈로그-상품 매핑 데이터를 `naver_catalog_product` 테이블에 적재하는 클래스."""
 
+    extractor = "BrandProduct"
     tables = {"table": "naver_catalog_product"}
     parser = CatalogItems
     parser_config = dict(

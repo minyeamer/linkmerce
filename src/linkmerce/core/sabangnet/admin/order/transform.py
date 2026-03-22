@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 class Order(DuckDBTransformer):
     """사방넷 주문서 확인 처리 조회 결과를 `sabangnet_order_detail` 테이블에 적재하는 클래스."""
 
+    extractor = "Order"
     tables = {"table": "sabangnet_order_detail"}
     parser = "json"
     parser_config = dict(
@@ -38,6 +39,7 @@ class OrderDownload(DuckDBTransformer):
     - `invoice` | `sabangnet_invoice` | 사방넷 발주 내역
     - `dispatch` | `sabangnet_dispatch` | 사방넷 발송 내역"""
 
+    extractor = "OrderDownload"
     queries = ["create", *[f"bulk_insert_{key}" for key in ORDER_TABLE_KEYS]]
     tables = {key: f"sabangnet_{key}" for key in ORDER_TABLE_KEYS}
     parser = "excel"
@@ -83,6 +85,7 @@ class OrderStatus(DuckDBTransformer):
     """사방넷 주문서 확인 처리 다운로드 결과로부터 주문 상태에 따른 변경 날짜를 파싱해
     `sabangnet_order_status` 테이블에 적재하는 클래스."""
 
+    extractor = "OrderStatus"
     tables = {"table": "sabangnet_order_status"}
     parser = "excel"
     # parser_config = dict(
@@ -121,6 +124,7 @@ class OrderStatus(DuckDBTransformer):
 class ProductMapping(DuckDBTransformer):
     """사방넷 품번코드 매핑 내역을 `sabangnet_product_mapping` 테이블에 적재하는 클래스."""
 
+    extractor = "ProductMapping"
     tables = {"table": "sabangnet_product_mapping"}
     parser = "json"
     parser_config = dict(
@@ -136,6 +140,7 @@ class ProductMapping(DuckDBTransformer):
 class SkuMapping(DuckDBTransformer):
     """사방넷 단품코드 매핑 내역을 `sabangnet_sku_mapping` 테이블에 적재하는 클래스."""
 
+    extractor = "SkuMapping"
     tables = {"table": "sabangnet_sku_mapping"}
     parser = "json"
     parser_config = dict(

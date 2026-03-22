@@ -6,6 +6,7 @@ from linkmerce.common.transform import ExcelTransformer, DuckDBTransformer
 class Campaign(DuckDBTransformer):
     """네이버 성과형 디스플레이 광고 캠페인 목록을 `searchad_campaign_gfa` 테이블에 적재하는 클래스."""
 
+    extractor = "Campaign"
     tables = {"table": "searchad_campaign_gfa"}
     parser = "json"
     parser_config = dict(
@@ -18,6 +19,7 @@ class Campaign(DuckDBTransformer):
 class AdSet(DuckDBTransformer):
     """네이버 성과형 디스플레이 광고그룹 목록을 `searchad_adgroup_gfa` 테이블에 적재하는 클래스."""
 
+    extractor = "AdSet"
     tables = {"table": "searchad_adgroup_gfa"}
     parser = "json"
     parser_config = dict(
@@ -31,6 +33,7 @@ class AdSet(DuckDBTransformer):
 class Creative(DuckDBTransformer):
     """네이버 성과형 디스플레이 광고 소재 목록을 `searchad_creative_gfa` 테이블에 적재하는 클래스."""
 
+    extractor = "Creative"
     tables = {"table": "searchad_creative_gfa"}
     parser = "json"
     parser_config = dict(
@@ -68,6 +71,7 @@ class CsvTransformer(ExcelTransformer):
 class CampaignReport(DuckDBTransformer):
     """네이버 성과형 디스플레이 광고 캠페인 성과 리포트를 `searchad_campaign_report` 테이블에 적재하는 클래스."""
 
+    extractor = "CampaignReport"
     tables = {"table": "searchad_campaign_report"}
     parser = CsvTransformer
     parser_config = dict(
@@ -78,6 +82,8 @@ class CampaignReport(DuckDBTransformer):
 
 class CreativeReport(DuckDBTransformer):
     """네이버 성과형 디스플레이 광고 소재 성과 리포트를 `searchad_creative_report` 테이블에 적재하는 클래스."""
+
+    extractor = "CreativeReport"
     tables = {"table": "searchad_creative_report"}
     parser = CsvTransformer
     parser_config = dict(

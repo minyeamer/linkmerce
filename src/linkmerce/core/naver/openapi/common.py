@@ -5,7 +5,6 @@ from linkmerce.common.extract import Extractor
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal
     from linkmerce.common.extract import Variables
 
 

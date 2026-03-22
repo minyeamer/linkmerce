@@ -33,6 +33,7 @@ class PageViewParser(JsonTransformer):
 class PageViewByDevice(DuckDBTransformer):
     """네이버 브랜드 스토어의 일별/기기별 페이지뷰 데이터를 `naver_pv_by_device` 테이블에 적재하는 클래스."""
 
+    extractor = "PageViewByDevice"
     tables = {"table": "naver_pv_by_device"}
     parser = PageViewParser
     parser_config = dict(
@@ -44,6 +45,7 @@ class PageViewByDevice(DuckDBTransformer):
 class PageViewByUrl(DuckDBTransformer):
     """네이버 브랜드 스토어의 일별/URL별 페이지뷰 데이터를 `naver_pv_by_url` 테이블에 적재하는 클래스."""
 
+    extractor = "PageViewByUrl"
     tables = {"table": "naver_pv_by_url"}
     parser = PageViewParser
     parser_config = dict(
@@ -55,6 +57,7 @@ class PageViewByUrl(DuckDBTransformer):
 class PageViewByProduct(DuckDBTransformer):
     """네이버 브랜드 스토어의 일별/상품별 페이지뷰 데이터를 `naver_pv_by_product` 테이블에 적재하는 클래스."""
 
+    extractor = "PageViewByUrl"
     tables = {"table": "naver_pv_by_product"}
     parser = PageViewParser
     parser_config = dict(

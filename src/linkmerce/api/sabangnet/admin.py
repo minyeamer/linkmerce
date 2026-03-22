@@ -116,7 +116,7 @@ def order_status(
         userid: str,
         passwd: str,
         domain: int,
-        excel_form: int,
+        download_no: int,
         start_date: dt.datetime | dt.date | str | Literal[":today:"] = ":today:",
         end_date: dt.datetime | dt.date | str | Literal[":start_date:",":now:"] = ":start_date:",
         date_type: list[str] = ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"],
@@ -144,7 +144,7 @@ def order_status(
         tables = tables,
         how = "sync",
         return_type =  return_type,
-        args = (excel_form, start_date, end_date, date_type, order_seq, order_status_div, order_status, shop_id, sort_type),
+        args = (download_no, start_date, end_date, date_type, order_seq, order_status_div, order_status, shop_id, sort_type),
         extract_options = update_options(
             extract_options,
             options = get_paginate_options(request_delay, progress),

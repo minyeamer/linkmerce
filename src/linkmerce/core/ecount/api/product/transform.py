@@ -6,6 +6,7 @@ from linkmerce.common.transform import DuckDBTransformer
 class Product(DuckDBTransformer):
     """이카운트 품목관리 API 응답 데이터를 `ecount_product` 테이블에 적재하는 클래스."""
 
+    extractor = "Product"
     tables = {"table": "ecount_product"}
     parser = "json"
     parser_config = dict(

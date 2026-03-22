@@ -40,6 +40,7 @@ class ProductParser(JsonTransformer):
 class ProductOption(DuckDBTransformer):
     """쿠팡 상품 옵션 목록을 `coupang_product` 테이블에 적재하는 클래스."""
 
+    extractor = "ProductOption"
     tables = {"table": "coupang_product"}
     parser = ProductParser
     parser_config = {"product_type": "option"}
@@ -49,6 +50,7 @@ class ProductOption(DuckDBTransformer):
 class ProductDetail(DuckDBTransformer):
     """쿠팡 상품 상세 정보를 `coupang_product_detail` 테이블에 적재하는 클래스."""
 
+    extractor = "ProductDetail"
     queries = ["create", "bulk_insert", "bulk_insert_vendor", "insert_rfm"]
     tables = {"table": "coupang_product_detail"}
     parser = "json"
@@ -108,6 +110,7 @@ class ProductDownload(DuckDBTransformer):
 
     `request_type`에 따라 적절한 파서를 선택한다. `VENDOR_INVENTORY_ITEM`만 지원한다."""
 
+    extractor = "ProductDownload"
     tables = {"table": "coupang_product_download"}
     params = {"vendor_id": "$vendor_id", "is_deleted": "$is_deleted"}
 
@@ -123,6 +126,7 @@ class ProductDownload(DuckDBTransformer):
 class RocketInventory(DuckDBTransformer):
     """쿠팡 로켓 재고 내역을 `coupang_rocket_inventory` 테이블에 적재하는 클래스."""
 
+    extractor = "RocketInventory"
     tables = {"table": "coupang_rocket_inventory"}
     parser = "json"
     parser_config = dict(
@@ -144,6 +148,7 @@ class RocketInventory(DuckDBTransformer):
 class RocketOption(DuckDBTransformer):
     """쿠팡 로켓 옵션 목록을 `coupang_rocket_option` 테이블에 적재하는 클래스."""
 
+    extractor = "RocketInventory"
     tables = {"table": "coupang_rocket_option"}
     parser = "json"
     parser_config = dict(

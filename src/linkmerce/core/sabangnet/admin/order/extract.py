@@ -187,7 +187,7 @@ class OrderStatus(OrderDownload):
     @SabangnetAdmin.with_token
     def extract(
             self,
-            excel_form: int,
+            download_no: int,
             start_date: dt.datetime | dt.date | str | Literal[":today:"] = ":today:",
             end_date: dt.datetime | dt.date | str | Literal[":start_date:",":now:"] = ":start_date:",
             date_type: list[str] = ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"],
@@ -201,7 +201,7 @@ class OrderStatus(OrderDownload):
         from linkmerce.core.sabangnet.admin import get_order_date_pair
         kwargs = dict(
             dict(zip(["start_date","end_date"], get_order_date_pair(start_date, end_date))),
-            download_no=excel_form, order_seq=order_seq, order_status_div=order_status_div, order_status=order_status,
+            download_no=download_no, order_seq=order_seq, order_status_div=order_status_div, order_status=order_status,
             shop_id=shop_id, sort_type=sort_type)
 
         keys = [self.date_type[dt] for dt in date_type]

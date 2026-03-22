@@ -164,6 +164,7 @@ class AdvancedReport(ExcelTransformer):
 class DailyReport(DuckDBTransformer):
     """네이버 검색광고 다차원 보고서를 일별로 구분하여 `searchad_report` 테이블에 적재하는 클래스."""
 
+    extractor = "DailyReport"
     tables = {"table": "searchad_report"}
     parser = AdvancedReport
     parser_config = dict(

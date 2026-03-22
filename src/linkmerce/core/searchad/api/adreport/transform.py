@@ -70,6 +70,7 @@ class TsvTransformer(ResponseTransformer):
 class Campaign(DuckDBTransformer):
     """네이버 검색광고 캠페인 마스터 데이터를 `searchad_campaign` 테이블에 적재하는 클래스."""
 
+    extractor = "Campaign"
     tables = {"table": "searchad_campaign"}
     parser = TsvTransformer
     parser_config = dict(
@@ -93,6 +94,7 @@ class Campaign(DuckDBTransformer):
 class Adgroup(DuckDBTransformer):
     """네이버 검색광고 광고그룹 마스터 데이터를 `searchad_adgroup` 테이블에 적재하는 클래스."""
 
+    extractor = "Adgroup"
     tables = {"table": "searchad_adgroup"}
     parser = TsvTransformer
     parser_config = dict(
@@ -309,6 +311,7 @@ class Ad(DuckDBTransformer):
     - `brand_thumbnail_ad` | `brand_thumbnail_ad` | 쇼핑브랜드 썸네일 이미지형 소재 목록
     - `brand_banner_ad` | `brand_banner_ad` | 쇼핑브랜드 배너 이미지형 소재 목록"""
 
+    extractor = "Ad"
     queries = (
         ["create"]
         + [f"bulk_insert_{key}" for key in AD_TABLE_KEYS]

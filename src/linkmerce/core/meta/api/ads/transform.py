@@ -14,6 +14,7 @@ def _common_config(fields: list) -> dict:
 class Campaigns(DuckDBTransformer):
     """메타 광고 캠페인 목록을 `meta_campaigns` 테이블에 적재하는 클래스."""
 
+    extractor = "Campaigns"
     tables = {"table": "meta_campaigns"}
     parser = "json"
     parser_config = _common_config(
@@ -25,6 +26,7 @@ class Campaigns(DuckDBTransformer):
 class Adsets(DuckDBTransformer):
     """메타 광고세트 목록을 `meta_adsets` 테이블에 적재하는 클래스."""
 
+    extractor = "Adsets"
     tables = {"table": "meta_adsets"}
     parser = "json"
     parser_config = _common_config(
@@ -36,6 +38,7 @@ class Adsets(DuckDBTransformer):
 class Ads(DuckDBTransformer):
     """메타 광고 목록을 `meta_ads` 테이블에 적재하는 클래스."""
 
+    extractor = "Ads"
     tables = {"table": "meta_ads"}
     parser = "json"
     parser_config = _common_config(
@@ -53,6 +56,7 @@ class Insights(DuckDBTransformer):
     - `ads` | `meta_ads` | 메타 광고 목록
     - `insights` | `meta_insights` | 메타 광고 성과 보고서"""
 
+    extractor = "Insights"
     tables = {"campaigns": "meta_campaigns", "adsets": "meta_adsets", "ads": "meta_ads", "insights": "meta_insights"}
     parser = "json"
     parser_config = _common_config(
