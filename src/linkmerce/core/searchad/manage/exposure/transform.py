@@ -49,3 +49,5 @@ class ExposureRank(ExposureDiagnosis):
 
     extractor = "ExposureDiagnosis"
     tables = {"rank": "searchad_rank", "product": "searchad_product"}
+    parser = ExposureParser
+    params = {"keyword": "$keyword", "is_own": "$is_own"}

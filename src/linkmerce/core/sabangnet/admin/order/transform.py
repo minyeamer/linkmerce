@@ -45,6 +45,10 @@ class OrderDownload(DuckDBTransformer):
     parser = "excel"
 
     def pre_init(self, download_type: Literal["order", "option", "invoice", "dispatch"], **kwargs):
+        """초기화 전에 호출되는 후크 메서드."""
+        self.set_fields(download_type)
+
+    def set_fields(self, download_type: Literal["order", "option", "invoice", "dispatch"]):
         """`download_type`에 따라 필드 스키마를 선택해 `parser_config`를 설정한다."""
         if download_type == "order":
             fields = [

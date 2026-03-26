@@ -253,6 +253,10 @@ class DuckDBConnection(Connection):
                 if isinstance(params, dict) and params:
                     used_keys = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", statement))
                     used_params = {key: value for key, value in params.items() if key in used_keys}
+                    # 파라미터로 전달되는 `rows`가 비어있으면 `BinderException: Binder Error` 발생을 회피하기 위해 스킵한다.
+                    # `DuckDBTransformer`에서 `execute`를 호출할 때 `rows` 길이를 검증하지만, 다중 쿼리에서는 예외가 있다.
+                    if any((isinstance(value, list) and not value) for value in used_params.values()):
+                        continue
                     results.append(self.conn.execute(statement, parameters=(used_params or None)))
                 else:
                     results.append(self.conn.execute(statement, parameters=params))

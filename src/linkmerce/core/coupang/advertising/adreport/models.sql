@@ -194,7 +194,7 @@ GROUP BY ymd, campaign_id, option_id, option_conv_id, placement_group
 ON CONFLICT DO NOTHING;
 
 
--- NewCustomerAdReport: bulk_insert
+-- NewCustomerAdReport: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     campaign_id BIGINT
   -- , campaign_name VARCHAR

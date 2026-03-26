@@ -37,7 +37,8 @@ class SearchSectionParser(HtmlTransformer):
     def transform(self, obj: str, mobile: bool = True, sep: str = '\n', **kwargs) -> list[list[dict]]:
         from linkmerce.utils.parse import select
         from bs4 import BeautifulSoup
-        source = BeautifulSoup(obj, "html.parser")
+        content = str(obj)
+        source = BeautifulSoup(content, "html.parser")
 
         results = list()
         parent = "div#container > div#ct" if mobile else "div#container > div#content > div#main_pack"
@@ -48,10 +49,10 @@ class SearchSectionParser(HtmlTransformer):
             elif id == "_related_keywords": # 연관검색어
                 results.append(RelatedKeywords().transform(source, sep))
             elif id.startswith("shp_") and id.endswith("_root"): # 네이버 가격비교
-                results.append(Shopping().transform(obj, sep))
+                results.append(Shopping().transform(content, sep))
             elif id.startswith("shs_") and id.endswith("_root"): # 네이버플러스 스토어
-                results.append(NewShopping().transform(obj))
-            elif id.startswith("fdr-") and (data := self.get_props_by_id(obj, id, sep)): # 스마트 블록, 웹문서 등
+                results.append(NewShopping().transform(content))
+            elif id.startswith("fdr-") and (data := self.get_props_by_id(content, id, sep)): # 스마트 블록, 웹문서 등
                 results.append(data)
             elif "new_product" in (select(section, "section > :class():") or list()): # 신제품소개
                 results.append([dict(section="신제품소개")]) # pass
@@ -80,7 +81,7 @@ class SearchSectionParser(HtmlTransformer):
             if not isinstance(e, Tag): continue
             elif e.name == "link":
                 if (depth == 1) and e.get("href", str()).endswith("/index.css"):
-                    sections += self.select_sections(e, parent='&', depth=(depth+1))
+                    sections += self.select_sections(e, parent=':scope', depth=(depth+1))
             else: sections.append(e)
         return sections
 
@@ -619,8 +620,8 @@ class Search(DuckDBTransformer):
 
     def transform(self, obj: str, query: str, mobile: bool = True, sep: str = '\n', **kwargs) -> list:
         """네이버 검색 결과의 각 섹션별 하위 블럭을 직렬화 또는 요약하여 각각의 테이블에 적재한다."""
-        sections = SearchSectionParser().transform(obj, mobile, sep)
-        if sections:
+        sections = self.parse(obj, mobile=mobile, sep=sep)
+        if len(sections) > 0:
             results = self.insert_serialized_sections(query, sections)
             summary = self.summarize_sections(query, sections, sep)
             return results + self.bulk_insert(summary, render={"summary": self.tables["summary"]})
@@ -675,7 +676,7 @@ class CafeParser(HtmlTransformer):
         "cafe_name": "div.user_info > a.name > :text():",
         "title": "a.title_link > :text():",
         "description": "div.dsc_area > :text():",
-        "image_url": "a.thumb_link > img > :attr(src):",
+        "image_url": ("a.thumb_link > img > :attr(src):", None),
         "article_url": None, # make_article_url(url, query)
         "replies": "div.flick_bx:all", # select_replies(replies)
         "write_date": "div.user_info > span.sub > :text():"

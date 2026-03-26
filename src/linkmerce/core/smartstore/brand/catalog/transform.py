@@ -27,7 +27,7 @@ class BrandCatalog(DuckDBTransformer):
     parser_config = dict(
         fields = [
             "identifier", "prodName", "makerSeq", "makerName", "brandSeq", "brandName",
-            {"category": ["identifier", "name", "fullId", "fullName"]}, "image.src",
+            {"category": ["identifier", "name", "fullId", "fullName"]}, "imageInfo.src",
             "officialAuthLowestPriceRatio.lowestPrice",
             "officialAuthLowestPriceRatioWithFee.lowestPrice",
             "lowestPrice", "allLowestPriceWithFee.lowestPrice",
@@ -64,7 +64,7 @@ class BrandPrice(BrandProduct):
     tables = {"price": "naver_price_history", "product": "naver_product"}
     parser = CatalogItems
     parser_config = dict(
-        fields = ["mallProductId", "categoryId", "fullCategoryId", "lowestPrice", "registerDate"],
+        fields = ["mallProductId", "categoryId", "fullCategoryId", "name", "lowestPrice", "registerDate"],
     )
     params = {"mall_seq": "$mall_seq"}
 
@@ -78,3 +78,4 @@ class ProductCatalog(BrandProduct):
     parser_config = dict(
         fields = ["mallProductId", "catalogId"],
     )
+    params = None

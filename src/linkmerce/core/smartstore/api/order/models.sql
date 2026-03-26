@@ -290,14 +290,14 @@ FROM (
       , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS dispatch_dt
       , TRY_STRPTIME(SUBSTR(content.delivery.deliveredDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS delivery_dt
       , TRY_STRPTIME(SUBSTR(content.productOrder.decisionDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS decision_dt
-      , (CASE WHEN content.completedClaims.0.claimType = 'EXCHANGE'
-          THEN TRY_STRPTIME(SUBSTR(content.completedClaims.0.claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+      , (CASE WHEN content.completedClaims."0".claimType = 'EXCHANGE'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims."0".claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
         ELSE NULL END) AS exchange_complete_dt
-      , (CASE WHEN content.completedClaims.0.claimType = 'CANCEL'
-          THEN TRY_STRPTIME(SUBSTR(content.completedClaims.0.claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+      , (CASE WHEN content.completedClaims."0".claimType = 'CANCEL'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims."0".claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
         ELSE NULL END) AS cancel_complete_dt
-      , (CASE WHEN content.completedClaims.0.claimType = 'RETURN'
-          THEN TRY_STRPTIME(SUBSTR(content.completedClaims.0.claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
+      , (CASE WHEN content.completedClaims."0".claimType = 'RETURN'
+          THEN TRY_STRPTIME(SUBSTR(content.completedClaims."0".claimRequestAdmissionDate, 1, 19), '%Y-%m-%dT%H:%M:%S')
         ELSE NULL END) AS return_complete_dt
     FROM {{ rows }}
   ) AS ord

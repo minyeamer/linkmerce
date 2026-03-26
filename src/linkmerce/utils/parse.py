@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Hashable, Literal, Sequence, TypeVar
+    from typing import Any, Hashable, Literal, Sequence, TypeVar
     from bs4 import BeautifulSoup, Tag
     _KT = TypeVar("_KT", bound=Hashable)
+    _VT = TypeVar("_VT", bound=Any)
 
 
 def camel_to_snake(s: str) -> str:
@@ -74,11 +75,14 @@ def select(
 
 def select_attrs(
         tag: BeautifulSoup | Tag,
-        schema: dict[_KT, str],
+        schema: dict[_KT, str | tuple[str, _VT]],
         on_missing: Literal["ignore", "raise"] = "ignore",
     ) -> dict[_KT, str | list[str]]:
-    """`{필드명: CSS_선택자}` 스키마를 입력받아 매칭되는 속성값들을 딕셔너리로 묶어서 반환한다.   
-    `CSS_선택자`가 문자열이 아니라면 상수로 인식하고 값으로 추가한다."""
+    """`{필드명: CSS_선택자}` 스키마를 입력받아 매칭되는 속성값들을 딕셔너리로 묶어서 반환한다.
+
+    `CSS_선택자`에 해당되는 스키마 값이 `str` 형식이 아니라면 다음과 같이 분기 처리한다:
+    - 스키마 값이 `tuple` 형식이라면 `(CSS_선택자, 기본값)`으로 인식해 실행 오류를 무시하고 기본값을 반환한다.
+    - 그 외에 `str` 형식이 아닌 스키마 값은 상수로 인식하고 값으로 추가한다."""
     return {key: (select(tag, selector, on_missing=on_missing) if isinstance(selector, str) else selector)
             for key, selector in schema.items()}
 
@@ -109,7 +113,10 @@ def _select_attr(
         return tag.get("data-{}".format(attr[5:-1]))
     elif attr == "label()":
         return tag.get("aria-labelledby")
-    raise ValueError(f"Could not find element for attribute: '{attr}'")
+
+    if on_missing == "raise":
+        raise ValueError(f"Could not find element for attribute: '{attr}'")
+    return None
 
 
 def _hier_select(

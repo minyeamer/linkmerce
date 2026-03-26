@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
 
-class ProductParser(JsonTransformer):
+class ProductOptionParser(JsonTransformer):
     """쿠팡 상품 목록을 추출하는 파서 클래스.
 
     `product_type = "option"` 설정 시 상품에 중첩된 옵션을 평탄화해 반환한다."""
@@ -21,7 +21,7 @@ class ProductParser(JsonTransformer):
         "brand", "manufacture", "valid", "salePrice", "deliveryCharge", "viUnitSoldAgg",
         "stockQuantity", "createdOn", "modifiedOn"
     ]
-    product_type: Literal["product", "option"] = "product"
+    product_type: Literal["product", "option"] = "option"
 
     def parse(self, obj: list[dict], **kwargs) -> list[dict]:
         """`product_type = "option"` 시 상품마다 `vendorInventoryItems`를 평탄화해 옵션 목록을 반환한다."""
@@ -42,8 +42,7 @@ class ProductOption(DuckDBTransformer):
 
     extractor = "ProductOption"
     tables = {"table": "coupang_product"}
-    parser = ProductParser
-    parser_config = {"product_type": "option"}
+    parser = ProductOptionParser
     params = {"is_deleted": "$is_deleted"}
 
 
@@ -51,7 +50,7 @@ class ProductDetail(DuckDBTransformer):
     """쿠팡 상품 상세 정보를 `coupang_product_detail` 테이블에 적재하는 클래스."""
 
     extractor = "ProductDetail"
-    queries = ["create", "bulk_insert", "bulk_insert_vendor", "insert_rfm"]
+    queries = ["create", "bulk_insert", "bulk_insert_vendor", "bulk_insert_rfm"]
     tables = {"table": "coupang_product_detail"}
     parser = "json"
     parser_config = dict(
@@ -160,9 +159,11 @@ class RocketOption(DuckDBTransformer):
             "creturnConfigViewDto": [{key: None} for key in [
                 "vendorInventoryItemId", "itemId", "externalSkuId", "vendorId", "productName", "itemName",
                 "displayCategoryCodeLevel1", "displayCategoryCodeLevel2", "displayCategoryCodeLevel3",
-                "displayCategoryCodeLevel4", "displayCategoryCodeLevel5", "onSale",
-                "creturnCategoryLevelThresholdDto.categoryId", "creturnCategoryLevelThresholdDto.kanNameEn"
+                "displayCategoryCodeLevel4", "displayCategoryCodeLevel5", "onSale"
             ]],
+            "creturnConfigViewDto.creturnCategoryLevelThresholdDto": [
+                {"categoryId": None}, {"kanNameEn": None}
+            ],
             "inventoryDetails": ["isHiddenByVendor", "orderableQuantity"],
             "pricing": ["salesPrice.amount"]
         },

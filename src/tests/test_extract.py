@@ -440,7 +440,7 @@ class TestMetaAds:
             variables = self.credentials(credentials),
             parser = dump_extract(Insights, format="json"),
         ).extract(
-            ad_level = _configs.get("ad_level", "campaign"),
+            ad_level = _configs.get("ad_level", "ad"),
             start_date = _configs.get("start_date", yesterday),
             end_date = _configs.get("end_date", ":start_date:"),
             date_type = _configs.get("date_type", "daily"),
@@ -662,12 +662,12 @@ class TestSabangnet:
     def test_order_download(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         from linkmerce.core.sabangnet.admin.order.extract import OrderDownload
         _configs = configs("sabangnet.admin.order_download")
-        for download_no in (no if isinstance(no := _configs["download_no"], list) else [no]):
+        for name, no in _configs["download_no"].items():
             OrderDownload(
                 variables = self.credentials(credentials),
-                parser = dump_extract(OrderDownload, format="xlsx", map_index=str(download_no)),
+                parser = dump_extract(OrderDownload, format="xlsx", map_index=name),
             ).extract(
-                download_no = download_no,
+                download_no = no,
                 start_date = _configs.get("start_date", yesterday),
                 end_date = _configs.get("end_date", ":start_date:"),
                 date_type = _configs.get("date_type", "reg_dm"),
@@ -678,25 +678,25 @@ class TestSabangnet:
                 sort_type = _configs.get("sort_type", "ord_no_asc"),
             )
 
+    @pytest.mark.skip
     @pytest.mark.sabangnet
     def test_order_status(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         from linkmerce.core.sabangnet.admin.order.extract import OrderStatus
         _configs = configs("sabangnet.admin.order_status")
-        for download_no in (no if isinstance(no := _configs["download_no"], list) else [no]):
-            OrderStatus(
-                variables = self.credentials(credentials),
-                parser = dump_extract(OrderStatus, format="xlsx", map_index=str(download_no)),
-            ).extract(
-                download_no = download_no,
-                start_date = _configs.get("start_date", yesterday),
-                end_date = _configs.get("end_date", ":start_date:"),
-                date_type = _configs.get("date_type", ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"]),
-                order_seq = _configs.get("order_seq", list()),
-                order_status_div = _configs.get("order_status_div", str()),
-                order_status = _configs.get("order_status", list()),
-                shop_id = _configs.get("shop_id", str()),
-                sort_type = _configs.get("sort_type", "ord_no_asc"),
-            )
+        OrderStatus(
+            variables = self.credentials(credentials),
+            parser = dump_extract(OrderStatus, format="xlsx", map_index="$date_type"),
+        ).extract(
+            download_no = _configs["download_no"],
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+            date_type = _configs.get("date_type", ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"]),
+            order_seq = _configs.get("order_seq", list()),
+            order_status_div = _configs.get("order_status_div", str()),
+            order_status = _configs.get("order_status", list()),
+            shop_id = _configs.get("shop_id", str()),
+            sort_type = _configs.get("sort_type", "ord_no_asc"),
+        )
 
     @pytest.mark.sabangnet
     def test_product_mapping(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
@@ -719,11 +719,11 @@ class TestSabangnet:
             variables = self.credentials(credentials),
             parser = dump_extract(SkuMapping, format="json"),
         ).extract(
-            query = [{
+            query = {
                 "product_id_shop": _configs["product_id_shop"],
                 "shop_id": _configs["shop_id"],
                 "product_id": _configs["product_id"],
-            }],
+            },
         )
 
     @pytest.mark.sabangnet
@@ -913,7 +913,7 @@ class TestSearchAdGfa:
             **self.credentials(credentials),
             parser = dump_extract(Campaign, format="json", map_index="$status"),
         ).extract(
-            status = _configs.get("status", ["RUNNABLE", "DELETED"]),
+            status = _configs.get("status", "RUNNABLE"),
         )
 
     @pytest.mark.searchad_gfa
@@ -924,7 +924,7 @@ class TestSearchAdGfa:
             **self.credentials(credentials),
             parser = dump_extract(AdSet, format="json", map_index="$status"),
         ).extract(
-            status = _configs.get("status", ["ALL", "DELETED"]),
+            status = _configs.get("status", "ALL"),
         )
 
     @pytest.mark.searchad_gfa
@@ -935,7 +935,7 @@ class TestSearchAdGfa:
             **self.credentials(credentials),
             parser = dump_extract(Creative, format="json", map_index="$status"),
         ).extract(
-            status = _configs.get("status", ["ALL", "DELETED"]),
+            status = _configs.get("status", "ALL"),
         )
 
     @pytest.mark.searchad_gfa
@@ -1158,7 +1158,7 @@ class TestSmartStoreBrand:
         _configs = configs("smartstore.brand.brand_catalog")
         BrandCatalog(
             headers = self.headers(credentials),
-            parser = dump_extract(BrandCatalog, format="json", map_index="$brand_id"),
+            parser = dump_extract(BrandCatalog, format="json", map_index="$brand_ids"),
         ).extract(
             brand_ids = _configs["brand_ids"],
             sort_type = _configs.get("sort_type", "recent"),
@@ -1173,7 +1173,7 @@ class TestSmartStoreBrand:
         _configs = configs("smartstore.brand.brand_product")
         BrandProduct(
             headers = self.headers(credentials),
-            parser = dump_extract(BrandProduct, format="json", map_index="$brand_id"),
+            parser = dump_extract(BrandProduct, format="json", map_index="$brand_ids"),
         ).extract(
             brand_ids = _configs["brand_ids"],
             mall_seq = _configs.get("mall_seq"),

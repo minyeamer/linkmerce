@@ -53,7 +53,7 @@ coupang/
     ├── product/
     │   ├── ProductOption(CoupangWing)::extract
     │   │   └── ProductOption(DuckDBTransformer)::transform
-    │   │       └── ProductParser(JsonTransformer)::transform
+    │   │       └── ProductOptionParser(JsonTransformer)::transform
     │   ├── ProductDetail(CoupangWing)::extract
     │   │   └── ProductDetail(DuckDBTransformer)::transform >> json
     │   ├── ProductDownload(ProductOption)::extract

@@ -53,6 +53,11 @@ class OptionCombParser(JsonTransformer):
         {"sellerManagerCode": None}, "usable", "price", "stockQuantity"
     ]
 
+    def get_scope(self, obj: dict, **kwargs) -> dict:
+        """JSON 데이터로부터 옵션 정보를 탐색해 반환한다."""
+        from linkmerce.utils.nested import hier_get
+        return hier_get(obj, self.scope, on_missing="missing") or dict()
+
     def parse(self, option_info: dict, **kwargs) -> list[dict]:
         """옵션 정보로부터 옵션명을 추출해 조합형 옵션 목록에 추가한다."""
         options = list()
@@ -70,6 +75,11 @@ class SupplementParser(JsonTransformer):
     fields = [
         "id", "groupName", "name", {"sellerManagerCode": None}, "usable", "price", "stockQuantity"
     ]
+
+    def get_scope(self, obj: dict, **kwargs) -> list[dict]:
+        """JSON 데이터로부터 추가 상품 목록을 탐색해 반환한다."""
+        from linkmerce.utils.nested import hier_get
+        return hier_get(obj, self.scope, on_missing="missing") or list()
 
 
 class Option(DuckDBTransformer):

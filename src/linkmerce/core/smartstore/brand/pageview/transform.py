@@ -54,7 +54,7 @@ class PageViewByUrl(DuckDBTransformer):
     params = {"mall_seq": "$mall_seq"}
 
 
-class PageViewByProduct(DuckDBTransformer):
+class PageViewByProduct(PageViewByUrl):
     """네이버 브랜드 스토어의 일별/상품별 페이지뷰 데이터를 `naver_pv_by_product` 테이블에 적재하는 클래스."""
 
     extractor = "PageViewByUrl"

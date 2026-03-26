@@ -71,7 +71,8 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
-    5. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환"""
+    5. `select_and_extend` - 필드 추출과 파생 필드 생성을 연결해 개별 항목 처리
+    6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환"""
 
     scope: str | None = None
     fields: dict | list | None = None
@@ -129,6 +130,12 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
         """파싱된 데이터에서 필요한 필드만 추출한다. 서브클래스에서 반드시 구현해야 한다."""
         raise NotImplementedError("The 'select_fields' method must be implemented.")
 
+    def select_and_extend(self, item: dict, extends: dict | None = None, **kwargs) -> dict:
+        """`fields` 스키마에 따라 필드를 추출하고 `extend_fields`를 호출한다."""
+        if self.fields is not None:
+            ... # select_field
+        return self.extend_fields(item, extends, **kwargs)
+
     def extend_fields(self, item: dict, extends: dict | None = None, **kwargs) -> dict:
         """필드를 추출한 후 파생 필드를 생성하거나 값을 변환한다. 구현하지 않으면 입력을 그대로 반환한다."""
         extends = self.render_extends(extends, kwargs)
@@ -152,7 +159,8 @@ class JsonTransformer(ResponseTransformer):
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
-    5. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
+    5. `select_and_extend` - 필드 추출과 파생 필드 생성을 연결해 개별 항목 처리
+    6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
 
     주요 설정 변수:
     - `dtype` - HTTP 응답 데이터에 기대되는 JSON 타입
@@ -198,19 +206,21 @@ class JsonTransformer(ResponseTransformer):
         if not isinstance(data, (dict, list)):
             self.raise_parse_error("Could not select fields from the parsed data.")
 
-        from linkmerce.utils.nested import select_values
-        has_fields = self.fields is not None
-
-        def _select_and_extend(item: dict, seq: int = None, total: int = None) -> dict:
-            if has_fields:
-                item = select_values(item, schema=self.fields, on_missing=self.on_missing)
-            extra = {"metadata": ((metadata or dict()) | {"seq": seq, "total": total})}
-            return self.extend_fields(item, extends, **(kwargs | extra))
-
         if isinstance(data, list):
-            total = len(data)
-            return [_select_and_extend(item, seq, total) for seq, item in enumerate(data) if isinstance(item, dict)]
-        return [_select_and_extend(data)]
+            items, total = list(), len(data)
+            for seq, item in enumerate(data):
+                if isinstance(item, dict):
+                    meta = (metadata or dict()) | {"seq": seq, "total": total}
+                    items.append(self.select_and_extend(item, extends=extends, metadata=meta, **kwargs))
+            return items
+        return [self.select_and_extend(data, extends=extends, metadata=metadata, **kwargs)]
+
+    def select_and_extend(self, item: dict, extends: dict | None = None, **kwargs) -> dict:
+        """`fields` 스키마에 따라 `select_values` 함수로 필드를 추출하고 `extend_fields`를 호출한다."""
+        from linkmerce.utils.nested import select_values
+        if self.fields is not None:
+            item = select_values(item, schema=self.fields, on_missing=self.on_missing)
+        return self.extend_fields(item, extends, **kwargs)
 
 
 class HtmlTransformer(ResponseTransformer):
@@ -221,7 +231,8 @@ class HtmlTransformer(ResponseTransformer):
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
-    5. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
+    5. `select_and_extend` - 필드 추출과 파생 필드 생성을 연결해 개별 항목 처리
+    6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
 
     주요 설정 변수:
     - `scope` - 파싱 대상 요소를 탐색할 CSS 선택자 (없으면 입력 전체)
@@ -230,7 +241,7 @@ class HtmlTransformer(ResponseTransformer):
     - `on_missing` - CSS 선택자 탐색 실패 시 동작 (`raise` 또는 `ignore`)"""
 
     scope: str | None = None
-    fields: dict[str, str] | None = None
+    fields: dict[str, str | tuple[str, Any]] | None = None
     extends: dict | None = None
     on_missing: Literal["ignore", "raise"] = "raise"
 
@@ -259,22 +270,25 @@ class HtmlTransformer(ResponseTransformer):
             **kwargs
         ) -> list[dict]:
         """`{필드명: CSS_선택자}` 스키마에 따라 `select_attrs` 함수로 각 태그에서 값을 추출한다."""
+        from bs4 import Tag
         if (self.fields is None) or (not isinstance(data, (Tag, list))):
             self.raise_parse_error("Could not select fields from the parsed data.")
 
-        from linkmerce.utils.parse import select_attrs
-        has_fields = self.fields is not None
-
-        def _select_and_extend(item: dict, seq: int = None, total: int = None) -> dict:
-            if has_fields:
-                item = select_attrs(item, schema=self.fields, on_missing=self.on_missing)
-            extra = {"metadata": ((metadata or dict()) | {"seq": seq, "total": total})}
-            return self.extend_fields(item, extends, **(kwargs | extra))
-
         if isinstance(data, list):
-            total = len(data)
-            return [_select_and_extend(item, seq, total) for seq, item in enumerate(data) if isinstance(item, Tag)]
-        return [_select_and_extend(data)]
+            items, total = list(), len(data)
+            for seq, item in enumerate(data):
+                if isinstance(item, Tag):
+                    meta = (metadata or dict()) | {"seq": seq, "total": total}
+                    items.append(self.select_and_extend(item, extends=extends, metadata=meta, **kwargs))
+            return items
+        return [self.select_and_extend(data, extends=extends, metadata=metadata, **kwargs)]
+
+    def select_and_extend(self, item: dict, extends: dict | None = None, **kwargs) -> dict:
+        """`fields` 스키마에 따라 `select_attrs` 함수로 태그 속성을 추출하고 `extend_fields`를 호출한다."""
+        from linkmerce.utils.parse import select_attrs
+        if self.fields is not None:
+            item = select_attrs(item, schema=self.fields, on_missing=self.on_missing)
+        return self.extend_fields(item, extends, **kwargs)
 
 
 class ExcelTransformer(JsonTransformer):
@@ -285,7 +299,8 @@ class ExcelTransformer(JsonTransformer):
     2. `get_scope` - 엑셀 불러오기 전 작업, 필요 시 구현
     3. `parse` - 엑셀 시트를 JSON 형식으로 불러오고 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
-    5. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
+    5. `select_and_extend` - 필드 추출과 파생 필드 생성을 연결해 개별 항목 처리
+    6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
 
     주요 설정 변수:
     - `sheet_name` - Excel 시트 이름 (없으면 활성 시트)
@@ -309,6 +324,14 @@ class ExcelTransformer(JsonTransformer):
     def transform(self, obj: bytes | str | Path, **kwargs) -> list[dict]:
         """Excel 파일 검증 > Excel 시트 불러오기 > 필드 선택 및 변환 순서로 파이프라인을 실행한다."""
         return super().transform(obj, **kwargs)
+
+    def assert_valid_response(self, obj: bytes | str | Path, **kwargs):
+        """HTTP 응답 데이터를 검증해야 한다면 해당 메서드를 구현한다."""
+        ...
+
+    def get_scope(self, obj: bytes | str | Path, **kwargs) -> bytes | str | Path:
+        """엑셀 불러오기 전 HTTP 응답 데이터를 변환해야 한다면 해당 메서드를 구현한다."""
+        return obj
 
     def parse(self, obj: bytes | str | Path, **kwargs) -> list[dict]:
         """`sheet_name`이 지정된 경우 해당 시트를, 지정되지 않은 경우 활성 시트를 JSON 형식으로 불러온다."""
@@ -357,7 +380,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             db_info: dict = dict(),
             model_path: Literal["this"] | str | Path = "this",
             tables: dict[TableKey, TableName] | None = None,
-            create_options: dict[str, TableName] | None = None,
+            create_options: dict | None = dict(),
             parser: type[ResponseTransformer] | None = None,
             parser_config: ParserConfig | None = None,
             render: dict | None = None,
@@ -369,7 +392,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             `db_info`: DB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
             `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
             `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
-            `create_options`: 초기화 시 테이블 생성에 사용할 옵션.
+            `create_options`: 초기화 시 테이블 생성에 사용할 옵션. `None` -> 테이블을 생성하지 않는다.
             `parser`: 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
             `parser_config`: 파서 객체 초기화 시 전달할 설정 변수.
             `render`: SQL 쿼리 렌더링(Jinja)에 사용할 기본 컨텍스트 설정 변수.
@@ -432,7 +455,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
 
         config = self.parser_config or dict()
         if isinstance(self.parser, dict):
-            return {table: parser(**config).transform(obj, **kwargs) for table, parser in self.parser.items()}
+            return {table_key: parser(**config).transform(obj, **kwargs) for table_key, parser in self.parser.items()}
         elif isinstance(self.parser, type):
             return self.parser(**config).transform(obj, **kwargs)
         elif isinstance(self.parser, str):
@@ -624,7 +647,7 @@ class DuckDBTransformer(DBTransformer):
             db_info: dict = dict(),
             model_path: Literal["this"] | str | Path = "this",
             tables: dict[TableKey, TableName] | None = None,
-            create_options: dict[str, TableName] | None = None,
+            create_options: dict | None = dict(),
             parser: type[ResponseTransformer] | None = None,
             parser_config: ParserConfig | None = None,
             render: dict | None = None,
@@ -637,7 +660,7 @@ class DuckDBTransformer(DBTransformer):
             `db_info`: DB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
             `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
             `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
-            `create_options`: 초기화 시 테이블 생성에 사용할 옵션.
+            `create_options`: 초기화 시 테이블 생성에 사용할 옵션. `None` -> 테이블을 생성하지 않는다.
             `parser`: 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
             `parser_config`: 파서 객체 초기화 시 전달할 설정 변수.
             `render`: SQL 쿼리 렌더링(Jinja)에 사용할 기본 컨텍스트 설정 변수.
@@ -683,7 +706,6 @@ class DuckDBTransformer(DBTransformer):
         render, params, total = self.prepare_bulk_params(result, render, params, **kwargs)
         if total > 0:
             query = self.prepare_query(query_key, render=render)
-            print(query)
             return self.execute(query, params)
         else:
             return list()

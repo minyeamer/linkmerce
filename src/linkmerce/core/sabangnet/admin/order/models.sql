@@ -223,7 +223,7 @@ WHERE ("송장번호" IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 -- OrderDownload: bulk_insert_dispatch
-INSERT INTO {{ table }}
+INSERT INTO {{ dispatch }}
 SELECT
     "주문번호(사방넷)" AS order_seq
   , "주문번호(쇼핑몰)" AS order_id

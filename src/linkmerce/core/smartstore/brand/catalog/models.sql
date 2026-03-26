@@ -46,7 +46,7 @@ SELECT
   , NULLIF(SPLIT_PART(category.fullName, '>', 3), '') AS category_name3
   , TRY_CAST(SPLIT_PART(category.fullId, '>', 4) AS INTEGER) AS category_id4
   , NULLIF(SPLIT_PART(category.fullName, '>', 4), '') AS category_name4
-  , image.src AS image_url
+  , imageInfo.src AS image_url
   , officialAuthLowestPriceRatio.lowestPrice AS official_price
   , officialAuthLowestPriceRatioWithFee.lowestPrice AS official_price_with_fee
   , lowestPrice AS lowest_price

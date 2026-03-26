@@ -55,7 +55,7 @@ class AdvancedReport(ExcelTransformer):
         if columns is not None:
             self.columns = columns
         if '*' not in self.columns:
-            self.fields = self.get_columns(self.columns)[0]
+            self.fields = list(self.get_columns(self.columns)[0])
 
     def parse(self, obj: str, **kwargs) -> list[dict]:
         """CSV 문자열을 읽어 헤더를 영어 칼럼명으로 매핑하고, `convert_dtypes` 여부에 따라 형변환한다."""
@@ -168,6 +168,7 @@ class DailyReport(DuckDBTransformer):
     tables = {"table": "searchad_report"}
     parser = AdvancedReport
     parser_config = dict(
+        header = 2,
         columns = [
             "소재 유형", "매체이름", "PC/모바일 매체", "검색/콘텐츠 매체", "노출수", "클릭수",
             "총비용(VAT포함,원)", "총 전환수", "직접전환수", "총 전환매출액(원)", "직접전환매출액(원)",

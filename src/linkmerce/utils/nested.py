@@ -34,14 +34,17 @@ def hier_get(
         on_missing: Literal["ignore", "raise"] = "ignore",
     ) -> _VT:
     """중첩된 딕셔너리에서 지정된 경로의 값을 추출한다."""
+    path = _split_path(key_path, delimiter)
     try:
-        for key in _split_path(key_path, delimiter):
+        for i, key in enumerate(path):
             if isinstance(key_path, str) and isinstance(key, str) and key.isdigit():
                 key = int(key)
             __m = __m[key]
         return __m
     except (KeyError, IndexError, TypeError):
-        if on_missing == "raise": raise
+        if on_missing == "raise":
+            failed_path = delimiter.join(map(str, path[:i+1]))
+            raise KeyError(f"Could not find value at path: '{failed_path}'")
         return default
 
 
@@ -55,13 +58,15 @@ def hier_set(
     """중첩된 딕셔너리에서 지정된 경로에 값을 추가한다."""
     keys = _split_path(key_path, delimiter)
     try:
-        for key in keys[:-1]:
+        for i, key in enumerate(keys[:-1]):
             if (key not in __m) and (on_missing == "create"):
                 __m[key] = dict()
             __m = __m[key]
         __m[keys[-1]] = value
     except (KeyError, IndexError, TypeError):
-        if on_missing == "raise": raise
+        if on_missing == "raise":
+            failed_path = delimiter.join(map(str, keys[:i+1]))
+            raise KeyError(f"Could not set value at path: '{failed_path}'")
         elif on_missing == "ignore": return
 
 
@@ -77,7 +82,7 @@ def hier_update(
 
 
 def select_values(
-        __m: dict[_KT, _VT],
+        tree: dict[_KT, _VT],
         schema: dict[KeyPath, dict | list[KeyPath]] | list[KeyPath],
         default: _VT | None = None,
         delimiter: str = '.',
@@ -85,41 +90,46 @@ def select_values(
     ) -> dict[_KT, _VT]:
     """
     중첩된 딕셔너리에서 지정된 스키마에 맞춰서 각각의 경로의 값을 추출한다.
+    (중간 경로에서 발생하는 참조 오류는 무시한다.)
 
-    ### schema
-    1. `{"key_path": ["key1", ...]}`    >> `key_path` 하위 `dict`에서 `list`의 키값을 추출
-    2. `{"key_path": dict}`             >> `key_path` 하위 dict에 대해 재귀 적용 (`list` 내 중첩 가능)
-    3. `{"key_path": None}`             >> 단일 경로의 값을 그대로 추출, 없으면 스키마 값을 추가
-    4. `["key1", ...]`                  >> 최상위 `dict`에서 `list`의 키값을 추출"""
+    지원하는 스키마(`:schema:`) 형식:
+    - **CASE 1**: `{"key_path": ["key1", ...]}`    >> `key_path` 하위 `dict`에서 `list`의 키값을 추출
+    - **CASE 2**: `{"key_path": dict}`             >> `key_path` 하위 dict에 대해 재귀 적용 (`list` 내 중첩 가능)
+    - **CASE 3**: `{"key_path": None}`             >> 단일 경로의 값을 그대로 추출, 없으면 스키마 값을 추가
+    - **CASE 4**: `["key1", ...]`                  >> 최상위 `dict`에서 `list`의 키값을 추출"""
     result = dict()
     common_get = dict(delimiter=delimiter, on_missing=on_missing)
     common_set = dict(delimiter=delimiter, on_missing="create")
 
+    def _hier_get_or_empty(__m: dict[_KT, _VT], key_path: KeyPath) -> dict:
+        __n = hier_get(__m, key_path, default=dict(), delimiter=delimiter, on_missing="ignore")
+        return __n if __n is not None else dict()
+
     for key_path, spec in (schema if isinstance(schema, dict) else {delimiter: schema}).items():
         if isinstance(spec, list): # CASE 1 + 4
-            __n = hier_get(__m, key_path, default=dict(), **common_get)
+            subtree = _hier_get_or_empty(tree, key_path)
             for key in spec:
                 if isinstance(key, dict): # list 내 dict 중첩 (재귀 호출)
-                    key_values = select_values(__n, key, default, **common_get)
+                    key_values = select_values(subtree, key, default, **common_get)
                     path_values = {_concat_path(key_path, sub_path): value for sub_path, value in key_values.items()}
                     hier_update(result, path_values, **common_set)
                 else: # dict에서 list의 키값 조회
-                    value = hier_get(__n, key, default, **common_get)
+                    value = hier_get(subtree, key, default, **common_get)
                     hier_set(result, _concat_path(key_path, key), value, **common_set)
 
         elif isinstance(spec, dict): # CASE 2
-            __n = hier_get(__m, key_path, default=dict(), **common_get)
+            subtree = _hier_get_or_empty(tree, key_path)
             for sub_path, sub_schema in spec.items(): # 하위 스키마에 대해 재귀 호출
                 if isinstance(sub_schema, list):
                     # list 스키마: sub_path 하위 dict에서 키값 추출
-                    __nn = hier_get(__n, sub_path, default=dict(), **common_get)
-                    value = select_values(__nn, sub_schema, default, **common_get)
+                    ssubtree = _hier_get_or_empty(subtree, sub_path)
+                    value = select_values(ssubtree, sub_schema, default, **common_get)
                 else:
-                    value = select_values(__n, {sub_path: sub_schema}, default, **common_get)
+                    value = select_values(subtree, {sub_path: sub_schema}, default, **common_get)
                 hier_set(result, _concat_path(key_path, sub_path), value, **common_set)
 
         else: # CASE 3
-            value = hier_get(__m, key_path, default=spec, delimiter=delimiter, on_missing="ignore")
+            value = hier_get(tree, key_path, default=spec, delimiter=delimiter, on_missing="ignore")
             hier_set(result, key_path, value, **common_set)
 
     return result

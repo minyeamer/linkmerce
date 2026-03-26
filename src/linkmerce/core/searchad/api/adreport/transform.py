@@ -328,8 +328,8 @@ class Ad(DuckDBTransformer):
 
         for report_type, tsv_data in obj.items():
             table_key, parser = table_parser[report_type]
-            query_key = f"bulk_insert_{table_key}"
             result = parser().transform(tsv_data)
+            query_key = f"bulk_insert_{table_key}"
             result_set[query_key] = self.bulk_insert(result, query_key, render=self.get_table(table_key))
 
         for table_key in AD_TABLE_KEYS[:4]:
