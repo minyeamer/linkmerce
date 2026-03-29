@@ -98,8 +98,8 @@ def select_values(
     - **CASE 3**: `{"key_path": None}`             >> 단일 경로의 값을 그대로 추출, 없으면 스키마 값을 추가
     - **CASE 4**: `["key1", ...]`                  >> 최상위 `dict`에서 `list`의 키값을 추출"""
     result = dict()
-    common_get = dict(delimiter=delimiter, on_missing=on_missing)
-    common_set = dict(delimiter=delimiter, on_missing="create")
+    common_get = {"delimiter": delimiter, "on_missing": on_missing}
+    common_set = {"delimiter": delimiter, "on_missing": "create"}
 
     def _hier_get_or_empty(__m: dict[_KT, _VT], key_path: KeyPath) -> dict:
         __n = hier_get(__m, key_path, default=dict(), delimiter=delimiter, on_missing="ignore")
@@ -178,7 +178,7 @@ def coalesce(
     """여러 경로 중 조건을 만족하는 첫 번째 값을 반환한다."""
     if not isinstance(condition, Callable):
         condition = bool if condition == "exists" else (lambda x: x is not None)
-    common = dict(default=None, delimiter=delimiter, on_missing="raise")
+    common = {"default": None, "delimiter": delimiter, "on_missing": "raise"}
 
     for key_path in key_paths:
         try:
@@ -187,3 +187,29 @@ def coalesce(
         except (KeyError, IndexError, TypeError):
             continue
     return default
+
+
+def merge(
+        left: dict[_KT, _VT],
+        right: dict[_KT, _VT] | None = None,
+        **kwargs: _VT
+    ) -> dict[_KT, _VT]:
+    """두 개의 중첩된 딕셔너리를 합친다.
+
+    동일한 하위 경로에 대해 다음과 같은 방식으로 값을 업데이트한다:
+    - 서로 다른 키값을 가진 딕셔너리가 있을 경우 `left.update(right)` 연산한다.
+    - 그 외의 경우 `right` 값을 덮어쓴다.
+    """
+    if not (right or kwargs):
+        return left
+
+    def _update(_left: dict[_KT, _VT], _right: dict[_KT, _VT]):
+        for key, value in _right.items():
+            if isinstance(_left.get(key), dict) and isinstance(value, dict):
+                _update(_left[key], value)
+            else:
+                _left[key] = value
+
+    if right: _update(left, right)
+    if kwargs: _update(left, kwargs)
+    return left

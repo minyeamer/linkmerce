@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 Sheet = TypeVar("Row", bound=int)
-Column = TypeVar("Column", int, str, tuple[str,...])
+Column = TypeVar("Column", int, str, tuple[str, ...])
 Row = TypeVar("Row", bound=int)
 Range = TypeVar("Range", bound=str)
 Ranges = TypeVar("Ranges", list, Column, Row, Range)
@@ -27,7 +27,7 @@ Width = TypeVar("Width", float, str)
 Height = TypeVar("Height", float, str)
 Multiple = TypeVar("Multiple", bound=str)
 
-Node = TypeVar("Node", bound=tuple[int,int])
+Node = TypeVar("Node", bound=tuple[int, int])
 TopLeft = TypeVar("TopLeft", bound=Node)
 TopRight = TypeVar("TopRight", bound=Node)
 BottomLeft = TypeVar("BottomLeft", bound=Node)
@@ -42,6 +42,7 @@ ALIGN_CENTER = {"horizontal": "center", "vertical": "center"}
 
 
 class StyleConfig(TypedDict, total=False):
+    """셀 서식 설정."""
     alignment: dict | None
     border: dict | None
     fill: dict | None
@@ -51,6 +52,7 @@ class StyleConfig(TypedDict, total=False):
 
 
 class RuleConfig(TypedDict, total=False):
+    """조건부 서식 규칙 설정."""
     operator: Literal[
         "endsWith", "containsText", "beginsWith", "lessThan", "notBetween", "lessThanOrEqual",
         "notEqual", "notContains", "between", "equal", "greaterThanOrEqual", "greaterThan", "formula"]
@@ -62,29 +64,34 @@ class RuleConfig(TypedDict, total=False):
 
 
 class ConditionalConfig(TypedDict):
-    ranges: list[Union[Column,Row,Range]] | Column | Row | Range
-    range_type: Literal["column","row","range","auto"]
+    """조건부 서식 구성."""
+    ranges: list[Union[Column, Row, Range]] | Column | Row | Range
+    range_type: Literal["column", "row", "range", "auto"]
     rule: RuleConfig
 
 
 class MergeConfig(TypedDict):
-    ranges: list[Union[Column,Row,Range]] | Column | Row | Range
-    range_type: Literal["column","row","range","auto"]
-    mode: Literal["all","blank","same_value"]
+    """셀 병합 구성."""
+    ranges: list[Union[Column, Row, Range]] | Column | Row | Range
+    range_type: Literal["column", "row", "range", "auto"]
+    mode: Literal["all", "blank", "same_value"]
     styles: StyleConfig | None
 
 
 class FilterConfig(TypedDict, total=False):
-    filter_type: Literal["value","top10","custom","dynamic","color","icon","blank","notBlank"]
+    """필터 유형 및 옵션 설정."""
+    filter_type: Literal["value", "top10", "custom", "dynamic", "color", "icon", "blank", "notBlank"]
 
 
 class ColumnFilters(TypedDict):
+    """칼럼 필터 설정."""
     range: Range | Literal[":all:"]
     filters: Sequence[tuple[Column, Sequence[FilterConfig]]]
-    button: Literal["always","hidden","auto"]
+    button: Literal["always", "hidden", "auto"]
 
 
 def filter_warnings():
+    """`openpyxl` 경고 메시지를 억제한다."""
     import warnings
     warnings.filterwarnings("ignore", module="openpyxl.*")
 
@@ -94,6 +101,7 @@ def filter_warnings():
 ###################################################################
 
 def to_unique_headers(headers: list[str]) -> list[str]:
+    """중복된 헤더명에 접미사(_1, _2, ...)를 붙여 고유하게 만든다."""
     unique = list()
     for header in headers:
         header_str, suffix = str(header), 1
@@ -111,6 +119,7 @@ def csv2json(
         lineterminator: str = "\r\n",
         encoding: str | None = "utf-8",
     ) -> list[dict]:
+    """CSV 파일을 JSON 형식의 딕셔너리 리스트로 변환한다."""
     import os
     if isinstance(io, str) and os.path.exists(io):
         with open(io, 'r', encoding=encoding) as file:
@@ -131,6 +140,7 @@ def excel2json(
         header: int = 1,
         warnings: bool = True
     ) -> list[dict]:
+    """Excel 파일을 JSON 형식의 딕셔너리 리스트로 변환한다."""
     from openpyxl import load_workbook
     from io import BytesIO
     if not warnings:
@@ -148,25 +158,46 @@ def excel2json(
 ###################################################################
 
 def csv2excel(
-        obj: Sequence[Sequence[Any]] | dict[str,Sequence[Sequence[Any]]],
+        obj: Sequence[Sequence[Any]] | dict[str, Sequence[Sequence[Any]]],
         sheet_name: str = "Sheet1",
         header_rows: Sequence[Row] = [1],
         header_styles: StyleConfig | Literal["yellow"] = "yellow",
         column_styles: dict[Column, StyleConfig] = dict(),
         row_styles: dict[Row, StyleConfig] = dict(),
-        column_width: float | Multiple | dict[Column,Width] | Literal[":fit:",":fit_header:",":fit_values:"] | None = ":fit:",
-        row_height: float | Multiple | dict[Row,Height] | None = None,
+        column_width: float | Multiple | dict[Column, Width] | Literal[":fit:", ":fit_header:", ":fit_values:"] | None = ":fit:",
+        row_height: float | Multiple | dict[Row, Height] | None = None,
         conditional_formatting: Sequence[ConditionalConfig] = list(),
         merge_cells: Sequence[MergeConfig] = list(),
         range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
         column_filters: ColumnFilters = dict(),
-        filter_mode: Literal["openpyxl","xml"] | None = None,
+        filter_mode: Literal["openpyxl", "xml"] | None = None,
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
         freeze_panes: str | None = "A2",
         zoom_scale: int | None = None,
     ) -> Workbook:
+    """CSV 형식의 2차원 리스트를 서식이 적용된 Excel `Workbook` 객체로 변환한다.
+
+    Args:
+        `obj`: 단일 시트에 대한 2차원 리스트 또는 `{시트명: 행렬}` 형식의 데이터.
+        `sheet_name`: 단일 시트의 경우 적용할 시트명.
+        `header_rows`: 헤더 행 번호. (1부터 시작)
+        `header_styles`: 헤더 서식 설정. (`yellow` = 노란색 배경 + 검정 굵은글씨 + 가운데 정렬)
+        `column_styles`: 칼럼 단위 서식 설정. (칼럼명 또는 칼럼 번호를 키로 전달)
+        `row_styles`: 행 단위 서식 설정. (행 번호를 키로 전달)
+        `column_width`: 열 너비 설정. (`:fit:` = 값에 맞춘 열 너비)
+        `row_height`: 행 높이 설정.
+        `conditional_formatting`: 조건부 서식 구성. (순차 적용)
+        `merge_cells`: 셀 병합 구성. (`mode`를 `blank` 또는 `same_value` 지정 시 자동 셀 병합)
+        `range_styles`: 범위 서식 설정.
+        `column_filters`: 칼럼 필터 설정.
+        `filter_mode`: `openpyxl` = 필터 행 숨기기, `xml` = 필터 적용.
+        `hyperlink`: URL 값에 하이퍼링크 적용.
+        `truncate`: 긴 텍스트 숨기기. (클립)
+        `wrap_text`: 텍스트 줄바꿈 여부.
+        `freeze_panes`: 틀 고정 위치.
+        `zoom_scale`: 줌 배율 설정."""
     from openpyxl import Workbook
     wb = Workbook()
     obj = {sheet_name: obj} if isinstance(obj, Sequence) else obj
@@ -189,25 +220,46 @@ def csv2excel(
 
 
 def json2excel(
-        obj: Sequence[dict] | dict[str,Sequence[dict]],
+        obj: Sequence[dict] | dict[str, Sequence[dict]],
         sheet_name: str = "Sheet1",
         extract_headers: Literal["first_row", "all_rows"] | None = "first_row",
         header_styles: StyleConfig | Literal["yellow"] = "yellow",
         column_styles: dict[Column, StyleConfig] = dict(),
         row_styles: dict[Row, StyleConfig] = dict(),
-        column_width: float | Multiple | dict[Column,Width] | Literal[":fit:",":fit_header:",":fit_values:"] | None = ":fit:",
-        row_height: float | Multiple | dict[Row,Height] | None = None,
+        column_width: float | Multiple | dict[Column, Width] | Literal[":fit:", ":fit_header:", ":fit_values:"] | None = ":fit:",
+        row_height: float | Multiple | dict[Row, Height] | None = None,
         conditional_formatting: Sequence[ConditionalConfig] = list(),
         merge_cells: Sequence[MergeConfig] = list(),
         range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
         column_filters: ColumnFilters = dict(),
-        filter_mode: Literal["openpyxl","xml"] | None = None,
+        filter_mode: Literal["openpyxl", "xml"] | None = None,
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
         freeze_panes: str | None = "A2",
         zoom_scale: int | None = None,
     ) -> Workbook:
+    """JSON 형식의 딕셔너리 리스트를 서식이 적용된 Excel `Workbook` 객체로 변환한다.
+
+    Args:
+        `obj`: 단일 시트에 대한 딕셔너리 리스트 또는 `{시트명: 행렬}` 형식의 데이터.
+        `sheet_name`: 단일 시트의 경우 적용할 시트명.
+        `extract_headers`: 헤더를 추출할 딕셔너리 행.
+        `header_styles`: 헤더 서식 설정. (`yellow` = 노란색 배경 + 검정 굵은글씨 + 가운데 정렬)
+        `column_styles`: 칼럼 단위 서식 설정. (칼럼명 또는 칼럼 번호를 키로 전달)
+        `row_styles`: 행 단위 서식 설정. (행 번호를 키로 전달)
+        `column_width`: 열 너비 설정. (`:fit:` = 값에 맞춘 열 너비)
+        `row_height`: 행 높이 설정.
+        `conditional_formatting`: 조건부 서식 구성. (순차 적용)
+        `merge_cells`: 셀 병합 구성. (`mode`를 `blank` 또는 `same_value` 지정 시 자동 셀 병합)
+        `range_styles`: 범위 서식 설정.
+        `column_filters`: 칼럼 필터 설정.
+        `filter_mode`: `openpyxl` = 필터 행 숨기기, `xml` = 필터 적용.
+        `hyperlink`: URL 값에 하이퍼링크 적용.
+        `truncate`: 긴 텍스트 숨기기. (클립)
+        `wrap_text`: 텍스트 줄바꿈 여부.
+        `freeze_panes`: 틀 고정 위치.
+        `zoom_scale`: 줌 배율 설정."""
     from openpyxl import Workbook
     wb = Workbook()
     obj = {sheet_name: obj} if isinstance(obj, Sequence) else obj
@@ -237,6 +289,7 @@ def json2csv(
         include_headers: bool = True,
         split_headers: bool = False,
     ) -> list[list] | tuple[list[list], list[list]]:
+    """JSON 형식의 딕셔너리 리스트를 CSV 형식의 2차원 리스트로 변환한다."""
 
     def _get_all_keys(rows: Sequence[dict]) -> list:
         keys = list()
@@ -281,6 +334,7 @@ def _rows2sheet(
         header_styles: StyleConfig | Literal["yellow"] = "yellow",
         **kwargs
     ) -> tuple[Worksheet, State]:
+    """`Workbook`에 시트를 생성하고 행 데이터를 기록한 후 서식을 적용한다."""
     if sheet_index == 1:
         ws = wb.active
         ws.title = sheet_name
@@ -301,6 +355,7 @@ def _rows2sheet(
 
 
 def save_excel_to_tempfile(wb: Workbook) -> str:
+    """`Workbook`을 임시 파일(.xlsx)로 저장하고 경로를 반환한다."""
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
         tmp_path = tmp_file.name
@@ -309,6 +364,7 @@ def save_excel_to_tempfile(wb: Workbook) -> str:
 
 
 def _yellow_headers() -> StyleConfig:
+    """노란색 배경 + 검정 굵은글씨 + 가운데 정렬 헤더 서식을 반환한다."""
     return {
         "alignment": ALIGN_CENTER,
         "fill": {"color": "#FFFF00", "fill_type": "solid"},
@@ -326,22 +382,25 @@ def style_sheet(
         header_styles: StyleConfig = dict(),
         column_styles: dict[Column, StyleConfig] = dict(),
         row_styles: dict[Row, StyleConfig] = dict(),
-        column_width: float | Multiple | dict[Column,Width] | Literal[":fit:",":fit_header:",":fit_values:"] | None = ":fit:",
-        row_height: float | Multiple | dict[Row,Height] | None = None,
+        column_width: float | Multiple | dict[Column, Width] | Literal[":fit:", ":fit_header:", ":fit_values:"] | None = ":fit:",
+        row_height: float | Multiple | dict[Row, Height] | None = None,
         conditional_formatting: Sequence[ConditionalConfig] = list(),
         merge_cells: Sequence[MergeConfig] = list(),
         range_styles: Sequence[tuple[Range, StyleConfig]] = list(),
         column_filters: ColumnFilters = dict(),
-        filter_action: Literal["hide","list"] | None = None,
+        filter_action: Literal["hide", "list"] | None = None,
         hyperlink: bool = True,
         truncate: bool = False,
         wrap_text: bool = False,
         freeze_panes: Range | None = "A2",
         zoom_scale: int | None = None,
     ) -> State:
+    """워크시트에 서식, 필터, 조건부 서식, 셀 병합 등을 적용한다.
+
+    행/열 서식 적용 > 열 너비 지정 > 행 높이 지정 > 조건부 서식 적용 > 셀 병합 > 범위 서식 적용 > 필터 적용 > 틀 고정 > 줌 배율 설정 순으로 진행한다."""
     min_col, max_col = 'A', get_column_letter(ws.max_column)
     min_row, max_row = ((max(header_rows) + 1) if header_rows else 1), ws.max_row
-    size = dict(min_col=min_col, max_col=max_col, min_row=min_row, max_row=max_row)
+    size = {"min_col": min_col, "max_col": max_col, "min_row": min_row, "max_row": max_row}
 
     headers = ([tuple(ws.cell(row=row_idx, column=col_idx).value for row_idx in header_rows)
         for col_idx in range(1, ws.max_column+1)] if header_rows else list())
@@ -475,6 +534,7 @@ def style_cell(
         hyperlink: str | None = None,
         **kwargs
     ):
+    """개별 셀에 정렬, 테두리, 채우기, 글꼴 등의 서식을 적용한다."""
     if alignment:
         cell.alignment = _alignment(**alignment)
     if border:
@@ -490,6 +550,7 @@ def style_cell(
 
 
 def get_cell_width(value: str) -> float:
+    """셀 값의 표시 너비를 계산한다. 한글 1.8배, 공백 1.2배 기준."""
     try:
         # 한글: 1.8배, 공백: 1.2배, 영문/숫자: 1배
         return sum(1.8 if ord(c) > 12799 else 1.2 if c.isspace() else 1. for c in value)
@@ -501,7 +562,8 @@ def get_cell_width(value: str) -> float:
 ########################### Column utils ##########################
 ###################################################################
 
-def get_column_index(column: Column, headers: list[tuple[str,...]] = list()) -> int | None:
+def get_column_index(column: Column, headers: list[tuple[str, ...]] = list()) -> int | None:
+    """헤더에서 칼럼명의 인덱스 번호를 조회해 칼럼 번호로 반환한다."""
     if isinstance(column, int):
         return column
     elif isinstance(column, str):
@@ -516,7 +578,8 @@ def get_column_index(column: Column, headers: list[tuple[str,...]] = list()) -> 
     return None
 
 
-def get_column_letter(column: Column, headers: list[tuple[str,...]] = list()) -> str | None:
+def get_column_letter(column: Column, headers: list[tuple[str, ...]] = list()) -> str | None:
+    """칼럼 인덱스 또는 이름을 Excel 칼럼 문자로 변환한다."""
     from openpyxl.utils import get_column_letter as get_letter
     if isinstance(column, int):
         return get_letter(column)
@@ -527,6 +590,7 @@ def get_column_letter(column: Column, headers: list[tuple[str,...]] = list()) ->
 
 
 def colstr(col_idx: int) -> str:
+    """정수 칼럼 인덱스를 Excel 칼럼 문자로 변환한다."""
     from openpyxl.utils import get_column_letter as get_letter
     return get_letter(col_idx)
 
@@ -536,16 +600,17 @@ def colstr(col_idx: int) -> str:
 ###################################################################
 
 def get_ranges(
-        ranges: list[Union[Column,Row,Range]] | Column | Row | Range,
-        range_type: Literal["column","row","range","auto"],
+        ranges: list[Union[Column, Row, Range]] | Column | Row | Range,
+        range_type: Literal["column", "row", "range", "auto"],
         min_col: str,
         max_col: str,
         min_row: int,
         max_row: int,
-        headers: list[tuple[str,...]] = list(),
+        headers: list[tuple[str, ...]] = list(),
     ) -> list[str]:
+    """칼럼, 행, 범위 입력을 Excel 범위 문자열 리스트로 변환한다."""
 
-    def _auto_detect(value: Column | Row | Range) -> Literal["column","row","range","auto"]:
+    def _auto_detect(value: Column | Row | Range) -> Literal["column", "row", "range", "auto"]:
         if isinstance(value, int):
             return "row"
         elif isinstance(value, str):
@@ -555,7 +620,7 @@ def get_ranges(
         else:
             return "auto"
 
-    def _make_range_string(value: Column | Row | Range, range_type: Literal["column","row","range","auto"]) -> str:
+    def _make_range_string(value: Column | Row | Range, range_type: Literal["column", "row", "range", "auto"]) -> str:
         if range_type == "auto":
             range_type = _auto_detect(value)
 
@@ -575,6 +640,7 @@ def get_ranges(
 
 
 def is_range_string(value: str) -> bool:
+    """문자열이 유효한 Excel 범위 표기인지 확인한다."""
     import re
     if ':' in value:
         min_col, min_row, max_col, max_row = map(bool, split_range_string(value))
@@ -588,10 +654,11 @@ def is_range_string(value: str) -> bool:
 
 
 def to_valid_excel_range(ws: Worksheet, value: str) -> str:
+    """동적 범위 문자열을 워크시트 크기에 맞춰 고정 범위 문자열로 변환한다."""
     if ':' not in value:
         return value
 
-    def absolute(x: str) -> Literal['$','']:
+    def absolute(x: str) -> Literal['$', '']:
         return '$' if x.startswith('$') else ''
 
     min_col, min_row, max_col, max_row = split_range_string(value)
@@ -606,7 +673,8 @@ def to_valid_excel_range(ws: Worksheet, value: str) -> str:
     return f"{min_col}{min_row}:{max_col}{max_row}"
 
 
-def split_range_string(value: str) -> tuple[MinCol,MinRow,MaxCol,MaxRow]:
+def split_range_string(value: str) -> tuple[MinCol, MinRow, MaxCol, MaxRow]:
+    """범위 문자열을 `(min_col, min_row, max_col, max_row)`로 분해한다."""
     import re
     col, row = r"\$?[A-Z]+", r"\$?[1-9][0-9]*"
     cell = r"^({})?({})?$".format(col, row)
@@ -622,18 +690,20 @@ def split_range_string(value: str) -> tuple[MinCol,MinRow,MaxCol,MaxRow]:
 
 def _init_column_styles(
         column_styles: dict[Column, StyleConfig],
-        headers: list[tuple[str,...]] = list(),
-    ) -> dict[int,StyleConfig]:
+        headers: list[tuple[str, ...]] = list(),
+    ) -> dict[int, StyleConfig]:
+    """칼럼명 기반 서식을 칼럼 번호 기반 서식으로 변환한다."""
     return {col_idx: styles for column, styles in column_styles.items()
         if ((col_idx := get_column_index(column, headers)) is not None)}
 
 
 def _init_column_width(
-        column_width: float | Multiple | dict[Column,Width] | Literal[":fit:",":fit_header:",":fit_values:"],
-        headers: list[tuple[str,...]] = list(),
-    ) -> dict[int, Union[float,Literal[":fit:",":fit_header:",":fit_values:"]]]:
+        column_width: float | Multiple | dict[Column, Width] | Literal[":fit:", ":fit_header:", ":fit_values:"],
+        headers: list[tuple[str, ...]] = list(),
+    ) -> dict[int, Union[float, Literal[":fit:", ":fit_header:", ":fit_values:"]]]:
+    """칼럼 너비 설정을 칼럼 번호 기반의 딕셔너리로 변환한다."""
 
-    def _set_width(value: Width) -> float | Literal[":fit:",":fit_header:",":fit_values:"]:
+    def _set_width(value: Width) -> float | Literal[":fit:", ":fit_header:", ":fit_values:"]:
         if isinstance(value, str):
             if value in (":fit:",":fit_header:",":fit_values:"):
                 return value
@@ -655,8 +725,9 @@ def _init_column_width(
 
 
 def _init_row_height(
-        row_height: dict[Row,Height] | float | Multiple | Literal["single"],
-    ) -> dict[int,float] | float | None:
+        row_height: dict[Row, Height] | float | Multiple | Literal["single"],
+    ) -> dict[int, float] | float | None:
+    """행 높이 설정을 행 번호 기반의 딕셔너리로 변환한다."""
 
     def _set_height(value: Width) -> float:
         if isinstance(value, str):
@@ -678,11 +749,13 @@ def _init_row_height(
 ###################################################################
 
 def _alignment(**kwargs) -> Alignment:
+    """정렬(`Alignment`) 객체를 생성한다."""
     from openpyxl.styles import Alignment
     return Alignment(**kwargs)
 
 
 def _border(**kwargs: dict) -> Border:
+    """테두리(`Border`) 객체를 생성한다."""
     from openpyxl.styles import Border, Side
     def side(color: str | None = None, **kwargs) -> Side:
         return Side(color=(_color(color) if color is not None else None), **kwargs)
@@ -690,6 +763,7 @@ def _border(**kwargs: dict) -> Border:
 
 
 def _fill(color: str | None = None, **kwargs) -> PatternFill:
+    """채우기(`PatternFill`) 객체를 생성한다."""
     from openpyxl.styles import PatternFill
     for property, value in kwargs.items():
         if property in {"fgColor","bgColor","start_color","end_color"}:
@@ -701,11 +775,13 @@ def _fill(color: str | None = None, **kwargs) -> PatternFill:
 
 
 def _font(color: str | None = None, **kwargs) -> Font:
+    """폰트(`Font`) 객체를 생성한다."""
     from openpyxl.styles import Font
     return Font(color=(_color(color) if color is not None else None), **kwargs)
 
 
 def _color(rgb: Any, alpha: str = "FF") -> Color:
+    """RGB 문자열 또는 딕셔너리로 `Color` 객체를 생성한다."""
     from openpyxl.styles import Color
     if isinstance(rgb, str):
         return Color((alpha + rgb[1:]) if rgb.startswith('#') else rgb)
@@ -724,8 +800,9 @@ def _color(rgb: Any, alpha: str = "FF") -> Color:
 def _filter_column(
         col_idx: int,
         configs: Sequence[FilterConfig],
-        button: Literal["always","hidden","auto"] = "always",
+        button: Literal["always", "hidden", "auto"] = "always",
     ) -> FilterColumn:
+    """칼럼별 필터 설정으로 `FilterColumn` 객체를 생성한다."""
     from openpyxl.worksheet.filters import FilterColumn
     kwargs, custom_filters, blank = dict(), list(), None
 
@@ -758,7 +835,6 @@ def _filter_column(
     return _add_blank_filter(filter_column, blank) if isinstance(blank, bool) else filter_column
 
 
-
 def _value_filter(
         blank: bool | None = None,
         calendar_type: str | None = None,
@@ -766,11 +842,12 @@ def _value_filter(
         dates: Sequence[dict] | None = None,
         **kwargs
     ) -> Filters:
+    """값 기반 `Filters` 객체를 생성한다."""
     from openpyxl.worksheet.filters import Filters, DateGroupItem
     return Filters(
-        **(dict(blank=blank) if isinstance(blank, bool) else dict()),
-        **(dict(calendarType=calendar_type) if isinstance(calendar_type, str) else dict()),
-        **(dict(filter=values) if isinstance(values, Sequence) else dict()),
+        **({"blank": blank} if isinstance(blank, bool) else dict()),
+        **({"calendarType": calendar_type} if isinstance(calendar_type, str) else dict()),
+        **({"filter": values} if isinstance(values, Sequence) else dict()),
         **(dict(dateGroupItem=[DateGroupItem(**item) for item in dates]) if isinstance(dates, Sequence) else dict()),
     )
 
@@ -782,20 +859,22 @@ def _top10_filter(
         filter_value: float | None = None,
         **kwargs
     ) -> Top10:
+    """상위/하위 N개 필터의 `Top10` 객체를 생성한다."""
     from openpyxl.worksheet.filters import Top10
     return Top10(
-        **(dict(top=top) if isinstance(top, bool) else dict()),
-        **(dict(percent=percent) if isinstance(percent, bool) else dict()),
+        **({"top": top} if isinstance(top, bool) else dict()),
+        **({"percent": percent} if isinstance(percent, bool) else dict()),
         val = value,
-        **(dict(filterVal=filter_value) if filter_value is not None else dict()),
+        **({"filterVal": filter_value} if filter_value is not None else dict()),
     )
 
 
 def _custom_filter(
-        operator: Literal["equal","lessThan","lessThanOrEqual","notEqual","greaterThanOrEqual","greaterThan"],
+        operator: Literal["equal", "lessThan", "lessThanOrEqual", "notEqual", "greaterThanOrEqual", "greaterThan"],
         value: str,
         **kwargs
     ) -> CustomFilter:
+    """비교 연산자 기반 `CustomFilter` 객체를 생성한다."""
     from openpyxl.worksheet.filters import CustomFilter
     return CustomFilter(operator=operator, val=value)
 
@@ -813,23 +892,25 @@ def _dynamic_filter(
         max_datetime: dt.datetime | None = None,
         **kwargs
     ) -> DynamicFilter:
+    """날짜/평균 기반 `DynamicFilter` 객체를 생성한다."""
     from openpyxl.worksheet.filters import DynamicFilter
     return DynamicFilter(type=type,
-        **(dict(value=value) if value is not None else dict()),
-        **(dict(datetime=datetime) if datetime is not None else dict()),
-        **(dict(max_value=max_value) if max_value is not None else dict()),
-        **(dict(max_datetime=max_datetime) if max_datetime is not None else dict()),
+        **({"value": value} if value is not None else dict()),
+        **({"datetime": datetime} if datetime is not None else dict()),
+        **({"max_value": max_value} if max_value is not None else dict()),
+        **({"max_datetime": max_datetime} if max_datetime is not None else dict()),
     )
 
 
 def _color_filter(
         dfx_id: int | None = None,
-        color_type: Literal["cell","font"] = "cell",
+        color_type: Literal["cell", "font"] = "cell",
         **kwargs
     ) -> ColorFilter:
+    """색상 기반 `ColorFilter` 객체를 생성한다."""
     from openpyxl.worksheet.filters import ColorFilter
     return ColorFilter(
-        **(dict(dxfId=dfx_id) if isinstance(dfx_id, int) else dict()),
+        **({"dxfId": dfx_id} if isinstance(dfx_id, int) else dict()),
         **(dict(cellColor=(color_type == "cell")) if color_type in {"cell","font"} else dict()),
     )
 
@@ -843,14 +924,16 @@ def _icon_filter(
         icon_id: int | None = None,
         **kwargs
     ) -> IconFilter:
+    """아이콘 기반 `IconFilter` 객체를 생성한다."""
     from openpyxl.worksheet.filters import IconFilter
     return IconFilter(
         iconSet = icon_set,
-        **(dict(iconId=icon_id) if isinstance(icon_id, int) else dict()),
+        **({"iconId": icon_id} if isinstance(icon_id, int) else dict()),
     )
 
 
 def _add_blank_filter(filter_column: FilterColumn, blank: bool) -> FilterColumn:
+    """빈 셀 필터를 `FilterColumn`에 추가한다."""
     if blank:
         from openpyxl.worksheet.filters import Filters, BlankFilter
         filter_column.filters = Filters(blank=True, filter=[BlankFilter()])
@@ -859,13 +942,14 @@ def _add_blank_filter(filter_column: FilterColumn, blank: bool) -> FilterColumn:
     return filter_column
 
 
-def _filter_button_options(how: Literal["always","hidden","auto"] = "always") -> dict:
+def _filter_button_options(how: Literal["always", "hidden", "auto"] = "always") -> dict:
+    """필터 버튼 표시 옵션 딕셔너리를 반환한다."""
     if how == "hidden":
-        return dict(hiddenButton=True)
+        return {"hiddenButton": True}
     elif how == "auto":
-        return dict(showButton=False)
+        return {"showButton": False}
     else:
-        return dict() # default = dict(hiddenButton=False, showButton=True)
+        return dict() # default = {"hiddenButton": False, "showButton": True}
 
 
 ###################################################################
@@ -873,9 +957,10 @@ def _filter_button_options(how: Literal["always","hidden","auto"] = "always") ->
 ###################################################################
 
 def filter_values(
-        values: Sequence[tuple[Row,Any]],
+        values: Sequence[tuple[Row, Any]],
         configs: Sequence[FilterConfig],
     ) -> set[Row]:
+    """필터 조건에 맞지 않는 행 번호 집합을 반환한다."""
     conditions, global_config = _init_conditions(configs)
     filtered_rows = set()
 
@@ -895,7 +980,8 @@ def filter_values(
         return filtered_rows
 
 
-def _init_conditions(configs: Sequence[FilterConfig]) -> tuple[Callable[[Any],bool], dict]:
+def _init_conditions(configs: Sequence[FilterConfig]) -> tuple[Callable[[Any], bool], dict]:
+    """필터 설정에서 조건 함수 리스트와 전역 필터 설정을 추출한다."""
     conditions, global_config = list(), dict()
     for config in configs:
         filter_type = config["filter_type"]
@@ -930,6 +1016,7 @@ def _apply_value_filter(
         dates: Sequence[dict] | None = None,
         **kwargs
     ) -> bool:
+    """값 기반 필터 조건을 셀 값에 적용한다."""
     if isinstance(blank, bool):
         if ((cell_value is None) if blank else (cell_value is not None)):
             return True
@@ -949,10 +1036,11 @@ def _apply_value_filter(
 
 def _apply_custom_filter(
         cell_value: Any,
-        operator: Literal["equal","lessThan","lessThanOrEqual","notEqual","greaterThanOrEqual","greaterThan"],
+        operator: Literal["equal", "lessThan", "lessThanOrEqual", "notEqual", "greaterThanOrEqual", "greaterThan"],
         value: str,
         **kwargs
     ) -> bool:
+    """비교 연산자 기반 필터 조건을 셀 값에 적용한다."""
     try:
         if operator == "equal":
             return cell_value == value
@@ -982,6 +1070,7 @@ def _apply_dynamic_filter(
         tz: str = "local",
         **kwargs
     ) -> bool:
+    """날짜/기간 기반 동적 필터 조건을 셀 값에 적용한다."""
     import pendulum
     import datetime as dt
 
@@ -1066,13 +1155,14 @@ def _apply_dynamic_filter(
 
 
 def _apply_global_filter(
-        cell_values: Sequence[tuple[Row,Any]],
+        cell_values: Sequence[tuple[Row, Any]],
         value: float | None = None,
         top: bool | None = None,
         percent: bool | None = None,
-        average: Literal["above","below"] | None = None,
+        average: Literal["above", "below"] | None = None,
         **kwargs
     ) -> set[Row]:
+    """상위/하위 N개 또는 평균 기반 전역 필터를 적용하여 필터링된 행을 반환한다."""
     filtered_rows = {row_idx for row_idx, value in cell_values if value is None}
     values = sorted([(row_idx, value) for row_idx, value in cell_values if value is not None], key=(lambda x: x[1]))
 
@@ -1098,6 +1188,7 @@ def _apply_global_filter(
 
 
 def round_half_up(value: float) -> int:
+    """사사오입 반올림을 수행한다."""
     from decimal import Decimal, ROUND_HALF_UP
     return int(Decimal(value).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
@@ -1106,7 +1197,8 @@ def round_half_up(value: float) -> int:
 ########################## Apply filters ##########################
 ###################################################################
 
-def apply_filters(wb: Workbook, filtered_rows: dict[Sheet,set[Row]]) -> Workbook:
+def apply_filters(wb: Workbook, filtered_rows: dict[Sheet, set[Row]]) -> Workbook:
+    """XML 수준에서 필터링된 행을 숨김 처리하여 `Workbook`을 반환한다."""
     import xml.etree.ElementTree as ET
     import os
 
@@ -1128,6 +1220,7 @@ def apply_filters(wb: Workbook, filtered_rows: dict[Sheet,set[Row]]) -> Workbook
 
 
 def _apply_filter(input_path: str, sheet_index: Sheet, filtered_rows: set[Row], ns: dict) -> Workbook:
+    """Excel XML 파일에서 필터링된 행에 `hidden` 속성을 적용한다."""
     from openpyxl import load_workbook
     from tempfile import NamedTemporaryFile
     import xml.etree.ElementTree as ET
@@ -1180,6 +1273,7 @@ def _conditional_rule(
         font: dict | None = None,
         **kwargs
     ) -> Rule:
+    """조건부 서식 `Rule` 객체를 생성한다."""
     if operator == "formula":
         return _formula_rule(formula, stop_if_true, border, fill, font)
 
@@ -1202,6 +1296,7 @@ def _formula_rule(
         font: dict | None = None,
         **kwargs
     ) -> Rule:
+    """수식 기반 조건부 서식 `FormulaRule` 객체를 생성한다."""
     from openpyxl.formatting.rule import FormulaRule
     styles = dict()
     if border:
@@ -1220,9 +1315,10 @@ def _formula_rule(
 def find_merge_ranges(
         ws: Worksheet,
         range_string: Range,
-        mode: Literal["all","blank","same_value"] = "all",
-        priority: Literal["by_row","by_col"] = "by_row",
+        mode: Literal["all", "blank", "same_value"] = "all",
+        priority: Literal["by_row", "by_col"] = "by_row",
     ) -> list[Range]:
+    """지정된 범위에서 병합 가능한 셀 범위를 BFS로 탐색하여 반환한다."""
     if mode == "all":
         return [range_string]
     merge_ranges = list()
@@ -1235,7 +1331,7 @@ def find_merge_ranges(
     rows = [list(row) for row in ws.iter_rows(min_row, max_row, min_col, max_col, values_only=True)]
     visited = [[False for _ in range(num_cols)] for _ in range(num_rows)]
 
-    def _bfs(row_seq: int, col_seq: int) -> list[tuple[int,int]]:
+    def _bfs(row_seq: int, col_seq: int) -> list[tuple[int, int]]:
         queue, cells = deque(), [(row_seq, col_seq)]
         queue.append((row_seq, col_seq))
         visited[row_seq][col_seq] = True
@@ -1275,10 +1371,11 @@ def find_merge_ranges(
 
 
 def get_largest_rectangle(
-        nodes: list[tuple[int,int]],
-        top_left: tuple[int,int],
-        priority: Literal["width","height"] = "width",
-    ) -> tuple[tuple[TopLeft,TopRight],tuple[BottomLeft,BottomRight]]:
+        nodes: list[tuple[int, int]],
+        top_left: tuple[int, int],
+        priority: Literal["width", "height"] = "width",
+    ) -> tuple[tuple[TopLeft, TopRight], tuple[BottomLeft, BottomRight]]:
+    """노드 집합에서 최대 넓이의 직사각형 꼭짓점을 반환한다."""
     node_set = set(nodes)
     y0, x0 = top_left
 
@@ -1313,7 +1410,8 @@ def get_largest_rectangle(
     return best_corners
 
 
-def range_boundaries(range_string: str) -> tuple[MinCol,MinRow,MaxCol,MaxRow]:
+def range_boundaries(range_string: str) -> tuple[MinCol, MinRow, MaxCol, MaxRow]:
+    """범위 문자열을 `(min_col, min_row, max_col, max_row)` 정수 튜플로 변환한다."""
     from openpyxl.utils import range_boundaries as boundaries
     min_col, min_row, max_col, max_row = boundaries(range_string)
     return min_col, min_row, max_col, max_row

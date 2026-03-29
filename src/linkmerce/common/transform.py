@@ -71,7 +71,7 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
-    5. `select_and_extend` - 필드 추출과 파생 필드 생성을 연결해 개별 항목 처리
+    5. `select_and_extend` - 필드 선택과 파생 필드 생성을 연결해 개별 항목 처리
     6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환"""
 
     scope: str | None = None
@@ -87,6 +87,14 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
             on_missing: Literal["ignore", "raise"] | None = None,
             **kwargs
         ):
+        """파이프라인 처리를 위한 속성을 초기화한다.
+
+        Args:
+            `scope`: 전체 HTTP 응답 데이터에서 필요한 대상 데이터 경로.
+            `fields`: HTTP 응답 데이터에서 추출할 `{필드명: 경로}` 스키마.
+            `extends`: 파생 필드로 추가할 `{필드명: 값_또는_$매개변수명}` 스키마.
+            `on_missing`: 대상 경로를 탐색하지 못했을 때 동작 `"raise"`의 경우 오류를 발생시킨다.
+            `**kwargs`: 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자."""
         self.pre_init(**kwargs)
         if scope is not None:
             self.scope = scope
@@ -118,7 +126,7 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
         ...
 
     def get_scope(self, obj: Any, **kwargs) -> Any:
-        """HTTP 응답 데이터에서 대상 데이터 범위를 탐색해 반환한다. 구현하지 않으면 입력을 그대로 반환한다."""
+        """HTTP 응답 데이터에서 대상 데이터 경로를 탐색해 반환한다. 구현하지 않으면 입력을 그대로 반환한다."""
         return obj
 
     def parse(self, obj: Any, **kwargs) -> Any:
@@ -159,7 +167,7 @@ class JsonTransformer(ResponseTransformer):
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
-    5. `select_and_extend` - 필드 추출과 파생 필드 생성을 연결해 개별 항목 처리
+    5. `select_and_extend` - 필드 선택과 파생 필드 생성을 연결해 개별 항목 처리
     6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
 
     주요 설정 변수:
@@ -231,7 +239,7 @@ class HtmlTransformer(ResponseTransformer):
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
-    5. `select_and_extend` - 필드 추출과 파생 필드 생성을 연결해 개별 항목 처리
+    5. `select_and_extend` - 필드 선택과 파생 필드 생성을 연결해 개별 항목 처리
     6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
 
     주요 설정 변수:
@@ -299,7 +307,7 @@ class ExcelTransformer(JsonTransformer):
     2. `get_scope` - 엑셀 불러오기 전 작업, 필요 시 구현
     3. `parse` - 엑셀 시트를 JSON 형식으로 불러오고 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
-    5. `select_and_extend` - 필드 추출과 파생 필드 생성을 연결해 개별 항목 처리
+    5. `select_and_extend` - 필드 선택과 파생 필드 생성을 연결해 개별 항목 처리
     6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
 
     주요 설정 변수:
@@ -386,10 +394,10 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             render: dict | None = None,
             **kwargs
         ):
-        """DB 연결 및 SQL 쿼리를 불러오고 테이블을 생성한다.
+        """데이터베이스 연결 및 SQL 쿼리를 불러오고 테이블을 생성한다.
 
         Args:
-            `db_info`: DB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
+            `db_info`: 데이터베이스 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
             `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
             `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
             `create_options`: 초기화 시 테이블 생성에 사용할 옵션. `None` -> 테이블을 생성하지 않는다.
@@ -427,7 +435,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
 
     @property
     def conn(self) -> Connection:
-        """현재 DB 연결 객체를 반환한다."""
+        """현재 데이터베이스 연결 객체를 반환한다."""
         return self.get_connection()
 
     @property
@@ -479,23 +487,23 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         return (self.render or dict()) | (render or dict())
 
     def close(self):
-        """DB 연결을 닫는다."""
+        """데이터베이스 연결을 닫는다."""
         self.conn.close()
 
     ############################ Connection ###########################
 
     @abstractmethod
     def get_connection(self) -> Connection:
-        """현재 DB 연결 객체를 반환한다. 서브클래스에서 반드시 구현해야 한다."""
+        """현재 데이터베이스 연결 객체를 반환한다. 서브클래스에서 반드시 구현해야 한다."""
         raise NotImplementedError("The 'get_connection' method must be implemented.")
 
     @abstractmethod
     def set_connection(self, **kwargs):
-        """DB 연결을 초기화한다. 서브클래스에서 반드시 구현해야 한다."""
+        """데이터베이스 연결을 초기화한다. 서브클래스에서 반드시 구현해야 한다."""
         raise NotImplementedError("The 'set_connection' method must be implemented.")
 
     def execute(self, *args, **kwargs) -> Any:
-        """DB 연결을 통해 쿼리를 실행한다."""
+        """데이터베이스 연결을 통해 SQL 쿼리를 실행한다."""
         return self.get_connection().execute(*args, **kwargs)
 
     def __enter__(self) -> DBTransformer:
@@ -523,7 +531,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
 
     ############################# Queries #############################
 
-    def get_queries(self) -> dict[str,str]:
+    def get_queries(self) -> dict[str, str]:
         return self.__queires
 
     def set_queries(self, name: Literal["self"] | str = "self", keys: Sequence[str] | None = None):
@@ -546,19 +554,19 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
     ############################## Fetch ##############################
 
     def fetch_all(self, format: Literal["csv", "json", "parquet"], query: str) -> list[tuple] | list[dict] | bytes:
-        """쿼리를 실행하고 결과를 지정한 형식(`csv`, `json`, `parquet`)으로 반환한다."""
+        """SQL 쿼리를 실행하고 결과를 지정한 형식(`csv`, `json`, `parquet`)으로 반환한다."""
         return self.conn.fetch_all(format, query)
 
     def fetch_all_to_csv(self, query: str) -> list[tuple]:
-        """쿼리를 실행하고 결과를 CSV 형식의 `list[tuple]`로 반환한다."""
+        """SQL 쿼리를 실행하고 결과를 CSV 형식의 튜플 리스트로 반환한다."""
         return self.conn.fetch_all_to_csv(query)
 
     def fetch_all_to_json(self, query: str) -> list[dict]:
-        """쿼리를 실행하고 결과를 JSON 형식의 `list[dict]`로 반환한다."""
+        """SQL 쿼리를 실행하고 결과를 JSON 형식의 딕셔너리 리스트로 반환한다."""
         return self.conn.fetch_all_to_json(query)
 
     def fetch_all_to_parquet(self, query: str) -> bytes:
-        """쿼리를 실행하고 결과를 Parquet 바이너리로 반환한다."""
+        """SQL 쿼리를 실행하고 결과를 Parquet 바이너리로 반환한다."""
         return self.conn.fetch_all_to_parquet(query)
 
     ############################### CRUD ##############################
@@ -602,10 +610,10 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         else:
             return self.get_query(query_key, render)
 
-    def render_query(self, query_: str, **kwargs) -> str:
+    def render_query(self, query: str, **kwargs) -> str:
         """Jinja 템플릿 문법으로 쿼리 문자열을 렌더링한다."""
-        from linkmerce.utils.jinja import render_string
-        return render_string(query_, **kwargs)
+        from jinja2 import Template
+        return Template(query).render(**kwargs)
 
 
 ###################################################################
@@ -654,10 +662,10 @@ class DuckDBTransformer(DBTransformer):
             params: dict | None = None,
             **kwargs
         ):
-        """DB 연결 및 SQL 쿼리를 불러오고 테이블을 생성한다.
+        """DuckDB 연결 및 SQL 쿼리를 불러오고 테이블을 생성한다.
 
         Args:
-            `db_info`: DB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
+            `db_info`: DuckDB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
             `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
             `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
             `create_options`: 초기화 시 테이블 생성에 사용할 옵션. `None` -> 테이블을 생성하지 않는다.
@@ -691,7 +699,7 @@ class DuckDBTransformer(DBTransformer):
 
     @property
     def conn(self) -> DuckDBConnection:
-        """현재 DuckDB 연결 객체를 반환한다."""
+        """DuckDB 연결을 반환한다."""
         return self.get_connection()
 
     def bulk_insert(
