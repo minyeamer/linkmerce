@@ -14,13 +14,16 @@ if TYPE_CHECKING:
 ###################################################################
 
 class Search(Extractor):
+    """네이버 메인 검색 결과를 스크래핑하여 추출하는 클래스.
+
+    `RequestEach` Task를 사용하여 여러 개의 키워드를 검색한다."""
     method = "GET"
     url = "https://{m}search.naver.com/search.naver"
-    state = dict(oquery=None, tqi=None, ackey=None)
+    state = {"oquery": None, "tqi": None, "ackey": None}
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1.01))
+        return {"RequestEach": {"request_delay": 1.01}}
 
     @Extractor.with_session
     def extract(
@@ -29,12 +32,16 @@ class Search(Extractor):
             mobile: bool = True,
             parse_html: bool = True,
         ) -> JsonObject | BeautifulSoup | str:
+        """네이버 메인 검색 결과를 스크래핑한다.
+
+        `parse_html`에 따라 `BeautifulSoup` 파싱하거나 HTML 텍스트를 그대로 반환한다."""
         return (self.request_each(self.search)
                 .partial(mobile=mobile, parse_html=parse_html)
                 .expand(query=query)
                 .run())
 
     def search(self, mobile: bool = True, parse_html: bool = True, **kwargs) -> BeautifulSoup | str:
+        """네이버 메인 검색 요청을 실행하고 HTML 텍스트를 파싱한다."""
         kwargs["url"] = self.url.format(m=("m." if mobile else str()))
         response = self.request_text(mobile=mobile, **kwargs)
         self.save_search_query(response, kwargs.get("query"))
@@ -45,6 +52,7 @@ class Search(Extractor):
             return response
 
     def save_search_query(self, response: str, query: str):
+        """검색 결과인 HTML 텍스트에서 `oquery`, `tqi`, `ackey` 상태를 추출한다."""
         from linkmerce.utils.regex import regexp_extract
         self.state["oquery"] = query
         self.state["tqi"] = regexp_extract(r"tqi=([^&\"]+)", response)
@@ -63,6 +71,7 @@ class Search(Extractor):
 
     @property
     def ackey(self) -> str:
+        """랜덤 `ackey` 값을 생성한다."""
         import random
 
         def _base36_encode(number):
@@ -83,21 +92,25 @@ class Search(Extractor):
 ###################################################################
 
 class SearchTab(Extractor):
+    """네이버 탭별 검색 결과를 추출하는 클래스.
+
+    `RequestEach` Task를 사용하여 이미지, 블로그, 카페, 뉴스 등 탭 유형별로 요청한다."""
     method = "GET"
     url = "https://{m}search.naver.com/search.naver"
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1.01))
+        return {"RequestEach": {"request_delay": 1.01}}
 
     @Extractor.with_session
     def extract(
             self,
             query: str | Iterable[str],
-            tab_type: Literal["image","blog","cafe","kin","influencer","clip","video","news","surf","shortents"],
+            tab_type: Literal["image", "blog", "cafe", "kin", "influencer", "clip", "video", "news", "surf", "shortents"],
             mobile: bool = True,
             **kwargs
         ) -> JsonObject | BeautifulSoup:
+        """탭별 검색 결과를 조회한다."""
         url = self.url.format(m=("m." if mobile else str()))
         tab_type = self.tab_type[tab_type].format(m=("m_" if mobile else str()))
         return (self.request_each(self.request_html)
@@ -113,7 +126,8 @@ class SearchTab(Extractor):
         return super().set_request_headers(**kwargs)
 
     @property
-    def tab_type(self) -> dict[str,str]:
+    def tab_type(self) -> dict[str, str]:
+        """탭 유형별 `ssc` 파라미터 매핑을 반환한다."""
         return {
             "image": "tab.{m}image.all", # "이미지"
             "blog": "tab.{m}blog.all", # "블로그"
@@ -129,21 +143,25 @@ class SearchTab(Extractor):
 
 
 class CafeArticle(Extractor):
+    """네이버 카페 게시글 데이터를 추출하는 클래스.
+
+    `RequestEach` Task를 사용하여 URL 목록에 대해 요청한다."""
     method = "GET"
     url = "https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}"
     referer = "https://{m_}cafe.naver.com/{cafe_url}/{article_id}"
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1.01))
+        return {"RequestEach": {"request_delay": 1.01}}
 
     @Extractor.with_session
     def extract(
             self,
             url: str | Iterable[str],
-            domain: Literal["article","cafe","m"] = "article",
+            domain: Literal["article", "cafe", "m"] = "article",
             **kwargs
-        ) -> JsonObject | BeautifulSoup:
+        ) -> JsonObject:
+        """카페 게시글 URL에 대한 데이터를 조회해 JSON 형식으로 반환한다."""
         return (self.request_each(self.request_json_safe)
                 .partial(domain=domain)
                 .expand(url=url)
@@ -152,7 +170,7 @@ class CafeArticle(Extractor):
     def build_request_message(
             self,
             url: str | Iterable[str],
-            domain: Literal["article","cafe","m"] = "article",
+            domain: Literal["article", "cafe", "m"] = "article",
             **kwargs
         ) -> dict:
         if domain != "article":
@@ -162,22 +180,24 @@ class CafeArticle(Extractor):
     def build_request_headers(
             self,
             url: str | Iterable[str],
-            domain: Literal["article","cafe","m"] = "article",
+            domain: Literal["article", "cafe", "m"] = "article",
             **kwargs
-        ) -> dict[str,str]:
+        ) -> dict[str, str]:
         referer = self.make_referral_url(url) if domain == "article" else url
         return dict(self.get_request_headers(), referer=referer)
 
-    def set_request_headers(self, domain: Literal["cafe","m"] = "m", **kwargs):
+    def set_request_headers(self, domain: Literal["cafe", "m"] = "m", **kwargs):
         origin = "https://cafe.naver.com" if domain == "cafe" else "https://m.cafe.naver.com"
         kwargs.update(authority=self.url, origin=origin, **{"x-cafe-product": "mweb"})
         super().set_request_headers(**kwargs)
 
-    def get_ids_from_url(self, url: str) -> tuple[str,str]:
+    def get_ids_from_url(self, url: str) -> tuple[str, str]:
+        """카페 게시글 URL에서 `cafe_url`과 `article_id`를 추출한다."""
         from linkmerce.utils.regex import regexp_groups
-        return regexp_groups(r"/([^/]+)/(\d+)$", url.split('?')[0], indices=[0,1])
+        return regexp_groups(r"/([^/]+)/(\d+)$", url.split('?')[0], indices=[0, 1])
 
     def make_article_url(self, url: str) -> str:
+        """카페 게시글 URL을 API URL로 변환한다."""
         cafe_url, article_id = self.get_ids_from_url(url)
         if (cafe_url is not None) and (article_id is not None):
             params = self.make_article_params(url)
@@ -186,6 +206,7 @@ class CafeArticle(Extractor):
             raise ValueError(f"URL is invalid: '{url}'")
 
     def make_article_params(self, url: str) -> str:
+        """카페 게시글 URL에서 쿼리 파라미터를 추출하고 `useCafeId`, `buid` 파라미터를 추가한다."""
         from urllib.parse import urlencode
         from uuid import uuid4
         param_string = url.split('?')[1] if '?' in url else str()
@@ -193,6 +214,7 @@ class CafeArticle(Extractor):
         return urlencode(dict(params, **{"useCafeId": "false", "buid": uuid4()}))
 
     def make_referral_url(self, url: str) -> str:
+        """카페 게시글 URL을 `referer` 헤더용 URL로 변환한다."""
         cafe_url, article_id = self.get_ids_from_url(url)
         if (cafe_url is not None) and (article_id is not None):
             m_ = "m." if "m.search" in url else str()

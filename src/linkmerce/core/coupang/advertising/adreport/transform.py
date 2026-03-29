@@ -53,7 +53,7 @@ class Campaign(DuckDBTransformer):
 
 
 class Creative(DuckDBTransformer):
-    """쿠팡 광고 동영상 소재 데이터를 `coupang_creative` 테이블에 적재하는 클래스."""
+    """쿠팡 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 `coupang_creative` 테이블에 적재하는 클래스."""
 
     extractor = "Creative"
     tables = {"table": "coupang_creative"}

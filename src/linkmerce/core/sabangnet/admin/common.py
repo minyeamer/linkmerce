@@ -7,11 +7,15 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import Variables
+    from linkmerce.common.extract import Configs
     import datetime as dt
 
 
 class SabangnetAdmin(Extractor):
+    """사방넷 시스템에서 데이터를 조회하는 공통 클래스.
+
+    `userid`, `passwd`, `domain`를 사용하여 로그인 후 토큰 기반으로 요청한다."""
+
     method: str | None = None
     main_url: str = "https://www.sabangnet.co.kr"
     admin_url: str = "http://sbadmin{domain}.sabangnet.co.kr"
@@ -19,24 +23,25 @@ class SabangnetAdmin(Extractor):
     access_token: str = str()
     refresh_token: str = str()
 
-    def set_variables(self, variables: Variables = dict()):
+    def set_configs(self, configs: Configs = dict()):
         try:
-            self.set_account(**variables)
+            self.set_account(**configs)
         except TypeError:
             raise TypeError("Sabangnet requires variables for userid, passwd, and domain to authenticate.")
 
-    def set_account(self, userid: str, passwd: str, domain: int, **variables):
-        super().set_variables(dict(userid=userid, passwd=passwd, domain=domain, **variables))
+    def set_account(self, userid: str, passwd: str, domain: int, **configs):
+        super().set_configs(dict(userid=userid, passwd=passwd, domain=domain, **configs))
 
     @property
     def origin(self) -> str:
-        return self.admin_url.format(domain=self.get_variable("domain"))
+        return self.admin_url.format(domain=self.get_config("domain"))
 
     @property
     def url(self) -> str:
         return self.concat_path(self.origin, self.path)
 
     def with_token(func):
+        """데이터 요청 전 로그인하고 `access_token`을 발급받는 데코레이터."""
         @functools.wraps(func)
         def wrapper(self: SabangnetAdmin, *args, **kwargs):
             data = self.login_begin()
@@ -46,16 +51,18 @@ class SabangnetAdmin(Extractor):
         return wrapper
 
     def login_begin(self) -> dict:
+        """`userid`, `passwd`, `domain`를 가지고 로그인 요청한다."""
         from linkmerce.utils.headers import build_headers
         url = self.main_url + "/hp-prod/users/login"
         referer = self.main_url + "/login/login-main"
-        body = {"username": self.get_variable("userid"), "password": self.get_variable("passwd")}
+        body = {"username": self.get_config("userid"), "password": self.get_config("passwd")}
         headers = build_headers(host=url, contents="json", referer=referer, origin=self.main_url)
         headers["program-name"] = "login-main"
         with self.request("POST", url, json=body, headers=headers) as response:
             return response.json()["data"]
 
     def set_token(self, accessToken: str, refreshToken: str, **kwargs):
+        """로그인 응답 결과에서 `access_token`을 추출한다."""
         self.access_token = accessToken
         self.refresh_token = refreshToken
 
@@ -70,9 +77,9 @@ class SabangnetAdmin(Extractor):
     def get_authorization(self) -> str:
         return "Bearer " + self.access_token
 
-    def build_request_headers(self, **kwargs: str) -> dict[str,str]:
+    def build_request_headers(self, **kwargs: str) -> dict[str, str]:
         from linkmerce.utils.headers import add_headers
-        host = dict(host=self.origin, referer=self.origin, origin=self.origin)
+        host = {"host": self.origin, "referer": self.origin, "origin": self.origin}
         return add_headers(self.get_request_headers(), authorization=self.get_authorization(), **host)
 
     def set_request_headers(self, **kwargs: str):
@@ -80,19 +87,22 @@ class SabangnetAdmin(Extractor):
 
 
 class SabangnetLogin(LoginHandler, SabangnetAdmin):
+    """사방넷 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스."""
 
     @LoginHandler.with_session
     def login(self, **kwargs) -> dict:
+        """사방넷 로그인을 수행하고 쿠키와 토큰을 반환한다."""
         data = self.login_begin()
         self.set_token(**data)
         self.login_history()
-        return dict(cookies=self.get_cookies(), access_token=self.access_token, refresh_token=self.refresh_token)
+        return {"cookies": self.get_cookies(), "access_token": self.access_token, "refresh_token": self.refresh_token}
 
 
 def get_order_date_pair(
         start_date: dt.datetime | dt.date | str | Literal[":today:"] = ":today:",
-        end_date: dt.datetime | dt.date | str | Literal[":start_date:",":now:"] = ":start_date:",
-    ) -> tuple[str,str]:
+        end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"] = ":start_date:",
+    ) -> tuple[str, str]:
+    """사방넷 주문 조회용 날짜 쌍을 생성한다."""
     import datetime as dt
 
     def strftime(obj: dt.datetime | dt.date | str):
@@ -118,9 +128,10 @@ def get_order_date_pair(
 
 
 def get_product_date_pair(
-        start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
-        end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
-    ) -> tuple[str,str]:
+        start_date: dt.date | str | Literal[":base_date:", ":today:"] = ":base_date:",
+        end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
+    ) -> tuple[str, str]:
+    """사방넷 상품 조회용 날짜 쌍을 생성한다."""
     import datetime as dt
 
     if isinstance(start_date, str):

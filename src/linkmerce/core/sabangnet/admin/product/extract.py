@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class Product(SabangnetAdmin):
+    """사방넷 상품 목록을 페이지네이션으로 조회하는 클래스.
+
+    `PaginateAll` Task를 사용하여 검색 조건에 맞는 모든 상품 목록을 조회한다."""
+
     method = "POST"
     path = "/prod-api/customer/product/getProductInquirySearchList"
     max_page_size = 500
@@ -18,14 +22,14 @@ class Product(SabangnetAdmin):
 
     @property
     def default_options(self) -> dict:
-        return dict(PaginateAll = dict(request_delay=1))
+        return {"PaginateAll": {"request_delay": 1}}
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
     def extract(
             self,
-            start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
-            end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+            start_date: dt.date | str | Literal[":base_date:", ":today:"] = ":base_date:",
+            end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             date_type: str = "001",
             sort_type: str = "001",
             sort_asc: bool = True,
@@ -33,15 +37,17 @@ class Product(SabangnetAdmin):
             product_status: str | None = None,
             **kwargs
         ) -> JsonObject:
+        """상품 목록을 페이지네이션으로 조회해 JSON 형식으로 반환한다."""
         from linkmerce.core.sabangnet.admin import get_product_date_pair
         kwargs = dict(
-            dict(zip(["start_date","end_date"], get_product_date_pair(start_date, end_date))),
+            dict(zip(["start_date", "end_date"], get_product_date_pair(start_date, end_date))),
             date_type=date_type, sort_type=sort_type, sort_asc=sort_asc, is_deleted=is_deleted, product_status=product_status)
 
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(**kwargs))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
+        """HTTP 응답에서 전체 상품 건수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "data.metaData.total")
 
@@ -75,25 +81,32 @@ class Product(SabangnetAdmin):
         }
 
     @property
-    def date_type(self) -> dict[str,str]:
-        return {"001": "상품등록일", "002": "상품수정일", "003": "상품삭제일", "004": "상품상태변경일"}
+    def date_type(self) -> dict[str, str]:
+        """기간 코드와 한글명 매핑을 반환한다."""
+        return {
+            "001": "상품등록일", "002": "상품수정일",
+            "003": "상품삭제일", "004": "상품상태변경일",
+        }
 
     @property
-    def sort_type(self) -> dict[str,str]:
+    def sort_type(self) -> dict[str, str]:
+        """정렬 기준 코드와 한글명 매핑을 반환한다."""
         return {
             "001": "등록일", "002": "품번코드", "003": "자체상품코드", "004": "모델명", "005": "모델NO",
             "006": "상품명", "007": "판매가", "008": "수정일", "009": "브랜드명", "010": "원가"
         }
 
     @property
-    def product_status(self) -> dict[str,str]:
+    def product_status(self) -> dict[str, str]:
+        """상품 상태 코드와 한글명 매핑을 반환한다."""
         return {
             "001": "대기중", "002": "공급중", "003": "일시중지", "004": "완전품절", "005": "미사용",
             "006": "삭제", "007": "자료없음", "008": "비노출"
         }
 
     @property
-    def search_condition(self) -> dict[str,str]:
+    def search_condition(self) -> dict[str, str]:
+        """상품 검색 조건 코드와 한글명 매핑을 반환한다."""
         return {
             "PRD_NO": "품번코드", "PRD_NM": "상품명", "ENG_PRD_NM": "영문상품명", "PRD_ABBR_RMRK": "상품약어",
             "MODL_NM": "모델명", "MODL_NO_NM": "모델NO", "BRND_NM": "브랜드명", "ONSF_PRD_CD": "자체상품코드",
@@ -104,29 +117,37 @@ class Product(SabangnetAdmin):
 
 
 class Option(SabangnetAdmin):
+    """사방넷 단품 옵션 목록을 조회하는 클래스.
+
+    `RequestEach` Task를 사용하여 단품코드(`product_id`)에 대해 순차 조회한다."""
+
     method = "POST"
     path = "/prod-api/customer/product/getOptionInfoList"
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=0.3))
+        return {"RequestEach": {"request_delay": 0.3}}
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
     def extract(self, product_id: Sequence[str], **kwargs) -> JsonObject:
+        """단품코드(`product_id`)에 대한 단품 옵션 목록을 조회해 JSON 형식으로 반환한다."""
         return (self.request_each(self.request_json_safe)
                 .expand(product_id=product_id)
                 .run())
 
     def build_request_json(self, product_id: str, **kwargs) -> dict:
-        return {"prdNo": product_id,"skuNo": None,"optDivCd": "basic"}
+        return {"prdNo": product_id, "skuNo": None, "optDivCd": "basic"}
 
     @property
-    def option_type(self) -> dict[str,str]:
+    def option_type(self) -> dict[str, str]:
+        """옵션 구분 코드와 한글명 매핑을 반환한다."""
         return {"002": "판매", "004": "품절", "005": "미사용"}
 
 
 class OptionDownload(SabangnetAdmin):
+    """사방넷 단품 대량 수정 메뉴의 옵션 목록을 다운로드하는 클래스."""
+
     method = "POST"
     path = "/prod-api/customer/product/getSkuBulkModifyExcel"
 
@@ -134,15 +155,16 @@ class OptionDownload(SabangnetAdmin):
     @SabangnetAdmin.with_token
     def extract(
             self,
-            start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
-            end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+            start_date: dt.date | str | Literal[":base_date:", ":today:"] = ":base_date:",
+            end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             date_type: str = "prdFstRegsDt",
             sort_type: str = "prdNo",
             sort_asc: bool = True,
             is_deleted: bool = False,
             product_status: list[str] = list(),
             **kwargs
-        ) -> dict[str,bytes]:
+        ) -> dict[str, bytes]:
+        """사방넷 단품 대량 수정 메뉴의 옵션 목록을 다운로드한다."""
         from linkmerce.core.sabangnet.admin import get_product_date_pair
         dates = get_product_date_pair(start_date, end_date)
         headers = self.build_request_headers()
@@ -152,6 +174,7 @@ class OptionDownload(SabangnetAdmin):
         return {file_name: self.parse(response.content)}
 
     def get_file_name(self, content_disposition: str) -> str:
+        """`Content-Disposition` 헤더에서 파일명을 추출한다."""
         default = "사방넷단품대량수정_수정파일.xlsx"
         return default
         # if not isinstance(content_disposition, str):
@@ -182,28 +205,31 @@ class OptionDownload(SabangnetAdmin):
             "productStatus": (["006"] if is_deleted else product_status),
             "searchCondition": "",
             "searchKeyword": "",
-            "searchKeywordList": [],
+            "searchKeywordList": list(),
             "downloadScale": "ALL",
             "nonExposureYn": "N",
-            "prdNoSkuNoList": []
+            "prdNoSkuNoList": list()
         }
 
     @property
-    def date_type(self) -> dict[str,str]:
+    def date_type(self) -> dict[str, str]:
+        """기간 코드와 한글명 매핑을 반환한다."""
         return {
             "prdFstRegsDt": "상품등록일", "prdFnlChgDt": "상품수정일", "skuFnlChgDt": "옵션수정일",
             "prdStsUpdDt": "상품상태변경일", "skuFstRegsDt": "옵션생성일"
         }
 
     @property
-    def sort_type(self) -> dict[str,str]:
+    def sort_type(self) -> dict[str, str]:
+        """정렬 기준 코드와 한글명 매핑을 반환한다."""
         return {
             "prdNo": "품번코드", "skuNo": "사방넷상품코드", "onsfPrdCd": "자체상품코드", "modlNm": "모델명",
             "prdNm": "상품명", "fstRegsDt": "등록일", "fnlChgDt": "수정일"
         }
 
     @property
-    def product_status(self) -> dict[str,str]:
+    def product_status(self) -> dict[str, str]:
+        """상품 상태 코드와 한글명 매핑을 반환한다."""
         return {
             "001": "대기중", "002": "공급중", "003": "일시중지", "004": "완전품절", "005": "미사용",
             "006": "삭제", "007": "자료없음", "008": "비노출"
@@ -211,6 +237,10 @@ class OptionDownload(SabangnetAdmin):
 
 
 class AddProductGroup(SabangnetAdmin):
+    """사방넷 추가상품 관리 메뉴의 추가상품 목록을 페이지네이션으로 조회하는 클래스.
+
+    `PaginateAll` Task를 사용하여 추가상품 그룹 목록을 조회한다."""
+
     method = "POST"
     path = "/prod-api/customer/product/getAddProductList"
     max_page_size = 500
@@ -219,23 +249,25 @@ class AddProductGroup(SabangnetAdmin):
 
     @property
     def default_options(self) -> dict:
-        return dict(PaginateAll = dict(request_delay=1))
+        return {"PaginateAll": {"request_delay": 1}}
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
     def extract(
             self,
-            start_date: dt.date | str | Literal[":base_date:",":today:"] = ":base_date:",
-            end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+            start_date: dt.date | str | Literal[":base_date:", ":today:"] = ":base_date:",
+            end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             shop_id: str = str(),
             **kwargs
         ) -> JsonObject:
+        """사방넷 추가상품 관리 메뉴의 추가상품 목록을 조회해 JSON 형식으로 반환한다."""
         from linkmerce.core.sabangnet.admin import get_product_date_pair
         start_date, end_date = get_product_date_pair(start_date, end_date)
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(start_date=start_date, end_date=end_date, shop_id=shop_id))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
+        """HTTP 응답에서 전체 추가상품 그룹 건수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "data.0.total")
 
@@ -263,16 +295,22 @@ class AddProductGroup(SabangnetAdmin):
 
 
 class AddProduct(SabangnetAdmin):
+    """사방넷 추가 상품 그룹 내 상품 목록을 조회하는 클래스.
+
+    `RequestEach` Task를 사용하여 그룹코드(`group_id`)별 추가상품 목록을 조회한다."""
+
     method = "POST"
     path = "/prod-api/customer/product/getAddProductListInGroup"
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=0.3))
+        """RequestEach Task 기본 옵션을 반환한다."""
+        return {"RequestEach": {"request_delay": 0.3}}
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
     def extract(self, group_id: Sequence[str], **kwargs) -> JsonObject:
+        """그룹코드(`group_id`)에 대한 추가상품 목록을 조회해 JSON 형식으로 반환한다."""
         return (self.request_each(self.request_json_safe)
                 .expand(group_id=group_id)
                 .run())

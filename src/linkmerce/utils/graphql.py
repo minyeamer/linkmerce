@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class GraphQLObject:
-    """GraphQL 객체를 문자열로 포맷팅하는 기반 클래스."""
+    """GraphQL 객체를 문자열로 포맷팅하는 공통 클래스."""
 
     def format(self, object_: dict | list | str, indent: int=0, step: int=2, linebreak: bool=True, colons: bool=False) -> str:
         """딕셔너리, 리스트, 문자열을 들여쓰기와 줄바꾼이 적용된 문자열로 변환한다."""

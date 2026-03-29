@@ -6,11 +6,15 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Variables
+    from linkmerce.common.extract import Configs
     from pathlib import Path
 
 
 class GoogleApi(Extractor):
+    """구글 API 요청을 처리하는 공통 클래스.
+
+    `service_account`와 `scope` 변수를 사용하여 JWT 기반 인증을 수행한다."""
+
     service: str
     method: str = "POST"
     access_token: str | None = None
@@ -19,25 +23,27 @@ class GoogleApi(Extractor):
     def origin(self) -> str:
         return f"https://{self.service}.googleapis.com/"
 
-    def set_variables(self, variables: Variables = dict()):
+    def set_configs(self, configs: Configs = dict()):
         try:
-            self.set_service_account(**variables)
+            self.set_service_account(**configs)
         except TypeError:
             raise TypeError("Google API requires variables for service_account and scope.")
 
     def set_service_account(
             self,
-            service_account: str | Path | dict[str,str],
+            service_account: str | Path | dict[str, str],
             scope: str,
-            **variables,
+            **configs,
         ):
-        super().set_variables(dict(
+        """구글 서비스 계정 인증 정보를 설정한다."""
+        super().set_configs(dict(
             service_account = self._read_service_account(service_account),
             scope = scope,
-            **variables
+            **configs
         ))
 
-    def _read_service_account(self, service_account: str | Path | dict[str,str]) -> dict[str,str]:
+    def _read_service_account(self, service_account: str | Path | dict[str, str]) -> dict[str, str]:
+        """구글 서비스 계정은 로컬 JSON 파일을 읽거나, 딕셔너리 객체를 전달받는다."""
         if not isinstance(service_account, dict):
             import json
             with open(str(service_account), 'r', encoding="utf-8") as file:
@@ -49,14 +55,15 @@ class GoogleApi(Extractor):
             raise ValueError("Service account is not valid.")
 
     @property
-    def service_account(self) -> dict[str,str]:
-        return self.get_variable("service_account")
+    def service_account(self) -> dict[str, str]:
+        return self.get_config("service_account")
 
     @property
     def scope(self) -> str:
-        return self.get_variable("scope")
+        return self.get_config("scope")
 
     def with_token(func):
+        """API 요청 전 액세스 토큰을 발급받는 데코레이터."""
         @functools.wraps(func)
         def wrapper(self: GoogleApi, *args, **kwargs):
             self.set_access_token()
@@ -64,18 +71,21 @@ class GoogleApi(Extractor):
         return wrapper
 
     def set_access_token(self):
+        """구글 서비스 계정 기반의 JWT 인증으로 발급받은 액세스 토큰을 설정한다."""
         auth = GoogleAuth(self.service_account, self.scope)
         self.access_token = auth.get_access_token()
 
 
 class GoogleAuth:
+    """구글 서비스 계정 기반의 JWT 인증을 수행하여 액세스 토큰을 발급하는 클래스."""
 
-    def __init__(self, service_account: dict[str,str], scope: str, ttl: int = 3600):
+    def __init__(self, service_account: dict[str, str], scope: str, ttl: int = 3600):
         self.service_account = service_account
         self.scope = scope
         self.ttl = ttl
 
     def get_access_token(self) -> str:
+        """구글 서비스 계정 기반의 JWT 인증으로 발급받은 액세스 토큰을 발급받는다."""
         from Crypto.PublicKey import RSA
         from Crypto.Signature import pkcs1_15
         from Crypto.Hash import SHA256

@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 
 def has_accounts(session: Session, cookies: str = str()) -> bool:
+    """스마트스토어 사용자 계정 유효 여부를 확인한다."""
     from linkmerce.utils.headers import build_headers
     origin = "https://accounts.commerce.naver.com"
     url = f"{origin}/graphql?query=userInfo"
@@ -18,10 +19,11 @@ def has_accounts(session: Session, cookies: str = str()) -> bool:
 
 
 def has_cookies(session: Session, cookies: str = str()) -> bool:
+        """스마트스토어 쿠키 유효 여부를 확인한다."""
         from linkmerce.utils.headers import build_headers
         origin = "https://accounts.commerce.naver.com"
         url = f"{origin}/graphql?query=nidAuth"
-        headers = build_headers(url, contents=dict(type="json"), cookies=cookies, origin=origin, referer=login_url())
+        headers = build_headers(url, contents={"type": "json"}, cookies=cookies, origin=origin, referer=login_url())
         with session.post(url, json=query_nid_auth(), headers=headers) as response:
             return bool(response.json()["data"]["nidAuth"]["nid"])
 
@@ -31,6 +33,9 @@ def has_cookies(session: Session, cookies: str = str()) -> bool:
 ###################################################################
 
 class SmartstoreLogin(LoginHandler):
+    """스마트스토어 판매자 센터 로그인을 수행하여 쿠키를 발급하는 클래스.
+
+    네이버 ID/비밀번호 기반 로그인, OAuth 인증, 채널 선택 등의 로그인 과정을 처리한다."""
     main_url = "https://sell.smartstore.naver.com"
     login_url = "https://accounts.commerce.naver.com"
 
@@ -55,7 +60,7 @@ class SmartstoreLogin(LoginHandler):
         else:
             return login_info
 
-    def build_request_headers(self, authority: str, **kwargs: str) -> dict[str,str]:
+    def build_request_headers(self, authority: str, **kwargs: str) -> dict[str, str]:
         from linkmerce.utils.headers import build_headers
         return build_headers(authority, **kwargs)
 
@@ -85,10 +90,7 @@ class SmartstoreLogin(LoginHandler):
                     variables = dict(loginRequest=list(variables.keys())),
                     fields = ["id", "statCd", "loginStatus", "showCaptcha", "captchaKey", "sessionKey", "idNo"]
                 )
-            ).generate_body(query_options = dict(
-                command = "mutation",
-                selection = dict(variables=dict(linebreak=True)), fields=dict(linebreak=True),
-                suffix = '\n'))
+            ).generate_body(query_options = {"command": "mutation", "selection": {"variables": {"linebreak": True}}, "fields": {"linebreak": True}, "suffix": '\n'})
 
         url = self.login_url + "/graphql"
         headers = self.build_request_headers(url, referer=f"{self.main_url}/login?{callback_url(return_url=False)}")
@@ -97,7 +99,7 @@ class SmartstoreLogin(LoginHandler):
 
     def fetch_smartstore(self, referer: str = str()):
         url = self.main_url
-        headers = self.build_request_headers(self.main_url, contents=dict(type="json"), referer=referer)
+        headers = self.build_request_headers(self.main_url, contents={"type": "json"}, referer=referer)
         self.request("GET", url, headers=headers)
 
     ########################### OAuth Login ###########################
@@ -123,12 +125,12 @@ class SmartstoreLogin(LoginHandler):
     def validate_cookies(self, cookies: str) -> str:
         self.set_cookies(cookies)
         url = self.login_url + "/graphql"
-        headers = self.build_request_headers(url, contents=dict(type="json"), origin=self.login_url, referer=login_url())
-        self.request("POST", url, json=query_valid_url(), params=dict(query="ValidUrl"), headers=headers)
-        self.request("POST", url, json=query_foreign_captcha(), params=dict(query="foreignCaptcha"), headers=headers)
-        self.request("POST", url, json=query_user_info(), params=dict(query="userInfo"), headers=headers)
-        self.request("POST", url, json=query_nid_auth(), params=dict(query="nidAuth"), headers=headers)
-        with self.request("POST", url, json=query_valid_url(), params=dict(query="ValidUrl"), headers=headers) as response:
+        headers = self.build_request_headers(url, contents={"type": "json"}, origin=self.login_url, referer=login_url())
+        self.request("POST", url, json=query_valid_url(), params={"query": "ValidUrl"}, headers=headers)
+        self.request("POST", url, json=query_foreign_captcha(), params={"query": "foreignCaptcha"}, headers=headers)
+        self.request("POST", url, json=query_user_info(), params={"query": "userInfo"}, headers=headers)
+        self.request("POST", url, json=query_nid_auth(), params={"query": "nidAuth"}, headers=headers)
+        with self.request("POST", url, json=query_valid_url(), params={"query": "ValidUrl"}, headers=headers) as response:
             return response.json()["data"]["validUrl"]
 
     def login_begin(self, valid_url: str) -> str:
@@ -153,13 +155,10 @@ class SmartstoreLogin(LoginHandler):
                     variables = dict(snsLoginBeginRequest=list(types.keys())),
                     fields = ["authUrl"],
                 )
-            ).generate_body(query_options = dict(
-                command = "mutation",
-                selection = dict(variables=dict(linebreak=True)), fields=dict(linebreak=True),
-                suffix = '\n'))
+            ).generate_body(query_options = {"command": "mutation", "selection": {"variables": {"linebreak": True}}, "fields": {"linebreak": True}, "suffix": '\n'})
 
         url = self.login_url + "/graphql?query=snsLoginBegin"
-        headers = self.build_request_headers(url, contents=dict(type="json"), origin=self.login_url, referer=login_url())
+        headers = self.build_request_headers(url, contents={"type": "json"}, origin=self.login_url, referer=login_url())
         with self.request("POST", url, json=build_request_body(), headers=headers) as response:
             return response.json()["data"]["snsBegin"]["authUrl"]
 
@@ -189,14 +188,11 @@ class SmartstoreLogin(LoginHandler):
                     variables = dict(snsLoginCallbackRequest=list(variables.keys())),
                     fields = ["statCd", "loginStatus", "nextUrl", "sessionKey", "snsCd", "idNo", "realnm", "age", "email", "mode", "snsId"],
                 )
-            ).generate_body(query_options = dict(
-                command = "mutation",
-                selection = dict(variables=dict(linebreak=False)), fields=dict(linebreak=True),
-                suffix = '\n'))
+            ).generate_body(query_options = {"command": "mutation", "selection": {"variables": {"linebreak": False}}, "fields": {"linebreak": True}, "suffix": '\n'})
 
         url = self.login_url + "/graphql?query=snsLoginCallback"
-        headers = self.build_request_headers(url, contents=dict(type="json"), origin=self.login_url, referer=callback_url)
-        with self.request("POST", url, json=build_request_body(**variables), headers=headers) as response:
+        headers = self.build_request_headers(url, contents={"type": "json"}, origin=self.login_url, referer=callback_url)
+        with self.request("POST", url, json=build_request_body(**configs), headers=headers) as response:
             return response.json()["data"]["snsCallback"]["nextUrl"]
 
     ######################### Two Factor Login ########################
@@ -207,8 +203,8 @@ class SmartstoreLogin(LoginHandler):
         with self.request("POST", url, data=body, params=body, headers=self.get_login_header()) as response:
             return self.get_login_info(response.headers)
 
-    def get_login_header(self) -> dict[str,str]:
-        headers = self.build_request_headers(self.main_url, contents=dict(type="json", charset="UTF-8"), referer=self.main_url)
+    def get_login_header(self) -> dict[str, str]:
+        headers = self.build_request_headers(self.main_url, contents={"type": "json", "charset": "UTF-8"}, referer=self.main_url)
         headers["x-current-state"] = self.main_url + "/#/login-callback"
         headers["x-current-statename"] = "login-callback"
         headers["x-to-statename"] = "login-callback"
@@ -242,12 +238,12 @@ class SmartstoreLogin(LoginHandler):
     def set_channel(self, channelNo: int, roleNo: int, **kwargs) -> dict:
         from urllib.parse import quote_plus
         url = self.main_url + "/api/login/change-channel"
-        body = dict(channelNo=channelNo, roleNo=roleNo, url=url)
+        body = {"channelNo": channelNo, "roleNo": roleNo, "url": url}
         params = dict(channelNo=channelNo, roleNo=roleNo, url=quote_plus(url))
         with self.request("POST", url, data=body, params=params, headers=self.get_channel_header(), allow_redirects=False) as response:
             return self.get_login_info(response.headers)
 
-    def get_channel_header(self) -> dict[str,str]:
+    def get_channel_header(self) -> dict[str, str]:
         headers = self.build_request_headers(self.main_url, referer=self.main_url)
         headers["x-current-state"] = self.main_url + "/#/home/dashboard"
         headers["x-current-statename"] = "work.channel-select"
@@ -266,7 +262,7 @@ def query_valid_url() -> dict:
 
 def query_foreign_captcha() -> dict:
     query = "query foreignCaptcha {\n  foreignCaptcha {\n    ip\n    isForeignIp\n    captchaKey\n    __typename\n  }\n}\n"
-    return {"operationName": "foreignCaptcha", "variables": {}, "query": query}
+    return {"operationName": "foreignCaptcha", "variables": dict(), "query": query}
 
 
 def query_user_info() -> dict:
@@ -281,14 +277,12 @@ def query_user_info() -> dict:
             variables = ["userSelectRequest"],
             fields = [{"user": ["id", "idNo"]}, {"userInfos": ["key", "value"]}]
         )
-    ).generate_body(query_options = dict(
-        selection = dict(variables=dict(linebreak=False)), fields=dict(linebreak=True),
-        suffix = '\n'))
+    ).generate_body(query_options = {"selection": {"variables": {"linebreak": False}}, "fields": {"linebreak": True}, "suffix": '\n'})
 
 
 def query_nid_auth() -> dict:
     query = "query nidAuth {\n  nidAuth {\n    nid\n    rawNid\n    nidNo\n    nidLoginStat\n    profileImageUrl\n    name\n    __typename\n  }\n}\n"
-    return {"operationName": "nidAuth", "variables": {}, "query": query}
+    return {"operationName": "nidAuth", "variables": dict(), "query": query}
 
 
 def main_url(return_url: bool = True) -> str:
@@ -306,6 +300,6 @@ def callback_url(return_url: bool = True) -> str:
     url = "https://sell.smartstore.naver.com/#/login-callback"
     if return_url:
         dashboard_url = "https://sell.smartstore.naver.com/#/home/dashboard"
-        return '?'.join([url, urlencode(dict(returnUrl=dashboard_url))])
+        return '?'.join([url, urlencode({"returnUrl": dashboard_url})])
     else:
         return url

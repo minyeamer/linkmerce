@@ -8,12 +8,15 @@ if TYPE_CHECKING:
 
 
 class Keyword(NaverSearchAdApi):
+    """검색광고 API로 키워드 도구의 연관키워드 조회 결과를 수집하는 클래스.
+
+    `RequestEach` Task를 사용하여 키워드 목록을 5개 청크 단위로 나눠서 요청한다."""
     method = "GET"
     uri = "/keywordstool"
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1))
+        return {"RequestEach": {"request_delay": 1}}
 
     @NaverSearchAdApi.with_session
     def extract(
@@ -23,12 +26,14 @@ class Keyword(NaverSearchAdApi):
             show_detail: bool = True,
             **kwargs
         ) -> JsonObject:
+        """키워드 도구의 연관키워드 조회 결과를 수집해 JSON 형식으로 반환한다."""
         return (self.request_each(self.request_json_safe)
                 .partial(max_rank=max_rank, show_detail=show_detail)
                 .expand(keywords=self.chunk_keywords(keywords))
                 .run())
 
     def chunk_keywords(self, keywords: str | Iterable[str], n: int = 5) -> list[list[str]] | str:
+        """키워드 목록을 n개씩 청크 단위로 분할한다."""
         if isinstance(keywords, str):
             return keywords
         elif isinstance(keywords, Iterable):
@@ -38,4 +43,4 @@ class Keyword(NaverSearchAdApi):
 
     def build_request_params(self, keywords: str | Iterable[str], show_detail: bool = True, **kwargs) -> dict:
         keywords = keywords if isinstance(keywords, str) else ','.join(keywords)
-        return dict(hintKeywords=keywords, showDetail=int(show_detail))
+        return {"hintKeywords": keywords, "showDetail": int(show_detail)}

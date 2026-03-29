@@ -107,7 +107,7 @@ class OrderStatus(DuckDBTransformer):
         return render, params, total
 
     @property
-    def date_type(self) -> dict[str,str]:
+    def date_type(self) -> dict[str, str]:
         return {
             # "hope_delv_date": "배송희망일", "reg_dm": "수집일", "ord_dt": "주문일",
             "cancel_rcv_dt": "취소접수일", "cancel_dt": "취소완료일", "rtn_rcv_dt": "반품접수일", "rtn_dt": "반품완료일",
@@ -116,7 +116,7 @@ class OrderStatus(DuckDBTransformer):
         }
 
     @property
-    def date_format(self) -> dict[str,str]:
+    def date_format(self) -> dict[str, str]:
         return {
             # "hope_delv_date": "YYYY-MM-DD", "reg_dm": "YYYY-MM-DD", "ord_dt": "YYYY-MM-DD",
             "cancel_rcv_dt": "YYYYMMDD", "cancel_dt": "YYYYMMDD", "rtn_rcv_dt": "YYYY-MM-DD", "rtn_dt": "YYYY-MM-DD",

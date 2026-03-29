@@ -6,25 +6,29 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Variables
+    from linkmerce.common.extract import Configs
 
 
 class CjEflexs(Extractor):
+    """CJ eFLEXs 데이터를 조회하는 공통 클래스.
+
+    로그인을 위해 `userid`, `passwd`, 그리고 2단계 인증을 위해 이메일 정보(`mail_info`)가 필요하다."""
+
     method: str = "POST"
     origin = "https://eflexs-x.cjlogistics.com"
     menu: str
     path: str
 
-    def set_variables(self, variables: Variables = dict()):
+    def set_configs(self, configs: Configs = dict()):
         try:
-            self.set_login_info(**variables)
+            self.set_login_info(**configs)
         except TypeError:
             raise TypeError("CJ eFLEXs Login requires variables for userid, passwd, and mail_info.")
 
-    def set_login_info(self, userid: str, passwd: str, mail_info: dict, **variables):
-        if not (isinstance(mail_info, dict) and all([mail_info.get(key) for key in ["origin","email","passwd"]])):
+    def set_login_info(self, userid: str, passwd: str, mail_info: dict, **configs):
+        if not (isinstance(mail_info, dict) and all([mail_info.get(key) for key in ["origin", "email", "passwd"]])):
             raise ValueError("The 2-step verification email information is incorrect.")
-        super().set_variables(dict(userid=userid, passwd=passwd, mail_info=mail_info, **variables))
+        super().set_configs(dict(userid=userid, passwd=passwd, mail_info=mail_info, **configs))
 
     @property
     def url(self) -> str:
@@ -32,17 +36,18 @@ class CjEflexs(Extractor):
 
     @property
     def userid(self) -> str:
-        return self.get_variable("userid")
+        return self.get_config("userid")
 
     @property
     def passwd(self) -> str:
-        return self.get_variable("passwd")
+        return self.get_config("passwd")
 
     @property
     def mail_info(self) -> dict:
-        return self.get_variable("mail_info")
+        return self.get_config("mail_info")
 
     def with_auth_info(func):
+        """데이터 요청 전 로그인을 처리하는 데코레이터."""
         @functools.wraps(func)
         def wrapper(self: CjEflexs, *args, **kwargs):
             self.login(self.userid, self.passwd, self.mail_info)
@@ -50,6 +55,7 @@ class CjEflexs(Extractor):
         return wrapper
 
     def login(self, userid: str, passwd: str, mail_info: dict, **context):
+        """CJ eFLEXs 로그인 및 2단계 인증을 처리한다."""
         try:
             self.disable_warnings()
             self.init_session()
@@ -109,7 +115,7 @@ class CjEflexs(Extractor):
 
     def set_request_headers(self, **kwargs):
         return super().set_request_headers(
-            contents=dict(type="form", charset="UTF-8"),
+            contents={"type": "form", "charset": "UTF-8"},
             host=self.origin, origin=self.origin, referer=self.origin, ajax=True)
 
     def build_request_message(self, **kwargs) -> dict:
@@ -124,19 +130,20 @@ def get_2fa_code(
         wait_interval: int = 1,
         **kwargs
     ) -> str:
+    """2단계 인증 이메일을 읽고 인증 코드를 반환한다."""
     from linkmerce.utils.headers import build_headers
     import requests
     import time
 
     def login_action(session: requests.Session, origin: str, email: str, passwd: str):
         url = f"https://auth-api.{origin}/office-web/login"
-        body = {"id": email,"password": passwd, "ip_security_level": "1"}
+        body = {"id": email, "password": passwd, "ip_security_level": "1"}
         headers = build_headers(contents="json", host=f"auth-api.{origin}", origin=f"https://login.{origin}", referer=f"https://login.{origin}/")
         session.post(url, json=body, headers=headers)
 
     def wait_2fa_mail(session: requests.Session, origin: str) -> int:
         url = f"https://mail-api.{origin}/v2/mails"
-        params = {"page[limit]": 30, "page[offset]": 0, "sort[received_date]": "desc", "filter[mailbox_id][eq]": "b0",}
+        params = {"page[limit]": 30, "page[offset]": 0, "sort[received_date]": "desc", "filter[mailbox_id][eq]": "b0"}
         headers = build_headers(host=f"mail-api.{origin}", origin=f"https://mails.{origin}", referer=f"https://mails.{origin}/")
         headers["x-skip-session-refresh"] = "true"
         for _ in range(wait_seconds):

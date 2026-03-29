@@ -8,6 +8,8 @@ import base64
 
 
 class PartnerCenter(Extractor):
+    """네이버 쇼핑파트너센터에서 데이터를 조회하는 공통 클래스. 헤더에 로그인 쿠키가 제공되어야 한다."""
+
     method: str | None = None
     origin: str = "https://hcenter.shopping.naver.com"
     path: str | None = None
@@ -22,6 +24,8 @@ class PartnerCenter(Extractor):
 ###################################################################
 
 class PartnerCenterLogin(SmartstoreLogin):
+    """네이버 쇼핑파트너센터 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스."""
+
     center_url = "https://center.shopping.naver.com"
 
     @SmartstoreLogin.with_session
@@ -33,6 +37,9 @@ class PartnerCenterLogin(SmartstoreLogin):
             cookies: str | None = None,
             **kwargs
         ) -> dict:
+        """`userid`와 `passwd`로 스마트스토어센터 로그인을 수행한 후 쇼핑파트너센터에서 쿠키와 토큰을 발급받는다.
+
+        채널번호(`channel_seq`)가 주어진다면 로그인 후 해당 채널로 전환한다."""
         from linkmerce.utils.regex import regexp_extract
         login_info = super().login(userid, passwd, channel_seq, cookies)
         self.login_init(login_info["redirectUrl"])
@@ -48,10 +55,11 @@ class PartnerCenterLogin(SmartstoreLogin):
     ############################ Login Init ###########################
 
     def login_init(self, redirect_url: str):
+        """스마트스토어센터 로그인 후 쇼핑파트너센터로 전환되는 동작을 수행한다."""
         self.redirect_begin(redirect_url)
 
         url = self.main_url + "/api/login/init"
-        params = dict(needLoginInfoForAngular="true", stateName="home")
+        params = {"needLoginInfoForAngular": "true", "stateName": "home"}
         headers = self.get_login_header()
         self.request("GET", url, params=params, headers=headers)
 
@@ -61,7 +69,7 @@ class PartnerCenterLogin(SmartstoreLogin):
         headers = self.build_request_headers(redirect_url, referer=self.main_url)
         self.request("GET", redirect_url, headers=headers)
 
-    def get_login_header(self) -> dict[str,str]:
+    def get_login_header(self) -> dict[str, str]:
         headers = self.build_request_headers(self.main_url, referer=self.main_url)
         headers["x-current-state"] = self.main_url + "/#/home/dashboard"
         headers["x-current-statename"] = "work.channel-select"
@@ -82,6 +90,7 @@ class PartnerCenterLogin(SmartstoreLogin):
     ########################### Center Login ##########################
 
     def celogin(self, pincode: str):
+        """스마트스토어센터 로그인 정보를 가지고 쇼핑파트너센터 로그인 쿠키를 얻는다."""
         login_info = self.authenticate(pincode)
         link = self.fetch_link()
         pubkey = self.fetch_pubkey(link)
@@ -144,9 +153,10 @@ class PartnerCenterLogin(SmartstoreLogin):
     ########################## Embrace Token ##########################
 
     def fetch_embrace_token(self, subject: str, login: bool = False, params: dict = dict()) -> str:
+        """쇼핑파트너센터 로그인 쿠키를 가지고 특정 메뉴의 대시보드로 이동해 토큰을 발급받는다."""
         url = self.center_url + "/v2/members/me/embrace-token-at-url"
         params = dict(subject=subject, **params)
-        referer = '/'.join(["https://center.shopping.naver.com", str(subject).replace('.','/')])
+        referer = '/'.join(["https://center.shopping.naver.com", str(subject).replace('.', '/')])
         headers = self.build_request_headers(url, https=True, referer=referer)
         headers["Sec-Fetch-Dest"] = "iframe"
         with self.request("GET", url, params=params, headers=headers, allow_redirects=False) as response:
@@ -185,7 +195,7 @@ class PartnerCenterLogin(SmartstoreLogin):
                         {
                             "brands": [
                             "identifier", "name",
-                            {"owns": [{"category": ["identifier","name"]}]},
+                            {"owns": [{"category": ["identifier", "name"]}]},
                             {"members": ["identifier", "name", "alternateName", "url"]},
                             {"mainEntityOfPage": ["identifier", "name", "alternateName", "url"]},
                             {"additionalProperties": ["propertyID", "value"]}
@@ -202,11 +212,12 @@ class PartnerCenterLogin(SmartstoreLogin):
                 ]
             }
             ]).generate_fields(indent=2, prefix="query getMember ")[:(len("  __typename\n}")*-1)] + '}\n')
-        return {"operationName": "getMember", "variables": {}, "query": query}
+        return {"operationName": "getMember", "variables": dict(), "query": query}
 
     ############################ Ad Bridge ############################
 
     def fetch_adbridge(self) -> str:
+        """쇼핑파트너센터 홈페이지 이동 후 광고 대시보드를 불러온다."""
         self.fetch_adcenter()
 
         url = self._center_url("ad") + "/adbridge/home"

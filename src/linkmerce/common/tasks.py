@@ -15,7 +15,7 @@ TaskOptions = dict[_KT, TaskOption]
 
 
 class Task(metaclass=ABCMeta):
-    """모든 Task의 최상위 추상 기반 클래스."""
+    """모든 Task의 최상위 추상 클래스."""
 
     @abstractmethod
     def run(self):

@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class Campaign(CoupangAds):
+    """쿠팡 광고 캠페인 목록을 조회하는 클래스.
+
+    `PaginateAll` Task를 사용하여 전체 캠페인을 조회한다."""
+
     method = "POST"
     path = "/marketing/tetris-api/campaigns"
     max_page_size = 20
@@ -18,24 +22,30 @@ class Campaign(CoupangAds):
 
     @property
     def default_options(self) -> dict:
-        return dict(PaginateAll = dict(request_delay=1))
+        return {"PaginateAll": {"request_delay": 1}}
 
     @CoupangAds.with_session
     def extract(
             self,
-            goal_type: Literal["SALES","NCA","REACH"] = "SALES",
+            goal_type: Literal["SALES", "NCA", "REACH"] = "SALES",
             is_deleted: bool = False,
             vendor_id: str | None = None,
             **kwargs
         ) -> JsonObject:
+        """광고 목표(`goal_type`)에 대한 캠페인 목록을 조회해 JSON 형식으로 반환한다.
+        - `SALES`: 매출 성장
+        - `NCA`: 신규 구매 고객 확보
+        - `REACH`: 인지도 상승 목표"""
         return (self.paginate_all(self.request_json_with_timeout, self.count_total, self.max_page_size, self.page_start)
                 .run(goal_type=goal_type, is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
+        """HTTP 응답에서 전체 캠페인 수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, ["pageInfo", "totalCount"])
 
     def request_json_with_timeout(self, max_retries: int = 5, **kwargs) -> JsonObject:
+        """요청 후 타임아웃(Timeout)이 발생하면 `max_retries` 횟수만큼 성공할 때까지 재시도한다."""
         from requests.exceptions import Timeout
         import random
         session = self.get_session()
@@ -50,7 +60,7 @@ class Campaign(CoupangAds):
 
     def build_request_json(
             self,
-            goal_type: Literal["SALES","NCA","REACH"] = "SALES",
+            goal_type: Literal["SALES", "NCA", "REACH"] = "SALES",
             page: int = 0,
             size: int = 20,
             is_deleted: bool = False,
@@ -73,11 +83,15 @@ class Campaign(CoupangAds):
         }
 
     @property
-    def goal_type(self) -> dict[str,str]:
+    def goal_type(self) -> dict[str, str]:
         return {"SALES": "매출 성장", "NCA": "신규 구매 고객 확보", "REACH": "인지도 상승"}
 
 
 class Creative(CoupangAds):
+    """쿠팡 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 조회하는 클래스.
+
+    `RequestEach` Task를 사용하여 캠페인(`campaign_ids`)별 소재 목록을 조회한다."""
+
     method = "GET"
     path = "/marketing/tetris-api/nca/campaign/{}"
     max_page_size = 20
@@ -86,16 +100,18 @@ class Creative(CoupangAds):
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=0.3))
+        return {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangAds.with_session
     def extract(self, campaign_ids: Sequence[int | str], vendor_id: str | None = None, **kwargs) -> JsonObject:
+        """캠페인(`campaign_ids`)별 NCA 소재 목록을 조회해 JSON 형식으로 반환한다."""
         return (self.request_each(self.request_json_safe)
                 .partial(vendor_id=vendor_id)
                 .expand(campaign_id=campaign_ids)
                 .run())
 
     def build_request_message(self, campaign_id: int | str, **kwargs) -> dict:
+        """각 HTTP 요청마다 URL에 캠페인 ID를 포맷팅한다."""
         kwargs["url"] = self.url.format(campaign_id)
         return super().build_request_message(**kwargs)
 
@@ -105,25 +121,32 @@ class Creative(CoupangAds):
 
 
 class _AdReport(CoupangAds):
+    """쿠팡 광고 성과 보고서를 생성 및 다운로드하는 클래스.
+
+    GraphQL API로 보고서를 요청하고 엑셀 파일로 다운로드한다."""
+
     method = "POST"
     path = "/marketing-reporting/v2/graphql"
     date_format = "%Y%m%d"
     days_limit = 30
-    report_type: Literal["pa","nca"]
+    report_type: Literal["pa", "nca"]
 
     @CoupangAds.with_session
     def extract(
             self,
             start_date: dt.date | str, 
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-            date_type: Literal["total","daily"] = "daily",
-            report_level: Literal["campaign","adGroup","ad","vendorItem","keyword","creative"] = "vendorItem",
+            date_type: Literal["total", "daily"] = "daily",
+            report_level: Literal["campaign", "adGroup", "ad", "vendorItem", "keyword", "creative"] = "vendorItem",
             campaign_ids: Sequence[int | str] = list(),
             vendor_id: str | None = None,
             wait_seconds: int = 60,
             wait_interval: int = 1,
             **kwargs
-        ) -> dict[str,bytes]:
+        ) -> dict[str, bytes]:
+        """보고서 유형(`report_type`)에 대한 광고 보고서를 다운로드하여 `{시트명: 엑셀_바이너리}` 형식으로 반환한다.
+        - `pa`: 쿠팡 PA(Product Ad) 광고 성과 보고서
+        - `nca`: 쿠팡 신규고객광고(NCA) 성과 보고서"""
         start_date = self.to_date(start_date)
         end_date = self.to_date(start_date if end_date == ":start_date:" else end_date)
 
@@ -143,6 +166,7 @@ class _AdReport(CoupangAds):
         return {file_name: self.download_excel(report_id, vendor_id)}
 
     def fetch_dashboard(self):
+        """광고 보고서 대시보드로 이동한다."""
         super().fetch_dashboard()
         url = self.origin + "/marketing-reporting/billboard"
         headers = self.build_request_headers()
@@ -150,6 +174,7 @@ class _AdReport(CoupangAds):
         self.request("GET", url, headers=headers)
 
     def fetch_campaign_ids(self, start_date: int, end_date: int) -> list[str]:
+        """기간 내 활성 캠페인 ID 목록을 GraphQL로 조회한다."""
         body = self.build_campaign_body(start_date, end_date)
         with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
             return [row["id"] for row in response.json()[0]["data"]["getCampaignList"]]
@@ -158,15 +183,17 @@ class _AdReport(CoupangAds):
             self,
             start_date: int,
             end_date: int,
-            date_type: Literal["total","daily"] = "daily",
-            report_level: Literal["campaign","adGroup","vendorItem","keyword","ad","creative"] = "vendorItem",
+            date_type: Literal["total", "daily"] = "daily",
+            report_level: Literal["campaign", "adGroup", "vendorItem", "keyword", "ad", "creative"] = "vendorItem",
             campaign_ids: list[str] = list(),
         ) -> dict:
+        """광고 보고서 생성을 GraphQL로 요청한다."""
         body = self.build_mutation_body(start_date, end_date, date_type, report_level, campaign_ids)
         with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
             return reports[0] if (reports := response.json()) else dict()
 
     def wait_report(self, report_id: str, wait_seconds: int = 60, wait_interval: int = 1) -> bool:
+        """보고서 생성 요청 후 완료 여부를 주기적으로 확인하면서 대기한다."""
         import time
         for _ in range(0, max(wait_seconds, 1), max(wait_interval, 1)):
             time.sleep(wait_interval)
@@ -177,6 +204,7 @@ class _AdReport(CoupangAds):
         raise ValueError("Failed to create the marketing report.")
 
     def list_report(self, page: int = 1, page_size: int = 10, duration: int = 90) -> list[dict]:
+        """생성된 보고서 목록을 GraphQL로 조회한다."""
         body = self.build_query_body(page=page, paege_size=page_size, duration=duration)
         with self.request(self.method, self.url, json=body, headers=self.build_request_headers()) as response:
             data = response.json()
@@ -186,6 +214,7 @@ class _AdReport(CoupangAds):
                 return list()
 
     def download_excel(self, report_id: str, vendor_id: str | None = None) -> bytes:
+        """생성된 보고서 엑셀 파일을 다운로드한다."""
         url = self.origin + f"/marketing-reporting/v2/api/excel-report?id={report_id}"
         with self.request("GET", url, headers=self.build_request_headers()) as response:
             return self.parse(response.content, vendor_id=vendor_id)
@@ -194,10 +223,11 @@ class _AdReport(CoupangAds):
             self,
             start_date: int,
             end_date: int,
-            date_type: Literal["total","daily"] = "daily",
-            report_level: Literal["campaign","adGroup","vendorItem","keyword","ad","creative"] = "vendorItem",
+            date_type: Literal["total", "daily"] = "daily",
+            report_level: Literal["campaign", "adGroup", "vendorItem", "keyword", "ad", "creative"] = "vendorItem",
             campaign_ids: list[str] = list(),
         ) -> list[dict]:
+        """보고서 생성을 위한 GraphQL 요청 본문을 구성한다."""
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection, GraphQLFragment
 
         variables = {
@@ -229,12 +259,10 @@ class _AdReport(CoupangAds):
                 variables = dict(data=list(variables.keys())),
                 fields = GraphQLFragment("ReportRequest", "ReportRequest", fields=self.report_fields),
             ),
-        ).generate_body(query_options = dict(
-            command = "mutation",
-            selection = dict(variables=dict(linebreak=True), fields=dict(linebreak=True)),
-            suffix = '\n'))]
+        ).generate_body(query_options = {"command": "mutation", "selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}}, "suffix": '\n'})]
 
     def build_query_body(self, page: int = 1, paege_size: int = 10, duration: int = 90) -> list[dict]:
+        """보고서 목록 조회를 위한 GraphQL 요청 본문을 구성한다."""
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection, GraphQLFragment
 
         variables = {
@@ -262,12 +290,10 @@ class _AdReport(CoupangAds):
                 variables = dict(data=list(variables.keys())),
                 fields = GraphQLFragment("ReportList", "ReportList", fields=self.report_list_fields),
             ),
-        ).generate_body(query_options = dict(
-            command = "query",
-            selection = dict(variables=dict(linebreak=True), fields=dict(linebreak=True)),
-            suffix = '\n'))]
+        ).generate_body(query_options = {"command": "query", "selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}}, "suffix": '\n'})]
 
     def build_campaign_body(self, start_date: int, end_date: int) -> list[dict]:
+        """캠페인 목록 조회를 위한 GraphQL 요청 본문을 구성한다."""
         from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
 
         variables = {"startDate": start_date, "endDate": end_date, "reportType": self.report_type}
@@ -282,9 +308,7 @@ class _AdReport(CoupangAds):
                 variables = list(variables.keys()),
                 fields = ["id", "name"],
             )
-        ).generate_body(query_options = dict(
-            selection = dict(variables=dict(linebreak=True), fields=dict(linebreak=True)),
-            suffix = '\n'))]
+        ).generate_body(query_options = {"selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}}, "suffix": '\n'})]
 
     @CoupangAds.cookies_required
     def set_request_headers(self, **kwargs):
@@ -302,18 +326,19 @@ class _AdReport(CoupangAds):
         return headers
 
     def to_date(self, date: dt.date | str) -> int:
+        """날짜를 `YYYYMMDD` 정수로 변환한다."""
         return int(str(date).replace('-', ''))
 
     @property
-    def report_type(self) -> dict[str,str]:
+    def report_type(self) -> dict[str, str]:
         return {"pa": "매출 성장 광고 보고서", "nca": "신규 구매 고객 확보 광고 보고서"}
 
     @property
-    def date_type(self) -> dict[str,str]:
+    def date_type(self) -> dict[str, str]:
         return {"total": "합계", "daily": "일별"}
 
     @property
-    def report_level(self) -> dict[str,dict[str,str]]:
+    def report_level(self) -> dict[str, dict[str, str]]:
         return {
             "pa": {
                 "campaign": "캠페인",
@@ -355,8 +380,12 @@ class _AdReport(CoupangAds):
 
 
 class ProductAdReport(_AdReport):
+    """쿠팡 상품 광고(PA) 성과 보고서를 다운로드하는 클래스."""
+
     report_type = "pa"
 
 
 class NewCustomerAdReport(_AdReport):
+    """쿠팡 신규 구매 고객 확보(NCA) 성과 보고서를 다운로드하는 클래스."""
+
     report_type = "nca"

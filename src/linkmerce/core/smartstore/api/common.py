@@ -6,23 +6,27 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Variables, JsonObject
+    from linkmerce.common.extract import Configs, JsonObject
 
 
 class SmartstoreApi(Extractor):
+    """네이버 커머스 API 요청을 처리하는 공통 클래스.
+
+    API 요청을 위해 `client_id`와 `client_secret`이 필요하다."""
+
     method: str | None = None
     origin: str = "https://api.commerce.naver.com/external"
     version: str = "v1"
     path: str | None = None
 
-    def set_variables(self, variables: Variables = dict()):
+    def set_configs(self, configs: Configs = dict()):
         try:
-            self.set_api_key(**variables)
+            self.set_api_key(**configs)
         except TypeError:
             raise TypeError("Naver Commerce API requires variables for client_id and client_secret.")
 
-    def set_api_key(self, client_id: str, client_secret: str, **variables):
-        super().set_variables(dict(client_id=client_id, client_secret=client_secret, **variables))
+    def set_api_key(self, client_id: str, client_secret: str, **configs):
+        super().set_configs(dict(client_id=client_id, client_secret=client_secret, **configs))
 
     @property
     def url(self) -> str:
@@ -30,13 +34,14 @@ class SmartstoreApi(Extractor):
 
     @property
     def client_id(self) -> str:
-        return self.get_variable("client_id")
+        return self.get_config("client_id")
 
     @property
     def client_secret(self) -> str:
-        return self.get_variable("client_secret")
+        return self.get_config("client_secret")
 
     def with_token(func):
+        """API 요청 전 `client_id`와 `client_secret`를 사용해 OAuth 토큰을 발급받는 데코레이터."""
         @functools.wraps(func)
         def wrapper(self: SmartstoreApi, *args, **kwargs):
             authorization = self.authorize(self.client_id, self.client_secret)
@@ -45,6 +50,7 @@ class SmartstoreApi(Extractor):
         return wrapper
 
     def authorize(self, client_id: str, client_secret: str, **context) -> str:
+        """`client_id`와 `client_secret`를 사용해 OAuth 토큰을 발급받는다."""
         try:
             import requests
             url = self.origin + "/v1/oauth2/token"
@@ -63,9 +69,13 @@ class SmartstoreApi(Extractor):
         timestamp = int((time.time()-3) * 1000)
         hashed = bcrypt.hashpw(f'{client_id}_{timestamp}'.encode("utf-8"), client_secret.encode("utf-8"))
         secret = base64.b64encode(hashed).decode("utf-8")
-        return dict(client_id=client_id, timestamp=timestamp, client_secret_sign=secret, grant_type="client_credentials", type="SELF")
+        return {
+            "client_id": client_id, "timestamp": timestamp,
+            "client_secret_sign": secret, "grant_type": "client_credentials", "type": "SELF",
+        }
 
     def request_json_until_success(self, max_retries: int = 5, **kwargs) -> JsonObject:
+        """동시 요청 제한이 발생할 경우에 대비해 오류가 캐치하고 API 요청을 재시도 한다."""
         session = self.get_session()
         message = self.build_request_message(**kwargs)
         for retry_count in range(1, max_retries+1):
@@ -73,11 +83,12 @@ class SmartstoreApi(Extractor):
                 with session.request(**message) as response:
                     response = response.json()
             except Exception as error:
-                response = dict(code="GW.RATE_LIMIT", message=f"{error.__class__.__name__}: {error}")
+                response = {"code": "GW.RATE_LIMIT", "message": f"{error.__class__.__name__}: {error}"}
             if self.is_valid_response(response, (retry_count if retry_count != max_retries else None)):
                 return response
 
     def is_valid_response(self, response: JsonObject, retry_count: int | None = None) -> bool:
+        """오류 메시지를 구분하여 재시도 요청 또는 `ConnectionError`를 발생시킨다."""
         if isinstance(response, dict):
             rate_limit = (response.get("code") == "GW.RATE_LIMIT")
             internal_error = (response.get("message") == "Internal server error")
@@ -91,6 +102,7 @@ class SmartstoreApi(Extractor):
 
 
 class SmartstoreTestAPI(SmartstoreApi):
+    """지정된 커머스 API 경로에 대한 요청을 처리하는 클래스."""
 
     @SmartstoreApi.with_session
     @SmartstoreApi.with_token
@@ -102,9 +114,10 @@ class SmartstoreTestAPI(SmartstoreApi):
             params: dict | list[tuple] | bytes | None = None,
             data: dict | list[tuple] | bytes | None = None,
             json: JsonObject | None = None,
-            headers: dict[str,str] = None,
+            headers: dict[str, str] = None,
             **kwargs
         ) -> JsonObject:
+        """커머스 API 경로와 메시지를 전달하면 응답 결과를 JSON 형식으로 반환한다."""
         url = self.concat_path(self.origin, version, path)
         message = self.build_request_message(method=method, url=url, **kwargs)
         if params is not None: message["params"] = params

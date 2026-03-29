@@ -81,7 +81,7 @@ def write_tempfile(write_func: Callable[[str], None], mode = "w+b", suffix: str 
 ###################################################################
 
 class Connection(metaclass=ABCMeta):
-    """데이터베이스 연결의 최상위 추상 기반 클래스."""
+    """데이터베이스 연결의 최상위 추상 클래스."""
 
     def __init__(self, **kwargs):
         self.set_connection(**kwargs)

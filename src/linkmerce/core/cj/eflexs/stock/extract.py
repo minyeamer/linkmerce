@@ -10,13 +10,17 @@ if TYPE_CHECKING:
 
 
 class Stock(CjEflexs):
+    """CJ eFLEXs 상세 재고현황을 조회하는 클래스.
+
+    `RequestEach` Task를 사용하여 고객사(`customer_id`)별 재고 데이터를 조회한다."""
+
     menu = "IMSI0002M"
     path = "/selectDtlStckSearch.do"
     date_format = "%Y%m%d"
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1))
+        return {"RequestEach": {"request_delay": 1}}
 
     @CjEflexs.with_session
     @CjEflexs.with_auth_info
@@ -24,15 +28,17 @@ class Stock(CjEflexs):
             self,
             customer_id: int | str | Iterable,
             start_date: dt.date | str | Literal[":last_week:"] = ":last_week:",
-            end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+            end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             **kwargs
         ) -> JsonObject:
+        """고객사(`customer_id`)별 상세 재고를 조회해 JSON 형식으로 반환한다."""
         return (self.request_each(self.request_json)
                 .partial(**self.set_date(start_date, end_date))
                 .expand(customer_id=customer_id)
                 .run())
 
-    def set_date(self, start_date: dt.date | str, end_date: dt.date | str) -> dict[str,dt.date]:
+    def set_date(self, start_date: dt.date | str, end_date: dt.date | str) -> dict[str, dt.date]:
+        """미리 정의된 날짜 문자열이 주어진다면 `dt.date` 객체로 치환한다."""
         import datetime as dt
 
         if start_date == ":last_week:":
@@ -43,7 +49,7 @@ class Stock(CjEflexs):
         elif end_date == ":today:":
             end_date = dt.date.today()
 
-        return dict(start_date=start_date, end_date=end_date)
+        return {"start_date": start_date, "end_date": end_date}
 
     def build_request_data(
             self,

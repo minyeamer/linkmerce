@@ -10,22 +10,29 @@ if TYPE_CHECKING:
 
 
 class AdAccount(TypedDict):
+    """메타 광고 계정 정보."""
+
     account_status: int
     id: str # act_{ACCOUNT_ID}
     name: str
 
 
 class MetaAds(MetaApi):
-    """https://developers.facebook.com/docs/marketing-api/reference/v24.0"""
+    """메타 Marketing API로 광고 데이터를 조회하는 공통 클래스.
+
+    `RequestEach` Task를 사용하여 계정별 광고 데이터를 조회한다.
+    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/v24.0"""
+
     method: str = "GET"
     version: str = "v24.0"
     path: str | None = None
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1))
+        return {"RequestEach": {"request_delay": 1}}
 
     def _extract_backend(self, account_ids: Sequence[str] = list(), **kwargs) -> JsonObject:
+        """광고 계정(`account_ids`)별 광고 데이터를 조회하는 공통 로직."""
         if not account_ids:
             account_ids = [account["id"] for account in self.list_accounts()]
         return (self.request_each(self.request_json_by_account)
@@ -34,10 +41,12 @@ class MetaAds(MetaApi):
                 .run())
 
     def request_json_by_account(self, account_id: str, **kwargs) -> JsonObject:
+        """광고 계정별로 API 요청을 실행한다."""
         kwargs["url"] = self.concat_path(self.origin, self.version, account_id, self.path)
         return self.request_json_safe(**kwargs)
 
     def list_accounts(self) -> list[AdAccount]:
+        """광고 계정 목록을 조회한다."""
         import json
         url = self.concat_path(self.origin, self.version, "/me/adaccounts")
         params = {"access_token": self.access_token, "fields": "id,name"}
@@ -45,11 +54,13 @@ class MetaAds(MetaApi):
             return json.loads(response.text)["data"]
 
     def time_range(self, since: dt.date | str, until: dt.date | str) -> str:
+        """날짜 범위를 JSON 문자열로 변환한다."""
         import json
         return json.dumps({"since": str(since), "until": str(until)})
 
 
 class _AdObjects(MetaAds):
+    """캠페인, 광고 세트, 광고 등 광고 객체 목록을 조회하는 공통 클래스."""
 
     @MetaAds.with_session
     @MetaAds.auto_refresh_token
@@ -61,6 +72,7 @@ class _AdObjects(MetaAds):
             fields: Sequence[str] = list(),
             **kwargs
         ) -> JsonObject:
+        """광고 객체 목록을 조회해 JSON 형식으로 반환한다."""
         return self._extract_backend(account_ids, start_date=start_date, end_date=end_date, fields=fields)
 
     def build_request_params(
@@ -69,11 +81,11 @@ class _AdObjects(MetaAds):
             end_date: dt.date | str | None = None,
             fields: Sequence[str] = list(),
             **kwargs
-        ) -> dict[str,str]:
+        ) -> dict[str, str]:
         return {
             "access_token": self.access_token,
             "fields": ','.join(fields if fields else self.fields),
-            **({"time_range": self.time_range(start_date, end_date)} if start_date and end_date else {}),
+            **({"time_range": self.time_range(start_date, end_date)} if start_date and end_date else dict()),
         }
 
     @property
@@ -82,7 +94,9 @@ class _AdObjects(MetaAds):
 
 
 class Campaigns(_AdObjects):
-    """https://developers.facebook.com/docs/marketing-api/reference/ad-account/campaigns/v24.0"""
+    """메타 광고 캠페인 목록을 조회하는 클래스.
+    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/campaigns/v24.0"""
+
     path = "/campaigns"
 
     @property
@@ -93,7 +107,9 @@ class Campaigns(_AdObjects):
 
 
 class Adsets(_AdObjects):
-    """https://developers.facebook.com/docs/marketing-api/reference/ad-account/adsets/v24.0"""
+    """메타 광고세트 목록을 조회하는 클래스.
+    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/adsets/v24.0"""
+
     path = "/adsets"
 
     @property
@@ -105,7 +121,9 @@ class Adsets(_AdObjects):
 
 
 class Ads(_AdObjects):
-    """https://developers.facebook.com/docs/marketing-api/reference/ad-account/ads/v24.0"""
+    """메타 광고 목록을 조회하는 클래스.
+    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/ads/v24.0"""
+
     path = "/ads"
 
     @property
@@ -117,39 +135,44 @@ class Ads(_AdObjects):
 
 
 class Insights(MetaAds):
-    """https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/v24.0"""
+    """메타 광고 성과 보고서를 조회하는 클래스.
+    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/v24.0"""
+
     path = "/insights"
 
     @MetaAds.with_session
     @MetaAds.auto_refresh_token
     def extract(
             self,
-            ad_level: Literal["campaign","adset","ad"],
+            ad_level: Literal["campaign", "adset", "ad"],
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-            date_type: Literal["daily","total"] = "daily",
+            date_type: Literal["daily", "total"] = "daily",
             account_ids: Sequence[str] = list(),
             fields: Sequence[str] = list(),
             **kwargs
         ) -> JsonObject:
+        """메타 광고 성과 보고서를 조회해 JSON 형식으로 반환한다.
+
+        `ad_level`에 따라 캠페인(`campaign`), 광고세트(`adset`), 광고(`ad`) 단위로 성과 보고서를 조회한다."""
         dates = dict(start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date))
         return self._extract_backend(account_ids, ad_level=ad_level, **dates, date_type=date_type, fields=fields)
 
     def build_request_params(
             self,
-            ad_level: Literal["campaign","adset","ad"],
+            ad_level: Literal["campaign", "adset", "ad"],
             start_date: dt.date | str,
             end_date: dt.date | str,
-            date_type: Literal["daily","total"] = "daily",
+            date_type: Literal["daily", "total"] = "daily",
             fields: Sequence[str] = list(),
             **kwargs
-        ) -> dict[str,str]:
+        ) -> dict[str, str]:
         return {
             "access_token": self.access_token,
             "fields": ','.join(fields if fields else self.fields),
             "level": ad_level,
             "time_range": self.time_range(start_date, end_date),
-            **({"time_increment": 1} if date_type == "daily" else {}),
+            **({"time_increment": 1} if date_type == "daily" else dict()),
             "limit": 5000,
         }
 
@@ -157,7 +180,7 @@ class Insights(MetaAds):
     def fields(self) -> list[str]:
         return [
             "date_start", "date_stop",
-            "campaign_id","campaign_name", "adset_id", "adset_name", "ad_id", "ad_name",
+            "campaign_id", "campaign_name", "adset_id", "adset_name", "ad_id", "ad_name",
             "impressions", "reach", "frequency", "clicks", "inline_link_clicks",
             "spend", # "actions", "action_values",
         ]

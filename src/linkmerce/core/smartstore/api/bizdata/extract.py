@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class MarketingChannel(SmartstoreApi):
+    """네이버 커머스 API로 상품/마케팅 채널 데이터를 요청하는 클래스.
+
+    `RequestEach` Task를 사용하여 일별 채널 데이터를 조회한다."""
+
     method = "GET"
     version = "v1"
     path = "/bizdata-stats/channels/:channelNo/marketing/custom/detail"
@@ -17,7 +21,7 @@ class MarketingChannel(SmartstoreApi):
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1))
+        return {"RequestEach": {"request_delay": 1}}
 
     @SmartstoreApi.with_session
     @SmartstoreApi.with_token
@@ -29,6 +33,7 @@ class MarketingChannel(SmartstoreApi):
             max_retries: int = 5,
             **kwargs
         ) -> JsonObject:
+        """일별 상품/마케팅 채널 데이터를 조회해 JSON 형식으로 반환한다."""
         url = self.url.replace(":channelNo", str(channel_seq))
         return (self.request_each(self.request_json_until_success)
                 .partial(url=url, channel_seq=channel_seq, max_retries=max_retries)

@@ -8,12 +8,15 @@ if TYPE_CHECKING:
 
 
 class Product(EcountApi):
+    """이카운트 품목 리스트를 조회하는 클래스."""
+
     method = "POST"
     path = "/InventoryBasic/GetBasicProductsList"
 
     @EcountApi.with_session
     @EcountApi.with_oapi
     def extract(self, product_code: str | None = None, comma_yn: bool = False, **kwargs) -> JsonObject:
+        """품목 리스트를 조회해 JSON 형식으로 반환한다."""
         message = self.build_request_message(product_code=product_code, comma_yn=comma_yn)
         with self.request(**message) as response:
             return self.parse(response.json(), **kwargs)

@@ -13,7 +13,7 @@ def _common_config(fields: dict) -> dict:
 
 
 class _CommonParser(JsonTransformer):
-    """구글 Ads API 응답 데이터에 대해 공통적인 파싱 로직을 구현한 기반 클래스.
+    """구글 Ads API 응답 데이터에 대해 공통적인 파싱 로직을 구현한 공통 클래스.
 
     `identifier` 필드가 존재하는 항목만 선별하며, `parse_result` 후크를 통해 개별 항목을 추가 가공할 수 있다.
     """
@@ -114,7 +114,7 @@ class Ad(DuckDBTransformer):
 
 
 class Insight(DuckDBTransformer):
-    """구글 광고 소재의 측정값을 일자/기기별로 구분하여 `google_insight` 테이블에 적재하는 클래스."""
+    """구글 광고 소재의 성과 데이터를 날짜/기기별로 구분하여 `google_insight` 테이블에 적재하는 클래스."""
 
     extractor = "Insight"
     tables = {"table": "google_insight"}

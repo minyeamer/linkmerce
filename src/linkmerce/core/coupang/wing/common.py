@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 
 
 class CoupangWing(Extractor):
+    """쿠팡 Wing 데이터를 조회하는 공통 클래스. 헤더에 로그인 쿠키가 제공되어야 한다."""
+
     method: str | None = None
     origin = "https://wing.coupang.com"
     path: str | None = None
@@ -19,6 +21,7 @@ class CoupangWing(Extractor):
         return self.concat_path(self.origin, self.path)
 
     def set_request_headers(self, cookies: str, **kwargs):
+        """HTTP 요청 헤더 쿠키에서 `XSRF-TOKEN` 값을 꺼내 키워드 인자로 전달한다."""
         if self.token_required:
             try:
                 cookies_map = dict([kv.split('=', maxsplit=1) for kv in str(cookies).split("; ")])
@@ -29,10 +32,12 @@ class CoupangWing(Extractor):
 
 
 class CoupangSupplierHub(CoupangWing):
+    """쿠팡 서플라이어 허브 데이터를 수집하는 클래스."""
     origin = "https://supplier.coupang.com"
 
 
 class CoupangLogin(LoginHandler):
+    """쿠팡 Wing 로그인을 수행하여 쿠키를 발급하는 클래스."""
     origin = "https://wing.coupang.com"
 
     @LoginHandler.with_session
@@ -40,10 +45,11 @@ class CoupangLogin(LoginHandler):
             self,
             userid: str,
             passwd: str,
-            domain: Literal["wing","supplier"] = "wing",
+            domain: Literal["wing", "supplier"] = "wing",
             with_token: bool = True,
             **kwargs
         ) -> str:
+        """로그인 수행 후 `XSRF-TOKEN`을 쿠키에 더한다."""
         self.origin = f"https://{domain}.coupang.com"
         self.vendor_login(userid, passwd)
         if with_token:
@@ -51,6 +57,7 @@ class CoupangLogin(LoginHandler):
         return self.get_cookies()
 
     def vendor_login(self, userid: str, passwd: str):
+        """로그인 요청 후 응답 헤더에서 `Location` 대상의 리다이렉트를 처리한다."""
         login_url = self.fetch_main(allow_redirects=False)
         # login_url = "http://wing.coupang.com/login?ui_locales=ko-KR&service_cmdb_role=wing&sxauth_sdk_version={version}.RELEASE&returnUrl=http%3A%2F%2Fwing.coupang.com%2F"
         redirect_url = self.login_redirect(login_url)
@@ -97,7 +104,7 @@ class CoupangLogin(LoginHandler):
 
     def login_action(self, xauth_url: str, userid: str, passwd: str) -> str:
         from linkmerce.utils.headers import build_headers
-        body = dict(username=userid, password=passwd)
+        body = {"username": userid, "password": passwd}
         headers = build_headers(xauth_url, contents="form", https=True)
         with self.request("POST", xauth_url, data=body, headers=headers, allow_redirects=False) as response:
             return response.headers.get("Location")

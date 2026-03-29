@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 
 class ProductOption(CoupangWing):
+    """쿠팡 상품 목록을 조회하는 클래스.
+
+    `PaginateAll` Task를 사용하여 전체 상품 목록을 조회한다."""
+
     method = "POST"
     path = "/tenants/seller-web/v2/vendor-inventory/search"
     max_page_size = 500
@@ -18,14 +22,16 @@ class ProductOption(CoupangWing):
 
     @property
     def default_options(self) -> dict:
-        return dict(PaginateAll = dict(request_delay=1))
+        return {"PaginateAll": {"request_delay": 1}}
 
     @CoupangWing.with_session
     def extract(self, is_deleted: bool = False, **kwargs) -> JsonObject:
+        """상품 목록을 조회해 JSON 형식으로 반환한다."""
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(is_deleted=is_deleted))
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
+        """HTTP 응답에서 전체 상품 수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "data.pagination.totalCount")
 
@@ -37,7 +43,7 @@ class ProductOption(CoupangWing):
             "productStatus": ["ALL"],
             "stockSearchType": "ALL",
             "shippingFeeSearchType": "ALL",
-            "displayCategoryCodes": [],
+            "displayCategoryCodes": list(),
             "listingStartTime": None,
             "listingEndTime": None,
             "saleEndDateSearchType": "ALL",
@@ -51,11 +57,12 @@ class ProductOption(CoupangWing):
             "locale": "ko_KR",
             "coupangAttributeOptimized": False,
             "upBundleSearchOption": "ALL",
-            "exposureStatuses": [],
-            "qualityEnhanceTypes": []
+            "exposureStatuses": list(),
+            "qualityEnhanceTypes": list()
         }
 
     def set_request_headers(self, cookies: str, **kwargs) -> str:
+        """상품조회/수정 경로를 `referer` 헤더로 추가한다."""
         return super().set_request_headers(
             authority = self.origin,
             contents = "json",
@@ -67,6 +74,10 @@ class ProductOption(CoupangWing):
 
 
 class ProductDetail(CoupangWing):
+    """쿠팡 상품의 상세 정보를 조회하는 클래스.
+
+    `RequestEach` Task를 사용하여 등록상품ID(`vendor_inventory_id`)별 상세 정보를 조회한다."""
+
     method = "GET"
     path = "/tenants/seller-web/v2/vendor-inventory/vendor-inventory-items-with-vendorItems/{}"
     max_page_size = 500
@@ -75,20 +86,22 @@ class ProductDetail(CoupangWing):
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=0.3))
+        return {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangWing.with_session
     def extract(self, vendor_inventory_id: Sequence[int | str], **kwargs) -> JsonObject:
+        """등록상품ID(`vendor_inventory_id`)에 대한 상세 정보를 조회해 JSON 형식으로 반환한다."""
         return (self.request_each(self.request_json_safe)
                 .partial(referer=kwargs.get("referer")) # for Transformer
                 .expand(vendor_inventory_id=vendor_inventory_id)
                 .run())
 
     def build_request_message(self, vendor_inventory_id: int | str, **kwargs) -> dict:
+        """각 HTTP 요청마다 URL에 등록상품ID를 포맷팅한다."""
         kwargs["url"] = self.url.format(vendor_inventory_id)
         return super().build_request_message(**kwargs)
 
-    def build_request_params(self, **kwargs) -> dict[str,str]:
+    def build_request_params(self, **kwargs) -> dict[str, str]:
         return {"hasProgressiveDiscountRule": "true", "queryNonVariationJustificationProof": "true"}
 
     def set_request_headers(self, cookies: str, **kwargs) -> str:
@@ -100,20 +113,26 @@ class ProductDetail(CoupangWing):
 
 
 class ProductDownload(ProductOption):
+    """쿠팡 상품 목록을 엑셀로 다운로드하는 클래스."""
+
     method = "POST"
     token_required = False
 
     @CoupangWing.with_session
     def extract(
             self,
-            request_type = "VENDOR_INVENTORY_ITEM",
+            request_type: str = "VENDOR_INVENTORY_ITEM",
             fields: list[str] = list(),
             is_deleted: bool = False,
             vendor_id: str | None = None,
             wait_seconds: int = 60,
             wait_interval: int = 1,
             **kwargs
-        ) -> dict[str,bytes]:
+        ) -> dict[str, bytes]:
+        """보고서 유형(`report_type`)에 대한 상품 목록을 다운로드하여 `{시트명: 엑셀_바이너리}` 형식으로 반환한다.
+        - `VENDOR_INVENTORY_ITEM`: 가격/재고/판매상태
+        - `EDITABLE_CATALOGUE`: 쿠팡상품정보
+        - `BULK_DELETE_INVENTORY`: 상품삭제"""
         report = self.request_report(request_type, fields, is_deleted)
         report_id = report["responseParam"]
         self.wait_report(report_id, request_type, wait_seconds, wait_interval)
@@ -127,6 +146,7 @@ class ProductDownload(ProductOption):
             is_deleted: bool = False,
             **kwargs
         ) -> dict:
+        """엑셀 다운로드 보고서 생성을 요청한다."""
         url = self.origin + "/tenants/seller-web/excel/request/download/create/vendor-inventory/all"
         body = self.build_request_json(request_type, fields, is_deleted)
         with self.request("POST", url, json=body, headers=self.build_request_headers()) as response:
@@ -139,6 +159,7 @@ class ProductDownload(ProductOption):
             wait_seconds: int = 60,
             wait_interval: int = 1,
         ) -> bool:
+        """보고서 생성 요청 후 완료 여부를 주기적으로 확인하면서 대기한다."""
         import time
         for _ in range(0, max(wait_seconds, 1), max(wait_interval, 1)):
             time.sleep(wait_interval)
@@ -149,6 +170,7 @@ class ProductDownload(ProductOption):
         raise ValueError(f"Failed to create the {self.description[request_type]} report.")
 
     def list_report(self, request_type = "VENDOR_INVENTORY_ITEM", page: int = 1, page_size: int = 10) -> list[dict]:
+        """생성된 보고서 목록을 조회한다."""
         url = self.origin + "/tenants/seller-web/excel/request/download/list"
         params = {"requestType": request_type, "page": page, "countPerPage": page_size}
         with self.request("GET", url, params=params, headers=self.build_request_headers()) as response:
@@ -161,6 +183,7 @@ class ProductDownload(ProductOption):
             is_deleted: bool = False,
             vendor_id: str | None = None
         ) -> bytes:
+        """생성된 보고서 엑셀 파일을 다운로드한다."""
         url = self.origin + f"/tenants/seller-web/excel/request/download/file"
         params = {"requestType": request_type, "sellerRequestDownloadExcelId": report_id}
         with self.request("GET", url, params=params, headers=self.build_request_headers()) as response:
@@ -187,11 +210,13 @@ class ProductDownload(ProductOption):
 
     @property
     def today(self) -> dt.date:
+        """오늘 날짜를 `YYMMDD` 형식 문자열로 반환한다."""
         import datetime as dt
         return dt.datetime.today().strftime("%y%m%d")
 
     @property
-    def request_type(self) -> dict[str,str]:
+    def request_type(self) -> dict[str, str]:
+        """보고서 유형별 한글 명칭 매핑을 반환한다."""
         return {
             "VENDOR_INVENTORY_ITEM": "가격/재고/판매상태",
             "EDITABLE_CATALOGUE": "쿠팡상품정보",
@@ -199,7 +224,8 @@ class ProductDownload(ProductOption):
         }
 
     @property
-    def description(self) -> dict[str,str]:
+    def description(self) -> dict[str, str]:
+        """보고서 유형별 파일명 접두사 매핑을 반환한다."""
         return {
             "VENDOR_INVENTORY_ITEM": "price_inventory",
             "EDITABLE_CATALOGUE": "Coupang_detailinfo",
@@ -207,7 +233,8 @@ class ProductDownload(ProductOption):
         }
 
     @property
-    def fields(self) -> dict[str,str]:
+    def fields(self) -> dict[str, str]:
+        """선택 가능한 엑셀 필드 항목 매핑을 반환한다."""
         return {
             "DISPLAY_PRODUCT_NAME": "노출상품명",
             "MANUFACTURE" : "제조사",
@@ -222,25 +249,31 @@ class ProductDownload(ProductOption):
 
 
 class RocketInventory(CoupangWing):
+    """쿠팡 로켓 재고 현황을 커서 기반으로 조회하는 클래스.
+
+    `CursorAll` Task를 사용하여 `searchAfterSortValues` 커서로 순차 조회한다."""
+
     method = "POST"
     path = "/tenants/rfm-inventory/inventory-health-dashboard/search"
     token_required = True
 
     @property
     def default_options(self) -> dict:
-        return dict(CursorAll = dict(request_delay=1))
+        return {"CursorAll": {"request_delay": 1}}
 
     @CoupangWing.with_session
     def extract(
             self,
-            hidden_status: Literal["VISIBLE","HIDDEN"] | None = None, 
+            hidden_status: Literal["VISIBLE", "HIDDEN"] | None = None, 
             vendor_id: str | None = None,
             **kwargs
         ) -> JsonObject:
+        """로켓 재고 현황을 커서 기반으로 조회해 JSON 형식으로 반환한다."""
         return (self.cursor_all(self.request_json_safe, self.get_next_cursor)
                 .run(hidden_status=hidden_status, vendor_id=vendor_id, referer=kwargs.get("referer")))
 
     def get_next_cursor(self, response: JsonObject, **context) -> dict:
+        """다음 페이지 `searchAfterSortValues` 커서를 추출한다."""
         from linkmerce.utils.nested import hier_get
         pagination = hier_get(response, "paginationResponse") or dict()
         if pagination.get("searchAfterSortValues"):
@@ -252,12 +285,13 @@ class RocketInventory(CoupangWing):
             return None
 
     # def count_total(self, response: JsonObject, **kwargs) -> int:
-    #     from linkmerce.utils.map import hier_get
+    #     """HTTP 응답에서 전체 쿠팡 재고 개수를 추출한다."""
+    #     from linkmerce.utils.nested import hier_get
     #     return hier_get(response, "paginationResponse.totalNumberOfElements")
 
     def build_request_json(
             self,
-            hidden_status: Literal["VISIBLE","HIDDEN"] | None = None,
+            hidden_status: Literal["VISIBLE", "HIDDEN"] | None = None,
             page: int = 0,
             page_size: int = 100,
             next_cursor: dict | None = None,
@@ -271,7 +305,7 @@ class RocketInventory(CoupangWing):
                     "searchAfterSortValues": None
                 })
             },
-            **({"hiddenStatus": hidden_status} if hidden_status in ("VISIBLE","HIDDEN") else {}),
+            **({"hiddenStatus": hidden_status} if hidden_status in ("VISIBLE", "HIDDEN") else dict()),
             "sort": [{
                 "sortParameter": "VENDOR_INVENTORY_ID",
                 "sortDirection": "ASCENDING"

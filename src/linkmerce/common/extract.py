@@ -30,7 +30,7 @@ JsonSerialize = Union[dict, list, bytes, IO]
 
 
 class Client:
-    """모든 클라이언트의 최상위 기반 클래스."""
+    """모든 클라이언트의 최상위 클래스."""
     ...
 
 
@@ -527,7 +527,7 @@ class TaskClient(Client):
 ###################################################################
 
 class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
-    """ETL 파이프라인의 추출(Extract) 단계를 담당하는 추상 기반 클래스.
+    """ETL 파이프라인의 추출(Extract) 단계를 담당하는 추상 클래스.
 
     `SessionClient`의 HTTP 요청 기능과 `TaskClient`의 Task 생성 기능을 통합하며,
     `extract` 메서드를 구현하여 데이터를 추출한다."""

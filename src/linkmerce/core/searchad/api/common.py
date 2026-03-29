@@ -5,22 +5,26 @@ from linkmerce.common.extract import Extractor
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Variables
+    from linkmerce.common.extract import Configs
 
 
 class NaverSearchAdApi(Extractor):
+    """네이버 검색광고 API 요청을 처리하는 공통 클래스.
+
+    `api_key`, `secret_key`, `customer_id`를 사용하여 HMAC 서명 기반 인증 헤더를 구성한다."""
+
     method: str | None = None
     origin: str = "https://api.searchad.naver.com"
     uri: str | None = None
 
-    def set_variables(self, variables: Variables = dict()):
+    def set_configs(self, configs: Configs = dict()):
         try:
-            self.set_api_key(**variables)
+            self.set_api_key(**configs)
         except TypeError:
             raise TypeError("Naver Search Ad API requires variables for api_key and secret_key.")
 
-    def set_api_key(self, api_key: str, secret_key: str, customer_id: int | str, **variables):
-        super().set_variables(dict(api_key=api_key, secret_key=secret_key, customer_id=customer_id, **variables))
+    def set_api_key(self, api_key: str, secret_key: str, customer_id: int | str, **configs):
+        super().set_configs(dict(api_key=api_key, secret_key=secret_key, customer_id=customer_id, **configs))
 
     def set_request_headers(self, **kwargs):
         super().set_request_headers(headers=dict())
@@ -29,7 +33,8 @@ class NaverSearchAdApi(Extractor):
     def url(self) -> str:
         return self.concat_path(self.origin, self.uri)
 
-    def build_request_headers(self, **kwargs: str) -> dict[str,str]:
+    def build_request_headers(self, **kwargs: str) -> dict[str, str]:
+        """`api_key`, `secret_key`, `customer_id`를 사용하여 HMAC 서명 기반 인증 헤더를 구성한다."""
         import time
 
         method = self.method or kwargs.get("method")
@@ -38,17 +43,18 @@ class NaverSearchAdApi(Extractor):
         return {
             "Content-Type": "application/json; charset=UTF-8",
             "X-Timestamp": timestamp,
-            "X-API-KEY": self.get_variable("api_key"),
-            "X-Customer": str(self.get_variable("customer_id")),
+            "X-API-KEY": self.get_config("api_key"),
+            "X-Customer": str(self.get_config("customer_id")),
             "X-Signature": self.generate_signature(method, uri, timestamp)
         }
 
     def generate_signature(self, method: str, uri: str, timestamp: str) -> bytes:
+        """HMAC-SHA256 기반의 요청 서명을 생성한다."""
         import base64
         import hashlib
         import hmac
 
         message = "{}.{}.{}".format(timestamp, method, uri)
-        hash = hmac.new(bytes(self.get_variable("secret_key"), "utf-8"), bytes(message, "utf-8"), hashlib.sha256)
+        hash = hmac.new(bytes(self.get_config("secret_key"), "utf-8"), bytes(message, "utf-8"), hashlib.sha256)
         hash.hexdigest()
         return base64.b64encode(hash.digest())

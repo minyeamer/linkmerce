@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 
 
 class Inventory(EcountApi):
+    """이카운트 창고별/품목별 재고 현황을 조회하는 클래스."""
+
     method = "POST"
     path = "/InventoryBalance/GetListInventoryBalanceStatus"
     date_format = "%Y%m%d"
@@ -27,6 +29,7 @@ class Inventory(EcountApi):
             safe_yn: bool = False,
             **kwargs
         ) -> JsonObject:
+        """재고 현황 조회해 JSON 형식으로 반환한다."""
         if base_date == ":today:":
             import datetime as dt
             base_date = dt.date.today()
@@ -46,7 +49,7 @@ class Inventory(EcountApi):
             deleted_yn: bool = False,
             safe_yn: bool = False,
             **kwargs
-        ) -> dict[str,str]:
+        ) -> dict[str, str]:
         return {
             "SESSION_ID": self.session_id,
             "BASE_DATE": str(base_date).replace('-', ''),

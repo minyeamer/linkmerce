@@ -11,7 +11,11 @@ if TYPE_CHECKING:
 
 
 class GoogleAds(GoogleApi):
-    """https://developers.google.com/google-ads/api/fields/v23/overview"""
+    """구글 Ads API로 광고 데이터를 조회하는 공통 클래스.
+
+    GAQL(구글 Ads Query Language)로 searchStream 요청을 보내 데이터를 조회한다.
+    - API 문서: https://developers.google.com/google-ads/api/fields/v23/overview"""
+
     service: str = "googleads"
     method: str = "POST"
     version: str = "v23"
@@ -19,6 +23,7 @@ class GoogleAds(GoogleApi):
 
     @property
     def url(self) -> str:
+        """구글 Ads searchStream API URL을 조합해 반환한다."""
         return self.concat_path(self.origin, self.version, "/customers/", self.customer_id, "/googleAds:searchStream")
 
     @GoogleApi.with_session
@@ -34,6 +39,7 @@ class GoogleAds(GoogleApi):
             fields: Sequence[str] = list(),
             **kwargs
         ) -> JsonObject:
+        """GAQL 쿼리로 구글 Ads 데이터를 조회해 JSON 형식으로 반환한다."""
         response = self.request_json(
             start_date = start_date,
             end_date = end_date,
@@ -48,10 +54,11 @@ class GoogleAds(GoogleApi):
             customer_id: int | str,
             manager_id: int | str,
             developer_token: str,
-            service_account: str | Path | dict[str,str],
+            service_account: str | Path | dict[str, str],
             version: str = str(),
-            **variables,
+            **configs,
         ):
+        """구글 서비스 계정 인증 정보를 설정한다."""
         super().set_service_account(
             service_account = service_account,
             scope = "https://www.googleapis.com/auth/adwords",
@@ -59,15 +66,17 @@ class GoogleAds(GoogleApi):
             manager_id = manager_id,
             developer_token = developer_token,
             version = version,
-            **variables
+            **configs
         )
 
-    def build_request_json(self, fields: Sequence[str] = list(), **kwargs) -> dict[str,str]:
+    def build_request_json(self, fields: Sequence[str] = list(), **kwargs) -> dict[str, str]:
+        """GAQL 쿼리를 구성한다."""
         fields = ', '.join(fields if fields else self.fields)
         where = f" WHERE {cond}" if (cond := self.where(**kwargs)) else str()
         return {"query": f"SELECT {fields} FROM {self.table}{where}"}
 
-    def build_request_headers(self, **kwargs) -> dict[str,str]:
+    def build_request_headers(self, **kwargs) -> dict[str, str]:
+        """구글 Ads API 요청 헤더를 구성한다."""
         return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.access_token}",
@@ -77,15 +86,15 @@ class GoogleAds(GoogleApi):
 
     @property
     def customer_id(self) -> int | str:
-        return self.get_variable("customer_id")
+        return self.get_config("customer_id")
 
     @property
     def manager_id(self) -> int | str:
-        return self.get_variable("manager_id")
+        return self.get_config("manager_id")
 
     @property
     def developer_token(self) -> str:
-        return self.get_variable("developer_token")
+        return self.get_config("developer_token")
 
     @property
     def fields(self) -> list[str]:
@@ -98,6 +107,7 @@ class GoogleAds(GoogleApi):
             date_range: str | None = None,
             **kwargs
         ) -> str:
+        """GAQL WHERE 절을 구성한다."""
         if date_range is not None:
             return f"segments.date DURING {date_range}"
 
@@ -116,7 +126,8 @@ class GoogleAds(GoogleApi):
             start_date: dt.date | str | None = None,
             end_date: dt.date | str | None = None,
             date_range: str | None = None,
-        ) -> tuple[str,str]:
+        ) -> tuple[str, str]:
+        """조회 기간의 시작일과 종료일을 반환한다."""
         response = self.request_json(
             start_date = start_date,
             end_date = end_date,
@@ -128,7 +139,9 @@ class GoogleAds(GoogleApi):
 
 
 class Campaign(GoogleAds):
-    """https://developers.google.com/google-ads/api/fields/v23/campaign"""
+    """구글 광고 캠페인 목록을 조회하는 클래스.
+    - API 문서: https://developers.google.com/google-ads/api/fields/v23/campaign"""
+
     table = "campaign"
 
     @property
@@ -150,7 +163,9 @@ class Campaign(GoogleAds):
 
 
 class AdGroup(GoogleAds):
-    """https://developers.google.com/google-ads/api/fields/v23/ad_group"""
+    """구글 광고그룹 목록을 조회하는 클래스.
+    - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group"""
+
     table = "ad_group"
 
     @property
@@ -172,7 +187,9 @@ class AdGroup(GoogleAds):
 
 
 class Ad(GoogleAds):
-    """https://developers.google.com/google-ads/api/fields/v23/ad_group_ad"""
+    """구글 광고 소재 목록을 조회하는 클래스.
+    - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad"""
+
     table = "ad_group_ad"
 
     @property
@@ -212,12 +229,16 @@ class Ad(GoogleAds):
 
 
 class Insight(GoogleAds):
-    """https://developers.google.com/google-ads/api/fields/v23/ad_group_ad"""
+    """구글 광고 소재의 성과 데이터를 날짜/기기별로 구분해 조회하는 클래스.
+
+    `RequestEach` Task를 사용하여 기간별 데이터를 조회한다.
+    - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad"""
+
     table = "ad_group_ad"
 
     @property
     def default_options(self) -> dict:
-        return dict(RequestEach = dict(request_delay=1))
+        return {"RequestEach": {"request_delay": 1}}
 
     @GoogleApi.with_session
     @GoogleApi.with_token
@@ -233,6 +254,7 @@ class Insight(GoogleAds):
             fields: Sequence[str] = list(),
             **kwargs
         ) -> JsonObject:
+        """소재의 성과 데이터를 기간별로 조회하여 JSON 형식으로 반환한다."""
         if (start_date is not None) and (end_date is not None):
             context = self.generate_date_context(start_date, end_date, freq=date_freq)
             return (self.request_each(self.request_json, context)
@@ -264,12 +286,15 @@ class Insight(GoogleAds):
 
 
 class Asset(GoogleAds):
-    """https://developers.google.com/google-ads/api/fields/v23/asset"""
+    """구글 광고 애셋 목록을 조회하는 클래스.
+    - API 문서: https://developers.google.com/google-ads/api/fields/v23/asset"""
+
     table = "asset"
 
     @GoogleApi.with_session
     @GoogleApi.with_token
     def extract(self, fields: Sequence[str] = list(), **kwargs) -> JsonObject:
+        """애셋 목록을 조회하여 JSON 형식으로 반환한다."""
         response = self.request_json(fields = fields)
         return self.parse(response, customer_id=self.customer_id)
 
@@ -288,7 +313,9 @@ class Asset(GoogleAds):
 
 
 class AssetView(Insight):
-    """https://developers.google.com/google-ads/api/fields/v23/ad_group_ad_asset_view"""
+    """구글 광고 자산 데이터를 조회하는 클래스.
+    - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad_asset_view"""
+
     table = "ad_group_ad_asset_view"
 
     @property

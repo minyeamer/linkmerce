@@ -87,7 +87,7 @@ class VendorInventoryItemParser(ExcelTransformer):
 
 
 class EditableCatalogueParser(ExcelTransformer):
-    """쿠팡 쿠팡상품정보 다운로드 결과를 파싱하는 클래스."""
+    """쿠팡 상품 목록 다운로드 결과를 파싱하는 클래스."""
 
     sheet_name = "Template"
     header = 4
@@ -123,7 +123,7 @@ class ProductDownload(DuckDBTransformer):
 
 
 class RocketInventory(DuckDBTransformer):
-    """쿠팡 로켓 재고 내역을 `coupang_rocket_inventory` 테이블에 적재하는 클래스."""
+    """쿠팡 로켓 재고 현황을 `coupang_rocket_inventory` 테이블에 적재하는 클래스."""
 
     extractor = "RocketInventory"
     tables = {"table": "coupang_rocket_inventory"}

@@ -23,7 +23,7 @@ JsonObject = Union[dict, list]
 
 
 class Transformer(metaclass=ABCMeta):
-    """모든 Transformer의 최상위 추상 기반 클래스."""
+    """모든 Transformer의 최상위 추상 클래스."""
 
     def __init__(self, **kwargs):
         ...

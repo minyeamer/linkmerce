@@ -18,7 +18,8 @@ Props = TypeVar("Props", bound=dict)
 ###################################################################
 
 class SearchSectionParser(HtmlTransformer):
-    """네이버 검색 결과의 각 섹션을 파싱하여 하위 요소를 `list[dict]`로 정리하고 각 섹션을 `list`로 묶어서 반환하는 클래스.
+    """네이버 메인 검색 결과의 각 섹션을 파싱하여 하위 요소를 `list[dict]`로 정리하고
+    각 섹션을 `list`로 묶어서 반환하는 클래스.
 
     다음 섹션을 파싱한다:
     - 파워링크
@@ -258,7 +259,7 @@ class Shopping(HtmlTransformer):
         return filter_set
 
     @property
-    def source_type(self) -> dict[str,str]:
+    def source_type(self) -> dict[str, str]:
         return {
             "AD": "광고 상품",
             "SUPER_POINT": "광고+ 상품",
@@ -266,7 +267,7 @@ class Shopping(HtmlTransformer):
         }
 
     @property
-    def card_type(self) -> dict[str,str]:
+    def card_type(self) -> dict[str, str]:
         return {
             "AD_CARD": "광고 상품",
             "ORGANIC_CARD": "일반 상품",
@@ -275,7 +276,7 @@ class Shopping(HtmlTransformer):
         }
 
     @property
-    def delivery_type(self) -> dict[str,str]:
+    def delivery_type(self) -> dict[str, str]:
         return {
             "NONE": "일반배송",
             "TODAY_DELIVERY": "오늘출발",
@@ -319,7 +320,7 @@ class _PropsTransformer(JsonTransformer):
     dtype = dict
     scope = "body.props"
 
-    def get_props(self, data: dict[str,dict]) -> Props:
+    def get_props(self, data: dict[str, dict]) -> Props:
         """`body.props` 경로에서 props JSON 데이터를 추출한다."""
         return data["body"]["props"]
 
@@ -377,7 +378,7 @@ class IntentBlock(_ContentsPropsTransformer):
     """네이버 스마트 블록 영역에 해당하는 props JSON 데이터를 파싱하는 클래스."""
 
     # @try_except
-    def transform(self, data: dict[str,dict], sep: str = '\n', **kwargs) -> list[dict]:
+    def transform(self, data: dict[str, dict], sep: str = '\n', **kwargs) -> list[dict]:
         """네이버 스마트 블록 영역의 제목과 하위 컨텐츠를 추출해 반환한다."""
         props = self.get_props(data)
         header, layout = self.split_layout(props)
@@ -420,7 +421,7 @@ class Web(_ContentsPropsTransformer):
     """네이버 웹문서 영역에 해당하는 props JSON 데이터를 파싱하는 클래스."""
 
     # @try_except
-    def transform(self, data: dict[str,dict], sep: str = '\n', **kwargs) -> list[dict]:
+    def transform(self, data: dict[str, dict], sep: str = '\n', **kwargs) -> list[dict]:
         """네이버 웹문서 영역의 구조를 분석하고 하위 문서를 추출해 반환한다."""
         props = self.get_props(data)
         header, layout = self.split_layout(props)
@@ -453,7 +454,7 @@ class Review(Web):
     """네이버 리뷰 영역에 해당하는 props JSON 데이터를 파싱하는 클래스."""
 
     # @try_except
-    def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
+    def transform(self, data: dict[str, dict], **kwargs) -> list[dict]:
         """네이버 리뷰 영역의 구조를 분석하고 하위 문서를 추출해 반환한다."""
         props = self.get_props(data)
         header, layout = self.split_layout(props)
@@ -480,7 +481,7 @@ class Image(_PropsTransformer):
     """네이버 이미지 영역에 해당하는 props JSON 데이터를 파싱하는 클래스."""
 
     # @try_except
-    def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
+    def transform(self, data: dict[str, dict], **kwargs) -> list[dict]:
         """네이버 이미지 영역의 구조를 분석하고 하위 문서를 추출해 반환한다."""
         props = self.get_props(data)
         header, layout = self.split_layout(props)
@@ -502,7 +503,7 @@ class Video(_PropsTransformer):
     """네이버 동영상 영역에 해당하는 props JSON 데이터를 파싱하는 클래스."""
 
     # @try_except
-    def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
+    def transform(self, data: dict[str, dict], **kwargs) -> list[dict]:
         """네이버 동영상 영역의 구조를 분석하고 하위 문서를 추출해 반환한다."""
         from linkmerce.utils.nested import hier_get
         props = self.get_props(data)
@@ -530,7 +531,7 @@ class RelatedQuery(_PropsTransformer):
     """네이버 AI 추천 영역에 해당하는 props JSON 데이터를 파싱하는 클래스."""
 
     # @try_except
-    def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
+    def transform(self, data: dict[str, dict], **kwargs) -> list[dict]:
         """네이버 AI 추천 영역의 유형을 파악하고 추천 문서 목록과 연결된 API URL을 추출해 반환한다."""
         props = self.get_props(data)
         query_type = str(data["meta"]["xQuerySource"]).rsplit('_', 1)[0]
@@ -553,7 +554,7 @@ class AiBriefing(_PropsTransformer):
     """네이버 AI 브리핑 영역에 해당하는 props JSON 데이터를 파싱하는 클래스."""
 
     # @try_except
-    def transform(self, data: dict[str,dict], **kwargs) -> list[dict]:
+    def transform(self, data: dict[str, dict], **kwargs) -> list[dict]:
         """네이버 AI 브리핑 영역의 각 부분을 추출해 반환한다. (관련 자료 부분만 추출한다.)"""
         props = self.get_props(data)
         return self.parse_sources(props)
@@ -695,10 +696,10 @@ class CafeParser(HtmlTransformer):
         })
         return super().extend_fields(item, extends, **kwargs)
 
-    def get_ids_from_url(self, url: str) -> tuple[str,str]:
+    def get_ids_from_url(self, url: str) -> tuple[str, str]:
         """카페 URL에서 카페 URL과 게시물 ID를 추출하여 튜플로 반환한다."""
         from linkmerce.utils.regex import regexp_groups
-        return regexp_groups(r"/([^/]+)/(\d+)$", url.split('?')[0], indices=[0,1]) if url else (None, None)
+        return regexp_groups(r"/([^/]+)/(\d+)$", url.split('?')[0], indices=[0, 1]) if url else (None, None)
 
     def get_ad_id_from_attr(self, onclick: str) -> str:
         """onclick 속성에서 소재 ID를 정규식으로 추출하여 반환한다."""
@@ -787,7 +788,7 @@ class CafeArticleParser(JsonTransformer):
 
 
 class CafeArticle(DuckDBTransformer):
-    """네이버 카페 게시글 API 응답 데이터를 `naver_cafe_article` 테이블에 적재하는 클래스."""
+    """네이버 카페 게시글 데이터를 `naver_cafe_article` 테이블에 적재하는 클래스."""
 
     extractor = "CafeArticle"
     tables = {"table": "naver_cafe_article"}
