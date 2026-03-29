@@ -25,6 +25,7 @@ def strptime(
         astimezone: BaseTzInfo | str | None = None,
         droptz: bool = False,
     ) -> dt.datetime:
+    """문자열을 지정된 포맷으로 파싱하여 `datetime` 객체로 변환한다."""
     if isinstance(datetime, dt.datetime):
         return datetime
     datetime = dt.datetime.strptime(str(datetime), format)
@@ -39,6 +40,7 @@ def safe_strptime(
         astimezone: BaseTzInfo | str | None = None,
         droptz: bool = False,
     ) -> dt.datetime:
+    """문자열을 `datetime` 객체로 안전하게 변환한다. 실패 시 기본값을 반환한다."""
     try:
         return strptime(datetime, format, tzinfo, astimezone, droptz)
     except:
@@ -50,6 +52,7 @@ def safe_strptime(
 ###################################################################
 
 def strpdate(date: dt.date | str, format: str = "%Y-%m-%d") -> dt.date:
+    """문자열을 `date` 객체로 변환한다."""
     if isinstance(date, dt.date):
         return date
     else:
@@ -57,6 +60,7 @@ def strpdate(date: dt.date | str, format: str = "%Y-%m-%d") -> dt.date:
 
 
 def safe_strpdate(date: dt.date | str, format: str = "%Y-%m-%d", default: dt.date | None = None) -> dt.date:
+    """문자열을 `date` 객체로 안전하게 변환한다. 실패 시 기본값을 반환한다."""
     try:
         return strpdate(date, format)
     except:
@@ -75,11 +79,12 @@ def now(
         minutes: int = 0,
         hours: int = 0,
         weeks: int = 0,
-        delta: Literal['+','-'] = '-',
+        delta: Literal['+', '-'] = '-',
         tzinfo: BaseTzInfo | str | None = None,
         droptz: bool = False,
-        unit: Literal["second","minute","hour","day","month","year"] | None = "second",
+        unit: Literal["second", "minute", "hour", "day", "month", "year"] | None = "second",
     ) -> dt.datetime:
+    """현재 시각을 반환한다. `timedelta` 오프셋과 날짜 단위를 지정할 수 있다."""
     datetime = dt.datetime.now(get_timezone(tzinfo))
     if days or seconds or microseconds or milliseconds or minutes or hours or weeks:
         timedelta = dt.timedelta(days, seconds, microseconds, milliseconds, minutes, hours, weeks)
@@ -94,17 +99,19 @@ def now(
 def today(
         days: int = 0,
         weeks: int = 0,
-        delta: Literal['+','-'] = '-',
+        delta: Literal['+', '-'] = '-',
         tzinfo: BaseTzInfo | str | None = None,
-        unit: Literal["month","year"] | None = None,
+        unit: Literal["month", "year"] | None = None,
     ) -> dt.date:
+    """오늘 날짜를 반환한다. 일/주 단위 오프셋을 지정할 수 있다."""
     return now(days=days, weeks=weeks, delta=delta, tzinfo=tzinfo, unit=unit).date()
 
 
 def trunc_datetime(
         datetime: dt.datetime,
-        unit: Literal["second","minute","hour","day","month","year"] | None = None
+        unit: Literal["second", "minute", "hour", "day", "month", "year"] | None = None
     ) -> dt.datetime:
+    """지정된 단위로 `datetime` 객체를 절삭한다."""
     if unit not in DATE_UNIT:
         return datetime
     index = DATE_UNIT.index(unit.lower())
@@ -128,6 +135,7 @@ def trunc_datetime(
 ###################################################################
 
 def get_timezone(tzinfo: BaseTzInfo | str | None = None) -> BaseTzInfo:
+    """타임존 문자열을 `BaseTzInfo` 객체로 변환한다."""
     if tzinfo:
         from pytz import timezone, UnknownTimeZoneError
         try:
@@ -142,6 +150,7 @@ def set_timezone(
         astimezone: BaseTzInfo | str | None = None,
         droptz: bool = False
     ) -> dt.datetime:
+    """`datetime` 객체에 타임존을 설정하거나 변환한다."""
     if tzinfo and (tz := get_timezone(tzinfo)):
         datetime = datetime.astimezone(tz) if datetime.tzinfo else tz.localize(datetime)
     if astimezone and datetime.tzinfo:
@@ -155,18 +164,23 @@ def set_timezone(
 
 @total_ordering
 class YearMonth:
+    """연-월을 표현하는 클래스. 비교, 연산, 날짜 변환을 지원한다."""
+
     def __init__(self, year: int, month: int):
         self.year = year
         self.month = min(max(month, 1), 12)
 
     def date(self, day: int = 1) -> dt.date:
+        """`date` 객체로 변환한다."""
         return dt.date(self.year, self.month, day)
 
     def eomonth(self) -> dt.date:
+        """해당 월의 마지막 날짜를 반환한다."""
         from calendar import monthrange
         return self.date(monthrange(self.year, self.month)[1])
 
-    def _compare(self):
+    def _compare(self) -> int:
+        """연-월을 정수로 치환한다."""
         return self.year * 100 + self.month
 
     def __eq__(self, other):
@@ -202,24 +216,37 @@ class YearMonth:
         return self.__add__(-other)
 
     def __str__(self) -> str:
+        """연-월을 `YYYY-MM` 포맷의 문자열로 반환한다."""
         return "{}-{}".format(self.year, str(self.month).rjust(2, '0'))
 
 
 def date_range(
         start: dt.date | str,
         end: dt.date | str,
-        freq: Literal["D","W","M"] = "D",
+        freq: Literal["D", "W", "M"] = "D",
         format: str = "%Y-%m-%d",
     ) -> list[dt.date]:
+    """시작일부터 종료일까지의 날짜 범위 리스트를 생성한다.
+
+    일/주/월 빈도에 따라 다음과 같은 날짜 범위가 만들어진다.
+    - `D`: 일 단위 `date` 객체를 반환한다.
+    - `W`: 월요일 기준 주 단위로 `date` 객체를 반환한다.
+    - `M`: 매월 1일 기준 월 단위로 `date` 객체를 반환한다."""
     return _generate_date_range(start, end, freq, format, add_one=False)
 
 
 def date_pairs(
         start: dt.date | str,
         end: dt.date | str,
-        freq: Literal["D","W","M"] = "D",
+        freq: Literal["D", "W", "M"] = "D",
         format: str = "%Y-%m-%d",
-    ) -> list[tuple[dt.date,dt.date]]:
+    ) -> list[tuple[dt.date, dt.date]]:
+    """시작일부터 종료일까지의 기간을 (시작일, 종료일) 쌍의 리스트로 분할한다.
+
+    일/주/월 빈도에 따라 다음과 같은 날짜 범위가 만들어진다.
+    - `D`: 일 단위로 기간을 분할한다. 분할된 각각의 쌍은 시작일과 종료일이 동일하다.
+    - `W`: 월요일 기준 주 단위로 기간을 분할한다. 중간 기간은 (월요일, 일요일) 쌍으로 생성된다.
+    - `M`: 매월 1일 기준 월 단위로 기간을 분할한다. 중간 기간은 (1일, 말일) 쌍으로 생성된다."""
     if freq.upper() == "D":
         return [(date, date) for date in _generate_date_range(start, end, "D", format, add_one=False)]
     else:
@@ -230,11 +257,14 @@ def date_pairs(
 def date_split(
         start: dt.date | str,
         end: dt.date | str,
-        delta: int | dict[Literal["days","seconds","microseconds","milliseconds","minutes","hours","weeks"],float] = 1,
+        delta: int | dict[Literal["days", "seconds", "microseconds", "milliseconds", "minutes", "hours", "weeks"], float] = 1,
         format: str = "%Y-%m-%d",
-    ) -> list[tuple[dt.date,dt.date]]:
+    ) -> list[tuple[dt.date, dt.date]]:
+    """시작일부터 종료일까지의 기간을 지정된 간격으로 (시작일, 종료일) 쌍의 리스트로 분할한다.
+
+    `delta`가 정수형인 경우 `days`로 인식하며, `timedelta`에 전달할 파라미터를 딕셔너리로 지정할 수도 있다."""
     if isinstance(delta, int):
-        delta = dict(days=delta)
+        delta = {"days": delta}
 
     if delta.get("days") == 1:
         return date_pairs(start, end, freq="D", format=format)
@@ -251,10 +281,11 @@ def date_split(
 def _generate_date_range(
         start: dt.date | str,
         end: dt.date | str,
-        freq: Literal["D","W","M"] = "D",
+        freq: Literal["D", "W", "M"] = "D",
         format: str = "%Y-%m-%d",
         add_one: bool = False,
     ) -> list[dt.date]:
+    """일/주/월 기준으로 날짜 범위를 생성하는 내부 함수."""
     start, end = strpdate(start, format), strpdate(end, format)
     freq = freq.upper()
     if freq == "D":
@@ -272,6 +303,7 @@ def _generate_date_range(
 
 
 def _generate_range(start: _NUMERIC, end: _NUMERIC, delta: _NUMERIC) -> list[_NUMERIC]:
+    """시작값부터 종료값까지 `delta` 간격으로 값 리스트를 생성한다."""
     ranges = list()
     cur = start
     while cur <= end:

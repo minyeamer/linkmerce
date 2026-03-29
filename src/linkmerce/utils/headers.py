@@ -6,14 +6,14 @@ if TYPE_CHECKING:
     from typing import Literal
 
 
-CHROME_VERSION = 138
+CHROME_VERSION = 146
 
 
 def build_headers(
         authority: str = str(),
         accept: str = "*/*",
         encoding: str = "gzip, deflate, br",
-        language: Literal["ko","en"] | str = "ko",
+        language: Literal["ko", "en"] | str = "ko",
         connection: str = "keep-alive",
         contents: Literal["form", "javascript", "json", "text", "multipart"] | str | dict = str(),
         cookies: str = str(),
@@ -24,13 +24,14 @@ def build_headers(
         client: str = str(),
         mobile: bool = False,
         platform: str = str(),
-        metadata: Literal["cors", "navigate"] | dict[str,str] = "cors",
+        metadata: Literal["cors", "navigate"] | dict[str, str] = "cors",
         https: bool = False,
         user_agent: str = str(),
         ajax: bool = False,
         version: int = CHROME_VERSION,
         **kwargs
-    ) -> dict[str,str]:
+    ) -> dict[str, str]:
+    """Chrome 기반 HTTP 요청 헤더 딕셔너리를 생성한다."""
     return {
         **({"authority": get_hostname(authority)} if authority else dict()),
         **({"accept": accept} if accept else dict()),
@@ -54,19 +55,20 @@ def build_headers(
     }
 
 
-def add_headers(headers: dict[str,str], **kwargs) -> dict[str,str]:
-    apply_map = dict(
-        authority = dict(key="authority", func=get_hostname),
-        encoding = dict(key="accept-encoding"),
-        language = dict(key="accept-encoding", func=get_default_language),
-        contents = dict(key="content-type", func=get_content_type),
-        cookies = dict(key="cookie"),
-        host = dict(key="host", func=get_hostname),
-        client = dict(key="sec-ch-ua"),
-        mobile = dict(key="sec-ch-ua-mobile", func=(lambda x: f"?{int(x)}")),
-        platform = dict(key="sec-ch-ua-platform"),
-        user_agent = dict(key="user-agent"),
-    )
+def add_headers(headers: dict[str, str], **kwargs) -> dict[str, str]:
+    """기존 헤더 딕셔너리에 추가 헤더를 병합한다."""
+    apply_map = {
+        "authority": {"key": "authority", "func": get_hostname},
+        "encoding": {"key": "accept-encoding"},
+        "language": {"key": "accept-encoding", "func": get_default_language},
+        "contents": {"key": "content-type", "func": get_content_type},
+        "cookies": {"key": "cookie"},
+        "host": {"key": "host", "func": get_hostname},
+        "client": {"key": "sec-ch-ua"},
+        "mobile": {"key": "sec-ch-ua-mobile", "func": (lambda x: f"?{int(x)}")},
+        "platform": {"key": "sec-ch-ua-platform"},
+        "user_agent": {"key": "user-agent"},
+    }
     for key, value in kwargs.items():
         key_lower = key.lower()
         if key_lower in apply_map:
@@ -84,16 +86,18 @@ def add_headers(headers: dict[str,str], **kwargs) -> dict[str,str]:
 
 
 def get_hostname(url: str) -> str:
+    """URL에서 호스트명을 추출한다."""
     for prefix in ["://"]:
         if prefix in url:
             url = url.split(prefix, maxsplit=1)[1]
-    for suffix in ['/','?','#']:
+    for suffix in ['/', '?', '#']:
         if suffix in url:
             url = url.split(suffix, maxsplit=1)[0]
     return url
 
 
-def get_default_language(value: Literal["ko","en"] | str = "ko") -> str:
+def get_default_language(value: Literal["ko", "en"] | str = "ko") -> str:
+    """Accept-Language 헤더 값을 생성한다."""
     if value == "ko":
         return "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
     elif value == "en":
@@ -103,6 +107,7 @@ def get_default_language(value: Literal["ko","en"] | str = "ko") -> str:
 
 
 def get_content_type(contents: Literal["form", "javascript", "json", "text", "multipart"] | str | dict):
+    """Content-Type 헤더 값을 생성한다."""
     if isinstance(contents, str):
         if contents == "form":
             return "application/x-www-form-urlencoded"
@@ -127,21 +132,30 @@ def get_content_type(contents: Literal["form", "javascript", "json", "text", "mu
 
 
 def get_default_client(version: int = CHROME_VERSION) -> str:
+    """sec-ch-ua 헤더 값을 생성한다."""
     return f'"Not)A;Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
 
 
 def get_current_platform() -> str:
+    """현재 OS 플랫폼 이름을 반환한다."""
     import platform
     os_name = platform.system()
     return "macOS" if os_name == "Darwin" else os_name
 
 
-def get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str,str] = "navigate") -> dict[str,str]:
+def get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str, str] = "navigate") -> dict[str, str]:
+    """Sec-Fetch-* 메타데이터 헤더 딕셔너리를 생성한다."""
     if isinstance(metadata, str):
         if metadata == "cors":
-            return {"sec-fetch-dest": "empty", "sec-fetch-mode": "cors", "sec-fetch-site": "same-origin", "sec-fetch-user": "?1"}
+            return {
+                "sec-fetch-dest": "empty", "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin", "sec-fetch-user": "?1",
+            }
         elif metadata == "navigate":
-            return {"sec-fetch-dest": "document", "sec-fetch-mode": "navigate", "sec-fetch-site": "none", "sec-fetch-user": "?1"}
+            return {
+                "sec-fetch-dest": "document", "sec-fetch-mode": "navigate",
+                "sec-fetch-site": "none", "sec-fetch-user": "?1",
+            }
         else:
             return dict()
     elif isinstance(metadata, dict):
@@ -151,6 +165,7 @@ def get_fetch_metadata(metadata: Literal["cors", "navigate"] | dict[str,str] = "
 
 
 def get_user_agent(version: int = CHROME_VERSION) -> str:
+    """User-Agent 헤더 값을 생성한다."""
     import platform
     system = platform.system()
 
@@ -159,7 +174,7 @@ def get_user_agent(version: int = CHROME_VERSION) -> str:
         arch_token = "Win64; x64" if (arch := platform.machine()).lower() in x64 else arch
         platform_token = "Windows NT 10.0; {}".format(arch_token or "Win64; x64")
     elif system == "Darwin":
-        mac_ver = (platform.mac_ver()[0] or "26.1").replace('.','_')
+        mac_ver = (platform.mac_ver()[0] or "26.1").replace('.', '_')
         platform_token = "Macintosh; Intel Mac OS X {}".format(mac_ver)
     elif system == "Linux":
         arch_token = platform.machine() or "x86_64"
@@ -170,9 +185,10 @@ def get_user_agent(version: int = CHROME_VERSION) -> str:
     return f"Mozilla/5.0 ({platform_token}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36"
 
 
-def zip_headers(header_lines: str) -> dict[str,str]:
+def zip_headers(header_lines: str, sep='\n') -> dict[str, str]:
+    """크롬 개발자 도구(DevTools)에서 복사한 헤더 문자열을 딕셔너리로 변환한다."""
     headers = dict()
-    lines = header_lines.split('\n')
+    lines = header_lines.split(sep)
     for seq in range(len(lines)//2):
         if str(lines[seq*2]).startswith(':'):
             if lines[seq*2] != ":authority":

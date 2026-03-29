@@ -947,3 +947,720 @@ utils/parse 모듈 보완
   5. `:today:` 리터럴 대신 datetime 상수 사용을 테스트 표준으로 확정.
   6. SabangNet은 `:today:` 리터럴 지원 (라이브러리 내부 처리) → 그대로 유지.
 
+================================================================================
+[2026-03-19~20] Q20 + 커밋: DuckDBTransformer 선언적 추상화 전면 완성 1단계
+  커밋: 853d47a (2026-03-20) refactor(transform): implement dynamic rendering and
+        overhaul transformation pipeline
+================================================================================
+
+배경
+----
+  Q19(통합 테스트 70개 완성) 직후, DuckDBTransformer 선언적 추상화 리팩터링의
+  나머지 작업을 계속 진행. render / params 속성 도입과 API 네이밍 규칙 정비가
+  이 커밋의 핵심.
+
+주요 변경 사항
+--------------
+  1. API 클래스명 PEP 8 준수 (API → Api)
+    - CJApi, EcountApi, GoogleApi, MetaApi, NaverApi, SearchAdApi, SmartStoreApi
+      등 전체 공개 클래스 이름을 CamelCase로 정규화.
+
+  2. render / params 선언적 속성 도입 (common/transform.py)
+    - DuckDBTransformer에 render: dict | None, params: dict | None 클래스 속성 추가.
+    - bulk_insert / prepare_query 호출 시 render/params 자동 주입.
+    - SQL 템플릿의 $key 치환이 클래스 수준에서 선언 가능하게 됨.
+
+  3. load.py 멀티 스테이트먼트 파라미터 바인딩 개선
+    - 정규식 기반으로 각 문장에 관련 파라미터만 필터링하여 바인딩.
+
+  4. hier_get + dot-notation 경로 통일
+    - extract.py 파일들에서 리스트 기반 경로를 점 표기법 문자열로 전환.
+
+변경 파일 (주요)
+----------------
+  src/linkmerce/common/transform.py, common/load.py
+  core/coupang/advertising/adreport/transform.py
+  core/coupang/wing/product/transform.py, settlement/transform.py
+  core/ecount/api/inventory, product / extract.py
+  core/google/api/ads/extract.py, transform.py, common.py
+  core/naver/openapi/search/extract.py
+  core/sabangnet/admin/order/extract.py, transform.py
+  core/searchad/api, gfa, manage / __init__.py
+  + 다수 __init__.py API 이름 정규화
+
+
+================================================================================
+[2026-03-22] Q21 + 커밋 2개: table_map 적용 및 Extractor 테스트 인프라 구축
+  커밋: 268c648 (2026-03-22 13:52) refactor(transform): add table_map mapping
+  커밋: d3e241f (2026-03-22 20:05) test(extract): implement test suite and fix extraction bugs
+================================================================================
+
+배경
+----
+  853d47a 커밋 이후 후속 작업으로 두 가지 독립적인 과제를 진행.
+
+268c648: table_map 추가
+-----------------------
+  DuckDBTransformer에 table_map: dict | None 클래스 속성 추가.
+  - 단일 쿼리 결과를 테이블명 → 결과 dict로 매핑하는 용도.
+  - 28개 transform.py에 table_map 선언 일괄 적용:
+    cj, coupang, ecount, google, meta, naver, sabangnet, searchad, smartstore 전 모듈.
+  - sabangnet/admin.py API 메서드 시그니처 호환성 수정.
+
+d3e241f: Extractor 테스트 인프라 구축 및 버그 수정
+----------------------------------------------------
+  1. src/tests/ 구조 정비
+    - conftest.py 신설: credentials/config 로딩 fixture, DuckDBConnection fixture.
+    - pytest.ini 추가: markers (integration, slow), testpaths 설정.
+    - src/tests/README.md 작성: 테스트 실행 안내 및 구조 설명.
+
+  2. test_extract.py 작성 (전체 Extractor 클래스 커버)
+    - 14개 테스트 클래스, 약 60개 테스트 메서드 구현.
+    - credentials.yaml 없으면 자동 skip.
+    - 실제 API 호출 후 HTTP 응답 타입/상태 검증.
+
+  3. 버그 수정
+    - GoogleAuth JWT audience URL 대소문자 오류 수정
+      (googleapis.COM → googleapis.com).
+    - CoupangAdvertisingAdreport extract.py 요청 파라미터 정규화.
+
+  4. 문서 업데이트
+    - docs/ai-guidelines.md: 파일 수정 원칙 강화, 강제 준수 표현 추가.
+    - docs/chat.log: Q11~Q20 분량 추가 기록.
+
+
+================================================================================
+[2026-03-26] Q22 + 커밋: DuckDBTransformer 선언적 추상화 최종 완성 및 transform 테스트
+  커밋: 43ea9d2 (2026-03-26 23:10) refactor(transform): finalize overhaul of
+        transformation pipeline and unit tests
+================================================================================
+
+배경
+----
+  268c648·d3e241f 이후 남아있던 파이프라인 수정 사항과 테스트 커버리지 확장을
+  단일 커밋으로 마무리.
+
+주요 변경 사항
+--------------
+  1. common/transform.py 대규모 재정비 (92줄 변경)
+    - ResponseTransformer: post_init → post_parse 훅 명칭 정리.
+    - DuckDBTransformer: multi-table SELECT 렌더링 버그 수정.
+    - ExcelTransformer: 동적 헤더/시트 처리 안정화.
+
+  2. 남은 transform.py 선언적 전환 완료
+    - smartstore/api/order: OrderList key_paths + 중첩 JSON 구조 최종 정리.
+    - smartstore/api/product: optional 필드 처리 ({field: None} 스키마).
+    - smartstore/brand/catalog: scope/fields 선언 완료.
+    - smartstore/brand/pageview: self.path → self.scope 수정.
+    - naver/main/search: Search transformer + CafeArticleJson 정리.
+    - coupang/wing/product, settlement: table_map 기반 DuckDB 삽입 정리.
+    - sabangnet/admin/order, product: 파서 config 최종 정비.
+    - searchad/manage/exposure: AdList scope/fields 완성.
+    - searchad/manage/adreport, api/adreport: bulk_insert 파라미터 통일.
+
+  3. utils/nested.py 보강 (46줄 변경)
+    - select_values() CASE 2 재귀 경로 중첩 버그 완전 수정.
+    - 중첩 dict 경로의 키 보존 로직 개선.
+
+  4. utils/parse.py 보강 (17줄 변경)
+    - select_attrs: non-string 상수값 처리 안정화.
+    - 한글 docstring 보완.
+
+  5. models.sql 수정
+    - coupang/advertising/adreport, sabangnet/admin/order, smartstore/api/order,
+      brand/catalog: INSERT/SELECT 쿼리 최종 정합성 확인.
+
+  6. src/tests/test_transform.py 신설 (877줄)
+    - 24개 DuckDBTransformer 클래스 전체 단위 테스트.
+    - mock JSON fixture 기반, 실제 API 호출 없음.
+    - conftest.py에 transform fixture 추가 (181줄 확장).
+    - test_extract.py 테스트 메서드 보완 (52줄 변경).
+
+변경 파일 (주요)
+----------------
+  src/linkmerce/common/transform.py (+92)
+  src/linkmerce/utils/nested.py (+46), utils/parse.py (+17)
+  core/naver/main/search/transform.py (+17)
+  core/sabangnet/admin/order/transform.py (+4), product/transform.py (+8)
+  core/smartstore/api/order/transform.py (+42), product/transform.py (+10)
+  core/smartstore/brand/catalog/transform.py (+5), pageview/transform.py (+2)
+  core/searchad/api/adreport/transform.py (+2), manage/adreport/transform.py (+3)
+  core/searchad/manage/exposure/transform.py (+2)
+  src/tests/conftest.py (+181), test_transform.py (신설 877줄)
+  src/tests/test_extract.py (+52), README.md (+2)
+  models.sql 4개 수정
+
+
+================================================================================
+[2026-03-27] Q23 (현재 세션): API 함수 docstring 추가 + Airflow DAG 정비
+  (미커밋 — 작업 중)
+================================================================================
+
+배경
+----
+  두 가지 요청을 순차 처리:
+    1. src/linkmerce/api/ 하위 14개 API 파일에 함수 단위 docstring 추가
+       (테이블명·컬럼명 기준으로 어떤 데이터를 반환하는지 한글 설명).
+    2. airflow/dags/ 전체 27개 DAG 파일에 대해:
+       a. 스테일(stale) 테이블 참조 수정 (key="default" 또는 테이블명="data")
+       b. Airflow 표준(doc_md + 태스크 docstring) 방식의 한글 주석 추가.
+
+1. API 함수 docstring 추가 (14개 파일)
+---------------------------------------
+  대상 파일 및 적용 함수:
+    api/cj/eflexs.py      — stock (→ cj_stock, cj_loisparcel_invoice)
+    api/coupang/advertising.py — adreport, campaign, adgroup, creative
+    api/coupang/wing.py   — product, option, rocket_option, rocket_inventory,
+                            rocket_settlement, rocket_settlement_download
+    api/ecount/api.py     — inventory, product
+    api/google/api.py     — campaign, adgroup, ad, asset, asset_view, insight
+    api/meta/api.py       — objects (campaign/adset/ad), insights
+    api/naver/main.py     — search, _search_tab, search_cafe, cafe_article,
+                            search_cafe_plus
+    api/naver/openapi.py  — rank_ad, rank_shop (→ naver_shop_rank/naver_shop_product),
+                            brand_price (→ naver_price_history/naver_product),
+                            brand_sales (aggregated_sales → naver_sales/naver_product),
+                            brand_pageview, product_catalog, bizdata
+    api/sabangnet/admin.py — order, dispatch, option, product, option(product),
+                             add_product, mapping, invoice, login
+    api/searchad/api.py   — keyword, master, daily_report, hourly_report,
+                            campaign_report, adgroup_report, ad_report, contract
+    api/searchad/gfa.py   — campaign, adset, creative, campaign_report,
+                            creative_report, bizreader
+    api/searchad/manage.py — adreport, rank_exposure (→ searchad_rank/searchad_product)
+    api/smartstore/api.py — order, order_status, product, option, bizdata
+    api/smartstore/brand.py — brand_price (→ naver_price_history), catalog,
+                              pageview (device/product/url), sales (→ naver_sales),
+                              invoice, login
+
+  부수적 발견 및 수정:
+    - naver/openapi.py: rank_shop 테이블명 오기 수정
+      (naver_rank_shop → naver_shop_rank, naver_product → naver_shop_product)
+    - searchad/manage.py: rank_exposure 테이블명 오기 수정
+      (naver_rank_ad → searchad_rank, naver_product → searchad_product)
+    - smartstore/brand.py: brand_price 테이블명 오기 수정
+      (naver_brand_price → naver_price_history)
+    - smartstore/brand.py: aggregated_sales 테이블명 오기 수정
+      (naver_brand_sales → naver_sales, naver_brand_product → naver_product)
+    - api/config.py: 설정 구조 관련 주석 추가
+
+2. Airflow DAG 스테일 참조 수정 (8개 파일)
+--------------------------------------------
+  발견 방법: grep "\"default\"" / grep "\"data\"" 패턴으로 전수 탐색.
+
+  수정 내용:
+    coupang_option.py:
+      {"default": "vendor"}       → {"table": "vendor"}
+      {"default": "rfm"}          → {"table": "rfm"}
+    coupang_campaign.py:
+      {"default": "coupang_creative"} → {"table": "coupang_creative"}
+    naver_main_search.py:
+      {"default": cafe_table}     → {"table": cafe_table}
+    meta_ads.py:
+      sources dict key "metrics"  → "insights"
+      테이블명 "meta_insight"      → "meta_insights"
+      (총 3개소 수정)
+    naver_product_catalog.py:
+      tables["data"]              → tables["naver_catalog_product"]
+    searchad_contract.py:
+      DuckDB 임시 테이블 "data"   → "searchad_contract_merged"
+      (SQL UNION ALL + COUNT 쿼리 5개소)
+      tables["data"]              → tables["searchad_contract"]
+    searchad_report.py:
+      searchad_group: tables["data"] → tables["searchad_report"]
+      gfa_group: merged="data"    → "searchad_report_gfa"
+      gfa_group: {"default": ...} → {"table": ...} 2개소
+      gfa_group: tables["data"]   → tables["searchad_report_gfa"]
+    cj_loisparcel_invoice.py:
+      source_table = "data"       → source_table = "cj_loisparcel_invoice"
+
+3. Airflow DAG 한글 주석 추가 (27개 파일 전체)
+-----------------------------------------------
+  Airflow 표준 doc_md (DAG 단위 Markdown 설명)를 전 DAG 파일에 추가.
+  추가 위치: DAG 생성자의 tags=[] 줄 직후.
+
+  각 파일별 doc_md 내용 (요약):
+    all_login.py            — 각 플랫폼 인증 쿠키 자동 갱신
+    cj_loisparcel_invoice.py — CJ 로이스파슬 운송장 데이터 수집
+    coupang_adreport.py     — 쿠팡 광고 성과 리포트(PA/NCA) 수집
+    coupang_campaign.py     — 쿠팡 광고 캠페인·광고그룹·크리에이티브 수집
+    coupang_login.py        — 쿠팡 쿠키 갱신 플레이스홀더 DAG
+    coupang_option.py       — 쿠팡 상품 옵션·로켓 옵션 수집
+    coupang_rocket_sales.py — 쿠팡 로켓배송 정산 데이터 수집
+    ecount_stock_report.py  — 재고 현황 집계 후 Slack 리포트 전송
+    google_ads.py           — Google Ads 캠페인·소재·인사이트 수집
+    meta_ads.py             — Meta 광고 목록 및 인사이트 수집
+    naver_brand_pageview.py — 브랜드스토어 페이지뷰 수집
+    naver_brand_price.py    — 브랜드스토어 가격 이력 수집
+    naver_brand_sales.py    — 브랜드스토어 매출 데이터 수집
+    naver_cafe_search.py    — 카페 탭 검색 결과 수집 및 Slack 리포트
+    naver_main_search.py    — 통합검색 결과 수집 및 Slack 리포트
+    naver_product_catalog.py — 브랜드스토어 상품-카탈로그 매핑 수집
+    naver_rank_ad.py        — 검색광고 노출 순위 시간대별 수집
+    naver_rank_shop.py      — 쇼핑 검색 순위 시간대별 수집
+    sabangnet_invoice.py    — 사방넷 운송장 번호 수집
+    sabangnet_order.py      — 사방넷 주문 데이터 수집
+    sabangnet_product.py    — 사방넷 상품·옵션·SKU 매핑 수집
+    searchad_contract.py    — 검색광고 계약 정보 수집
+    searchad_master.py      — 검색광고 API/GFA 마스터 리포트 수집
+    searchad_report.py      — 검색광고 일별 리포트 / GFA 리포트 수집
+    smartstore_bizdata.py   — 스마트스토어 마케팅 채널 유입 수집
+    smartstore_invoice.py   — 스마트스토어 배송 운송장 수집
+    smartstore_order.py     — 스마트스토어 주문 데이터 수집
+    smartstore_product.py   — 스마트스토어 상품·옵션 목록 수집
+
+  각 ETL 태스크 함수(@task 데코레이터 적용 함수)에도 1줄 한글 docstring 추가:
+    총 27개 파일 × 1~5개 태스크 = 약 60개 함수 docstring 추가.
+
+    파일별 태스크 함수 목록:
+      all_login.py           — login_partner_center, login_naver
+      cj_loisparcel_invoice.py — etl_loisparcel_invoice
+      coupang_adreport.py    — etl_coupang_adreport
+      coupang_campaign.py    — etl_coupang_campaign
+      coupang_option.py      — etl_coupang_option
+      coupang_rocket_sales.py — etl_coupang_rocket_sales
+      ecount_stock_report.py — etl_eflexs_stock, etl_coupang_inventory,
+                               etl_ecount_inventory, etl_ecount_product,
+                               send_stock_report
+      google_ads.py          — etl_google_objects, etl_google_insight
+      meta_ads.py            — etl_meta_objects, etl_meta_insights
+      naver_brand_pageview.py — etl_naver_device_pageview, etl_naver_product_pageview
+      naver_brand_price.py   — etl_naver_brand_price
+      naver_brand_sales.py   — etl_naver_brand_sales
+      naver_cafe_search.py   — etl_naver_cafe_search
+      naver_main_search.py   — etl_naver_main_search
+      naver_product_catalog.py — etl_product_catalog
+      naver_rank_ad.py       — etl_naver_rank_ad
+      naver_rank_shop.py     — etl_naver_rank_shop
+      sabangnet_invoice.py   — etl_sabangnet_invoice
+      sabangnet_order.py     — etl_sabangnet_order, etl_sabangnet_dispatch,
+                               etl_sabangnet_option
+      sabangnet_product.py   — etl_sabangnet_product, etl_sabangnet_option,
+                               etl_sabangnet_add_product, etl_sabangnet_mapping
+      searchad_contract.py   — etl_searchad_contract
+      searchad_master.py     — etl_searchad_master, etl_gfa_master
+      searchad_report.py     — etl_searchad_report, etl_gfa_report
+      smartstore_bizdata.py  — etl_smartstore_bizdata
+      smartstore_invoice.py  — etl_smartstore_invoice
+      smartstore_order.py    — etl_smartstore_order
+      smartstore_product.py  — etl_smartstore_product
+
+변경 파일 (전체)
+----------------
+  airflow/dags/*.py          — 27개 파일 전체 수정
+  airflow/plugins/variables.py — 관련 주석 보완
+  src/linkmerce/api/cj/eflexs.py
+  src/linkmerce/api/coupang/advertising.py
+  src/linkmerce/api/coupang/wing.py
+  src/linkmerce/api/ecount/api.py
+  src/linkmerce/api/google/api.py
+  src/linkmerce/api/meta/api.py
+  src/linkmerce/api/naver/main.py
+  src/linkmerce/api/naver/openapi.py
+  src/linkmerce/api/sabangnet/admin.py
+  src/linkmerce/api/searchad/api.py
+  src/linkmerce/api/searchad/gfa.py
+  src/linkmerce/api/searchad/manage.py
+  src/linkmerce/api/smartstore/api.py
+  src/linkmerce/api/smartstore/brand.py
+  src/linkmerce/api/config.py
+  총 43개 파일, +408줄 / -146줄
+
+결정 사항
+---------
+  1. Airflow doc_md + @task docstring을 표준 주석 방식으로 확정.
+  2. read_variables / read_credentials 태스크는 self-explanatory → docstring 제외.
+  3. API 함수 docstring은 BigQuery 테이블명/컬럼 범위 위주로 기술.
+  4. stale 테이블 참조(key="default", 테이블명="data")는 발견 즉시 수정.
+  5. API 파일에서 발견된 테이블명 오기 4건도 docstring 작성 과정에서 함께 수정.
+
+[2026-03-28] Q24: API 함수 일괄 마이그레이션 — run_with_duckdb → prepare_duckdb_extract
+================================================================================
+
+배경
+----
+  Q23에서 docstring 작성 과정 중 common/api.py의 run_with_duckdb, update_options,
+  run 함수를 삭제하고, 대체 함수 prepare_duckdb_extract + with_duckdb_connection
+  데코레이터(api/common.py)로 전환하기로 결정. naver/openapi.py와 cj/eflexs.py는
+  사용자가 선행 변환 완료. 나머지 전체 API 모듈을 일괄 변환하는 작업.
+
+변환 패턴 (old → new)
+---------------------
+  1. `from linkmerce.common.api import run_with_duckdb, update_options`
+     → `from linkmerce.api.common import prepare_duckdb_extract, with_duckdb_connection`
+
+  2. `get_module()` 헬퍼 삭제, 주석 처리된 import 문을 실제 import로 전환
+     (extractor는 원래 이름, transformer는 `as T` 별칭)
+
+  3. 단일 테이블 함수:
+     `@with_duckdb_connection(table="테이블명")` 데코레이터 추가
+     `Extractor(**prepare_duckdb_extract(T, connection, ...)).run(args, how_to_run=...)`
+
+  4. 다중 테이블 함수:
+     `@with_duckdb_connection(tables={...})` 데코레이터 추가
+
+  5. 함수 서명 변경:
+     - `tables` 매개변수 제거 (데코레이터로 이동)
+     - `how` → `how_to_run` 이름 변경
+     - `.extract()` → `.run()` 메서드 변경
+     - `*` 키워드 전용 구분자 추가 (connection, how_to_run 등은 keyword-only)
+
+  6. DuckDB 미사용 함수 (request, summary 등):
+     직접 import + merge()로 extract_options 병합
+
+  7. 다단계(multi-step) 함수:
+     - 내부 호출을 keyword argument로 변환 (positional splat 제거)
+     - 가능한 경우 prepare_duckdb_extract로 변환
+     - 복잡한 경우 기존 로직 유지하되 삭제된 함수 참조만 교체
+
+  8. 내부 디스패치 헬퍼 (_ad_stream, _ad_objects, _master_report, _search_tab) 제거:
+     각 개별 함수에 인라인하고 자체 데코레이터 적용
+
+변환된 파일 (12개)
+------------------
+  src/linkmerce/api/coupang/advertising.py
+    - product_adreport, new_customer_adreport: 데코레이터 + prepare 패턴
+    - adreport: 디스패치 함수, 내부 호출을 keyword args로 전환
+
+  src/linkmerce/api/ecount/api.py
+    - request, test: merge() 직접 사용
+    - product, inventory: 데코레이터 + prepare 패턴
+
+  src/linkmerce/api/google/api.py
+    - _ad_stream 헬퍼 제거, campaign/adgroup/ad 각각에 인라인
+    - insight, asset, asset_view: 데코레이터 적용
+    - _get_variables, _get_options 헬퍼 유지
+
+  src/linkmerce/api/meta/api.py
+    - _ad_objects 헬퍼 제거, campaigns/adsets/ads 각각에 인라인
+    - insights: tables=dict 다중 테이블 데코레이터
+
+  src/linkmerce/api/naver/main.py
+    - _search_tab 헬퍼 제거, search_cafe에 인라인
+    - search: tables=dict 다중 테이블 데코레이터
+    - search_cafe_plus: 다단계 유지, keyword args 전환
+
+  src/linkmerce/api/sabangnet/admin.py
+    - 8개 단순 함수 데코레이터 적용
+    - option_mapping: 다단계 유지, keyword args 전환
+    - add_product: 2단계 모두 prepare_duckdb_extract 직접 사용
+
+  src/linkmerce/api/searchad/api.py
+    - _master_report 헬퍼 제거, campaign/adgroup/ad 인라인
+    - contract: 디스패치 유지, keyword args 전환
+    - time_contract, brand_new_contract, keyword: 데코레이터 적용
+
+  src/linkmerce/api/searchad/gfa.py
+    - _master_report 헬퍼 제거, campaign/adset/creative 인라인
+    - campaign_report, creative_report: 데코레이터 적용
+
+  src/linkmerce/api/searchad/manage.py
+    - adreport: DuckDB 미사용, 직접 import + 수동 transformer 와이어링
+    - daily_report, diagnose_exposure, rank_exposure: 데코레이터 적용
+
+  src/linkmerce/api/smartstore/api.py
+    - request: merge() 직접 사용 (update_options 대체)
+    - product, option, order, order_status, marketing_channel: 데코레이터 적용
+    - product_option: 다단계 유지, keyword args 전환
+    - aggregated_order_status: 다단계, prepare_duckdb_extract 직접 사용
+
+  src/linkmerce/api/smartstore/brand.py
+    - 8개 단순 함수 데코레이터 적용 (brand_catalog~aggregated_sales)
+    - page_view: 동적 extractor/transformer → if/elif/else 분기 + 수동 DuckDB 관리
+    - 헬퍼 함수명 _each_page_options 등으로 private 전환
+
+  src/linkmerce/api/coupang/wing.py
+    - product_detail, product_download, rocket_inventory: 데코레이터 적용
+    - rocket_settlement, rocket_settlement_download: 데코레이터 적용
+    - product_option, rocket_option: 다단계 유지, prepare_duckdb_extract 직접 사용
+    - summary: DuckDB 미사용, 직접 import + merge()
+
+결정 사항
+---------
+  1. common/api.py의 run_with_duckdb, update_options, run 함수 완전 삭제 확정.
+  2. 모든 API 함수에서 `tables` 매개변수 제거 — 테이블명은 데코레이터에 선언.
+  3. 다단계 함수의 내부 호출은 keyword arguments로 통일.
+  4. 동적 extractor/transformer 선택이 필요한 경우 (page_view 등) if/else 분기 사용.
+  5. DuckDB 미사용 함수는 merge() + 직접 import 패턴으로 통일.
+
+
+[2026-07-XX] Q25: 프로젝트 전체 한글 주석(Docstring) 추가
+================================================================================
+
+배경
+----
+  linkmerce 프로젝트 내 모든 클래스, 함수에 한글 주석을 추가하라는 요청.
+  코드 변경 없이 docstring만 추가. transform.py 모듈은 이미 주석이 있어 제외.
+
+작업 범위
+--------
+  4단계로 나누어 진행:
+    Phase 1: common/ 모듈 (5개 파일)
+    Phase 2: core/ 모듈 (38개 파일 — common.py 14개 + extract.py 24개)
+    Phase 3: api/ 모듈 (17개 파일)
+    Phase 4: extensions/ + utils/ 모듈 (11개 파일)
+
+Phase 1 — common/ (5개 파일, ~30개 클래스/함수)
+-----------------------------------------------
+  common/exceptions.py
+    - ExtractError, TransformError, LoginError, MissingCredentialsError
+
+  common/models.py
+    - Models 클래스 + read_yaml, read_json, read_sql 함수
+
+  common/extract.py
+    - Client, BaseSessionClient, RequestSessionClient, AiohttpSessionClient,
+      SessionClient, TaskClient (7개 Task 팩토리 메서드), Extractor, LoginHandler
+
+  common/tasks.py
+    - Task, Request, RunLoop, RequestLoop, ForEach, RequestEach,
+      RequestEachLoop, PaginateAll, RequestEachPages, CursorAll, RequestEachCursor
+
+  common/load.py
+    - concat_sql, where, csv_to_json 등 유틸리티 함수
+    - Connection, DuckDBConnection (execute, fetch_all, read, create_table 등)
+    - DuckDBIterator
+
+Phase 2 — core/ (38개 파일, 84+ 클래스)
+----------------------------------------
+  core/*/common.py (14개 파일)
+    - SearchAdManager, NaverSearchAdApi, SearchAdGFA, SabangnetAdmin,
+      EcountApi, MetaApi, GoogleApi, CoupangWing, CoupangAds, CjEflexs,
+      SmartstoreApi, PartnerCenter, SmartstoreLogin, NaverOpenApi 등
+
+  core/*/extract.py (24개 파일, 84+ Extractor 클래스)
+    - searchad: 13 + 7 + 2 + 1 + 1 + 2 = 26개 클래스
+    - naver: 3 + 8 = 11개 클래스
+    - coupang: 4 + 3 + 5 = 12개 클래스
+    - meta: 7개, google: 7개, cj: 1개
+    - sabangnet: 6 + 5 = 11개, smartstore: 2 + 1 + 2 + 3 + 5 + 3 = 16개
+    - ecount: 2개
+
+  Extractor docstring 규칙: 어떤 파라미터를 받고 어떤 Task를 사용하는지 기술
+
+Phase 3 — api/ (17개 파일, ~65개 함수)
+--------------------------------------
+  api/common.py: fetch_all_duckdb_tables
+  api/config.py: 16개 함수 (exists, read, parse_credentials 등)
+  api/searchad/manage.py: _get_options, has_cookies, has_permission, whoami, adreport
+  api/searchad/api.py: _get_variables
+  api/searchad/gfa.py: _get_options, logged_in, whoami
+  api/sabangnet/admin.py: _get_paginate_options, _get_request_options, login
+  api/smartstore/brand.py: login, _each_page_options, _each_request_options 등
+  api/smartstore/api.py: _get_order_options, request
+  api/smartstore/center.py: has_accounts, login
+  api/ecount/api.py: request, test
+  api/meta/api.py: _get_variables, _get_options
+  api/google/api.py: _get_variables, _get_options
+  api/naver/main.py: _get_options
+  api/naver/openapi.py: _search_config
+  api/coupang/wing.py: summary
+
+Phase 4 — extensions/ + utils/ (11개 파일, ~180+ 함수/클래스)
+-------------------------------------------------------------
+  extensions/bigquery.py
+    - ServiceAccount, PartitionOptions, BigQueryClient (40+ 메서드)
+    - CRUD, Load Job, MERGE, DuckDB 연동, SQL Expression 메서드
+
+  extensions/gsheets.py
+    - ServiceAccount, worksheet2py, py2worksheet
+    - WorksheetClient (조회, 업데이트, 덮어쓰기, UPSERT)
+    - upsert_records
+
+  utils/cast.py: safe_float, safe_int
+  utils/date.py: strptime, safe_strptime, strpdate, safe_strpdate, now, today,
+    trunc_datetime, get_timezone, set_timezone, YearMonth 클래스,
+    date_range, date_pairs, date_split, _generate_date_range, _generate_range
+
+  utils/excel.py (56개 함수)
+    - TypedDict: StyleConfig, RuleConfig, ConditionalConfig, MergeConfig,
+      ColumnFilters, FilterConfig
+    - 변환: csv2json, excel2json, csv2excel, json2excel, json2csv
+    - 스타일: style_sheet, style_cell, _yellow_headers
+    - 컬럼/범위: get_column_index, get_column_letter, colstr, get_ranges,
+      is_range_string, to_valid_excel_range, split_range_string
+    - 필터: _filter_column, _value_filter, _top10_filter, _custom_filter,
+      _dynamic_filter, _color_filter, _icon_filter, filter_values 등
+    - 조건부 서식: _conditional_rule, _formula_rule
+    - 셀 병합: find_merge_ranges, get_largest_rectangle
+    - XML 필터: apply_filters, _apply_filter
+
+  utils/graphql.py
+    - GraphQLObject, GraphQLVariables, GraphQLFields, GraphQLSelection,
+      GraphQLFragment, GraphQLOperation, _add_brackets, _replace
+
+  utils/headers.py
+    - build_headers, add_headers, get_hostname, get_default_language,
+      get_content_type, get_default_client, get_current_platform,
+      get_fetch_metadata, get_user_agent, zip_headers
+
+  utils/jinja.py: render_string
+  utils/progress.py: import_tqdm, import_tqdm_asyncio, gather, gather_async,
+    _get_seconds, expand, expand_async, _expand_kwargs
+  utils/regex.py: regexp_match, regexp_extract, regexp_groups,
+    regexp_replace, regexp_replace_map
+
+  이미 한글 docstring 완비: utils/nested.py, utils/parse.py (변경 없음)
+
+Docstring 스타일 규칙
+---------------------
+  1. 한국어, 간결한 1~2문장
+  2. 클래스: 목적 + 핵심 정보 (Task 유형, API 문서 URL 등)
+  3. 메서드/함수: 단문 1줄 설명
+  4. Extractor: 파라미터와 사용 Task 기술
+  5. 기존 영어 docstring이 있는 경우 한국어로 교체/보완
+
+총 작업량
+--------
+  - 대상 파일: ~71개
+  - 대상 클래스: ~130+
+  - 대상 함수/메서드: ~310+
+  - 코드 변경: 없음 (docstring만 추가)
+
+
+[2026-07-XX] Q26: Extractor 메서드 한글 주석 추가 (Phase 3)
+================================================================================
+
+배경
+----
+  Q25에서 클래스/함수 수준의 docstring을 추가한 후,
+  Extractor 메서드에는 주석이 없어 한줄 docstring을 추가하는 추가 작업.
+  파일 하나씩 세세하게 읽으며 Extractor, Transformer, API를 세트로 진행.
+  코드 동작은 절대 수정하지 않음.
+
+작업 규칙
+---------
+  1. 파일을 완전히 읽은 후 편집 (read → edit)
+  2. Extractor, Transformer, API를 세트로 진행
+  3. 한줄 한국어 docstring: """설명."""
+  4. 해당 플랫폼에서 정의한 용어를 그대로 사용
+  5. 코드 동작 수정 금지
+
+Phase 3 — Extractor 메서드 docstring (24개 extract.py)
+------------------------------------------------------
+  coupang/wing/product/extract.py
+    - default_options, extract, count_total, build_request_params 등
+
+  coupang/wing/settlement/extract.py
+    - default_options, extract, build_request_params 등
+
+  coupang/advertising/adreport/extract.py
+    - extract, build_request_params, set_request_body 등
+
+  smartstore/api/order/extract.py
+    - default_options, extract, count_total, build_request_json 등
+
+  smartstore/api/product/extract.py
+    - default_options, extract, build_request_json 등
+
+  smartstore/api/bizdata/extract.py
+    - default_options, extract, build_request_params
+
+  smartstore/brand/catalog/extract.py (13 docstrings)
+    - _VPartnerCenter: default_options, count_total, split_map_kwargs,
+      set_request_headers, select_sort_type
+    - BrandCatalog: extract, extract_async, build_request_json
+    - BrandProduct: extract, extract_async, split_map_kwargs, build_request_json
+
+  smartstore/brand/sales/extract.py (10 docstrings)
+    - _SalesExtractor: default_options, extract, extract_async,
+      build_request_json, set_request_body, set_request_headers
+    - StoreSales/CategorySales/ProductSales: fields
+
+  smartstore/brand/pageview/extract.py (11 docstrings)
+    - _PageView: default_options, is_valid_response, count_total,
+      build_request_json, set_request_body, set_request_headers, fields
+    - PageViewByDevice/PageViewByUrl: extract, extract_async
+
+  naver/openapi/search/extract.py (14 docstrings)
+    - _SearchExtractor: url, default_options, extract, extract_async,
+      _extract_backend, _extract_async_backend, build_request_params,
+      is_valid_response
+    - KiNSearch/ImageSearch/ShoppingSearch: extract, extract_async
+
+  naver/main/search/extract.py (17 docstrings)
+    - Search: default_options+extract, search, save_search_query,
+      build_request_params, ackey
+    - SearchTab: default_options+extract, build_request_params,
+      set_request_headers, tab_type
+    - CafeArticle: default_options+extract, build_request_message,
+      build_request_headers, set_request_headers, get_ids_from_url,
+      make_article_url, make_article_params, make_referral_url
+
+  searchad/api/adreport/extract.py (8 docstrings)
+    - _ReportsDownload: extract, _extract_backend, create_report,
+      get_report, download_report, delete_report, request
+    - Ad: extract
+
+  searchad/api/keyword/extract.py (4 docstrings)
+    - default_options, extract, chunk_keywords, build_request_params
+
+  searchad/api/contract/extract.py (2 docstrings)
+    - TimeContract.extract, BrandNewContract.extract
+
+  searchad/manage/adreport/extract.py (10 docstrings)
+    - AdvancedReport: extract, is_valid_response, build_request_data,
+      build_request_params, build_request_headers, set_request_headers
+    - DailyReport: extract, attributes, fields
+
+  searchad/manage/exposure/extract.py (5 docstrings)
+    - default_options, extract, build_request_params,
+      build_request_headers, set_request_headers
+
+  searchad/gfa/adreport/extract.py (31 docstrings)
+    - _MasterReport: default_options, url, count_total, build_request_headers
+    - Campaign: extract, build_request_params, campaign_objective
+    - AdSet: extract, build_request_params, status, budget_type,
+      bid_type, placement_group
+    - Creative: extract, build_request_params, status, creative_type
+    - PerformanceReport: default_options, url, extract, download,
+      request_report, wait_reports, download_excel, delete_report,
+      query_to_filename, build_download_json, build_request_headers,
+      referer, db_columns, ad_unit
+    - CampaignReport: extract, db_columns
+    - CreativeReport: extract, db_columns
+
+  google/api/ads/extract.py (10 docstrings)
+    - GoogleAds: url, extract, set_service_account, build_request_json,
+      build_request_headers, where, fetch_date_range
+    - Insight: default_options, extract
+    - Asset: extract
+
+  meta/api/ads/extract.py (9 docstrings)
+    - MetaAds: default_options, _extract_backend, request_json_by_account,
+      list_accounts, time_range
+    - _AdObjects: extract, build_request_params
+    - Insights: extract, build_request_params
+
+  sabangnet/admin/order/extract.py (19 docstrings)
+    - Order: default_options, extract, count_total, build_request_json,
+      date_type, sort_type, order_status_div, order_status
+    - OrderDownload: default_options, extract, get_file_name, build_request_json
+    - OrderStatus: default_options, extract
+    - ProductMapping: default_options, extract, count_total, build_request_json
+    - SkuMapping: default_options, extract, build_request_json
+
+  sabangnet/admin/product/extract.py (21 docstrings)
+    - Product: default_options, extract, count_total, build_request_json,
+      date_type, sort_type, product_status, search_condition
+    - Option: default_options, extract, build_request_json, option_type
+    - OptionDownload: extract, get_file_name, build_request_json,
+      date_type, sort_type, product_status
+    - AddProductGroup: default_options, extract, count_total, build_request_json
+    - AddProduct: default_options, extract, build_request_json
+
+  cj/eflexs/stock/extract.py (3 docstrings)
+    - default_options, extract, set_date, build_request_data
+
+  ecount/api/inventory/extract.py (2 docstrings)
+    - extract, build_request_json
+
+  ecount/api/product/extract.py (2 docstrings)
+    - extract, build_request_json
+
+총 작업량
+---------
+  - 대상 파일: 24개 extract.py
+  - 추가 docstring: ~190개
+  - 코드 변경: 없음 (docstring만 추가)
+  - 구문 검증: ast.parse() 전체 24개 파일 통과
