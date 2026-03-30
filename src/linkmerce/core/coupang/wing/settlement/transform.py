@@ -81,9 +81,11 @@ class RocketShippingParser(ExcelTransformer):
 
 
 class RocketSettlementDownload(DuckDBTransformer):
-    """쿠팡 로켓 정산 현황 다운로드 결과를 `coupang_rocket_settlement` 테이블에 적재하는 클래스.
+    """쿠팡 로켓 정산 현황 다운로드 결과를 `report_type`에 따라 각각의 테이블에 적재하는 클래스.
 
-    `report_type`에 따라 적절한 파서를 선택한다."""
+    테이블 키 | 테이블명 | 설명
+    - `sales` | `coupang_rocket_sales` | 쿠팡 판매 수수료 리포트
+    - `shipping` | `coupang_rocket_shipping` | 쿠팡 입출고비/배송비 리포트"""
 
     extractor = "RocketSettlementDownload"
     queries = ["create", "bulk_insert_sales", "bulk_insert_shipping"]

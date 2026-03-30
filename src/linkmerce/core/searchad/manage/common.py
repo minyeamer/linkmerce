@@ -57,7 +57,7 @@ class SearchAdManager(Extractor):
         try:
             self.set_customer_id(**configs)
         except TypeError:
-            raise TypeError("Naver SearchAd requires variables for customer_id to authenticate.")
+            raise TypeError("Naver SearchAd requires configs for customer_id to authenticate.")
 
     def set_customer_id(self, customer_id: int | str, **configs):
         super().set_configs(dict(customer_id=customer_id, **configs))

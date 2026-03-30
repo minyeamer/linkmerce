@@ -95,7 +95,10 @@ class _SalesExtractor(PartnerCenter):
                     variables = ["queryRequest"],
                     fields = self.fields,
                 )
-            ).generate_body(query_options = {"selection": {"variables": {"linebreak": False}, "fields": {"linebreak": True}}, "suffix": '\n'}))
+            ).generate_body(query_options = {
+                "selection": {"variables": {"linebreak": False}, "fields": {"linebreak": True}},
+                "suffix": '\n',
+            }))
 
     @PartnerCenter.cookies_required
     def set_request_headers(self, **kwargs):

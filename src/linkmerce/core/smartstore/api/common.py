@@ -23,7 +23,7 @@ class SmartstoreApi(Extractor):
         try:
             self.set_api_key(**configs)
         except TypeError:
-            raise TypeError("Naver Commerce API requires variables for client_id and client_secret.")
+            raise TypeError("Naver Commerce API requires configs for client_id and client_secret.")
 
     def set_api_key(self, client_id: str, client_secret: str, **configs):
         super().set_configs(dict(client_id=client_id, client_secret=client_secret, **configs))

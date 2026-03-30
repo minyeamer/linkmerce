@@ -1,7 +1,7 @@
 """데이터 변환(Transform) 테스트: `DuckDBTransformer` 동작 검증
 - 실행: `pytest src/tests/test_transform.py -m transform -v -s`
     - 특정 도메인의 테스트만 실행 시 마크를 추가한다: `-m "transform and domain"`
-- 결과: `src/tests/results/` 하위의 모듈 경로와 대응되는 위치에 `parse()` 및 `bulk_insert()` 결과를 저장한다.
+- 결과: `src/tests/results/` 하위의 모듈 경로와 대응되는 위치에 `parse` 및 `bulk_insert` 실행 결과를 저장한다.
 """
 from __future__ import annotations
 
@@ -287,7 +287,7 @@ class TestMetaAds:
 ###################################################################
 
 class TestNaverSearch:
-    """네이버 메인 검색 데이터 변환 테스트.
+    """네이버 통합검색 데이터 변환 테스트.
     - naver.main.search.Search
     - naver.main.search.CafeTab
     - naver.main.search.CafeArticle"""

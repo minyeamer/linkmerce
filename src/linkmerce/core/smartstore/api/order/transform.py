@@ -21,7 +21,13 @@ class OrderParser(JsonTransformer):
 
 
 class Order(DuckDBTransformer):
-    """스마트스토어 조건형 상품 주문 상세 내역 조회 API 응답 데이터를 각각의 테이블에 변환 및 적재하는 클래스."""
+    """스마트스토어 조건형 상품 주문 상세 내역 조회 API 응답 데이터를 각각의 테이블에 변환 및 적재하는 클래스.
+
+    테이블 키 | 테이블명 | 설명
+    - `order` | `smartstore_order` | 주문 정보
+    - `product_order` | `smartstore_product_order` | 상품 주문 정보
+    - `delivery` | `smartstore_delivery` | 주문 배송 정보
+    - `option` | `smartstore_option` | 주문 옵션 정보"""
 
     extractor = "Order"
     tables = {table: f"smartstore_{table}" for table in ["order", "product_order", "delivery", "option"]}
@@ -51,7 +57,7 @@ class Order(DuckDBTransformer):
 
 
 class OrderTime(Order):
-    """스마트스토어 조건형 상품 주문 상세 내역 조회 API 응답 데이터로부터
+    """스마트스토어 조건형 상품 주문 상세 내역 조회 API 응답 데이터로부터   
     주문 상태에 따른 변경 날짜를 파싱해 `smartstore_order_time` 테이블에 적재하는 클래스."""
 
     extractor = "Order"

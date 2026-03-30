@@ -27,7 +27,7 @@ class GoogleApi(Extractor):
         try:
             self.set_service_account(**configs)
         except TypeError:
-            raise TypeError("Google API requires variables for service_account and scope.")
+            raise TypeError("Google API requires configs for service_account and scope.")
 
     def set_service_account(
             self,

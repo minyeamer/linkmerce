@@ -313,7 +313,7 @@ class Asset(GoogleAds):
 
 
 class AssetView(Insight):
-    """구글 광고 자산 데이터를 조회하는 클래스.
+    """구글 광고 소재-애셋 관계를 조회하는 클래스.
     - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad_asset_view"""
 
     table = "ad_group_ad_asset_view"

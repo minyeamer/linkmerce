@@ -26,7 +26,7 @@ class EcountApi(Extractor):
         try:
             self.set_api_key(**configs)
         except TypeError:
-            raise TypeError("Ecount Open API requires variables for com_code, userid and api_key.")
+            raise TypeError("Ecount Open API requires configs for com_code, userid and api_key.")
 
     def set_api_key(self, com_code: int | str, userid: str, api_key: str, **configs):
         super().set_configs(dict(com_code=com_code, userid=userid, api_key=api_key, **configs))

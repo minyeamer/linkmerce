@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 def has_accounts(session: Session, cookies: str = str()) -> bool:
-    """스마트스토어 사용자 계정 유효 여부를 확인한다."""
+    """스마트스토어 로그인 쿠키가 유효한지 검증한다."""
     from linkmerce.utils.headers import build_headers
     origin = "https://accounts.commerce.naver.com"
     url = f"{origin}/graphql?query=userInfo"
@@ -19,7 +19,7 @@ def has_accounts(session: Session, cookies: str = str()) -> bool:
 
 
 def has_cookies(session: Session, cookies: str = str()) -> bool:
-        """스마트스토어 쿠키 유효 여부를 확인한다."""
+        """네이버 로그인 쿠키가 유효한지 검증한다."""
         from linkmerce.utils.headers import build_headers
         origin = "https://accounts.commerce.naver.com"
         url = f"{origin}/graphql?query=nidAuth"
@@ -33,9 +33,7 @@ def has_cookies(session: Session, cookies: str = str()) -> bool:
 ###################################################################
 
 class SmartstoreLogin(LoginHandler):
-    """스마트스토어 판매자 센터 로그인을 수행하여 쿠키를 발급하는 클래스.
-
-    네이버 ID/비밀번호 기반 로그인, OAuth 인증, 채널 선택 등의 로그인 과정을 처리한다."""
+    """스마트스토어센터 로그인을 수행하여 쿠키를 발급하는 클래스."""
     main_url = "https://sell.smartstore.naver.com"
     login_url = "https://accounts.commerce.naver.com"
 
@@ -48,6 +46,7 @@ class SmartstoreLogin(LoginHandler):
             cookies: str | None = None,
             **kwargs
         ) -> dict:
+        """`userid`, `passwd`가 있다면 판매자 로그인을, `cookies`가 있다면 네이버 로그인을 진행한다."""
         if userid and passwd:
             self.seller_login(userid, passwd)
         else:
@@ -67,6 +66,7 @@ class SmartstoreLogin(LoginHandler):
     ########################### Seller Login ##########################
 
     def seller_login(self, userid: str, passwd: str):
+        """판매자 아이디로 로그인한다."""
 
         def build_request_body(userid: str, passwd: str) -> dict:
             from linkmerce.utils.graphql import GraphQLOperation, GraphQLSelection
@@ -105,6 +105,7 @@ class SmartstoreLogin(LoginHandler):
     ########################### OAuth Login ###########################
 
     def oauth_login(self, cookies: str) -> str:
+        """네이버 쿠키로 OAUTH 인증한다."""
         valid_url = self.validate_cookies(cookies)
         # valid_url = "https://sell.smartstore.naver.com/#/login-callback?returnUrl=https%3A%2F%2Fsell.smartstore.naver.com%2F%23%2Fhome%2Fdashboard"
         auth_url = self.login_begin(valid_url)
@@ -192,12 +193,13 @@ class SmartstoreLogin(LoginHandler):
 
         url = self.login_url + "/graphql?query=snsLoginCallback"
         headers = self.build_request_headers(url, contents={"type": "json"}, origin=self.login_url, referer=callback_url)
-        with self.request("POST", url, json=build_request_body(**configs), headers=headers) as response:
+        with self.request("POST", url, json=build_request_body(**variables), headers=headers) as response:
             return response.json()["data"]["snsCallback"]["nextUrl"]
 
     ######################### Two Factor Login ########################
 
     def two_factor_login(self) -> dict:
+        """2단계 인증 중 발생하는 쿠키를 받는다."""
         url = self.main_url + "/api/login"
         body = {"url": (self.main_url + "/#/home/dashboard")}
         with self.request("POST", url, data=body, params=body, headers=self.get_login_header()) as response:
@@ -218,6 +220,7 @@ class SmartstoreLogin(LoginHandler):
     ########################## Switch Channel #########################
 
     def switch_channel(self, channel_seq: int | str) -> dict:
+        """현재 활성화된 채널을 조회하고, 주어진 `channel_seq`와 다르다면 교체한다."""
         channel_info = self.select_channel(channel_seq)
         login_info = self.set_channel(**channel_info)
         url = login_info["redirectUrl"]
@@ -226,16 +229,19 @@ class SmartstoreLogin(LoginHandler):
         return login_info
 
     def select_channel(self, channel_seq: int | str) -> dict:
+        """권한이 있는 채널 목록에서 `channel_seq`에 해당하는 채널 정보를 반환한다."""
         for channel in self.fetch_channels():
             if channel["channelNo"] == int(channel_seq):
                 return channel
 
     def fetch_channels(self) -> list[dict]:
+        """권한이 있는 채널 목록을 조회한다."""
         url = self.main_url + "/api/login/channels"
         with self.request("GET", url, headers=self.get_channel_header()) as response:
             return response.json()
 
     def set_channel(self, channelNo: int, roleNo: int, **kwargs) -> dict:
+        """주어진 채널 정보에 해당하는 채널로 교체한다."""
         from urllib.parse import quote_plus
         url = self.main_url + "/api/login/change-channel"
         body = {"channelNo": channelNo, "roleNo": roleNo, "url": url}

@@ -286,9 +286,9 @@ class TransformerHarness:
     """`DuckDBTransformer`의 테스트 실행을 보조하는 하네스 클래스.
 
     원본 `DuckDBTransformer` 객체를 래핑하여 다음과 같은 편의 기능을 제공한다.
-    1. Extractor 결과 데이터(`extract.json`)를 자동으로 탐색 및 로드 (`load_extract()`)
-    2. `parse()` 실행 결과를 파일로 자동 저장 (`dump_result()`)
-    3. `bulk_insert()` 실행 후 DB 테이블 내용을 파일로 자동 저장 (`dump_tables()`)
+    1. Extractor 결과 데이터(`extract.json`)를 자동으로 탐색 및 로드 (`load_extract`)
+    2. `parse` 실행 결과를 파일로 자동 저장 (`dump_result`)
+    3. `bulk_insert` 실행 후 DB 테이블 내용을 파일로 자동 저장 (`dump_tables`)
     """
 
     def __init__(self, transformer: DuckDBTransformer):
@@ -334,7 +334,7 @@ class TransformerHarness:
         return conn
 
     def dump_result(self, result: JsonObject, parser: str | type | dict | None = None, index: str | None = None):
-        """`parse()` 결과를 하위 경로에 JSON 파일로 저장한다."""
+        """`parse` 결과를 하위 경로에 JSON 파일로 저장한다."""
         parser = parser if parser is not None else self._transformer.parser
         if isinstance(parser, dict) and isinstance(result, dict):
             for table_key, data in result.items():
@@ -344,7 +344,7 @@ class TransformerHarness:
             _save_file(result, self.transformer_dir / parser / f"transform{_map_index(index)}.json")
 
     def dump_tables(self, index: str | None = None):
-        """`bulk_insert()` 적재 후 각 테이블의 전체 행을 JSON 파일로 저장한다."""
+        """`bulk_insert` 적재 후 각 테이블의 전체 행을 JSON 파일로 저장한다."""
         for table_key, table_name in self._transformer.tables.items():
             rows = self._transformer.conn.fetch_all_to_json(query=f"SELECT * FROM {table_name}")
             _save_file(rows, self.transformer_dir / f"{table_key}{_map_index(index)}.json")

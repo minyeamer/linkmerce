@@ -60,7 +60,7 @@ class OptionParser(ExcelTransformer):
 
 
 class OptionDownload(DuckDBTransformer):
-    """사방넷 옵션 다운로드 결과를 `sabangnet_option_download` 테이블에 적재하는 클래스."""
+    """사방넷 단품 대량 수정 메뉴의 다운로드 결과를 `sabangnet_option_download` 테이블에 적재하는 클래스."""
 
     extractor = "OptionDownload"
     tables = {"table": "sabangnet_option_download"}

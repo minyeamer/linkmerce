@@ -160,7 +160,7 @@ class AssetParser(_CommonParser):
 
 
 class Asset(DuckDBTransformer):
-    """구글 광고 자산 데이터를 `google_asset` 테이블에 적재하는 클래스."""
+    """구글 광고 애셋 데이터를 `google_asset` 테이블에 적재하는 클래스."""
 
     extractor = "Asset"
     tables = {"table": "google_asset"}

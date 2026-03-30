@@ -53,7 +53,7 @@ linkmerce/
 │   ├── ecount/              #   이카운트 ERP
 │   ├── google/              #   Google Ads
 │   ├── meta/                #   Meta (Facebook/Instagram)
-│   ├── naver/               #   네이버 (메인 검색, OpenAPI)
+│   ├── naver/               #   네이버 (메인 검색, 오픈 API)
 │   ├── sabangnet/           #   사방넷
 │   ├── searchad/            #   네이버 검색광고
 │   └── smartstore/          #   네이버 스마트스토어
@@ -440,7 +440,7 @@ INSERT INTO {{ table }} {{ values }} ON CONFLICT DO NOTHING;
 | `cafe_article()` | url, domain | 카페 글 내용 |
 | `search_cafe_plus()` | connection, query | 카페 검색 + 글 수집 |
 
-**openapi.py** — 공식 OpenAPI:
+**openapi.py** — 공식 오픈 API:
 | 함수 | 파라미터 | 설명 |
 |------|----------|------|
 | `search_blog()` | client_id, client_secret, query | 블로그 검색 |

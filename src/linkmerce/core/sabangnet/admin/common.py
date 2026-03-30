@@ -27,7 +27,7 @@ class SabangnetAdmin(Extractor):
         try:
             self.set_account(**configs)
         except TypeError:
-            raise TypeError("Sabangnet requires variables for userid, passwd, and domain to authenticate.")
+            raise TypeError("Sabangnet requires configs for userid, passwd, and domain to authenticate.")
 
     def set_account(self, userid: str, passwd: str, domain: int, **configs):
         super().set_configs(dict(userid=userid, passwd=passwd, domain=domain, **configs))

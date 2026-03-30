@@ -39,7 +39,7 @@ class SearchAdGFA(Extractor):
         try:
             self.set_account_no(**configs)
         except TypeError:
-            raise TypeError("Naver SearchAd requires variables for account_no to authenticate.")
+            raise TypeError("Naver SearchAd requires configs for account_no to authenticate.")
 
     def set_account_no(self, account_no: int | str, **configs):
         super().set_configs(dict(account_no=account_no, **configs))

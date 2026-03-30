@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import run_with_duckdb, update_options
+from linkmerce.api.common import prepare_duckdb_extract, with_duckdb_connection
 
 from typing import TYPE_CHECKING
 
@@ -11,41 +11,36 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def get_module(name: str) -> str:
-    return (".cj.eflexs" + name) if name.startswith('.') else name
-
-
+@with_duckdb_connection(table="eflexs_stock")
 def stock(
         userid: str,
         passwd: str,
         mail_info: dict,
         customer_id: int | str | Iterable,
         start_date: dt.date | str | Literal[":last_week:"] = ":last_week:",
-        end_date: dt.date | str | Literal[":start_date:",":today:"] = ":today:",
+        end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
         request_delay: float | int = 1,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.cj.eflexs.stock.extract import Stock
-    # from linkmerce.core.cj.eflexs.stock.transform import Stock
-    return run_with_duckdb(
-        module = get_module(".stock"),
-        extractor = "Stock",
-        transformer = "Stock",
-        connection = connection,
-        tables = tables,
-        how = "sync",
-        return_type = return_type,
-        args = (customer_id, start_date, end_date),
-        extract_options = update_options(
-            extract_options,
-            options = dict(RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress)))),
-            variables = dict(userid=userid, passwd=passwd, mail_info=mail_info),
-        ),
-        transform_options = transform_options,
-    )
+    """CJ eFLEXs 재고 검색 결과를 수집하고 `eflexs_stock` 테이블에 적재한다."""
+    from linkmerce.core.cj.eflexs.stock.extract import Stock
+    from linkmerce.core.cj.eflexs.stock.transform import Stock as T
+    return Stock(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = {
+            "userid": userid,
+            "passwd": passwd,
+            "mail_info": mail_info
+        },
+        options = {
+            "RequestEach": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(customer_id, start_date, end_date)

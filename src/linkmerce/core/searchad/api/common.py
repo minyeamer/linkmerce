@@ -21,7 +21,7 @@ class NaverSearchAdApi(Extractor):
         try:
             self.set_api_key(**configs)
         except TypeError:
-            raise TypeError("Naver Search Ad API requires variables for api_key and secret_key.")
+            raise TypeError("Naver Search Ad API requires configs for api_key and secret_key.")
 
     def set_api_key(self, api_key: str, secret_key: str, customer_id: int | str, **configs):
         super().set_configs(dict(api_key=api_key, secret_key=secret_key, customer_id=customer_id, **configs))

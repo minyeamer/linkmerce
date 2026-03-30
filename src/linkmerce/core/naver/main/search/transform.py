@@ -609,11 +609,11 @@ class AiBriefing(_PropsTransformer):
 
 
 class Search(DuckDBTransformer):
-    """네이버 검색 결과의 각 섹션별 하위 블럭을 직렬화 또는 요약하여 각각의 테이블에 적재하는 클래스.
+    """네이버 통합검색 결과의 각 섹션별 하위 블럭을 직렬화 또는 요약하여 각각의 테이블에 적재하는 클래스.
 
     테이블 키 | 테이블명 | 설명
-    - `sections` | `naver_search_sections` | 네이버 검색 결과의 각 섹션 목록
-    - `summary` | `naver_search_summary` | 네이버 검색 결과 요약"""
+    - `sections` | `naver_search_sections` | 네이버 통합검색 결과의 각 섹션 목록
+    - `summary` | `naver_search_summary` | 네이버 통합검색 결과 요약"""
 
     extractor = "Search"
     tables = {"sections": "naver_search_sections", "summary": "naver_search_summary"}

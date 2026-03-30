@@ -168,7 +168,7 @@ with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
 | **쿠팡** | `coupang/` | Advertising, Wing | 광고 리포트, 캠페인, 상품 옵션, 로켓 정산 |
 | **네이버 스마트스토어** | `smartstore/` | Commerce API, 브랜드센터, 파트너센터 | 주문, 상품, 매출, 페이지뷰, 마케팅 채널 |
 | **네이버 검색광고** | `searchad/` | API, GFA, 관리 | 광고 리포트, 계약, 키워드 순위, 노출 진단 |
-| **네이버 검색** | `naver/` | 메인 검색, OpenAPI | 검색 결과, 카페 글, 쇼핑 순위 |
+| **네이버 검색** | `naver/` | 메인 검색, 오픈 API | 검색 결과, 카페 글, 쇼핑 순위 |
 | **사방넷** | `sabangnet/` | Admin | 주문, 상품, 옵션, 송장 |
 | **CJ 대한통운** | `cj/` | eFlexs, 로이스파셀 | 재고, 송장 |
 | **이카운트** | `ecount/` | ERP API | 상품, 재고 |

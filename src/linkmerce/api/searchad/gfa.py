@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import run_with_duckdb, update_options
+from linkmerce.api.common import prepare_duckdb_extract, with_duckdb_connection
 
 from typing import TYPE_CHECKING
 
@@ -11,18 +11,8 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def get_module(name: str) -> str:
-    return (".searchad.gfa" + name) if name.startswith('.') else name
-
-
-def get_options(request_delay: float | int = 0.3, progress: bool = True) -> dict:
-    return dict(
-        PaginateAll = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
-        RequestEachPages = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
-    )
-
-
 def logged_in(cookies: str, **kwargs) -> bool:
+    """네이버 로그인 쿠키가 유효한지 검증한다."""
     from linkmerce.core.searchad.gfa.common import logged_in
     import requests
     with requests.Session() as session:
@@ -30,175 +20,155 @@ def logged_in(cookies: str, **kwargs) -> bool:
 
 
 def whoami(cookies: str, **kwargs) -> str | None:
+    """네이버에서 현재 로그인된 사용자의 성과형 디스플레이 광고 계정ID를 조회한다."""
     from linkmerce.core.searchad.gfa.common import whoami
     import requests
     with requests.Session() as session:
         return whoami(session, cookies)
 
 
-def _master_report(
-        account_no: int | str,
-        cookies: str,
-        report_type: Literal["Campaign", "AdSet", "Creative"],
-        status: Sequence[str],
-        connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        request_delay: float | int = 0.3,
-        progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
-    ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.api.adreport.extract import _MasterReport
-    return run_with_duckdb(
-        module = get_module(".adreport"),
-        extractor = report_type,
-        transformer = report_type,
-        connection = connection,
-        tables = tables,
-        how = "sync",
-        return_type = return_type,
-        args = (status,),
-        extract_options = update_options(
-            extract_options,
-            headers = dict(cookies=cookies),
-            options = get_options(request_delay, progress),
-            variables = dict(account_no=account_no),
-        ),
-        transform_options = transform_options,
-    )
-
-
+@with_duckdb_connection(table="searchad_campaign_gfa")
 def campaign(
         account_no: int | str,
         cookies: str,
-        status: Sequence[Literal["RUNNABLE","DELETED"]] = ["RUNNABLE","DELETED"],
+        status: Sequence[Literal["RUNNABLE", "DELETED"]] = ["RUNNABLE", "DELETED"],
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.gfa.adreport.extract import Campaign
-    # from linkmerce.core.searchad.gfa.adreport.transform import Campaign
-    return _master_report(
-        account_no, cookies, "Campaign", status, connection, tables, request_delay, progress,
-        return_type, extract_options, transform_options)
+    """네이버 성과형 디스플레이 광고 캠페인 목록을 조회해 `searchad_campaign_gfa` 테이블에 적재한다."""
+    from linkmerce.core.searchad.gfa.adreport.extract import Campaign
+    from linkmerce.core.searchad.gfa.adreport.transform import Campaign as T
+    return Campaign(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = {"account_no": account_no},
+        headers = {"cookies": cookies},
+        options = {
+            "PaginateAll": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}},
+            "RequestEachPages": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}},
+        },
+    )).extract(status)
 
 
+@with_duckdb_connection(table="searchad_adgroup_gfa")
 def adset(
         account_no: int | str,
         cookies: str,
-        status: Sequence[Literal["ALL","RUNNABLE","BEFORE_STARTING","TERMINATED","DELETED"]] = ["ALL","DELETED"],
+        status: Sequence[Literal["ALL", "RUNNABLE", "BEFORE_STARTING", "TERMINATED", "DELETED"]] = ["ALL", "DELETED"],
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.gfa.adreport.extract import AdSet
-    # from linkmerce.core.searchad.gfa.adreport.transform import AdSet
-    return _master_report(
-        account_no, cookies, "AdSet", status, connection, tables, request_delay, progress,
-        return_type, extract_options, transform_options)
+    """네이버 성과형 디스플레이 광고그룹 목록을 조회해 `searchad_adgroup_gfa` 테이블에 적재한다."""
+    from linkmerce.core.searchad.gfa.adreport.extract import AdSet
+    from linkmerce.core.searchad.gfa.adreport.transform import AdSet as T
+    return AdSet(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = {"account_no": account_no},
+        headers = {"cookies": cookies},
+        options = {
+            "PaginateAll": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}},
+            "RequestEachPages": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}},
+        },
+    )).extract(status)
 
 
+@with_duckdb_connection(table="searchad_creative_gfa")
 def creative(
         account_no: int | str,
         cookies: str,
-        status: Sequence[Literal["ALL","PENDING","REJECT","ACCEPT","PENDING_IN_OPERATION","REJECT_IN_OPERATION","DELETED"]] = ["ALL","DELETED"],
+        status: Sequence[Literal["ALL", "PENDING", "REJECT", "ACCEPT", "PENDING_IN_OPERATION", "REJECT_IN_OPERATION", "DELETED"]] = ["ALL", "DELETED"],
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.gfa.adreport.extract import Creative
-    # from linkmerce.core.searchad.gfa.adreport.transform import Creative
-    return _master_report(
-        account_no, cookies, "Creative", status, connection, tables, request_delay, progress,
-        return_type, extract_options, transform_options)
+    """네이버 성과형 디스플레이 광고 소재 목록을 조회해 `searchad_creative_gfa` 테이블에 적재한다."""
+    from linkmerce.core.searchad.gfa.adreport.extract import Creative
+    from linkmerce.core.searchad.gfa.adreport.transform import Creative as T
+    return Creative(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = {"account_no": account_no},
+        headers = {"cookies": cookies},
+        options = {
+            "PaginateAll": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}},
+            "RequestEachPages": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}},
+        },
+    )).extract(status)
 
 
+@with_duckdb_connection(table="searchad_campaign_report")
 def campaign_report(
         account_no: int | str,
         cookies: str,
         start_date: dt.date | str,
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-        date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+        date_type: Literal["TOTAL", "DAY", "WEEK", "MONTH", "HOUR"] = "DAY",
         columns: list[str] | Literal[":default:"] = ":default:",
         wait_seconds: int = 60,
         wait_interval: int = 1,
         progress: bool = True,
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.gfa.adreport.extract import CampaignReport
-    # from linkmerce.core.searchad.gfa.adreport.transform import CampaignReport
-    return run_with_duckdb(
-        module = get_module(".adreport"),
-        extractor = "CampaignReport",
-        transformer = "CampaignReport",
-        connection = connection,
-        tables = tables,
-        how = "sync",
-        return_type = return_type,
-        args = (start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress),
-        extract_options = dict(
-            extract_options,
-            headers = dict(cookies=cookies),
-            variables = dict(account_no=account_no),
-        ),
-        transform_options = transform_options,
-    )
+    """네이버 성과형 디스플레이 광고 캠페인 성과 리포트를 다운로드하여 `searchad_campaign_report` 테이블에 적재한다."""
+    from linkmerce.core.searchad.gfa.adreport.extract import CampaignReport
+    from linkmerce.core.searchad.gfa.adreport.transform import CampaignReport as T
+    return CampaignReport(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = {"account_no": account_no},
+        headers = {"cookies": cookies},
+    )).extract(start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress)
 
 
+@with_duckdb_connection(table="searchad_creative_report")
 def creative_report(
         account_no: int | str,
         cookies: str,
         start_date: dt.date | str,
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-        date_type: Literal["TOTAL","DAY","WEEK","MONTH","HOUR"] = "DAY",
+        date_type: Literal["TOTAL", "DAY", "WEEK", "MONTH", "HOUR"] = "DAY",
         columns: list[str] | Literal[":default:"] = ":default:",
         wait_seconds: int = 60,
         wait_interval: int = 1,
         progress: bool = True,
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.searchad.gfa.adreport.extract import CreativeReport
-    # from linkmerce.core.searchad.gfa.adreport.transform import CreativeReport
-    return run_with_duckdb(
-        module = get_module(".adreport"),
-        extractor = "CreativeReport",
-        transformer = "CreativeReport",
-        connection = connection,
-        tables = tables,
-        how = "sync",
-        return_type = return_type,
-        args = (start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress),
-        extract_options = dict(
-            extract_options,
-            headers = dict(cookies=cookies),
-            variables = dict(account_no=account_no),
-        ),
-        transform_options = transform_options,
-    )
+    """네이버 성과형 디스플레이 광고 소재 성과 리포트를 다운로드하여 `searchad_creative_report` 테이블에 적재한다."""
+    from linkmerce.core.searchad.gfa.adreport.extract import CreativeReport
+    from linkmerce.core.searchad.gfa.adreport.transform import CreativeReport as T
+    return CreativeReport(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = {"account_no": account_no},
+        headers = {"cookies": cookies},
+    )).extract(start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress)

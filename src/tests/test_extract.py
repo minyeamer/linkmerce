@@ -1,7 +1,7 @@
 """데이터 추출(Extract) 테스트: `Extractor` 동작 검증
 - 실행: `pytest src/tests/test_extract.py -m extract -v -s`
     - 특정 도메인의 테스트만 실행 시 마크를 추가한다: `-m \"extract and domain\" `
-- 결과: `src/tests/results/` 하위의 모듈 경로와 대응되는 위치에 `Extractor.extract()` 반환 값을 저장한다.
+- 결과: `src/tests/results/` 하위의 모듈 경로와 대응되는 위치에 `Extractor.extract` 메서드 반환 값을 저장한다.
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class TestCjLogistics:
         from linkmerce.core.cj.eflexs.stock.extract import Stock
         _configs = configs("cjlogistics.eflexs.stock")
         Stock(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Stock, format="json"),
         ).extract(
             customer_id = _configs["customer_id"],
@@ -240,7 +240,7 @@ class TestEcount:
         from linkmerce.core.ecount.api.inventory.extract import Inventory
         _configs = options("ecount.api.inventory")
         Inventory(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Inventory, format="json"),
         ).extract(
             base_date = _configs.get("base_date", ":today:"),
@@ -257,7 +257,7 @@ class TestEcount:
         from linkmerce.core.ecount.api.product.extract import Product
         _configs = options("ecount.api.product")
         Product(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Product, format="json"),
         ).extract(
             product_code = _configs.get("product_code"),
@@ -292,7 +292,7 @@ class TestGoogleAds:
         from linkmerce.core.google.api.ads.extract import Campaign
         _configs = options("google.api.campaign")
         Campaign(
-            variables = self.credentials(credentials, service_account),
+            configs = self.credentials(credentials, service_account),
             parser = dump_extract(Campaign, format="json"),
         ).extract(
             start_date = _configs.get("start_date"),
@@ -306,7 +306,7 @@ class TestGoogleAds:
         from linkmerce.core.google.api.ads.extract import AdGroup
         _configs = options("google.api.ad_group")
         AdGroup(
-            variables = self.credentials(credentials, service_account),
+            configs = self.credentials(credentials, service_account),
             parser = dump_extract(AdGroup, format="json"),
         ).extract(
             start_date = _configs.get("start_date"),
@@ -320,7 +320,7 @@ class TestGoogleAds:
         from linkmerce.core.google.api.ads.extract import Ad
         _configs = options("google.api.ad")
         Ad(
-            variables = self.credentials(credentials, service_account),
+            configs = self.credentials(credentials, service_account),
             parser = dump_extract(Ad, format="json"),
         ).extract(
             start_date = _configs.get("start_date"),
@@ -334,7 +334,7 @@ class TestGoogleAds:
         from linkmerce.core.google.api.ads.extract import Insight
         _configs = options("google.api.insight")
         Insight(
-            variables = self.credentials(credentials, service_account),
+            configs = self.credentials(credentials, service_account),
             parser = dump_extract(Insight, format="json"),
         ).extract(
             start_date = _configs.get("start_date"),
@@ -349,7 +349,7 @@ class TestGoogleAds:
         from linkmerce.core.google.api.ads.extract import Asset
         _configs = options("google.api.asset")
         Asset(
-            variables = self.credentials(credentials, service_account),
+            configs = self.credentials(credentials, service_account),
             parser = dump_extract(Asset, format="json"),
         ).extract(
             fields = _configs.get("fields", list()),
@@ -360,7 +360,7 @@ class TestGoogleAds:
         from linkmerce.core.google.api.ads.extract import AssetView
         _configs = options("google.api.asset_view")
         AssetView(
-            variables = self.credentials(credentials, service_account),
+            configs = self.credentials(credentials, service_account),
             parser = dump_extract(AssetView, format="json"),
         ).extract(
             start_date = _configs.get("start_date"),
@@ -395,7 +395,7 @@ class TestMetaAds:
         from linkmerce.core.meta.api.ads.extract import Campaigns
         _configs = options("meta.api.campaigns")
         Campaigns(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Campaigns, format="json"),
         ).extract(
             start_date = _configs.get("start_date"),
@@ -409,7 +409,7 @@ class TestMetaAds:
         from linkmerce.core.meta.api.ads.extract import Adsets
         _configs = options("meta.api.adsets")
         Adsets(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Adsets, format="json"),
         ).extract(
             start_date = _configs.get("start_date"),
@@ -423,7 +423,7 @@ class TestMetaAds:
         from linkmerce.core.meta.api.ads.extract import Ads
         _configs = options("meta.api.ads")
         Ads(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Ads, format="json"),
         ).extract(
             start_date = _configs.get("start_date"),
@@ -437,7 +437,7 @@ class TestMetaAds:
         from linkmerce.core.meta.api.ads.extract import Insights
         _configs = options("meta.api.insights")
         Insights(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Insights, format="json"),
         ).extract(
             ad_level = _configs.get("ad_level", "ad"),
@@ -454,7 +454,7 @@ class TestMetaAds:
 ###################################################################
 
 class TestNaverSearch:
-    """네이버 메인검색 데이터 추출 테스트.
+    """네이버 통합검색 데이터 추출 테스트.
     - naver.main.search.Search
     - naver.main.search.SearchTab
     - naver.main.search.CafeArticle"""
@@ -496,11 +496,11 @@ class TestNaverSearch:
 
 
 ###################################################################
-######################## Naver OpenAPI ############################
+########################## Naver Open API #########################
 ###################################################################
 
 class TestNaverOpenApi:
-    """네이버 OpenAPI 검색 데이터 추출 테스트.
+    """네이버 오픈 API 검색 데이터 추출 테스트.
     - naver.openapi.search.BlogSearch
     - naver.openapi.search.NewsSearch
     - naver.openapi.search.BookSearch
@@ -521,7 +521,7 @@ class TestNaverOpenApi:
         from linkmerce.core.naver.openapi.search.extract import BlogSearch
         _configs = configs("naver.openapi.blog_search")
         BlogSearch(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(BlogSearch, format="json", map_index="$query"),
         ).extract(
             query = _configs["query"],
@@ -535,7 +535,7 @@ class TestNaverOpenApi:
         from linkmerce.core.naver.openapi.search.extract import NewsSearch
         _configs = configs("naver.openapi.news_search")
         NewsSearch(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(NewsSearch, format="json", map_index="$query"),
         ).extract(
             query = _configs["query"],
@@ -549,7 +549,7 @@ class TestNaverOpenApi:
         from linkmerce.core.naver.openapi.search.extract import BookSearch
         _configs = configs("naver.openapi.book_search")
         BookSearch(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(BookSearch, format="json", map_index="$query"),
         ).extract(
             query = _configs["query"],
@@ -563,7 +563,7 @@ class TestNaverOpenApi:
         from linkmerce.core.naver.openapi.search.extract import CafeSearch
         _configs = configs("naver.openapi.cafe_search")
         CafeSearch(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(CafeSearch, format="json", map_index="$query"),
         ).extract(
             query = _configs["query"],
@@ -577,7 +577,7 @@ class TestNaverOpenApi:
         from linkmerce.core.naver.openapi.search.extract import KiNSearch
         _configs = configs("naver.openapi.kin_search")
         KiNSearch(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(KiNSearch, format="json", map_index="$query"),
         ).extract(
             query = _configs["query"],
@@ -591,7 +591,7 @@ class TestNaverOpenApi:
         from linkmerce.core.naver.openapi.search.extract import ImageSearch
         _configs = configs("naver.openapi.image_search")
         ImageSearch(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(ImageSearch, format="json", map_index="$query"),
         ).extract(
             query = _configs["query"],
@@ -606,7 +606,7 @@ class TestNaverOpenApi:
         from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
         _configs = configs("naver.openapi.shopping_search")
         ShoppingSearch(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(ShoppingSearch, format="json", map_index="$query"),
         ).extract(
             query = _configs["query"],
@@ -646,7 +646,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.order.extract import Order
         _configs = options("sabangnet.admin.order")
         Order(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Order, format="json"),
         ).extract(
             start_date = _configs.get("start_date", yesterday),
@@ -664,7 +664,7 @@ class TestSabangnet:
         _configs = configs("sabangnet.admin.order_download")
         for name, no in _configs["download_no"].items():
             OrderDownload(
-                variables = self.credentials(credentials),
+                configs = self.credentials(credentials),
                 parser = dump_extract(OrderDownload, format="xlsx", map_index=name),
             ).extract(
                 download_no = no,
@@ -684,7 +684,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.order.extract import OrderStatus
         _configs = configs("sabangnet.admin.order_status")
         OrderStatus(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(OrderStatus, format="xlsx", map_index="$date_type"),
         ).extract(
             download_no = _configs["download_no"],
@@ -703,7 +703,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.order.extract import ProductMapping
         _configs = options("sabangnet.admin.product_mapping")
         ProductMapping(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(ProductMapping, format="json"),
         ).extract(
             start_date = _configs.get("start_date", ":base_date:"),
@@ -716,7 +716,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.order.extract import SkuMapping
         _configs = configs("sabangnet.admin.sku_mapping")
         SkuMapping(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(SkuMapping, format="json"),
         ).extract(
             query = {
@@ -731,7 +731,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.product.extract import Product
         _configs = options("sabangnet.admin.product")
         Product(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Product, format="json"),
         ).extract(
             start_date = _configs.get("start_date", ":base_date:"),
@@ -748,7 +748,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.product.extract import Option
         _configs = configs("sabangnet.admin.option")
         Option(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Option, format="json", map_index="$product_id"),
         ).extract(
             product_id = _configs["product_id"],
@@ -759,7 +759,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.product.extract import OptionDownload
         _configs = options("sabangnet.admin.option_download")
         OptionDownload(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(OptionDownload, format="xlsx"),
         ).extract(
             start_date = _configs.get("start_date", ":base_date:"),
@@ -776,7 +776,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.product.extract import AddProductGroup
         _configs = options("sabangnet.admin.add_product_group")
         AddProductGroup(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(AddProductGroup, format="json"),
         ).extract(
             start_date = _configs.get("start_date", ":base_date:"),
@@ -789,7 +789,7 @@ class TestSabangnet:
         from linkmerce.core.sabangnet.admin.product.extract import AddProduct
         _configs = configs("sabangnet.admin.add_product")
         AddProduct(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(AddProduct, format="json", map_index="$group_id"),
         ).extract(
             group_id = _configs["group_id"],
@@ -822,7 +822,7 @@ class TestSearchAdApi:
         from linkmerce.core.searchad.api.adreport.extract import Campaign
         _configs = options("searchad.api.campaign")
         Campaign(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Campaign, format="tsv"),
         ).extract(
             from_date = _configs.get("from_date"),
@@ -833,7 +833,7 @@ class TestSearchAdApi:
         from linkmerce.core.searchad.api.adreport.extract import Adgroup
         _configs = options("searchad.api.adgroup")
         Adgroup(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Adgroup, format="tsv"),
         ).extract(
             from_date = _configs.get("from_date"),
@@ -850,7 +850,7 @@ class TestSearchAdApi:
                 _parser(tsv_data if tsv_data else str(), *args, report_type=report_type, **kwargs)
 
         Ad(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = custom_dump,
         ).extract(
             from_date = _configs.get("from_date"),
@@ -860,7 +860,7 @@ class TestSearchAdApi:
     def test_time_contract(self, credentials: YamlReader, dump_extract: Callable):
         from linkmerce.core.searchad.api.contract.extract import TimeContract
         TimeContract(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(TimeContract, format="json"),
         ).extract()
 
@@ -868,7 +868,7 @@ class TestSearchAdApi:
     def test_brand_new_contract(self, credentials: YamlReader, dump_extract: Callable):
         from linkmerce.core.searchad.api.contract.extract import BrandNewContract
         BrandNewContract(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(BrandNewContract, format="json"),
         ).extract()
 
@@ -877,7 +877,7 @@ class TestSearchAdApi:
         from linkmerce.core.searchad.api.keyword.extract import Keyword
         _configs = configs("searchad.api.keyword")
         Keyword(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Keyword, format="json"),
         ).extract(
             keywords = _configs["keywords"],
@@ -901,8 +901,8 @@ class TestSearchAdGfa:
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("searchad.gfa.0")
         return dict(
+            configs = {"account_no": _credentials["account_no"]},
             headers = {"cookies": _credentials["cookies"]},
-            variables = {"account_no": _credentials["account_no"]},
         )
 
     @pytest.mark.searchad_gfa
@@ -985,8 +985,8 @@ class TestSearchAdManage:
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("searchad.manage.0")
         return dict(
+            configs = {"customer_id": _credentials["customer_id"]},
             headers = {"cookies": _credentials["cookies"]},
-            variables = {"customer_id": _credentials["customer_id"]},
         )
 
     @pytest.mark.searchad_manage
@@ -1042,7 +1042,7 @@ class TestSmartstoreApi:
         from linkmerce.core.smartstore.api.product.extract import Product
         _configs = options("smartstore.api.product")
         Product(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Product, format="json"),
         ).extract(
             search_keyword = _configs.get("search_keyword", list()),
@@ -1059,7 +1059,7 @@ class TestSmartstoreApi:
         from linkmerce.core.smartstore.api.product.extract import Option
         _configs = configs("smartstore.api.option")
         Option(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Option, format="json", map_index="$product_id"),
         ).extract(
             product_id = _configs["product_id"],
@@ -1071,7 +1071,7 @@ class TestSmartstoreApi:
         from linkmerce.core.smartstore.api.order.extract import Order
         _configs = options("smartstore.api.order")
         Order(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(Order, format="json"),
         ).extract(
             start_date = _configs.get("start_date", yesterday),
@@ -1089,7 +1089,7 @@ class TestSmartstoreApi:
         from linkmerce.core.smartstore.api.order.extract import OrderStatus
         _configs = options("smartstore.api.order_status")
         OrderStatus(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(OrderStatus, format="json"),
         ).extract(
             start_date = _configs.get("start_date", yesterday),
@@ -1122,7 +1122,7 @@ class TestBizdataApi:
         from linkmerce.core.smartstore.api.bizdata.extract import MarketingChannel
         _configs = options("smartstore.bizdata.marketing_channel")
         MarketingChannel(
-            variables = self.credentials(credentials),
+            configs = self.credentials(credentials),
             parser = dump_extract(MarketingChannel, format="json"),
         ).extract(
             channel_seq = self.channel_seq(credentials),

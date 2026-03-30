@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import run_with_duckdb, update_options
+from linkmerce.api.common import prepare_duckdb_extract, with_duckdb_connection
 
 from typing import TYPE_CHECKING
 
@@ -10,173 +10,136 @@ if TYPE_CHECKING:
     from linkmerce.common.load import DuckDBConnection
 
 
-def get_module(name: str) -> str:
-    return (".naver.main" + name) if name.startswith('.') else name
-
-
-def get_options(
-        request_delay: float | int = 1.01,
-        progress: bool = True,
-    ) -> dict:
-    return dict(
-        RequestEach = dict(request_delay=request_delay, tqdm_options=dict(disable=(not progress))),
-    )
-
-
+@with_duckdb_connection(tables={"sections": "naver_search_sections", "summary": "naver_search_summary"})
 def search(
         query: str | Iterable[str],
         mobile: bool = True,
         parse_html: bool = False,
         cookies: str | None = None,
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
         request_delay: float | int = 1.01,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'sections': 'naver_search_sections', 'summary': 'naver_search_summary'}`"""
-    # from linkmerce.core.naver.main.search.extract import Search
-    # from linkmerce.core.naver.main.search.transform import Search
-    return run_with_duckdb(
-        module = get_module(".search"),
-        extractor = "Search",
-        transformer = "Search",
-        connection = connection,
-        tables = tables,
-        how = "sync",
-        return_type = return_type,
-        args = (query, mobile, (parse_html and (return_type == "raw"))),
-        extract_options = update_options(
-            extract_options,
-            **(dict(headers=dict(cookies=cookies)) if cookies else dict()),
-            options = get_options(request_delay, progress),
-        ),
-        transform_options = transform_options,
-    )
+    """네이버 통합검색 결과의 섹션별 하위 블럭을 조회하고, 직렬화 또는 요약하여 각각의 테이블에 적재한다.
+
+    테이블 키 | 테이블명 | 설명
+    - `sections` | `naver_search_sections` | 네이버 통합검색 결과의 각 섹션 목록
+    - `summary` | `naver_search_summary` | 네이버 통합검색 결과 요약"""
+    from linkmerce.core.naver.main.search.extract import Search
+    from linkmerce.core.naver.main.search.transform import Search as T
+    return Search(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **({"headers": {"cookies": cookies}} if cookies else dict()),
+        options = {
+            "RequestEach": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(query, mobile, (parse_html and (return_type == "raw")))
 
 
-def _search_tab(
-        query: str | Iterable[str],
-        tab_type: Literal["image","blog","cafe","kin","influencer","clip","video","news","surf","shortents"],
-        mobile: bool = True,
-        cookies: str | None = None,
-        transformer: str | None = None,
-        connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        request_delay: float | int = 1.01,
-        progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
-    ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.main.search.extract import SearchTab
-    return run_with_duckdb(
-        module = get_module(".search"),
-        extractor = "SearchTab",
-        transformer = transformer,
-        connection = connection,
-        tables = tables,
-        how = "sync",
-        return_type = return_type,
-        args = (query, tab_type, mobile),
-        extract_options = update_options(
-            extract_options,
-            **(dict(headers=dict(cookies=cookies)) if cookies else dict()),
-            options = get_options(request_delay, progress),
-        ),
-        transform_options = transform_options,
-    )
-
-
+@with_duckdb_connection(table="naver_cafe")
 def search_cafe(
         query: str | Iterable[str],
         mobile: bool = True,
         cookies: str | None = None,
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
         request_delay: float | int = 1.01,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.main.search.extract import SearchTab
-    # from linkmerce.core.naver.main.search.transform import CafeTab
-    return _search_tab(
-        query, "cafe", mobile, cookies, "CafeTab", connection, tables,
-        request_delay, progress, return_type, extract_options, transform_options)
+    """네이버 모바일 카페 탭 검색 결과를 조회하고 `naver_cafe` 테이블에 적재한다."""
+    from linkmerce.core.naver.main.search.extract import SearchTab
+    from linkmerce.core.naver.main.search.transform import CafeTab as T
+    return SearchTab(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **({"headers": {"cookies": cookies}} if cookies else dict()),
+        options = {
+            "RequestEach": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(query, "cafe", mobile)
 
 
+@with_duckdb_connection(table="naver_cafe_article")
 def cafe_article(
         url: str | Iterable[str],
-        domain: Literal["article","cafe","m"] = "article",
+        domain: Literal["article", "cafe", "m"] = "article",
         cookies: str | None = None,
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
         request_delay: float | int = 1.01,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.main.search.extract import CafeArticle
-    # from linkmerce.core.naver.main.search.transform import CafeArticle
-    return run_with_duckdb(
-        module = get_module(".search"),
-        extractor = "CafeArticle",
-        transformer = "CafeArticle",
-        connection = connection,
-        tables = tables,
-        how = "sync",
-        return_type = return_type,
-        args = (url, domain),
-        extract_options = update_options(
-            extract_options,
-            **(dict(headers=dict(cookies=cookies)) if cookies else dict()),
-            options = get_options(request_delay, progress),
-        ),
-        transform_options = transform_options,
-    )
+    """네이버 카페 게시글 데이터를 조회하고 `naver_cafe_article` 테이블에 적재한다."""
+    from linkmerce.core.naver.main.search.extract import CafeArticle
+    from linkmerce.core.naver.main.search.transform import CafeArticle as T
+    return CafeArticle(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **({"headers": {"cookies": cookies}} if cookies else dict()),
+        options = {
+            "RequestEach": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(url, domain)
 
 
+@with_duckdb_connection(tables={
+    "search": "naver_cafe",
+    "article": "naver_cafe_article",
+    "merged": "naver_cafe_result"
+})
 def search_cafe_plus(
-        connection: DuckDBConnection,
         query: str | Iterable[str],
         mobile: bool = True,
-        cookies: str | None = None,
         max_rank: int | None = None,
-        tables: dict | None = None,
+        cookies: str | None = None,
+        *,
+        connection: DuckDBConnection | None = None,
         request_delay: float | int = 1.01,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
-        if_merged_table_exists: Literal["insert","replace"] = "replace",
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: tuple[dict | None, dict | None] = (None, None),
+        transform_options: tuple[dict | None, dict | None] = (None, None),
     ) -> JsonObject:
-    """`tables = {'search': 'naver_cafe_search', 'article': 'naver_cafe_article', 'merged': 'data'}`"""
-    # from linkmerce.core.naver.main.search.extract import SearchTab, CafeArticle
-    # from linkmerce.core.naver.main.search.transform import CafeTab, CafeArticle
-    from copy import deepcopy
+    """네이버 모바일 카페 탭 검색 결과와 각 카페 게시글 데이터를 조합하여 통합된 결과를 생성한다.
+
+    테이블 키 | 테이블명 | 설명
+    - `cafe` | `naver_cafe` | 네이버 모바일 카페 탭 검색 결과
+    - `article` | `naver_cafe_article` | 카페 게시글 데이터
+    - `merged` | `naver_cafe_result` | 카페 탭 검색 결과와 게시글 데이터를 병합"""
+    SEARCH, ARTICLE = 0, 1
     results = dict()
-    common = (request_delay, progress, return_type)
-    search_table = (tables or dict()).get("search", "naver_cafe_search")
-    article_table = (tables or dict()).get("article", "naver_cafe_article")
-    merged_table = (tables or dict()).get("merged", "data")
+    return_type = return_type if return_type == "raw" else "none"
 
-    options = (deepcopy(extract_options), deepcopy(transform_options))
-    results["search"] = search_cafe(query, mobile, cookies, connection, dict(default=search_table), *common, *options)
+    results["search"] = search_cafe(
+        query, mobile, cookies,
+        connection=connection, request_delay=request_delay, progress=progress, return_type=return_type,
+        extract_options=extract_options[SEARCH], transform_options=transform_options[SEARCH])
     if isinstance(max_rank, int):
-        connection.execute(f"DELETE FROM {search_table} WHERE rank > {max_rank}")
+        connection.execute(f"DELETE FROM naver_cafe WHERE rank > {max_rank}")
 
-    select_query = f"SELECT DISTINCT article_url FROM {search_table} WHERE article_url IS NOT NULL;"
-    article_url = [row[0] for row in connection.execute(select_query).fetchall()]
-    options = (deepcopy(extract_options), deepcopy(transform_options))
-    results["article"] = cafe_article(article_url, "article", cookies, connection, dict(default=article_table), *common, *options)
+    select_query = f"SELECT DISTINCT article_url FROM naver_cafe WHERE article_url IS NOT NULL"
+    article_url = [row[0] for row in connection.execute(select_query)[0].fetchall()]
+    results["article"] = cafe_article(
+        article_url, "article", cookies,
+        connection=connection, request_delay=request_delay, progress=progress, return_type=return_type,
+        extract_options=extract_options[ARTICLE], transform_options=transform_options[ARTICLE])
 
     if return_type == "raw":
         return results
@@ -190,8 +153,6 @@ def search_cafe_plus(
         , "L.ad_id"
         , "L.cafe_name"
         , "COALESCE(R.title, L.title) AS title"
-        # , "L.description"
-        # , "L.replies AS comments"
         , "R.menu_name"
         , "R.tags"
         , "R.nick_name"
@@ -205,23 +166,16 @@ def search_cafe_plus(
         , "R.commenter_count"
         , "COALESCE(STRFTIME(R.write_dt, '%Y-%m-%d %H:%M:%S'), L.write_date) AS write_date"
     ]
-    if if_merged_table_exists == "replace":
-        keyword = f"CREATE OR REPLACE TABLE {merged_table} AS "
-    elif connection.table_exists(merged_table):
-        keyword = f"INSERT INTO {merged_table} "
+
+    if connection.table_exists("naver_cafe_result"):
+        keyword = f"INSERT INTO naver_cafe_result "
     else:
-        keyword = f"CREATE TABLE {merged_table} AS "
-    connection.execute(
+        keyword = f"CREATE TABLE naver_cafe_result AS "
+    results["merged"] = connection.execute(
         keyword
         + f"SELECT {', '.join(columns)} "
-        + f"FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM {search_table}) AS L "
-        + f"LEFT JOIN {article_table} AS R "
+        + f"FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM naver_cafe) AS L "
+        + f"LEFT JOIN naver_cafe_article AS R "
             + "ON (L.cafe_url = R.cafe_url) AND (L.article_id = R.article_id) "
-        + "ORDER BY L.seq, L.rank;")
-
-    if return_type == "none":
-        results["merged"] = None
-    else:
-        results["merged"] = connection.fetch_all(return_type, f"SELECT * FROM {merged_table}")
-
+        + "ORDER BY L.seq, L.rank")
     return results

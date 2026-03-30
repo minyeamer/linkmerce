@@ -259,7 +259,11 @@ class _AdReport(CoupangAds):
                 variables = dict(data=list(variables.keys())),
                 fields = GraphQLFragment("ReportRequest", "ReportRequest", fields=self.report_fields),
             ),
-        ).generate_body(query_options = {"command": "mutation", "selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}}, "suffix": '\n'})]
+        ).generate_body(query_options = {
+            "command": "mutation",
+            "selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}},
+            "suffix": '\n',
+        })]
 
     def build_query_body(self, page: int = 1, paege_size: int = 10, duration: int = 90) -> list[dict]:
         """보고서 목록 조회를 위한 GraphQL 요청 본문을 구성한다."""
@@ -290,7 +294,11 @@ class _AdReport(CoupangAds):
                 variables = dict(data=list(variables.keys())),
                 fields = GraphQLFragment("ReportList", "ReportList", fields=self.report_list_fields),
             ),
-        ).generate_body(query_options = {"command": "query", "selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}}, "suffix": '\n'})]
+        ).generate_body(query_options = {
+            "command": "query",
+            "selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}},
+            "suffix": '\n',
+        })]
 
     def build_campaign_body(self, start_date: int, end_date: int) -> list[dict]:
         """캠페인 목록 조회를 위한 GraphQL 요청 본문을 구성한다."""
@@ -308,7 +316,10 @@ class _AdReport(CoupangAds):
                 variables = list(variables.keys()),
                 fields = ["id", "name"],
             )
-        ).generate_body(query_options = {"selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}}, "suffix": '\n'})]
+        ).generate_body(query_options = {
+            "selection": {"variables": {"linebreak": True}, "fields": {"linebreak": True}},
+            "suffix": '\n',
+        })]
 
     @CoupangAds.cookies_required
     def set_request_headers(self, **kwargs):

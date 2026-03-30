@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 ###################################################################
 
 class Search(Extractor):
-    """네이버 메인 검색 결과를 스크래핑하여 추출하는 클래스.
+    """네이버 통합검색 결과를 스크래핑하여 추출하는 클래스.
 
     `RequestEach` Task를 사용하여 여러 개의 키워드를 검색한다."""
     method = "GET"
@@ -32,7 +32,7 @@ class Search(Extractor):
             mobile: bool = True,
             parse_html: bool = True,
         ) -> JsonObject | BeautifulSoup | str:
-        """네이버 메인 검색 결과를 스크래핑한다.
+        """네이버 통합검색 결과를 스크래핑한다.
 
         `parse_html`에 따라 `BeautifulSoup` 파싱하거나 HTML 텍스트를 그대로 반환한다."""
         return (self.request_each(self.search)
@@ -41,7 +41,7 @@ class Search(Extractor):
                 .run())
 
     def search(self, mobile: bool = True, parse_html: bool = True, **kwargs) -> BeautifulSoup | str:
-        """네이버 메인 검색 요청을 실행하고 HTML 텍스트를 파싱한다."""
+        """네이버 통합검색 요청을 실행하고 HTML 텍스트를 파싱한다."""
         kwargs["url"] = self.url.format(m=("m." if mobile else str()))
         response = self.request_text(mobile=mobile, **kwargs)
         self.save_search_query(response, kwargs.get("query"))

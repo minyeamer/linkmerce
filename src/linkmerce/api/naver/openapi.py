@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.api import run_with_duckdb, update_options
+from linkmerce.api.common import prepare_duckdb_extract, with_duckdb_connection
 
 from typing import TYPE_CHECKING
 
@@ -10,276 +10,257 @@ if TYPE_CHECKING:
     from linkmerce.common.load import DuckDBConnection
 
 
-def get_module(name: str) -> str:
-    return (".naver.openapi" + name) if name.startswith('.') else name
-
-
-def get_options(
+def _search_config(
+        client_id: str,
+        client_secret: str,
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
     ) -> dict:
+    """네이버 Open API 검색 Extractor의 기본 설정을 생성한다."""
     return dict(
-        RequestLoop = dict(max_retries=max_retries),
-        RequestEachLoop = dict(request_delay=request_delay, max_concurrent=max_concurrent, tqdm_options=dict(disable=(not progress))),
+        configs = {
+            "client_id": client_id,
+            "client_secret": client_secret
+        },
+        options = {
+            "RequestLoop": {
+                "max_retries": max_retries
+            },
+            "RequestEachLoop": {
+                "request_delay": request_delay,
+                "max_concurrent": max_concurrent,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
     )
 
 
-def _search(
-        client_id: str,
-        client_secret: str,
-        content_type: Literal["Blog", "News", "Book", "Cafe", "KiN", "Image", "Shopping"],
-        args: tuple,
-        connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
-        max_concurrent: int = 3,
-        max_retries: int = 5,
-        request_delay: float | int = 0.3,
-        progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
-    ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import _SearchExtractor
-    # from linkmerce.core.naver.openapi.search.transform import _SearchTransformer
-    return run_with_duckdb(
-        module = get_module(".search"),
-        extractor = f"{content_type}Search",
-        transformer = f"{content_type}Search",
-        connection = connection,
-        tables = tables,
-        how = how,
-        return_type = return_type,
-        args = args,
-        extract_options = update_options(
-            extract_options,
-            options = get_options(max_concurrent, max_retries, request_delay, progress),
-            variables = dict(client_id=client_id, client_secret=client_secret),
-        ),
-        transform_options = transform_options,
-    )
-
-
+@with_duckdb_connection(table="naver_blog")
 def search_blog(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
         start: int | Iterable[int] = 1,
         display: int = 100,
-        sort: Literal["sim","date"] = "sim",
+        sort: Literal["sim", "date"] = "sim",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
+        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import BlogSearch
-    # from linkmerce.core.naver.openapi.search.transform import BlogSearch
-    return _search(
-        client_id, client_secret, "Blog", (query, start, display, sort), connection, tables,
-        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
+    """네이버 오픈 API로 블로그 검색 결과를 수집하고 `naver_blog` 테이블에 적재한다."""
+    from linkmerce.core.naver.openapi.search.extract import BlogSearch
+    from linkmerce.core.naver.openapi.search.transform import BlogSearch as T
+    return BlogSearch(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
+    )).run(query, start, display, sort, how_to_run=how_to_run)
 
 
+@with_duckdb_connection(table="naver_news")
 def search_news(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
         start: int | Iterable[int] = 1,
         display: int = 100,
-        sort: Literal["sim","date"] = "sim",
+        sort: Literal["sim", "date"] = "sim",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
+        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import NewsSearch
-    # from linkmerce.core.naver.openapi.search.transform import NewsSearch
-    return _search(
-        client_id, client_secret, "News", (query, start, display, sort), connection, tables,
-        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
+    """네이버 오픈 API로 뉴스 검색 결과를 수집하고 `naver_news` 테이블에 적재한다."""
+    from linkmerce.core.naver.openapi.search.extract import NewsSearch
+    from linkmerce.core.naver.openapi.search.transform import NewsSearch as T
+    return NewsSearch(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
+    )).run(query, start, display, sort, how_to_run=how_to_run)
 
 
+@with_duckdb_connection(table="naver_book")
 def search_book(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
         start: int | Iterable[int] = 1,
         display: int = 100,
-        sort: Literal["sim","date"] = "sim",
+        sort: Literal["sim", "date"] = "sim",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
+        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import BookSearch
-    # from linkmerce.core.naver.openapi.search.transform import BookSearch
-    return _search(
-        client_id, client_secret, "Book", (query, start, display, sort), connection, tables,
-        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
+    """네이버 오픈 API로 책 검색 결과를 수집하고 `naver_book` 테이블에 적재한다."""
+    from linkmerce.core.naver.openapi.search.extract import BookSearch
+    from linkmerce.core.naver.openapi.search.transform import BookSearch as T
+    return BookSearch(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
+    )).run(query, start, display, sort, how_to_run=how_to_run)
 
 
+@with_duckdb_connection(table="naver_cafe")
 def search_cafe(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
         start: int | Iterable[int] = 1,
         display: int = 100,
-        sort: Literal["sim","date"] = "sim",
+        sort: Literal["sim", "date"] = "sim",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
+        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import CafeSearch
-    # from linkmerce.core.naver.openapi.search.transform import CafeSearch
-    return _search(
-        client_id, client_secret, "Cafe", (query, start, display, sort), connection, tables,
-        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
+    """네이버 오픈 API로 카페 검색 결과를 수집하고 `naver_cafe` 테이블에 적재한다."""
+    from linkmerce.core.naver.openapi.search.extract import CafeSearch
+    from linkmerce.core.naver.openapi.search.transform import CafeSearch as T
+    return CafeSearch(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
+    )).run(query, start, display, sort, how_to_run=how_to_run)
 
 
+@with_duckdb_connection(table="naver_kin")
 def search_kin(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
         start: int | Iterable[int] = 1,
         display: int = 100,
-        sort: Literal["sim","date","point"] = "sim",
+        sort: Literal["sim", "date", "point"] = "sim",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
+        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import KiNSearch
-    # from linkmerce.core.naver.openapi.search.transform import KiNSearch
-    return _search(
-        client_id, client_secret, "KiN", (query, start, display, sort), connection, tables,
-        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
+    """네이버 오픈 API로 지식iN 검색 결과를 수집하고 `naver_kin` 테이블에 적재한다."""
+    from linkmerce.core.naver.openapi.search.extract import KiNSearch
+    from linkmerce.core.naver.openapi.search.transform import KiNSearch as T
+    return KiNSearch(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
+    )).run(query, start, display, sort, how_to_run=how_to_run)
 
 
+@with_duckdb_connection(table="naver_image")
 def search_image(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
         start: int | Iterable[int] = 1,
         display: int = 100,
-        sort: Literal["sim","date"] = "sim",
-        filter: Literal["all","large","medium","small"] = "all",
+        sort: Literal["sim", "date"] = "sim",
+        filter: Literal["all", "large", "medium", "small"] = "all",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
+        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import ImageSearch
-    # from linkmerce.core.naver.openapi.search.transform import ImageSearch
-    return _search(
-        client_id, client_secret, "Image", (query, start, display, sort, filter), connection, tables,
-        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
+    """네이버 오픈 API로 이미지 검색 결과를 수집하고 `naver_image` 테이블에 적재한다."""
+    from linkmerce.core.naver.openapi.search.extract import ImageSearch
+    from linkmerce.core.naver.openapi.search.transform import ImageSearch as T
+    return ImageSearch(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
+    )).run(query, start, display, sort, filter, how_to_run=how_to_run)
 
 
+@with_duckdb_connection(table="naver_shop")
 def search_shop(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
         start: int | Iterable[int] = 1,
         display: int = 100,
-        sort: Literal["sim","date","asc","dsc"] = "sim",
+        sort: Literal["sim", "date", "asc", "dsc"] = "sim",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
+        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> JsonObject:
-    """`tables = {'default': 'data'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
-    # from linkmerce.core.naver.openapi.search.transform import ShoppingSearch
-    return _search(
-        client_id, client_secret, "Shopping", (query, start, display, sort), connection, tables,
-        how, max_concurrent, max_retries, request_delay, progress, return_type, extract_options, transform_options)
+    """네이버 오픈 API로 쇼핑 검색 결과를 수집하고 `naver_shop` 테이블에 적재한다."""
+    from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
+    from linkmerce.core.naver.openapi.search.transform import ShoppingSearch as T
+    return ShoppingSearch(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
+    )).run(query, start, display, sort, how_to_run=how_to_run)
 
 
+@with_duckdb_connection(tables={"rank": "naver_shop_rank", "product": "naver_shop_product"})
 def rank_shop(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
         start: int | Iterable[int] = 1,
         display: int = 100,
-        sort: Literal["sim","date","asc","dsc"] = "sim",
+        sort: Literal["sim", "date", "asc", "dsc"] = "sim",
+        *,
         connection: DuckDBConnection | None = None,
-        tables: dict | None = None,
-        how: Literal["sync","async","async_loop"] = "sync",
+        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
         max_retries: int = 5,
         request_delay: float | int = 0.3,
         progress: bool = True,
-        return_type: Literal["csv","json","parquet","raw","none"] = "json",
-        extract_options: dict = dict(),
-        transform_options: dict = dict(),
-    ) -> dict[str,JsonObject]:
-    """`tables = {'rank': 'naver_rank_shop', 'product': 'naver_product'}`"""
-    # from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
-    # from linkmerce.core.naver.openapi.search.transform import ShoppingRank
-    return run_with_duckdb(
-        module = get_module(".search"),
-        extractor = "ShoppingSearch",
-        transformer = "ShoppingRank",
-        connection = connection,
-        tables = tables,
-        how = how,
-        return_type = return_type,
-        args = (query, start, display, sort),
-        extract_options = update_options(
-            extract_options,
-            options = get_options(max_concurrent, max_retries, request_delay, progress),
-            variables = dict(client_id=client_id, client_secret=client_secret),
-        ),
-        transform_options = transform_options,
-    )
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> dict[str, JsonObject]:
+    """네이버 오픈 API 쇼핑 검색 결과로부터 상품 순위와 상품 목록을 분리하여 각각의 테이블에 변환 및 적재한다.
+
+    테이블 키 | 테이블명 | 설명
+    - `rank` | `naver_shop_rank` | 네이버 쇼핑 상품 순위
+    - `product` | `naver_shop_product` | 네이버 쇼핑 상품 목록"""
+    from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
+    from linkmerce.core.naver.openapi.search.transform import ShoppingRank as T
+    return ShoppingSearch(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
+    )).run(query, start, display, sort, how_to_run=how_to_run)
