@@ -593,7 +593,7 @@ class DuckDBConnection(Connection):
         return bool(self.conn.execute(query).fetchone())
 
     def table_has_rows(self, table: str) -> bool:
-        """테이블에 데이터가 존재하는지 확인한다."""
+        """테이블이 존재하고 데이터가 있는지 확인한다."""
         if self.table_exists(table):
             query = f"SELECT 1 FROM {table} LIMIT 1"
             return bool(self.conn.execute(query).fetchone())
