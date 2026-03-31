@@ -155,12 +155,12 @@ INSERT INTO {{ table }}
 SELECT
     TRY_CAST("캠페인 ID" AS BIGINT) AS campaign_no
   , TRY_CAST($account_no AS BIGINT) AS account_no
-  , TRY_CAST("노출" AS BIGINT) AS impression_count
-  , TRY_CAST("클릭" AS BIGINT) AS click_count
+  , TRY_CAST("노출수" AS BIGINT) AS impression_count
+  , TRY_CAST("클릭수" AS BIGINT) AS click_count
   , NULL AS reach_count
-  , TRY_CAST("총 비용" AS BIGINT) AS ad_cost
+  , TRY_CAST("총비용" AS BIGINT) AS ad_cost
   , TRY_CAST("총 전환수" AS BIGINT) AS conv_count
-  , TRY_CAST("총 전환 매출액" AS BIGINT) AS conv_amount
+  , TRY_CAST("총 전환매출액" AS BIGINT) AS conv_amount
   , TRY_CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) AS ymd
 FROM {{ rows }}
 WHERE (TRY_CAST("캠페인 ID" AS BIGINT) IS NOT NULL)
@@ -191,12 +191,12 @@ SELECT
   , COALESCE(TRY_CAST("광고 그룹 ID" AS BIGINT), 0) AS adset_no
   , TRY_CAST("광고 소재 ID" AS BIGINT) AS creative_no
   , TRY_CAST($account_no AS BIGINT) AS account_no
-  , TRY_CAST("노출" AS BIGINT) AS impression_count
-  , TRY_CAST("클릭" AS BIGINT) AS click_count
-  , TRY_CAST("도달" AS BIGINT) AS reach_count
-  , TRY_CAST("총 비용" AS BIGINT) AS ad_cost
+  , TRY_CAST("노출수" AS BIGINT) AS impression_count
+  , TRY_CAST("클릭수" AS BIGINT) AS click_count
+  , NULL AS reach_count
+  , TRY_CAST("총비용" AS BIGINT) AS ad_cost
   , TRY_CAST("총 전환수" AS BIGINT) AS conv_count
-  , TRY_CAST("총 전환 매출액" AS BIGINT) AS conv_amount
+  , TRY_CAST("총 전환매출액" AS BIGINT) AS conv_amount
   , TRY_CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) AS ymd
 FROM {{ rows }}
 WHERE (TRY_CAST("광고 소재 ID" AS BIGINT) IS NOT NULL)

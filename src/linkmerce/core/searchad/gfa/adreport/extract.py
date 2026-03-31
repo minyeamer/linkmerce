@@ -434,4 +434,4 @@ class CreativeReport(PerformanceReport):
     @property
     def db_columns(self) -> list[str]:
         """소재 성과 리포트 측정값 칼럼 목록을 반환한다."""
-        return ["sales", "impCount", "clickCount", "reachCount", "convCount", "convSales"]
+        return ["sales", "impCount", "clickCount", "convCount", "convSales"]

@@ -86,9 +86,9 @@ class AdvancedReport(ExcelTransformer):
         """광고 정보 - 칼럼 명칭 및 타입"""
         return {
             "캠페인": ("nccCampaignName", "STRING"),
-            "캠페인유형": ("nccCampaignTp", "STRING"),
+            "캠페인 유형": ("nccCampaignTp", "STRING"),
             "광고그룹": ("nccAdgroupName", "STRING"),
-            "광고그룹유형": ("nccAdgroupTp", "STRING"),
+            "광고그룹 유형": ("nccAdgroupTp", "STRING"),
             "키워드": ("keyword", "STRING"),
             "소재": ("nccAdId", "STRING"),
             "소재 유형": ("nccAdId", "STRING"),
@@ -119,10 +119,10 @@ class AdvancedReport(ExcelTransformer):
             "노출수": ("impCnt", "INTEGER"),
             "클릭수": ("clkCnt", "INTEGER"),
             "클릭률(%)": ("ctr", "FLOAT"),
-            "평균클릭비용(VAT포함,원)": ("cpc", "INTEGER"),
-            "총비용(VAT포함,원)": ("salesAmt", "INTEGER"),
+            "평균 CPC": ("cpc", "INTEGER"),
+            "총비용": ("salesAmt", "INTEGER"),
             "평균노출순위": ("avgRnk", "FLOAT"),
-            "동영상조회수": ("viewCnt", "INTEGER"),
+            "총 재생수": ("viewCnt", "INTEGER"),
             "반응수": ("actCnt", "INTEGER"),
         }
 
@@ -133,19 +133,19 @@ class AdvancedReport(ExcelTransformer):
             "총 전환수": ("ccnt", "INTEGER"),
             "직접전환수": ("drtCcnt", "INTEGER"),
             "간접전환수": ("idrtCcnt", "INTEGER"),
-            "전환율(%)": ("crto", "FLOAT"),
+            "총 전환율(%)": ("crto", "FLOAT"),
             "총 전환매출액(원)": ("convAmt", "INTEGER"),
             "직접전환매출액(원)": ("drtConvAmt", "INTEGER"),
             "간접전환매출액(원)": ("idrtConvAmt", "INTEGER"),
-            "전환당비용(원)": ("cpConv", "INTEGER"),
-            "광고수익률(%)": ("ror", "FLOAT"),
-            "전환유형": ("convTp", "STRING"),
-            "방문당 평균페이지뷰": ("pv", "FLOAT"),
+            "총 전환당비용(원)": ("cpConv", "INTEGER"),
+            "총 전환당비용(원)": ("ror", "FLOAT"),
+            "전환 유형": ("convTp", "STRING"),
+            # "방문당 평균페이지뷰": ("pv", "FLOAT"),
             "pv": ("pv", "FLOAT"),
-            "방문당 평균체류시간(초)": ("stayTm", "FLOAT"),
+            # "방문당 평균체류시간(초)": ("stayTm", "FLOAT"),
             "stayTm": ("stayTm", "FLOAT"),
-            "총 전환수(네이버페이)": ("npCcnt", "INTEGER"),
-            "총 전환매출액(네이버페이)": ("npConvAmt", "INTEGER"),
+            # "총 전환수(네이버페이)": ("npCcnt", "INTEGER"),
+            # "총 전환매출액(네이버페이)": ("npConvAmt", "INTEGER"),
         }
 
     @property

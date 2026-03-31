@@ -109,5 +109,5 @@ class DailyReport(AdvancedReport):
     @property
     def fields(self) -> list[str]:
         """보고서 측정값(노출수, 클릭수, 총비용, 전환 등) 목록을 반환한다."""
-        # ["노출수", "클릭수", "총비용(VAT포함,원)", "전환수", "직접전환수", "전환매출액(원)", "직접전환매출액(원)", "평균노출순위", "방문당 평균페이지뷰", "방문당 평균체류시간(초)"]
+        # ["노출수", "클릭수", "총비용", "총 전환수", "직접전환수", "총 전환매출액(원)", "직접전환매출액(원)", ...]
         return ["impCnt", "clkCnt", "salesAmt", "ccnt", "drtCcnt", "convAmt", "drtConvAmt", "avgRnk", "pv", "stayTm"]

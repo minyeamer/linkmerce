@@ -75,7 +75,7 @@ class CampaignReport(DuckDBTransformer):
     tables = {"table": "searchad_campaign_report"}
     parser = CsvTransformer
     parser_config = dict(
-        fields = ["캠페인 ID", "노출", "클릭", "총 비용", "총 전환수", "총 전환 매출액", "기간"],
+        fields = ["캠페인 ID", "노출수", "클릭수", "총비용", "총 전환수", "총 전환매출액", "기간"],
     )
     params = {"account_no": "$account_no"}
 
@@ -88,8 +88,8 @@ class CreativeReport(DuckDBTransformer):
     parser = CsvTransformer
     parser_config = dict(
         fields = [
-            "캠페인 ID", "광고 그룹 ID", "광고 소재 ID", "노출", "클릭", "도달",
-            "총 비용", "총 전환수", "총 전환 매출액", "기간"
+            "캠페인 ID", "광고 그룹 ID", "광고 소재 ID", "노출수", "클릭수",
+            "총비용", "총 전환수", "총 전환매출액", "기간"
         ],
     )
     params = {"account_no": "$account_no"}
