@@ -1133,29 +1133,29 @@ class TestBizdataApi:
 
 
 ###################################################################
-####################### SmartStore Brand ##########################
+################## Naver Shopping Partner Center ##################
 ###################################################################
 
-class TestSmartStoreBrand:
-    """네이버 브랜드스토어 데이터 추출 테스트.
-    - smartstore.brand.catalog.BrandCatalog
-    - smartstore.brand.catalog.BrandProduct
-    - smartstore.brand.pageview.PageViewByDevice
-    - smartstore.brand.pageview.PageViewByUrl
-    - smartstore.brand.sales.StoreSales
-    - smartstore.brand.sales.CategorySales
-    - smartstore.brand.sales.ProductSales"""
+class TestPartnerCenter:
+    """네이버 쇼핑파트너센터 데이터 추출 테스트.
+    - smartstore.hcenter.catalog.BrandCatalog
+    - smartstore.hcenter.catalog.BrandProduct
+    - smartstore.hcenter.pageview.PageViewByDevice
+    - smartstore.hcenter.pageview.PageViewByUrl
+    - smartstore.hcenter.sales.StoreSales
+    - smartstore.hcenter.sales.CategorySales
+    - smartstore.hcenter.sales.ProductSales"""
 
     eol_date = dt.date(2026, 2, 26)
 
     def headers(self, reader: YamlReader) -> dict:
-        _credentials = reader("smartstore.brand")
+        _credentials = reader("smartstore.hcenter")
         return {"cookies": _credentials["cookies"]}
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_brand_catalog(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.smartstore.brand.catalog.extract import BrandCatalog
-        _configs = configs("smartstore.brand.brand_catalog")
+        from linkmerce.core.smartstore.hcenter.catalog.extract import BrandCatalog
+        _configs = configs("smartstore.hcenter.brand_catalog")
         BrandCatalog(
             headers = self.headers(credentials),
             parser = dump_extract(BrandCatalog, format="json", map_index="$brand_ids"),
@@ -1167,10 +1167,10 @@ class TestSmartStoreBrand:
             page_size = _configs.get("page_size", 10),
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_brand_product(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.smartstore.brand.catalog.extract import BrandProduct
-        _configs = configs("smartstore.brand.brand_product")
+        from linkmerce.core.smartstore.hcenter.catalog.extract import BrandProduct
+        _configs = configs("smartstore.hcenter.brand_product")
         BrandProduct(
             headers = self.headers(credentials),
             parser = dump_extract(BrandProduct, format="json", map_index="$brand_ids"),
@@ -1183,10 +1183,10 @@ class TestSmartStoreBrand:
             page_size = _configs.get("page_size", 10),
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_page_view_by_device(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.smartstore.brand.pageview.extract import PageViewByDevice
-        _configs = configs("smartstore.brand.page_view_by_device")
+        from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByDevice
+        _configs = configs("smartstore.hcenter.page_view_by_device")
         PageViewByDevice(
             headers = self.headers(credentials),
             parser = dump_extract(PageViewByDevice, format="json", map_index="$mall_seq"),
@@ -1196,10 +1196,10 @@ class TestSmartStoreBrand:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_page_view_by_url(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.smartstore.brand.pageview.extract import PageViewByUrl
-        _configs = configs("smartstore.brand.page_view_by_url")
+        from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByUrl
+        _configs = configs("smartstore.hcenter.page_view_by_url")
         PageViewByUrl(
             headers = self.headers(credentials),
             parser = dump_extract(PageViewByUrl, format="json", map_index="$mall_seq"),
@@ -1209,10 +1209,10 @@ class TestSmartStoreBrand:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_store_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.smartstore.brand.sales.extract import StoreSales
-        _configs = configs("smartstore.brand.store_sales")
+        from linkmerce.core.smartstore.hcenter.sales.extract import StoreSales
+        _configs = configs("smartstore.hcenter.store_sales")
         StoreSales(
             headers = self.headers(credentials),
             parser = dump_extract(StoreSales, format="json", map_index="$mall_seq"),
@@ -1225,10 +1225,10 @@ class TestSmartStoreBrand:
             page_size = _configs.get("page_size", 1000),
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_category_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.smartstore.brand.sales.extract import CategorySales
-        _configs = configs("smartstore.brand.category_sales")
+        from linkmerce.core.smartstore.hcenter.sales.extract import CategorySales
+        _configs = configs("smartstore.hcenter.category_sales")
         CategorySales(
             headers = self.headers(credentials),
             parser = dump_extract(CategorySales, format="json", map_index="$mall_seq"),
@@ -1241,10 +1241,10 @@ class TestSmartStoreBrand:
             page_size = _configs.get("page_size", 1000),
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_product_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.smartstore.brand.sales.extract import ProductSales
-        _configs = configs("smartstore.brand.product_sales")
+        from linkmerce.core.smartstore.hcenter.sales.extract import ProductSales
+        _configs = configs("smartstore.hcenter.product_sales")
         ProductSales(
             headers = self.headers(credentials),
             parser = dump_extract(ProductSales, format="json", map_index="$mall_seq"),

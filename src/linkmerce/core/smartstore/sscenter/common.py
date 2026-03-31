@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 def has_accounts(session: Session, cookies: str = str()) -> bool:
-    """스마트스토어 로그인 쿠키가 유효한지 검증한다."""
+    """스마트스토어센터 로그인 쿠키로 판매자 정보가 조회되는지 검증한다."""
     from linkmerce.utils.headers import build_headers
     origin = "https://accounts.commerce.naver.com"
     url = f"{origin}/graphql?query=userInfo"
@@ -19,20 +19,20 @@ def has_accounts(session: Session, cookies: str = str()) -> bool:
 
 
 def has_cookies(session: Session, cookies: str = str()) -> bool:
-        """네이버 로그인 쿠키가 유효한지 검증한다."""
-        from linkmerce.utils.headers import build_headers
-        origin = "https://accounts.commerce.naver.com"
-        url = f"{origin}/graphql?query=nidAuth"
-        headers = build_headers(url, contents={"type": "json"}, cookies=cookies, origin=origin, referer=login_url())
-        with session.post(url, json=query_nid_auth(), headers=headers) as response:
-            return bool(response.json()["data"]["nidAuth"]["nid"])
+    """스마트스토어센터 로그인 쿠키가 유효한지 검증한다."""
+    from linkmerce.utils.headers import build_headers
+    origin = "https://accounts.commerce.naver.com"
+    url = f"{origin}/graphql?query=nidAuth"
+    headers = build_headers(url, contents={"type": "json"}, cookies=cookies, origin=origin, referer=login_url())
+    with session.post(url, json=query_nid_auth(), headers=headers) as response:
+        return bool(response.json()["data"]["nidAuth"]["nid"])
 
 
 ###################################################################
 ######################### Smartstore Login ########################
 ###################################################################
 
-class SmartstoreLogin(LoginHandler):
+class SmartstoreCenterLogin(LoginHandler):
     """스마트스토어센터 로그인을 수행하여 쿠키를 발급하는 클래스."""
     main_url = "https://sell.smartstore.naver.com"
     login_url = "https://accounts.commerce.naver.com"

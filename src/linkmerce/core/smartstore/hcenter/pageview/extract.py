@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.smartstore.brand import PartnerCenter
+from linkmerce.core.smartstore.hcenter import PartnerCenter
 
 from typing import TYPE_CHECKING
 

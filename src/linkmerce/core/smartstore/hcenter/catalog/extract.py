@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.smartstore.brand import PartnerCenter
+from linkmerce.core.smartstore.hcenter import PartnerCenter
 
 from typing import Iterable, TYPE_CHECKING
 
@@ -8,8 +8,8 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import JsonObject
 
 
-class _VPartnerCenter(PartnerCenter):
-    """네이버 브랜드 카탈로그 조회를 위한 공통 클래스.
+class _CatalogProduct(PartnerCenter):
+    """네이버 브랜드 카탈로그/상품 조회를 위한 공통 클래스.
 
     `RequestEachPages` Task를 사용하여 브랜드ID(`brand_ids`) 목록에 대해 순차 조회한다."""
 
@@ -63,7 +63,7 @@ class _VPartnerCenter(PartnerCenter):
             return dict()
 
 
-class BrandCatalog(_VPartnerCenter):
+class BrandCatalog(_CatalogProduct):
     """네이버 브랜드 카탈로그 목록을 조회하는 클래스."""
 
     path = "/api/catalogs"
@@ -133,7 +133,7 @@ class BrandCatalog(_VPartnerCenter):
             }
 
 
-class BrandProduct(_VPartnerCenter):
+class BrandProduct(_CatalogProduct):
     """네이버 브랜드 상품 목록을 조회하는 클래스."""
 
     path = "/api/offers"

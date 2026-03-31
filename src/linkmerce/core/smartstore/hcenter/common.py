@@ -1,6 +1,6 @@
 from __future__ import annotations
 from linkmerce.common.extract import Extractor
-from linkmerce.core.smartstore.center.common import SmartstoreLogin
+from linkmerce.core.smartstore.sscenter.common import SmartstoreCenterLogin
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
@@ -23,12 +23,12 @@ class PartnerCenter(Extractor):
 ####################### Partner Center Login ######################
 ###################################################################
 
-class PartnerCenterLogin(SmartstoreLogin):
+class PartnerCenterLogin(SmartstoreCenterLogin):
     """네이버 쇼핑파트너센터 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스."""
 
     center_url = "https://center.shopping.naver.com"
 
-    @SmartstoreLogin.with_session
+    @SmartstoreCenterLogin.with_session
     def login(
             self,
             userid: str | None = None,

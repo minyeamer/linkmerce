@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.smartstore.brand import PartnerCenter
+from linkmerce.core.smartstore.hcenter import PartnerCenter
 
 from typing import TYPE_CHECKING
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class _SalesExtractor(PartnerCenter):
+class _Sales(PartnerCenter):
     """네이버 스토어의 일별 매출 데이터를 조회하는 공통 클래스.
 
     `RequestEach` Task를 사용하여 판매처번호(`mall_seq`)에 대한   
@@ -107,7 +107,7 @@ class _SalesExtractor(PartnerCenter):
         super().set_request_headers(contents=contents, origin=self.origin, referer=referer, **kwargs)
 
 
-class StoreSales(_SalesExtractor):
+class StoreSales(_Sales):
     """네이버 스토어 일별 매출 데이터를 조회하는 클래스."""
 
     sales_type = "store"
@@ -123,7 +123,7 @@ class StoreSales(_SalesExtractor):
         ]
 
 
-class CategorySales(_SalesExtractor):
+class CategorySales(_Sales):
     """"네이버 스토어 일별/카테고리별 매출 데이터를 조회하는 클래스."""
 
     sales_type = "category"
@@ -139,7 +139,7 @@ class CategorySales(_SalesExtractor):
         ]
 
 
-class ProductSales(_SalesExtractor):
+class ProductSales(_Sales):
     """네이버 스토어 일별/상품별 매출 데이터를 조회하는 클래스."""
 
     sales_type = "product"

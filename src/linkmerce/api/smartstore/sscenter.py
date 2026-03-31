@@ -7,8 +7,8 @@ if TYPE_CHECKING:
 
 
 def has_accounts(cookies: str) -> bool:
-    """스마트스토어 로그인 쿠키가 유효한지 검증한다."""
-    from linkmerce.core.smartstore.center.common import has_accounts
+    """스마트스토어센터 로그인 쿠키로 판매자 정보가 조회되는지 검증한다."""
+    from linkmerce.core.smartstore.sscenter.common import has_accounts
     import requests
 
     with requests.Session() as session:
@@ -23,8 +23,8 @@ def login(
         save_to: str | Path | None = None,
     ) -> str:
     """스마트스토어센터에 로그인하고 쿠키를 반환한다."""
-    from linkmerce.core.smartstore.center.common import SmartstoreLogin
-    handler = SmartstoreLogin()
+    from linkmerce.core.smartstore.sscenter.common import SmartstoreCenterLogin
+    handler = SmartstoreCenterLogin()
     handler.login(userid, passwd, channel_seq, cookies)
     cookies = handler.get_cookies()
     if cookies and save_to:

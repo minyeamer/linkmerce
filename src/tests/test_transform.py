@@ -758,117 +758,117 @@ class TestBizdataApi:
 ###################################################################
 
 class TestSmartStoreBrand:
-    """스마트스토어 브랜드 데이터 변환 테스트.
-    - smartstore.brand.catalog.BrandCatalog
-    - smartstore.brand.catalog.BrandProduct
-    - smartstore.brand.catalog.BrandPrice
-    - smartstore.brand.catalog.ProductCatalog
-    - smartstore.brand.pageview.PageViewByDevice
-    - smartstore.brand.pageview.PageViewByUrl
-    - smartstore.brand.pageview.PageViewByProduct
-    - smartstore.brand.sales.StoreSales
-    - smartstore.brand.sales.CategorySales
-    - smartstore.brand.sales.ProductSales
-    - smartstore.brand.sales.AggregatedSales"""
+    """네이버 쇼핑파트너센터 데이터 변환 테스트.
+    - smartstore.hcenter.catalog.BrandCatalog
+    - smartstore.hcenter.catalog.BrandProduct
+    - smartstore.hcenter.catalog.BrandPrice
+    - smartstore.hcenter.catalog.ProductCatalog
+    - smartstore.hcenter.pageview.PageViewByDevice
+    - smartstore.hcenter.pageview.PageViewByUrl
+    - smartstore.hcenter.pageview.PageViewByProduct
+    - smartstore.hcenter.sales.StoreSales
+    - smartstore.hcenter.sales.CategorySales
+    - smartstore.hcenter.sales.ProductSales
+    - smartstore.hcenter.sales.AggregatedSales"""
 
     eol_date = dt.date(2026, 2, 26)
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_brand_catalog(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.catalog.transform import BrandCatalog
-        _configs = configs("smartstore.brand.brand_catalog")
+        from linkmerce.core.smartstore.hcenter.catalog.transform import BrandCatalog
+        _configs = configs("smartstore.hcenter.brand_catalog")
         transformer_harness(BrandCatalog).transform(
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_brand_product(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.catalog.transform import BrandProduct
-        _configs = configs("smartstore.brand.brand_product")
+        from linkmerce.core.smartstore.hcenter.catalog.transform import BrandProduct
+        _configs = configs("smartstore.hcenter.brand_product")
         transformer_harness(BrandProduct).transform(
             mall_seq = _configs["mall_seq"],
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_brand_price(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.catalog.transform import BrandPrice
-        _configs = configs("smartstore.brand.brand_product")
+        from linkmerce.core.smartstore.hcenter.catalog.transform import BrandPrice
+        _configs = configs("smartstore.hcenter.brand_product")
         transformer_harness(BrandPrice).transform(
             mall_seq = _configs["mall_seq"],
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_product_catalog(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.catalog.transform import ProductCatalog
-        _configs = configs("smartstore.brand.brand_product")
+        from linkmerce.core.smartstore.hcenter.catalog.transform import ProductCatalog
+        _configs = configs("smartstore.hcenter.brand_product")
         transformer_harness(ProductCatalog).transform(
             mall_seq = _configs["mall_seq"],
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_page_view_by_device(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.pageview.transform import PageViewByDevice
-        _configs = configs("smartstore.brand.page_view_by_device")
+        from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByDevice
+        _configs = configs("smartstore.hcenter.page_view_by_device")
         transformer_harness(PageViewByDevice).transform(
             mall_seq = _configs["mall_seq"],
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_page_view_by_url(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.pageview.transform import PageViewByUrl
-        _configs = configs("smartstore.brand.page_view_by_url")
+        from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByUrl
+        _configs = configs("smartstore.hcenter.page_view_by_url")
         transformer_harness(PageViewByUrl).transform(
             mall_seq = _configs["mall_seq"],
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_page_view_by_product(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.pageview.transform import PageViewByProduct
-        _configs = configs("smartstore.brand.page_view_by_url")
+        from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByProduct
+        _configs = configs("smartstore.hcenter.page_view_by_url")
         transformer_harness(PageViewByProduct).transform(
             mall_seq = _configs["mall_seq"],
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_store_sales(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.sales.transform import StoreSales
-        _configs = configs("smartstore.brand.store_sales")
+        from linkmerce.core.smartstore.hcenter.sales.transform import StoreSales
+        _configs = configs("smartstore.hcenter.store_sales")
         transformer_harness(StoreSales).transform(
             mall_seq = _configs["mall_seq"],
             end_date = self.eol_date,
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_category_sales(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.sales.transform import CategorySales
-        _configs = configs("smartstore.brand.category_sales")
+        from linkmerce.core.smartstore.hcenter.sales.transform import CategorySales
+        _configs = configs("smartstore.hcenter.category_sales")
         transformer_harness(CategorySales).transform(
             mall_seq = _configs["mall_seq"],
             end_date = self.eol_date,
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_product_sales(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.sales.transform import ProductSales
-        _configs = configs("smartstore.brand.product_sales")
+        from linkmerce.core.smartstore.hcenter.sales.transform import ProductSales
+        _configs = configs("smartstore.hcenter.product_sales")
         transformer_harness(ProductSales).transform(
             mall_seq = _configs["mall_seq"],
             end_date = self.eol_date,
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_brand
+    @pytest.mark.smartstore_hcenter
     def test_aggregated_sales(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.smartstore.brand.sales.transform import AggregatedSales
-        _configs = configs("smartstore.brand.product_sales")
+        from linkmerce.core.smartstore.hcenter.sales.transform import AggregatedSales
+        _configs = configs("smartstore.hcenter.product_sales")
         transformer_harness(AggregatedSales).transform(
             mall_seq = _configs["mall_seq"],
             start_date = self.eol_date,

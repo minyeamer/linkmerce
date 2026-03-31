@@ -19,8 +19,8 @@ def login(
         cookies: str | None = None,
         save_to: str | Path | None = None,
     ) -> str:
-    """네이버 쇼핑파트너센터 로그인하고 쿠키를 반환한다."""
-    from linkmerce.core.smartstore.brand.common import PartnerCenterLogin
+    """네이버 쇼핑파트너센터에 로그인하고 쿠키를 반환한다."""
+    from linkmerce.core.smartstore.hcenter.common import PartnerCenterLogin
     handler = PartnerCenterLogin()
     handler.login(userid, passwd, channel_seq, cookies)
     cookies = handler.get_cookies()
@@ -48,9 +48,9 @@ def brand_catalog(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
-    """네이버 브랜드스토어 카탈로그 목록을 조회하고 `naver_brand_catalog` 테이블에 적재한다."""
-    from linkmerce.core.smartstore.brand.catalog.extract import BrandCatalog
-    from linkmerce.core.smartstore.brand.catalog.transform import BrandCatalog as T
+    """네이버 브랜드스토어의 카탈로그 목록을 조회하고 `naver_brand_catalog` 테이블에 적재한다."""
+    from linkmerce.core.smartstore.hcenter.catalog.extract import BrandCatalog
+    from linkmerce.core.smartstore.hcenter.catalog.transform import BrandCatalog as T
     return BrandCatalog(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         headers = {"cookies": cookies},
@@ -88,9 +88,9 @@ def brand_product(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
-    """네이버 브랜드스토어 상품 목록을 조회하고 `naver_brand_product` 테이블에 적재한다."""
-    from linkmerce.core.smartstore.brand.catalog.extract import BrandProduct
-    from linkmerce.core.smartstore.brand.catalog.transform import BrandProduct as T
+    """네이버 브랜드스토어의 상품 목록을 조회하고 `naver_brand_product` 테이블에 적재한다."""
+    from linkmerce.core.smartstore.hcenter.catalog.extract import BrandProduct
+    from linkmerce.core.smartstore.hcenter.catalog.transform import BrandProduct as T
     return BrandProduct(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         headers = {"cookies": cookies},
@@ -128,13 +128,13 @@ def brand_price(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> dict[str, JsonObject]:
-    """네이버 브랜드스토어 상품 조회 결과로부터 상품 가격 및 상품 목록을 각각의 테이블에 적재한다.
+    """네이버 브랜드스토어의 상품 조회 결과로부터 상품 가격 및 상품 목록을 각각의 테이블에 적재한다.
 
     테이블 키 | 테이블명 | 설명
     - `price` | `naver_price_history` | 네이버 브랜드 상품 가격
     - `product` | `naver_product` | 네이버 브랜드 상품 목록"""
-    from linkmerce.core.smartstore.brand.catalog.extract import BrandProduct
-    from linkmerce.core.smartstore.brand.catalog.transform import BrandPrice as T
+    from linkmerce.core.smartstore.hcenter.catalog.extract import BrandProduct
+    from linkmerce.core.smartstore.hcenter.catalog.transform import BrandPrice as T
     return BrandProduct(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         headers = {"cookies": cookies},
@@ -172,9 +172,9 @@ def product_catalog(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
-    """네이버 브랜드스토어 카탈로그-상품 매핑 데이터를 조회하고 `naver_catalog_product` 테이블에 적재한다."""
-    from linkmerce.core.smartstore.brand.catalog.extract import BrandProduct
-    from linkmerce.core.smartstore.brand.catalog.transform import ProductCatalog as T
+    """네이버 브랜드스토어의 카탈로그-상품 매핑 데이터를 조회하고 `naver_catalog_product` 테이블에 적재한다."""
+    from linkmerce.core.smartstore.hcenter.catalog.extract import BrandProduct
+    from linkmerce.core.smartstore.hcenter.catalog.transform import ProductCatalog as T
     return BrandProduct(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         headers = {"cookies": cookies},
@@ -210,23 +210,23 @@ def page_view(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> dict[str, JsonObject]:
-    """네이버 브랜드 스토어의 일별 페이지뷰 데이터를 조회해 집계 기준에 대응되는 하나의 테이블에 적재한다.
+    """네이버 브랜드스토어의 일별 페이지뷰 데이터를 조회해 집계 기준에 대응되는 하나의 테이블에 적재한다.
 
     집계 기준 | 테이블명 | 설명
     - `device` | `naver_pv_by_device` | 일별/기기별 페이지뷰
     - `product` | `naver_pv_by_product` | 일별/상품별 페이지뷰
     - `url` | `naver_pv_by_url` | 일별/URL별 페이지뷰"""
     if aggregate_by == "device":
-        from linkmerce.core.smartstore.brand.pageview.extract import PageViewByDevice as E
-        from linkmerce.core.smartstore.brand.pageview.transform import PageViewByDevice as T
+        from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByDevice as E
+        from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByDevice as T
         table = "naver_pv_by_device"
     elif aggregate_by == "product":
-        from linkmerce.core.smartstore.brand.pageview.extract import PageViewByUrl as E
-        from linkmerce.core.smartstore.brand.pageview.transform import PageViewByProduct as T
+        from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByUrl as E
+        from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByProduct as T
         table = "naver_pv_by_product"
     else:
-        from linkmerce.core.smartstore.brand.pageview.extract import PageViewByUrl as E
-        from linkmerce.core.smartstore.brand.pageview.transform import PageViewByUrl as T
+        from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByUrl as E
+        from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByUrl as T
         table = "naver_pv_by_url"
 
     @with_duckdb_connection(table=table)
@@ -267,23 +267,23 @@ def store_sales(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> dict[str, JsonObject]:
-    """네이버 브랜드 스토어의 일별 매출 데이터를 조회해 매출 유형에 대응되는 하나의 테이블에 적재한다.
+    """네이버 스토어의 일별 매출 데이터를 조회해 매출 유형에 대응되는 하나의 테이블에 적재한다.
 
     매출 유형 | 테이블명 | 설명
     - `store` | `naver_store_sales` | 일별/기기별 페이지뷰
     - `category` | `naver_category_sales` | 일별/상품별 페이지뷰
     - `product` | `naver_product_sales` | 일별/URL별 페이지뷰"""
     if sales_type == "store":
-        from linkmerce.core.smartstore.brand.sales.extract import StoreSales as E
-        from linkmerce.core.smartstore.brand.sales.transform import StoreSales as T
+        from linkmerce.core.smartstore.hcenter.sales.extract import StoreSales as E
+        from linkmerce.core.smartstore.hcenter.sales.transform import StoreSales as T
         table = "naver_store_sales"
     elif sales_type == "category":
-        from linkmerce.core.smartstore.brand.sales.extract import CategorySales as E
-        from linkmerce.core.smartstore.brand.sales.transform import CategorySales as T
+        from linkmerce.core.smartstore.hcenter.sales.extract import CategorySales as E
+        from linkmerce.core.smartstore.hcenter.sales.transform import CategorySales as T
         table = "naver_category_sales"
     else:
-        from linkmerce.core.smartstore.brand.sales.extract import ProductSales as E
-        from linkmerce.core.smartstore.brand.sales.transform import ProductSales as T
+        from linkmerce.core.smartstore.hcenter.sales.extract import ProductSales as E
+        from linkmerce.core.smartstore.hcenter.sales.transform import ProductSales as T
         table = "naver_product_sales"
 
     @with_duckdb_connection(table=table)
@@ -321,13 +321,13 @@ def aggregated_sales(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> dict[str, JsonObject]:
-    """네이버 스토어 일별/상품별 매출 데이터로부터 상품별 매출 및 상품 목록을 각각의 테이블에 적재한다.
+    """네이버 스토어의 일별/상품별 매출 데이터로부터 상품별 매출 및 상품 목록을 각각의 테이블에 적재한다.
 
     테이블 키 | 테이블명 | 설명
     - `sales` | `naver_sales` | 네이버 스토어 상품별 매출
     - `product` | `naver_product` | 네이버 스토어 상품 목록"""
-    from linkmerce.core.smartstore.brand.sales.extract import ProductSales
-    from linkmerce.core.smartstore.brand.sales.transform import AggregatedSales as T
+    from linkmerce.core.smartstore.hcenter.sales.extract import ProductSales
+    from linkmerce.core.smartstore.hcenter.sales.transform import AggregatedSales as T
     return ProductSales(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         headers = {"cookies": cookies},

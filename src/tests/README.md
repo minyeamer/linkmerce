@@ -327,15 +327,15 @@ smartstore/
 │   └── bizdata/
 │       └── MarketingChannel(SmartstoreApi)::extract
 │           └── MarketingChannel(DuckDBTransformer)::transform >> json
-├── brand/
+├── hcenter/
 │   ├─x PartnerCenter(Extractor)::common
-│   ├─x PartnerCenterLogin(SmartstoreLogin)::common
+│   ├─x PartnerCenterLogin(SmartstoreCenterLogin)::common
 │   ├── catalog/
-│   │   ├─x _VPartnerCenter(PartnerCenter)::extract
-│   │   ├── BrandCatalog(_VPartnerCenter)::extract
+│   │   ├─x _CatalogProduct(PartnerCenter)::extract
+│   │   ├── BrandCatalog(_CatalogProduct)::extract
 │   │   │   └── BrandCatalog(DuckDBTransformer)::transform
 │   │   │       └── CatalogItems(JsonTransformer)::transform
-│   │   └── BrandProduct(_VPartnerCenter)::extract
+│   │   └── BrandProduct(_CatalogProduct)::extract
 │   │       ├── BrandProduct(DuckDBTransformer)::transform
 │   │       │   └── CatalogItems(JsonTransformer)::transform
 │   │       ├── BrandPrice(BrandProduct)::transform
@@ -353,20 +353,20 @@ smartstore/
 │   │       └── PageViewByProduct(DuckDBTransformer)::transform
 │   │           └── PageViewParser(JsonTransformer)::transform
 │   └── sales/
-│       ├─x _SalesExtractor(PartnerCenter)::extract
-│       ├── StoreSales(_SalesExtractor)::extract
+│       ├─x _Sales(PartnerCenter)::extract
+│       ├── StoreSales(_Sales)::extract
 │       │   └── StoreSales(DuckDBTransformer)::transform
 │       │       └── SalesParser(JsonTransformer)::transform
-│       ├── CategorySales(_SalesExtractor)::extract
+│       ├── CategorySales(_Sales)::extract
 │       │   └── CategorySales(DuckDBTransformer)::transform
 │       │       └── SalesParser(JsonTransformer)::transform
-│       └── ProductSales(_SalesExtractor)::extract
+│       └── ProductSales(_Sales)::extract
 │           ├── ProductSales(DuckDBTransformer)::transform
 │           │   └── SalesParser(JsonTransformer)::transform
 │           └── AggregatedSales(ProductSales)::transform
 │               └── SalesParser(JsonTransformer)::transform
-└─x center/
-    └─x SmartstoreLogin(LoginHandler)::common
+└─x sscenter/
+    └─x SmartstoreCenterLogin(LoginHandler)::common
 ```
 
 # 테스트 예시
