@@ -11,11 +11,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def _get_api_configs(
-        access_token: str,
-        app_id: str = str(),
-        app_secret: str = str(),
-    ) -> dict:
+def _get_api_configs(access_token: str, app_id: str = str(), app_secret: str = str()) -> dict:
     """메타 API 인증에 필요한 설정을 구성한다."""
     return {
         "access_token": access_token,

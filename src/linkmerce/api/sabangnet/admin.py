@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def _get_login_configs(userid: str, passwd: str, domain: int) -> dict:
     """사방넷 로그인에 필요한 설정을 구성한다."""
-    return _get_login_configs(userid, passwd, domain)
+    return {"userid": userid, "passwd": passwd, "domain": domain}
 
 
 def login(userid: str, passwd: str) -> dict[str, str]:

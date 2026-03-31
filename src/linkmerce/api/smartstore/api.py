@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def _get_api_configs(client_id: str, client_secret: str) -> dict:
     """커머스 API 인증에 필요한 설정을 구성한다."""
-    return _get_api_configs(client_id, client_secret)
+    return {"client_id": client_id, "client_secret": client_secret}
 
 
 def request(

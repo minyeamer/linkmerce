@@ -11,11 +11,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def _get_api_configs(
-        api_key: str,
-        secret_key: str,
-        customer_id: int | str,
-    ) -> dict:
+def _get_api_configs(api_key: str, secret_key: str, customer_id: int | str) -> dict:
     """네이버 검색광고 API 인증에 필요한 설정을 구성한다."""
     return {"api_key": api_key, "secret_key": secret_key, "customer_id": customer_id}
 
