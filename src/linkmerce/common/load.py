@@ -60,20 +60,31 @@ def save_to_json(obj: list[dict], file_path: str | Path, encoding: str | None = 
 
 def run_with_tempfile(func: Callable[[str], Any], values: bytes, mode = "w+b", suffix: str | None = None, **kwargs) -> Any:
     """임시 파일에 데이터를 쓰고 함수를 실행한 뒤 결과를 반환한다. 실행 후 임시 파일은 삭제한다."""
-    import tempfile
-    with tempfile.NamedTemporaryFile(mode, suffix=suffix, **kwargs) as temp_file:
+    import tempfile, os
+    with tempfile.NamedTemporaryFile(mode, suffix=suffix, delete=False, **kwargs) as temp_file:
         temp_file.write(values)
-        return func(temp_file.name)
+        temp_path = temp_file.name
+    # DB가 내부적으로 임시 파일을 이동하거나 잠금을 걸려고 하면 OS가 거부할 수 있다.
+    # 이를 방지하기 위해 `with`문 밖에서 함수를 실행한다.
+    try:
+        return func(temp_path)
+    finally:
+        os.unlink(temp_path)
 
 
 def write_tempfile(write_func: Callable[[str], None], mode = "w+b", suffix: str | None = None, **kwargs) -> bytes:
     """임시 파일에 쓰기 함수를 실행하고 파일 내용을 바이트로 반환한다. 실행 후 임시 파일은 삭제한다."""
-    import tempfile
-    with tempfile.NamedTemporaryFile(mode, suffix=suffix, **kwargs) as temp_file:
-        file_path = temp_file.name
-        write_func(file_path)
-        with open(file_path, "rb") as file:
+    import tempfile, os
+    with tempfile.NamedTemporaryFile(mode, suffix=suffix, delete=False, **kwargs) as temp_file:
+        temp_path = temp_file.name
+    # DB가 내부적으로 임시 파일을 이동하거나 잠금을 걸려고 하면 OS가 거부할 수 있다.
+    # 이를 방지하기 위해 `with`문 밖에서 함수를 실행한다.
+    try:
+        write_func(temp_path)
+        with open(temp_path, "rb") as file:
             return file.read()
+    finally:
+        os.unlink(temp_path)
 
 
 ###################################################################
