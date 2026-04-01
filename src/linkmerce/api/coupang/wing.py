@@ -29,7 +29,7 @@ def login(
     return cookies
 
 
-@with_duckdb_connection(tabless={"products": "coupang_product", "details": "coupang_product_detail"})
+@with_duckdb_connection(table="coupang_product")
 def product_option(
         cookies: str,
         is_deleted: bool = False,
@@ -40,19 +40,22 @@ def product_option(
         request_delay: float | int = 0.3,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
-        extract_options: dict | None = None,
-        transform_options: dict | None = None,
+        extract_options: tuple[dict | None, dict | None] = (None, None),
+        transform_options: tuple[dict | None, dict | None] = (None, None),
     ) -> JsonObject:
-    """쿠팡 상품 옵션 목록을 조회한다. `see_more=True`의 경우 상품 상세 정보를 추가로 조회한다.
-
-    테이블 키 | 테이블명 | 설명
-    - `products` | `coupang_product` | 쿠팡 상품 옵션 목록
-    - `details` | `coupang_product_detail` | 쿠팡 상품 상세 정보"""
+    """쿠팡 상품 옵션 목록을 조회하고 `coupang_product` 테이블에 적재한다.   
+    `see_more=True` 전달 시 상품 상세 정보를 추가로 조회한다."""
     from linkmerce.core.coupang.wing.product.extract import ProductOption
     from linkmerce.core.coupang.wing.product.transform import ProductOption as T
+    OPTION, DETAIL = 0, 1
+
+    if isinstance((opt := transform_options[OPTION]), dict) and ("tables" in opt):
+        common = opt["tables"]
+    else:
+        common = dict(tables={"table": "coupang_product"})
 
     products = ProductOption(**prepare_duckdb_extract(
-        T, connection, extract_options, transform_options, return_type,
+        T, connection, extract_options, transform_options[OPTION], return_type,
         configs = {"domain": domain},
         headers = {"cookies": cookies},
         options = {
@@ -73,11 +76,13 @@ def product_option(
                 ids = ids.union({product["vendor_inventory_id"] for product in result})
             vendor_inventory_id = list(ids)
         else:
-            query = "SELECT DISTINCT vendor_inventory_id FROM coupang_product"
+            query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(common["tables"]["table"])
             vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
 
         details = ProductDetail(**prepare_duckdb_extract(
-            T, connection, extract_options, transform_options, return_type,
+            T, connection, extract_options,
+            transform_options = ((transform_options[DETAIL] or dict()) | common),
+            return_type = return_type,
             headers = {"cookies": cookies},
             options = {
                 "RequestEach": {
@@ -169,7 +174,7 @@ def rocket_inventory(
     )).run(hidden_status, vendor_id, how_to_run="sync")
 
 
-@with_duckdb_connection(tables={"options": "coupang_rocket_option", "details": "coupang_product_detail"})
+@with_duckdb_connection(table="coupang_rocket_option")
 def rocket_option(
         cookies: str,
         hidden_status: Literal["VISIBLE", "HIDDEN"] | None = None, 
@@ -180,19 +185,22 @@ def rocket_option(
         request_delay: float | int = 0.3,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
-        extract_options: dict | None = None,
-        transform_options: dict | None = None,
+        extract_options: tuple[dict | None, dict | None] = (None, None),
+        transform_options: tuple[dict | None, dict | None] = (None, None),
     ) -> JsonObject:
-    """쿠팡 로켓 재고 현황을 조회한다. `see_more=True` 시 상세 정보를 추가 조회한다.
-
-    테이블 키 | 테이블명 | 설명
-    - `options` | `coupang_rocket_option` | 쿠팡 상품 옵션 목록
-    - `details` | `coupang_product_detail` | 쿠팡 상품 상세 정보"""
+    """쿠팡 로켓 재고 현황을 조회하고 `coupang_rocket_option` 테이블에 적재한다.   
+    `see_more=True` 전달 시 상세 정보를 추가 조회한다."""
     from linkmerce.core.coupang.wing.product.extract import RocketInventory
     from linkmerce.core.coupang.wing.product.transform import RocketOption as T
+    OPTION, DETAIL = 0, 1
+
+    if isinstance((opt := transform_options[OPTION]), dict) and ("tables" in opt):
+        common = opt["tables"]
+    else:
+        common = dict(tables={"table": "coupang_rocket_option"})
 
     product = RocketInventory(**prepare_duckdb_extract(
-        T, connection, extract_options, transform_options, return_type,
+        T, connection, extract_options, transform_options[OPTION], return_type,
         configs = {"domain": domain},
         headers = {"cookies": cookies},
         options = {"CursorAll": {"request_delay": request_delay}},
@@ -202,12 +210,13 @@ def rocket_option(
         from linkmerce.core.coupang.wing.product.extract import ProductDetail
         from linkmerce.core.coupang.wing.product.transform import ProductDetail as T
 
-        table = "coupang_rocket_option"
-        query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(table)
+        query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(common["tables"]["table"])
         vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
 
         return ProductDetail(**prepare_duckdb_extract(
-            T, connection, extract_options, transform_options, return_type,
+            T, connection, extract_options,
+            transform_options = ((transform_options[DETAIL] or dict()) | common),
+            return_type = return_type,
             configs = {"domain": domain},
             headers = {"cookies": cookies},
             options = {

@@ -1556,6 +1556,71 @@ Phase 3 — Extractor 메서드 docstring (24개 extract.py)
   smartstore/api/bizdata/extract.py
     - default_options, extract, build_request_params
 
+[2026-03-31] Q27: Airflow DAG doc_md 전면 확장 — 단일행 → 구조화된 다중행 형식
+================================================================================
+
+배경
+----
+  기존 DAG의 `doc_md`가 한 줄 요약 형태로만 작성되어 있었다.
+  `price.py`와 `adreport.py`를 예시로, 제목/인증/추출/변환/적재 5개 섹션으로
+  구조화된 `dedent()` 다중행 형식으로 전체 DAG의 `doc_md`를 확장한다.
+
+형식 규칙
+---------
+  1. `from textwrap import dedent` 임포트 추가
+  2. `doc_md = dedent("""` 으로 시작, 내용은 한 단계 들여쓰기
+  3. 마지막 `""").strip(),` 는 `doc_md`와 동일 들여쓰기
+  4. 섹션: 제목(#), 인증(##), 추출(##), 변환(##), 적재(##)
+  5. 인증: 어떤 쿠키/API 키 필요한지 기술
+  6. 추출: Extractor 작업 요약
+  7. 변환: Transformer 작업 요약
+  8. 적재: APPEND / MERGE / OVERWRITE 방식 명시
+
+변경 파일 (22개)
+----------------
+  smartstore/product.py — 상품·옵션: API 키, JSON 파싱, MERGE
+  smartstore/order.py — 주문: API 키, JSON 파싱, APPEND+MERGE
+  smartstore/invoice.py — 운송장: API 키, JSON 파싱, MERGE
+  smartstore/bizdata.py — 마케팅 채널: API 키, JSON 파싱, APPEND
+
+  sabangnet/order.py — 주문: 로그인 쿠키, 다운로드 파싱, MERGE
+  sabangnet/product.py — 상품·옵션·SKU: 로그인 쿠키, 다운로드 파싱, MERGE
+  sabangnet/invoice.py — 운송장: 로그인 쿠키, 다운로드 파싱, MERGE
+
+  searchad/report.py — 일별 리포트: 쿠키+GFA 쿠키, TSV/CSV 파싱, APPEND
+  searchad/master.py — 마스터: API 키+GFA 쿠키, TSV/JSON 파싱, MERGE
+  searchad/contract.py — 계약: API 키, JSON 파싱+UNION ALL, OVERWRITE
+
+  naver/rank_shop.py — 쇼핑 순위: 오픈 API 키, JSON 파싱, APPEND+MERGE
+  naver/rank_ad.py — 광고 순위: 검색광고 쿠키, JSON 파싱, APPEND+MERGE
+  naver/product_catalog.py — 카탈로그 매핑: 파트너센터 쿠키, JSON 파싱, APPEND+MERGE
+  naver/main_search.py — 통합검색: 네이버 쿠키, HTML/JSON 파싱, Slack 전송
+  naver/cafe_search.py — 카페 검색: 네이버 쿠키, HTML/JSON 파싱, Slack 전송
+
+  google_ads.py — Google Ads: API 인증, JSON 파싱, MERGE+APPEND
+  meta_ads.py — Meta Ads: API 인증, JSON 파싱, MERGE+APPEND
+  cj_loisparcel_invoice.py — CJ 운송장: 로그인+2FA, 웹 스크래핑, MERGE
+  ecount_stock_report.py — 재고 현황: 다중 플랫폼, 다중 파싱, OVERWRITE+MERGE+Slack
+
+  _deprecated/hcenter/pageview.py — 페이지뷰: 파트너센터 쿠키, JSON 파싱, APPEND
+  _deprecated/hcenter/sales.py — 매출: 파트너센터 쿠키, JSON 파싱, MERGE
+  _deprecated/coupang/campaign.py — 광고 캠페인: 광고 쿠키, JSON 파싱, MERGE
+  _deprecated/coupang/option.py — 상품 옵션: Wing 쿠키, JSON 파싱, MERGE
+  _deprecated/coupang/rocket_sales.py — 로켓 정산: Wing 쿠키, 다운로드 파싱, MERGE
+  _deprecated/report.py — (searchad/report.py와 동일 구조)
+
+스킵한 파일 (3개)
+-----------------
+  hcenter/price.py — 이미 다중행 형식 (예시)
+  hcenter/login.py — 이미 다중행 형식
+  _deprecated/coupang/adreport.py — 이미 다중행 형식 (예시)
+
+결정 사항
+---------
+  1. 모든 DAG의 `doc_md`를 `dedent()` 다중행 형식으로 통일.
+  2. `doc_md` 외 코드 변경 없음 (`textwrap.dedent` 임포트만 추가).
+  3. .airflowignore 내 비활성 DAG도 동일 형식 적용.
+
   smartstore/brand/catalog/extract.py (13 docstrings)
     - _VPartnerCenter: default_options, count_total, split_map_kwargs,
       set_request_headers, select_sort_type
