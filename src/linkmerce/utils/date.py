@@ -8,10 +8,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Literal, TypeVar
     from pytz import BaseTzInfo
+    from pendulum.tz.timezone import Timezone, FixedTimezone
+    import pendulum
     _NUMERIC = TypeVar("_NUMERIC", float, int, bool, dt.date, dt.datetime)
 
 
 DATE_UNIT = ["second", "minute", "hour", "day", "month", "year"]
+DEFAULT_TIMEZONE = "Asia/Seoul"
 
 
 ###################################################################
@@ -68,7 +71,7 @@ def safe_strpdate(date: dt.date | str, format: str = "%Y-%m-%d", default: dt.dat
 
 
 ###################################################################
-############################# Datetime ############################
+############################# datetime ############################
 ###################################################################
 
 def now(
@@ -128,6 +131,43 @@ def trunc_datetime(
     if index >= 5:
         datetime = datetime.replace(month=1)
     return datetime
+
+
+###################################################################
+############################# pendulum ############################
+###################################################################
+
+def in_timezone(
+        datetime: pendulum.DateTime,
+        tz: str | Timezone | FixedTimezone | Literal[":default:"] | None = ":default:",
+        add: dict | None = None,
+        subtract: dict | None = None,
+        subdays: int | None = None,
+    ) -> pendulum.DateTime:
+    """`pendulum.DateTime` 객체의 시간대를 지정하고, `delta`를 더하거나 빼는 연산을 한다.
+
+    별도로 시간대를 지정하지 않았다면 기본으로 한국표준시(KST)를 설정한다."""
+    datetime = datetime.in_timezone(DEFAULT_TIMEZONE if tz == ":default:" else tz)
+    if add and isinstance(add, dict):
+        datetime = datetime.add(**add)
+    if subtract and isinstance(subtract, dict):
+        datetime = datetime.subtract(**subtract)
+    if subdays and isinstance(subdays, int):
+        datetime = datetime.subtract(days=subdays)
+    return datetime
+
+
+def format_date(
+        datetime: pendulum.DateTime,
+        fmt: str = "YYYY-MM-DD",
+        locale: str = "ko",
+        add: dict | None = None,
+        subtract: dict | None = None,
+        subdays: int | None = None,
+        tz: str | Timezone | FixedTimezone | Literal[":default:"] | None = ":default:",
+    ) -> str:
+    """`pendulum.DateTime` 객체에 대해 `in_timezone` 연산 후 `fmt` 형식의 문자열로 변환한다."""
+    return in_timezone(datetime, tz, add, subtract, subdays).format(fmt, locale)
 
 
 ###################################################################

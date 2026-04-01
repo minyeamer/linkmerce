@@ -6,16 +6,51 @@ if TYPE_CHECKING:
     from typing import Any, Literal, Sequence
     from pathlib import Path
     from linkmerce.extensions.gsheets import ServiceAccount, WorksheetClient
+    from linkmerce.utils.nested import KeyPath
 
 
-DEFAULT_CONFIG = "env/config.yaml"
-DEFAULT_CREDENTIALS = "env/credentials.yaml"
-DEFAULT_SCHEMAS = "env/schemas.json"
-DEFAULT_SERVICE_ACCOUNT = "env/service_account.json"
+def get_config(
+        key_path: str | int | Sequence[str | int] = list(),
+        service_account: bool = False,
+        path_strings: dict[str, str] | None = None,
+        cookies_path: KeyPath | None = None,
+        skip_subpath: bool = False,
+        with_table_schema: bool | None = False,
+        read_google_sheets: bool = True,
+    ) -> dict:
+    """기본 설정 파일을 읽고 인증 정보, 테이블 스키마, 구글 시트 데이터를 통합하여 반환한다.
+
+    Args:
+        `file_path`: 설정 파일 경로.
+        `service_account`: 결과에 GCP 서비스 계정을 포함할지 여부.
+        `path_strings`: `Path()` 참조 문자열에 대해 포맷팅할 경로.
+        `cookies_path`: 쿠키 폴더 경로. 없을 시 인증 정보 파일에서 `cookies.local` 값을 읽어서 설정.
+        `skip_subpath`: `Path()` 참조 무시. (쿠키 등 읽어오지 않음)
+        `with_table_schema`: 테이블 스키마를 읽어올지 여부.
+        `read_google_sheets`: `sheets` 키값으로부터 구글 시트를 읽어올지 여부."""
+    if not (skip_subpath and cookies_path):
+        cookies_path = read_check("env/credentials.yaml", "cookies.local")
+
+    config = read_config(
+        file_path = "env/config.yaml",
+        key_path = key_path,
+        format = "yaml",
+        credentials_path = "env/credentials.yaml",
+        schemas_path = "env/schemas.json",
+        path_strings = ((path_strings or dict()) | {"$cookies": cookies_path}),
+        service_account = "env/service_account.json",
+        skip_subpath = skip_subpath,
+        with_table_schema = with_table_schema,
+        read_google_sheets = read_google_sheets,
+    )
+
+    if service_account:
+        config["service_account"] = read("env/service_account.json", format="json")
+    return config
 
 
 def exists(obj: Any, dtype: type, list: bool = False, dict: bool = False) -> bool:
-    """객체가 지정된 타입인지 확인한다."""
+    """객체가 지정된 타입이고 값이 있는지 확인한다."""
     if list:
         return list_exists(obj, dtype)
     elif dict:
@@ -25,12 +60,12 @@ def exists(obj: Any, dtype: type, list: bool = False, dict: bool = False) -> boo
 
 
 def list_exists(obj: list[Any], dtype: type) -> bool:
-    """리스트 내 모든 요소가 지정된 타입인지 확인한다."""
+    """리스트에 값이 있고, 리스트 내 모든 요소가 지정된 타입인지 확인한다."""
     return isinstance(obj, list) and obj and all([isinstance(e, dtype) for e in obj])
 
 
 def dict_exists(obj: dict[str, Any], dtype: type) -> bool:
-    """딕셔너리 내 모든 값이 지정된 타입인지 확인한다."""
+    """딕셔너리에 키값이 있고, 딕셔너리 내 모든 값이 지정된 타입인지 확인한다."""
     return isinstance(obj, dict) and obj and all([isinstance(e, dtype) for e in obj.values()])
 
 
@@ -41,8 +76,12 @@ def path_exists(path: str, name: str) -> bool:
         raise ValueError(f"'{name}' is required.")
     elif not os.path.exists(path):
         raise FileNotFoundError(f"'{name}' does not exists: {path}")
-    else:
-        return True
+    return True
+
+
+def _is_path(text: str) -> bool:
+    """텍스트가 `Path()` 표현식인지 검증한다."""
+    return text.startswith("Path(") and text.endswith(")")
 
 
 ###################################################################
@@ -56,7 +95,7 @@ def read(file_path: str | Path, format: Literal["auto", "json", "yaml"] = "auto"
         return read(file_path, format=os.path.splitext(file_path)[1][1:])
     elif format.lower() == "json":
         return read_json(file_path)
-    elif format.lower() in ("yaml","yml"):
+    elif format.lower() in ("yaml", "yml"):
         return read_yaml(file_path)
     else:
         raise ValueError("Invalid value for format. Supported formats are: json, yaml.")
@@ -89,21 +128,33 @@ def read_file(file_path: str | Path) -> str:
 
 def read_config(
         file_path: str | Path,
-        key_path: str | int | Sequence[str | int] = list(),
+        key_path: KeyPath | None = None,
         format: Literal["auto", "json", "yaml"] = "auto",
         credentials_path: str | Path | None = None,
-        cookies_path: Sequence[str] | Path | None = None,
         schemas_path: str | Path | None = None,
         service_account: ServiceAccount | None = None,
+        path_strings: dict[str, str] | None = None,
         skip_subpath: bool = False,
         with_table_schema: bool | None = False,
         read_google_sheets: bool = True,
     ) -> dict:
-    """설정 파일을 읽고 인증 정보, 테이블 스키마, 구글 시트 데이터를 통합하여 반환한다."""
+    """설정 파일을 읽고 인증 정보, 테이블 스키마, 구글 시트 데이터를 통합하여 반환한다.
+
+    Args:
+        `file_path`: 설정 파일 경로.
+        `key_path`: 설정 파일 내 하위 설정 경로. (딕셔너리 키)
+        `format`: 설정 파일 형식. (`json`, `yaml`)
+        `credentials_path`: 인증 정보 파일 경로.
+        `schemas_path`: 테이블 스키마 파일 경로.
+        `service_account`: GCP 서비스 계정 객체 또는 파일 경로.
+        `path_strings`: `Path()` 참조 문자열에 대해 포맷팅할 경로.
+        `skip_subpath`: `Path()` 참조 무시. (쿠키 등 읽어오지 않음)
+        `with_table_schema`: 테이블 스키마를 읽어올지 여부.
+        `read_google_sheets`: `sheets` 키값으로부터 구글 시트를 읽어올지 여부."""
     config = read_check(file_path, key_path, format, dtype=dict)
     if ("credentials" in config) and (credentials_path is not None):
         if path_exists(credentials_path, "credentials_path"):
-            config["credentials"] = parse_credentials(credentials_path, config["credentials"], cookies_path, skip_subpath)
+            config["credentials"] = parse_credentials(credentials_path, config["credentials"], path_strings, skip_subpath)
     if ("tables" in config) and isinstance(with_table_schema, bool):
         config["tables"] = parse_tables(config["tables"], schemas_path, with_table_schema)
     if ("sheets" in config) and read_google_sheets and (service_account is not None):
@@ -113,16 +164,17 @@ def read_config(
 
 def read_check(
         file_path: str | Path,
-        key_path: str | int | Sequence[str | int] = list(),
+        key_path: KeyPath | None = None,
         format: Literal["auto", "json", "yaml"] = "auto",
         dtype: type | None = None,
         list: bool = False,
         dict: bool = False,
     ) -> Any | dict | list:
-    """파일을 읽고 `key_path`로 탐색한 후 타입을 검증하여 반환한다."""
+    """파일을 읽고 `key_path`로 하위 경로를 탐색한 후 타입을 검증하여 반환한다."""
+    from linkmerce.utils.nested import hier_get
     file = read(file_path, format)
-    for key in ([key_path] if isinstance(key_path, (str,int)) else key_path):
-        file = file[key]
+    if key_path is not None:
+        file = hier_get(file, key_path)
     if (dtype is not None) and (not exists(file, dtype, list, dict)):
         raise ValueError("Invalid data type.")
     return file
@@ -131,24 +183,21 @@ def read_check(
 
 def parse_credentials(
         credentials_path: str,
-        credentials_info: str | int | Sequence[str | int] = list(),
-        cookies_path: Sequence[str] | Path | None = None,
+        key_path: KeyPath | None = None,
+        path_strings: dict[str, str] | None = None,
         skip_subpath: bool = False,
     ) -> dict | list:
     """인증 정보 파일을 읽고 `Path()` 참조를 실제 파일 내용으로 치환한다."""
-    credentials = read_check(credentials_path, credentials_info)
-
-    if isinstance(cookies_path, list):
-        cookies_path = read_check(credentials_path, cookies_path)
+    credentials = read_check(credentials_path, key_path)
 
     def read_if_path(value: Any) -> Any:
-        if isinstance(value, str) and value.startswith("Path(") and value.endswith(")"):
-            if cookies_path and ("$cookies" in value):
-                value = value.format(**{"$cookies": str(cookies_path)})
+        if isinstance(value, str) and _is_path(value):
+            if path_strings:
+                value = value.format(**path_strings)
             return read_file(value[5:-1])
         return value
 
-    if skip_subpath and isinstance(credentials, (list,dict)):
+    if skip_subpath and isinstance(credentials, (list, dict)):
         return credentials
     elif isinstance(credentials, list):
         return [({key: read_if_path(value) for key, value in credential.items()}
@@ -160,7 +209,7 @@ def parse_credentials(
 
 
 def split_by_credentials(credentials: list[dict], shuffle: bool = False, **kwargs: list) -> list[dict]:
-    """인증 정보 목록을 기준으로 키워드 인자를 균등 분배한다."""
+    """각각의 인증 정보 목록에 키워드 인자의 값을 균등 분배한다."""
     from copy import deepcopy
 
     n = len(credentials)
@@ -203,7 +252,7 @@ def parse_tables(
 ############################## Sheets #############################
 
 def parse_sheets(account: ServiceAccount, sheets_info: dict | list) -> dict:
-    """구글 시트 설정을 파싱하고 데이터를 읽어온다."""
+    """구글 시트 설정을 파싱하고 구글 시트로부터 데이터를 읽어온다."""
     from linkmerce.extensions.gsheets import WorksheetClient
     client = WorksheetClient(account)
     if isinstance(sheets_info, dict):
@@ -231,7 +280,9 @@ def read_google_sheets(
         empty2zero: bool = False,
         convert_dtypes: bool = True,
     ) -> dict[str, list] | list[dict]:
-    """구글 시트 워크시트에서 데이터를 읽어 딕셔너리 또는 리스트로 반환한다."""
+    """구글 시트에서 데이터를 읽어서 다음 2가지 타입 중 하나로 반환한다.
+    - `dict[str, list]`: `axis`가 `0` 또는 `by_col`인 경우 열 단위로 구분된 딕셔너리로 반환한다.
+    - `list[dict]`: `axis`가 `1` 또는 `by_row`인 경우 행 단위의 딕셔너리 리스트로 반환한다."""
     client.set_spreadsheet(key)
     client.set_worksheet(sheet)
     records = client.get_all_records(
@@ -240,30 +291,8 @@ def read_google_sheets(
 
     if isinstance(column, str):
         return {column: records}
-    elif axis in (0,"by_col"):
+    elif axis in (0, "by_col"):
         keys = list(records[0].keys())
         return {key: [record[key] for record in records] for key in keys}
     else:
         return records
-
-############################# Default #############################
-
-def _default_config(
-        key_path: str | int | Sequence[str | int] = list(),
-        file_path: str | Path = DEFAULT_CONFIG,
-        format: Literal["auto", "json", "yaml"] = "auto",
-        credentials_path: str | Path | None = DEFAULT_CREDENTIALS,
-        schemas_path: str | Path | None = DEFAULT_SCHEMAS,
-        service_account: ServiceAccount | None = DEFAULT_SERVICE_ACCOUNT,
-        skip_subpath: bool = False,
-        with_table_schema: bool | None = False,
-        read_google_sheets: bool = True,
-    ) -> dict:
-    """기본 경로로 설정 파일을 읽고 `service_account`를 추가하여 반환한다."""
-    config = read_config(
-        file_path, key_path, format, credentials_path, schemas_path, service_account,
-        skip_subpath, with_table_schema, read_google_sheets
-    )
-    if service_account:
-        config["service_account"] = service_account
-    return config

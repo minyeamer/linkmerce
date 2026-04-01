@@ -178,7 +178,7 @@ class BigQueryClient(Connection):
             limit: int | None = 0,
             option: Literal["replace", "ignore"] | None = None,
         ) -> RowIterator:
-        """SELECT INTO 쿼리문으로 소스 테이블을 타겟 테이블로 복사한다."""
+        """SELECT 문으로 조회한 소스 테이블을 타겟 테이블로 복사한다."""
         select = f"SELECT * FROM `{self.project_id}.{source_table}`"
         limit_ = f"LIMIT {limit}" if isinstance(limit, int) else None
         query = concat_sql(f"{self.expr_create(option)} `{self.project_id}.{target_table}` AS", select, where(where_clause), limit_)
@@ -327,7 +327,7 @@ class BigQueryClient(Connection):
             not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
             where_clause: Clause | None = None,
         ) -> LoadJob:
-        """MERGE INTO 쿼리문으로 소스 테이블을 타겟 테이블에 병합한다.
+        """MERGE 문으로 소스 테이블을 타겟 테이블에 병합한다.
 
         where_clause에서 타겟 테이블 칼럼은 "T.", 소스 테이블 칼럼은 "S."로 참조한다."""
         where = [where_clause] if where_clause else list()
