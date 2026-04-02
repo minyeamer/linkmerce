@@ -20,8 +20,9 @@ def login(
     ) -> str:
     """쿠팡 광고 로그인 후 쿠키를 반환한다."""
     from linkmerce.core.coupang.advertising.common import CoupangLogin
-    auth = CoupangLogin()
-    cookies = auth.login(userid, passwd, domain)
+    handler = CoupangLogin()
+    handler.login(userid, passwd, domain)
+    cookies = handler.get_cookies(to="str")
     if cookies and save_to:
         with open(save_to, 'w', encoding="utf-8") as file:
             file.write(cookies)
@@ -51,7 +52,7 @@ def campaign(
     from linkmerce.core.coupang.advertising.adreport.transform import Campaign as T
     return Campaign(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "request_delay": request_delay,
@@ -79,7 +80,7 @@ def creative(
     from linkmerce.core.coupang.advertising.adreport.transform import Creative as T
     return Creative(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "RequestEach": {
                 "request_delay": request_delay,
@@ -142,7 +143,7 @@ def product_adreport(
     from linkmerce.core.coupang.advertising.adreport.transform import ProductAdReport as T
     return ProductAdReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
     )).extract(start_date, end_date, date_type, report_level, campaign_ids, vendor_id, wait_seconds, wait_interval)
 
 
@@ -168,5 +169,5 @@ def new_customer_adreport(
     from linkmerce.core.coupang.advertising.adreport.transform import NewCustomerAdReport as T
     return NewCustomerAdReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
     )).extract(start_date, end_date, date_type, report_level, campaign_ids, vendor_id, wait_seconds, wait_interval)

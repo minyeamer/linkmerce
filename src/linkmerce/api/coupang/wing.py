@@ -57,7 +57,7 @@ def product_option(
     products = ProductOption(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options[OPTION], return_type,
         configs = {"domain": domain},
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "request_delay": request_delay,
@@ -83,7 +83,7 @@ def product_option(
             T, connection, extract_options,
             transform_options = ((transform_options[DETAIL] or dict()) | common),
             return_type = return_type,
-            headers = {"cookies": cookies},
+            cookies = cookies,
             options = {
                 "RequestEach": {
                     "request_delay": request_delay,
@@ -114,7 +114,7 @@ def product_detail(
     return ProductDetail(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"domain": domain},
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "RequestEach": {
                 "request_delay": request_delay,
@@ -146,7 +146,7 @@ def product_download(
     return ProductDownload(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"domain": domain},
-        headers = {"cookies": cookies},
+        cookies = cookies,
     )).extract(request_type, fields, is_deleted, vendor_id, wait_seconds, wait_interval)
 
 
@@ -169,7 +169,7 @@ def rocket_inventory(
     return RocketInventory(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"domain": domain},
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {"CursorAll": {"request_delay": request_delay}},
     )).run(hidden_status, vendor_id, how_to_run="sync")
 
@@ -202,7 +202,7 @@ def rocket_option(
     product = RocketInventory(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options[OPTION], return_type,
         configs = {"domain": domain},
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {"CursorAll": {"request_delay": request_delay}},
     )).extract(hidden_status, vendor_id)
 
@@ -218,7 +218,7 @@ def rocket_option(
             transform_options = ((transform_options[DETAIL] or dict()) | common),
             return_type = return_type,
             configs = {"domain": domain},
-            headers = {"cookies": cookies},
+            cookies = cookies,
             options = {
                 "RequestEach": {
                     "request_delay": request_delay,
@@ -260,7 +260,7 @@ def rocket_settlement(
     from linkmerce.core.coupang.wing.settlement.transform import RocketSettlement as T
     return RocketSettlement(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
     )).extract(start_date, end_date, date_type, vendor_id)
 
 
@@ -289,5 +289,5 @@ def rocket_settlement_download(
     from linkmerce.core.coupang.wing.settlement.transform import RocketSettlementDownload as T
     return RocketSettlementDownload(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
     )).extract(start_date, end_date, date_type, vendor_id, wait_seconds, wait_interval, progress)

@@ -33,7 +33,7 @@ def search(
     from linkmerce.core.naver.main.search.transform import Search as T
     return Search(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        **({"headers": {"cookies": cookies}} if cookies else dict()),
+        cookies = cookies,
         options = {
             "RequestEach": {
                 "request_delay": request_delay,
@@ -61,7 +61,7 @@ def search_cafe(
     from linkmerce.core.naver.main.search.transform import CafeTab as T
     return SearchTab(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        **({"headers": {"cookies": cookies}} if cookies else dict()),
+        cookies = cookies,
         options = {
             "RequestEach": {
                 "request_delay": request_delay,
@@ -89,7 +89,7 @@ def cafe_article(
     from linkmerce.core.naver.main.search.transform import CafeArticle as T
     return CafeArticle(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        **({"headers": {"cookies": cookies}} if cookies else dict()),
+        cookies = cookies,
         options = {
             "RequestEach": {
                 "request_delay": request_delay,

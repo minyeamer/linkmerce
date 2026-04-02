@@ -26,28 +26,19 @@ class _MasterReport(SearchAdGFA):
             "RequestEachPages": {"request_delay": 0.3},
         }
 
-    @property
-    def url(self) -> str:
-        return self.concat_path(self.origin, self.path.format(self.account_no))
-
     def count_total(self, response: JsonObject, **kwargs) -> int:
         """HTTP 응답에서 전체 항목 수를 추출한다."""
         return response.get("totalElements") if isinstance(response, dict) else None
-
-    def build_request_headers(self, **kwargs: str) -> dict[str, str]:
-        args = (self.account_no, self.report_type, self.account_no)
-        referer = self.origin + "/adAccount/accounts/{}/ad/search?page=1&tabId=tab{}&accessAdAccountNo={}".format(*args)
-        return dict(self.get_request_headers(with_token=True), referer=referer)
 
 
 class Campaign(_MasterReport):
     """네이버 성과형 디스플레이 광고 캠페인 목록을 상태(`status`)별로 조회하는 클래스."""
 
     report_type = "Campaign"
-    path = "/apis/gfa/v1.1/adAccounts/{}/campaigns"
+    version = "v1.2"
+    path = "/campaigns"
 
     @_MasterReport.with_session
-    @_MasterReport.with_token
     def extract(
             self,
             status: Sequence[Literal["RUNNABLE", "DELETED"]] = ["RUNNABLE", "DELETED"],
@@ -88,10 +79,10 @@ class AdSet(_MasterReport):
     """네이버 성과형 디스플레이 광고그룹 목록을 상태(`status`)별로 조회하는 클래스."""
 
     report_type = "AdSet"
-    path = "/apis/gfa/v1.2/adAccounts/{}/adSets"
+    version = "v1.2"
+    path = "/adSets"
 
     @_MasterReport.with_session
-    @_MasterReport.with_token
     def extract(
             self,
             status: Sequence[Literal["ALL", "RUNNABLE", "BEFORE_STARTING", "TERMINATED", "DELETED"]] = ["ALL", "DELETED"],
@@ -114,7 +105,7 @@ class AdSet(_MasterReport):
         return [
             ("page", int(page)),
             ("size", int(page_size)),
-            *([("statusList", code) for code in self.status] if status == "ALL" else [("statusList", status)]),
+            *([("statusList", code) for code in self.status.keys()] if status == "ALL" else [("statusList", status)]),
             ("adSetNameOnly", "true"),
             *[("budgetTypeList", code) for code in self.budget_type.keys()],
             *[("bidTypeList", code) for code in self.bid_type.keys()],
@@ -154,10 +145,10 @@ class Creative(_MasterReport):
     """네이버 성과형 디스플레이 광고 소재 목록을 상태(`status`)별로 조회하는 클래스."""
 
     report_type = "Creative"
-    path = "/apis/gfa/v1/adAccounts/{}/creatives/draft/searchByKeyword"
+    version = "v1"
+    path = "/creatives/draft/searchByKeyword"
 
     @_MasterReport.with_session
-    @_MasterReport.with_token
     def extract(
             self,
             status: Sequence[Literal["ALL", "PENDING", "REJECT", "ACCEPT", "PENDING_IN_OPERATION", "REJECT_IN_OPERATION", "DELETED"]] = ["ALL", "DELETED"],
@@ -181,7 +172,7 @@ class Creative(_MasterReport):
             ("page", int(page)),
             ("size", int(page_size)),
             *[("onOffs", str(i)) for i in [1, 0]],
-            *([("statuses", code) for code in self.status] if status == "ALL" else [("statuses", status)]),
+            *([("statuses", code) for code in self.status.keys()] if status == "ALL" else [("statuses", status)]),
             *[("creativeTypes", code) for code in self.creative_type.keys()],
         ]
 
@@ -207,20 +198,11 @@ class PerformanceReport(SearchAdGFA):
 
     날짜 범위를 최대 62일 단위로 분할하여 엑셀 리포트를 요청하고 다운로드한다."""
 
-    method = "GET"
-    path = "/apis/stats/v2/adAccounts/{}/stats/reportPerformanceDetail"
     date_format = "%Y-%m-%d"
-
-    @property
-    def default_options(self) -> dict:
-        return {"Request": {"request_delay": 1.01}}
-
-    @property
-    def url(self) -> str:
-        return self.concat_path(self.origin, self.path.format(self.account_no))
+    version = "v1"
+    path = "/report/downloads"
 
     @SearchAdGFA.with_session
-    @SearchAdGFA.with_token
     def extract(
             self,
             start_date: dt.date | str,
@@ -283,23 +265,21 @@ class PerformanceReport(SearchAdGFA):
 
     def request_report(self, **kwargs) -> bool:
         """성과 리포트 생성을 요청한다."""
-        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads"
         body = self.build_download_json(**kwargs)
         headers = self.build_request_headers(**kwargs)
         headers["content-type"] = "application/json"
-        with self.request("POST", url, json=body, headers=headers) as response:
+        with self.request("POST", self.url, json=body, headers=headers) as response:
             return response.json()["success"]
 
     def wait_reports(self, indices: list[int], wait_seconds: int = 60, wait_interval: int = 1, **kwargs) -> list[dict]:
         """리포트 생성 완료를 대기한다."""
         from linkmerce.common.exceptions import RequestError
         import time
-        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads"
         params = {"reportType": "PERFORMANCE"}
         headers = self.build_request_headers(**kwargs)
         for _ in range(0, max(wait_seconds, 1), max(wait_interval, 1)):
             time.sleep(wait_interval)
-            with self.request("GET", url, params=params, headers=headers) as response:
+            with self.request("GET", self.url, params=params, headers=headers) as response:
                 downloads = response.json()
                 for index in indices:
                     if downloads[index]["status"] != "COMPLETED":
@@ -309,17 +289,16 @@ class PerformanceReport(SearchAdGFA):
 
     def download_excel(self, download_no: int, **kwargs) -> bytes:
         """리포트 엑셀 파일을 다운로드한다."""
-        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads/{download_no}/download"
+        url = self.url + f"/{download_no}/download"
         headers = self.build_request_headers(**kwargs)
         with self.request("GET", url, headers=headers) as response:
             return response.content
 
     def delete_report(self, download_no: int, **kwargs) -> bool:
         """생성된 리포트를 삭제한다."""
-        url = self.origin + f"/apis/gfa/v1/adAccounts/{self.account_no}/report/downloads"
         params = {"reportDownloadNos": download_no, "reportType": "PERFORMANCE"}
         headers = self.build_request_headers(**kwargs)
-        with self.request("DELETE", url, params=params, headers=headers) as response:
+        with self.request("DELETE", self.url, params=params, headers=headers) as response:
             return response.json()["success"]
 
     def query_to_filename(self, report_query: dict) -> str:
@@ -354,7 +333,7 @@ class PerformanceReport(SearchAdGFA):
         }
 
     def build_request_headers(self, **kwargs: str) -> dict[str, str]:
-        return dict(self.get_request_headers(with_token=True), origin=self.origin, referer=self.referer(**kwargs))
+        return dict(self.get_request_headers(), origin=self.origin, referer=self.referer(**kwargs))
 
     def referer(self, start_date: dt.date, end_date: dt.date, columns: list[str] = list(), **kwargs) -> str:
         params = '&'.join([f"{key}={value}" for key, value in {
@@ -370,7 +349,7 @@ class PerformanceReport(SearchAdGFA):
             "showColList": ("%5B%22" + "%22,%22".join(columns if columns else self.db_columns) + "%22%5D"),
             "accessAdAccountNo": self.account_no,
         }.items()])
-        return "{}/adAccount/accounts/{}/report/performance?{}".format(self.origin, self.account_no, params)
+        return f"{self.origin}/manage/ad-accounts/{self.account_no}/da/report/performance?{params}"
 
     @property
     def db_columns(self) -> list[str]:

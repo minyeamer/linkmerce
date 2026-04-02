@@ -20,15 +20,11 @@ class CoupangWing(Extractor):
     def url(self) -> str:
         return self.concat_path(self.origin, self.path)
 
-    def set_request_headers(self, cookies: str, **kwargs):
-        """HTTP 요청 헤더 쿠키에서 `XSRF-TOKEN` 값을 꺼내 키워드 인자로 전달한다."""
-        if self.token_required:
-            try:
-                cookies_map = dict([kv.split('=', maxsplit=1) for kv in str(cookies).split("; ")])
-                kwargs["x-xsrf-token"] = cookies_map["XSRF-TOKEN"]
-            except:
-                raise ValueError("Missing XSRF-TOKEN in cookies.")
-        super().set_request_headers(cookies=cookies, **kwargs)
+    def set_request_headers(self, **kwargs):
+        """`token_required`가 활성화된 경우 세션 객체 또는 요청 헤더의 쿠키에서
+        `XSRF-TOKEN` 값을 꺼내 `x-xsrf-token` 헤더로 추가한다."""
+        from_cookies = {"XSRF-TOKEN": "x-xsrf-token"} if self.token_required else dict()
+        super().set_request_headers(from_cookies=from_cookies, **kwargs)
 
 
 class CoupangSupplierHub(CoupangWing):
@@ -54,7 +50,7 @@ class CoupangLogin(LoginHandler):
         self.vendor_login(userid, passwd)
         if with_token:
             self.fetch_xsrf_token()
-        return self.get_cookies()
+        return self.get_cookies(to="str")
 
     def vendor_login(self, userid: str, passwd: str):
         """로그인 요청 후 응답 헤더에서 `Location` 대상의 리다이렉트를 처리한다."""
@@ -70,21 +66,18 @@ class CoupangLogin(LoginHandler):
         self.fetch_main(allow_redirects=True)
 
     def fetch_main(self, allow_redirects: bool = True) -> str:
-        from linkmerce.utils.headers import build_headers
-        headers = build_headers(self.origin, https=True)
+        headers = self.build_headers(self.origin, https=True)
         with self.request("GET", self.origin, headers=headers, allow_redirects=allow_redirects) as response:
             return response.headers.get("Location")
 
     def login_redirect(self, url: str, referer: str = str(), allow_redirects: bool = False) -> str:
-        from linkmerce.utils.headers import build_headers
-        headers = build_headers(url, https=True, referer=referer)
+        headers = self.build_headers(url, https=True, referer=referer)
         with self.request("GET", url, headers=headers, allow_redirects=allow_redirects) as response:
             return response.headers.get("Location")
 
     def login_begin(self, redirect_url: str) -> str:
-        from linkmerce.utils.headers import build_headers
         from bs4 import BeautifulSoup
-        headers = build_headers(redirect_url, https=True)
+        headers = self.build_headers(redirect_url, https=True)
         with self.request("GET", redirect_url, headers=headers) as response:
             source = BeautifulSoup(response.text, "html.parser")
             try:
@@ -103,14 +96,12 @@ class CoupangLogin(LoginHandler):
         return json.loads(raw_json)["url"]["loginAction"]
 
     def login_action(self, xauth_url: str, userid: str, passwd: str) -> str:
-        from linkmerce.utils.headers import build_headers
         body = {"username": userid, "password": passwd}
-        headers = build_headers(xauth_url, contents="form", https=True)
+        headers = self.build_headers(xauth_url, contents="form", https=True)
         with self.request("POST", xauth_url, data=body, headers=headers, allow_redirects=False) as response:
             return response.headers.get("Location")
 
     def fetch_xsrf_token(self):
-        from linkmerce.utils.headers import build_headers
         url = self.origin + "/tenants/sfl-portal/card/cre/resource"
-        headers = build_headers(url, referer=self.origin, ajax=True)
+        headers = self.build_headers(url, referer=self.origin, ajax=True)
         self.request("GET", url, headers=headers)

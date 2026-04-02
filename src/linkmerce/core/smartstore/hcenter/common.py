@@ -18,6 +18,9 @@ class PartnerCenter(Extractor):
     def url(self) -> str:
         return self.concat_path(self.origin, self.path)
 
+    def post_init(self, **kwargs):
+        return self.require_cookies(key="koa:sess")
+
 
 ###################################################################
 ####################### Partner Center Login ######################

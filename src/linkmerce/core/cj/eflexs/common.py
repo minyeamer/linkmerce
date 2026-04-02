@@ -65,7 +65,7 @@ class CjEflexs(Extractor):
             self.login_final(userid, key, code)
         except:
             from linkmerce.common.exceptions import AuthenticationError
-            raise AuthenticationError(f"Failed to login in to CJ eFLEXs.")
+            raise AuthenticationError("Failed to login in to CJ eFLEXs.")
 
     def disable_warnings(self):
         from urllib3 import disable_warnings as disable

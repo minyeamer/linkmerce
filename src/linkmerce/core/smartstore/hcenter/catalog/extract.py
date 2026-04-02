@@ -46,7 +46,6 @@ class _CatalogProduct(PartnerCenter):
             expand["page"] = page
         return partial, expand
 
-    @PartnerCenter.cookies_required
     def set_request_headers(self, **kwargs):
         referer = "https://center.shopping.naver.com/brand-management/catalog"
         super().set_request_headers(contents="json", origin=self.origin, referer=referer, **kwargs)

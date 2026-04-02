@@ -61,12 +61,11 @@ class ProductOption(CoupangWing):
             "qualityEnhanceTypes": list()
         }
 
-    def set_request_headers(self, cookies: str, **kwargs) -> str:
+    def set_request_headers(self, **kwargs) -> str:
         """상품조회/수정 경로를 `referer` 헤더로 추가한다."""
         return super().set_request_headers(
             authority = self.origin,
             contents = "json",
-            cookies = cookies,
             origin = self.origin,
             referer = (self.origin + "/vendor-inventory/list"),
             Vdc = "ko_KR",
@@ -104,10 +103,9 @@ class ProductDetail(CoupangWing):
     def build_request_params(self, **kwargs) -> dict[str, str]:
         return {"hasProgressiveDiscountRule": "true", "queryNonVariationJustificationProof": "true"}
 
-    def set_request_headers(self, cookies: str, **kwargs) -> str:
+    def set_request_headers(self, **kwargs) -> str:
         return super().set_request_headers(
             authority = self.origin,
-            cookies = cookies,
             referer = (self.origin + "/vendor-inventory/list"),
         )
 
@@ -312,11 +310,10 @@ class RocketInventory(CoupangWing):
             }]
         }
 
-    def set_request_headers(self, cookies: str, **kwargs) -> str:
+    def set_request_headers(self, **kwargs) -> str:
         return super().set_request_headers(
             authority = self.origin,
             contents = "json",
-            cookies = cookies,
             origin = self.origin,
             referer = (self.origin + "/tenants/rfm-inventory/management/list"),
         )

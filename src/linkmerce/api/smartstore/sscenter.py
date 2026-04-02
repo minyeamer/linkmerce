@@ -12,7 +12,9 @@ def has_accounts(cookies: str) -> bool:
     import requests
 
     with requests.Session() as session:
-        return has_accounts(session, cookies)
+        cookies_map = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ") if '=' in kv])
+        session.cookies.update(cookies_map)
+        return has_accounts(session)
 
 
 def login(
@@ -26,7 +28,7 @@ def login(
     from linkmerce.core.smartstore.sscenter.common import SmartstoreCenterLogin
     handler = SmartstoreCenterLogin()
     handler.login(userid, passwd, channel_seq, cookies)
-    cookies = handler.get_cookies()
+    cookies = handler.get_cookies(to="str")
     if cookies and save_to:
         with open(save_to, 'w', encoding="utf-8") as file:
             file.write(cookies)

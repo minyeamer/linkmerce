@@ -8,34 +8,44 @@ if TYPE_CHECKING:
     from typing import Iterable, Literal, Sequence
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
+    from pathlib import Path
     import datetime as dt
 
 
-def has_cookies(cookies: str, **kwargs) -> bool:
-    """네이버 로그인 쿠키가 유효한지 검증한다."""
-    from linkmerce.core.searchad.manage.common import has_cookies
+def has_accounts(cookies: str) -> bool:
+    """네이버 로그인 쿠키가 광고 계정을 가지고 있는지 검증한다."""
+    from linkmerce.core.searchad.manage.common import has_accounts
     import requests
     with requests.Session() as session:
-        return has_cookies(session, cookies)
+        cookies_map = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ") if '=' in kv])
+        session.cookies.update(cookies_map)
+        return has_accounts(session)
 
 
-def has_permission(customer_id: int | str, cookies: str, **kwargs) -> bool:
-    """네이버 로그인 쿠키가 계정ID에 대한 접근 권한이 있는지 확인한다."""
-    from linkmerce.core.searchad.manage.common import has_permission
+def get_accounts(cookies: str, page: int = 0, size: int = 10) -> list[dict]:
+    """네이버 로그인 쿠키로 사용 가능한 광고 계정 목록을 조회한다."""
+    from linkmerce.core.searchad.manage.common import get_accounts
     import requests
     with requests.Session() as session:
-        return has_permission(session, customer_id, cookies)
+        cookies_map = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ") if '=' in kv])
+        session.cookies.update(cookies_map)
+        return get_accounts(session, page, size)
 
 
-def whoami(customer_id: int | str, cookies: str, **kwargs) -> dict | None:
-    """네이버에서 현재 로그인된 사용자의 검색광고 계정ID를 조회한다."""
-    from linkmerce.core.searchad.manage.common import whoami
-    import requests
-    with requests.Session() as session:
-        return whoami(session, customer_id, cookies)
+def login(account_no: int | str, cookies: str, save_to: str | Path | None = None) -> str:
+    """네이버 쿠키를 가지고 네이버 광고주센터에 로그인해 `XSRF-TOKEN`을 발급받는다."""
+    from linkmerce.core.searchad.manage.common import NaverAdLogin
+    handler = NaverAdLogin()
+    handler.login(account_no, cookies)
+    cookies = handler.get_cookies(to="str")
+    if cookies and save_to:
+        with open(save_to, 'w', encoding="utf-8") as file:
+            file.write(cookies)
+    return cookies
 
 
 def adreport(
+        account_no: int | str,
         customer_id: int | str,
         cookies: str,
         report_id: str,
@@ -55,13 +65,14 @@ def adreport(
     from linkmerce.core.searchad.manage.adreport.transform import AdvancedReport as T
     return AdvancedReport(**prepare_extract(
         T, extract_options, transform_options, return_type,
-        configs = {"customer_id": customer_id},
-        headers = {"cookies": cookies},
+        configs = {"account_no": account_no, "customer_id": customer_id},
+        cookies = cookies,
     )).extract(report_id, report_name, userid, attributes, fields, start_date, end_date)
 
 
 @with_duckdb_connection(table="searchad_report")
 def daily_report(
+        account_no: int | str,
         customer_id: int | str,
         cookies: str,
         report_id: str,
@@ -71,7 +82,6 @@ def daily_report(
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         *,
         connection: DuckDBConnection | None = None,
-        how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
         transform_options: dict | None = None,
@@ -81,13 +91,14 @@ def daily_report(
     from linkmerce.core.searchad.manage.adreport.transform import DailyReport as T
     return DailyReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        configs = {"customer_id": customer_id},
-        headers = {"cookies": cookies},
+        configs = {"account_no": account_no, "customer_id": customer_id},
+        cookies = cookies,
     )).extract(report_id, report_name, userid, start_date, end_date)
 
 
 @with_duckdb_connection(table="searchad_exposure")
 def diagnose_exposure(
+        account_no: int | str,
         customer_id: int | str,
         cookies: str,
         keyword: str | Iterable[str],
@@ -96,7 +107,6 @@ def diagnose_exposure(
         is_own: bool | None = None,
         *,
         connection: DuckDBConnection | None = None,
-        max_retries: int = 5,
         request_delay: float | int = 1.01,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
@@ -108,15 +118,10 @@ def diagnose_exposure(
     from linkmerce.core.searchad.manage.exposure.transform import ExposureDiagnosis as T
     return ExposureDiagnosis(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        configs = {"customer_id": customer_id},
-        headers = {"cookies": cookies},
+        configs = {"account_no": account_no, "customer_id": customer_id},
+        cookies = cookies,
         options = {
-            "RequestLoop": {
-                "max_retries": max_retries,
-                "raise_errors": RuntimeError, 
-                "ignored_errors": Exception
-            },
-            "RequestEachLoop": {
+            "RequestEach": {
                 "request_delay": request_delay,
                 "tqdm_options": {"disable": (not progress)}
             }
@@ -126,6 +131,7 @@ def diagnose_exposure(
 
 @with_duckdb_connection(tables={"rank": "searchad_rank", "product": "searchad_product"})
 def rank_exposure(
+        account_no: int | str,
         customer_id: int | str,
         cookies: str,
         keyword: str | Iterable[str],
@@ -134,7 +140,6 @@ def rank_exposure(
         is_own: bool | None = None,
         *,
         connection: DuckDBConnection | None = None,
-        max_retries: int = 5,
         request_delay: float | int = 1.01,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
@@ -150,15 +155,10 @@ def rank_exposure(
     from linkmerce.core.searchad.manage.exposure.transform import ExposureRank as T
     return ExposureDiagnosis(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        configs = {"customer_id": customer_id},
-        headers = {"cookies": cookies},
+        configs = {"account_no": account_no, "customer_id": customer_id},
+        cookies = cookies,
         options = {
-            "RequestLoop": {
-                "max_retries": max_retries,
-                "raise_errors": RuntimeError, 
-                "ignored_errors": Exception
-            },
-            "RequestEachLoop": {
+            "RequestEach": {
                 "request_delay": request_delay,
                 "tqdm_options": {"disable": (not progress)}
             }

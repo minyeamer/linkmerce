@@ -66,7 +66,7 @@ class EcountApi(Extractor):
                 return response.json()['Data']['ZONE']
         except:
             from linkmerce.common.exceptions import AuthenticationError
-            raise AuthenticationError(f"Failed to retrieve Zone info.")
+            raise AuthenticationError("Failed to retrieve Zone info.")
 
     def oapi_login(self, com_code: int | str, userid: str, api_key: str, locale: str = "ko-KR") -> str:
         """오픈 API 로그인을 수행하여 세션 ID를 발급받는다."""
@@ -78,7 +78,7 @@ class EcountApi(Extractor):
                 return response.json()['Data']["Datas"]["SESSION_ID"]
         except:
             from linkmerce.common.exceptions import AuthenticationError
-            raise AuthenticationError(f"Failed to login with the Ecount API.")
+            raise AuthenticationError("Failed to login with the Ecount API.")
 
     def build_request_params(self, **kwargs) -> dict[str, str]:
         return {"SESSION_ID": self.session_id}

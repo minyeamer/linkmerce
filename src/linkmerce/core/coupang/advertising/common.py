@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class CoupangAds(Extractor):
-    """쿠팡 광고 데이터를 조회하는 공통 클래스. 헤더에 로그인 쿠키가 제공되어야 한다."""
+    """쿠팡 광고 데이터를 조회하는 공통 클래스. 로그인 쿠키가 제공되어야 한다."""
 
     method: str | None = None
     origin = "https://advertising.coupang.com"
@@ -18,6 +18,9 @@ class CoupangAds(Extractor):
     @property
     def url(self) -> str:
         return self.concat_path(self.origin, self.path)
+
+    def post_init(self, **kwargs):
+        self.require_cookies()
 
     def fetch_dashboard(self):
         """쿠팡 광고 대시보드로 이동한다."""
@@ -38,7 +41,7 @@ class CoupangLogin(LoginHandler):
             passwd: str,
             domain: Literal["wing", "supplier"] = "wing",
             **kwargs
-        ) -> dict:
+        ) -> str:
         """로그인 요청 후 응답 헤더에서 `Location` 대상의 리다이렉트를 처리한다."""
         login_url = self.login_redirect(domain)
         # login_url = "https://xauth.coupang.com/auth/realms/seller/protocol/openid-connect/auth?client_id=wing-compat&scope={scope}&response_type=code&redirect_uri=https%3A%2F%2Fadvertising.coupang.com%2Fuser%2Fwing%2Fauthorization-callback&state={state}&code_challenge={code_challenge}&code_challenge_method=S256"
@@ -49,38 +52,34 @@ class CoupangLogin(LoginHandler):
         redirect_url = self.ads_redirect(redirect_url)
         # redirect_url = "/"
         self.fetch_dashboard()
-        return self.get_cookies()
+        return self.get_cookies(to="str")
 
     def login_redirect(self, domain: Literal["wing", "supplier"] = "wing") -> str:
-        from linkmerce.utils.headers import build_headers
-        url = f"https://advertising.coupang.com/user/{domain}/authorization"
-        headers = build_headers(self.origin, referer=f"{self.origin}/user/login?returnUrl=%2Fdashboard", metadata="navigate", https=True)
+        url = f"{self.origin}/user/{domain}/authorization"
+        referer = f"{self.origin}/user/login?returnUrl=%2Fdashboard"
+        headers = self.build_headers(self.origin, referer=referer, metadata="navigate", https=True)
         with self.request("GET", url, headers=headers, allow_redirects=False) as response:
             return response.headers.get("Location")
 
     def login_begin(self, login_url: str) -> str:
-        from linkmerce.utils.headers import build_headers
         from bs4 import BeautifulSoup
-        headers = build_headers(login_url, referer=self.origin, metadata="navigate", https=True)
+        headers = self.build_headers(login_url, referer=self.origin, metadata="navigate", https=True)
         with self.request("GET", login_url, headers=headers, allow_redirects=False) as response:
             return BeautifulSoup(response.text, "html.parser").select_one("form").attrs.get("action")
 
     def login_action(self, xauth_url: str, userid: str, passwd: str) -> str:
-        from linkmerce.utils.headers import build_headers
         body = {"username": userid, "password": passwd}
-        headers = build_headers(xauth_url, origin="null", metadata="navigate", https=True, ajax=True)
+        headers = self.build_headers(xauth_url, origin="null", metadata="navigate", https=True, ajax=True)
         with self.request("POST", xauth_url, data=body, headers=headers, allow_redirects=False) as response:
             return response.headers.get("Location")
 
     def ads_redirect(self, redirect_url: str) -> str:
-        from linkmerce.utils.headers import build_headers
-        headers = build_headers(redirect_url, metadata="navigate", https=True)
+        headers = self.build_headers(redirect_url, metadata="navigate", https=True)
         with self.request("GET", redirect_url, headers=headers, allow_redirects=False) as response:
             return response.headers.get("Location")
 
     def fetch_dashboard(self):
         """쿠팡 광고 로그인 후 대시보드로 이동한다."""
-        from linkmerce.utils.headers import build_headers
         url = self.origin + "/dashboard"
-        headers = build_headers(url, metadata="navigate", https=True)
+        headers = self.build_headers(url, metadata="navigate", https=True)
         self.request("GET", url, headers=headers)

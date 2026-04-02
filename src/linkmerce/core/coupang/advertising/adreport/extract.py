@@ -321,7 +321,6 @@ class _AdReport(CoupangAds):
             "suffix": '\n',
         })]
 
-    @CoupangAds.cookies_required
     def set_request_headers(self, **kwargs):
         super().set_request_headers(
             authority = self.origin,
@@ -330,11 +329,6 @@ class _AdReport(CoupangAds):
             referer = self.origin + f"/marketing-reporting/billboard/reports/{self.report_type}",
             **kwargs
         )
-
-    def build_request_headers(self, **kwargs):
-        headers = super().build_request_headers()
-        headers["cookies"] = self.get_cookies()
-        return headers
 
     def to_date(self, date: dt.date | str) -> int:
         """날짜를 `YYYYMMDD` 정수로 변환한다."""

@@ -23,7 +23,7 @@ def login(
     from linkmerce.core.smartstore.hcenter.common import PartnerCenterLogin
     handler = PartnerCenterLogin()
     handler.login(userid, passwd, channel_seq, cookies)
-    cookies = handler.get_cookies()
+    cookies = handler.get_cookies(to="str")
     if cookies and save_to:
         with open(save_to, 'w', encoding="utf-8") as file:
             file.write(cookies)
@@ -53,7 +53,7 @@ def brand_catalog(
     from linkmerce.core.smartstore.hcenter.catalog.transform import BrandCatalog as T
     return BrandCatalog(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "max_concurrent": max_concurrent,
@@ -93,7 +93,7 @@ def brand_product(
     from linkmerce.core.smartstore.hcenter.catalog.transform import BrandProduct as T
     return BrandProduct(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "max_concurrent": max_concurrent,
@@ -137,7 +137,7 @@ def brand_price(
     from linkmerce.core.smartstore.hcenter.catalog.transform import BrandPrice as T
     return BrandProduct(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "max_concurrent": max_concurrent,
@@ -177,7 +177,7 @@ def product_catalog(
     from linkmerce.core.smartstore.hcenter.catalog.transform import ProductCatalog as T
     return BrandProduct(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "max_concurrent": max_concurrent,
@@ -233,7 +233,7 @@ def page_view(
     def _main(*args, connection: DuckDBConnection | None = None, return_type: str = "json", **kwargs):
         return E(**prepare_duckdb_extract(
             T, connection, extract_options, transform_options, return_type,
-            headers = {"cookies": cookies},
+            cookies = cookies,
             options = {
                 "RequestLoop": {
                     "max_retries": max_retries
@@ -290,7 +290,7 @@ def store_sales(
     def _main(*args, connection: DuckDBConnection | None = None, return_type: str = "json", **kwargs):
         return E(**prepare_duckdb_extract(
             T, connection, extract_options, transform_options, return_type,
-            headers = {"cookies": cookies},
+            cookies = cookies,
             options = {
                 "RequestEach": {
                     "request_delay": request_delay,
@@ -330,7 +330,7 @@ def aggregated_sales(
     from linkmerce.core.smartstore.hcenter.sales.transform import AggregatedSales as T
     return ProductSales(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "RequestEach": {
                 "request_delay": request_delay,

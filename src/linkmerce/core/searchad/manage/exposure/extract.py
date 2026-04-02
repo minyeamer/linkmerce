@@ -18,13 +18,9 @@ class ExposureDiagnosis(SearchAdManager):
 
     @property
     def default_options(self) -> dict:
-        return {
-            "RequestLoop": {"max_retries": 5, "raise_errors": RuntimeError, "ignored_errors": Exception},
-            "RequestEachLoop": {"request_delay": 1.01},
-        }
+        return {"RequestEach": {"request_delay": 1}}
 
     @SearchAdManager.with_session
-    @SearchAdManager.with_token
     def extract(
             self,
             keyword: str | Iterable[str],
@@ -34,10 +30,9 @@ class ExposureDiagnosis(SearchAdManager):
             **kwargs
         ) -> JsonObject:
         """키워드(`keyword`)별 노출 진단 데이터를 조회해 JSON 형식으로 반환한다."""
-        return (self.request_each_loop(self.request_json_safe)
+        return (self.request_each(self.request_json_safe)
                 .partial(domain=domain, mobile=mobile, is_own=is_own)
                 .expand(keyword=keyword)
-                .loop(self.is_valid_response)
                 .run())
 
     def build_request_params(
@@ -58,10 +53,6 @@ class ExposureDiagnosis(SearchAdManager):
             "regionalCode": int(regionalCode),
         }
 
-    def build_request_headers(self, **kwargs: str) -> dict[str, str]:
-        return dict(self.get_request_headers(), authorization=self.get_authorization())
-
-    @SearchAdManager.cookies_required
     def set_request_headers(self, **kwargs: str):
-        referer = f"{self.main_url}/customers/{self.customer_id}/tool/exposure-status"
+        referer = f"{self.origin}/manage/ad-accounts/{self.account_no}/sa/tool/exposure-status"
         super().set_request_headers(referer=referer, **kwargs)

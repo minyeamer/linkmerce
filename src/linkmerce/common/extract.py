@@ -43,14 +43,17 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
 
     method: str | None = None
     url: str | None = None
+    cookies: str | None = None
 
     def __init__(
             self,
             session: Literal["per_request"] | Session | ClientSession = "per_request",
+            cookies: str | None = None,
             headers: Headers = dict(),
         ):
         """HTTP 세션 객체 및 요청 헤더를 초기화한다. `per_request`는 HTTP 요청마다 세션 객체를 생성한다."""
         self.set_session(session)
+        self.set_cookies(cookies)
         self.set_request_params()
         self.set_request_body()
         self.set_request_headers(**headers)
@@ -81,15 +84,60 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
         """HTTP 세션 객체를 설정한다."""
         self.__session = session
 
-    def set_cookies(self, cookies: str, sep: str = "; "):
-        """쿠키 문자열을 파싱하여 현재 세션에 설정한다."""
-        cookies = dict([kv.split('=', maxsplit=1) for kv in cookies.split(sep)])
-        self.get_session().cookies.update(cookies)
+    def get_session_type(self) -> Literal["per_request", "requests.Session", "aiohttp.ClientSession"]:
+        """현재 설정된 세션의 타입을 반환한다."""
+        session = self.get_session()
+        if session == "per_request":
+            return "per_request"
+        elif hasattr(session, "request"):
+            if hasattr(session, "cookies"):
+                return "requests.Session"
+            elif hasattr(session, "cookie_jar"):
+                return "aiohttp.ClientSession"
+        raise TypeError(f"Unsupported session type: {type(session).__name__}")
 
-    def get_cookies(self, sep: str = "; ") -> str:
-        """현재 세션의 쿠키를 문자열로 반환한다."""
-        cookies = self.get_session().cookies
-        return sep.join([f"{key}={value}" for key, value in cookies.items()])
+    ######################### Session Cookies #########################
+
+    def set_cookies(self, cookies: str | dict | None):
+        """쿠키 문자열 또는 딕셔너리를 파싱하여 현재 세션에 설정한다."""
+        if not cookies:
+            return
+        self.cookies = self.convert_cookies(cookies, to="str")
+
+        session_type = self.get_session_type()
+        if session_type == "per_request":
+            return
+        elif session_type == "requests.Session":
+            cookies_map = self.convert_cookies(cookies, to="dict")
+            self.get_session().cookies.update(cookies_map)
+        elif session_type == "aiohttp.ClientSession":
+            cookies_map = self.convert_cookies(cookies, to="dict")
+            self.get_session().cookie_jar.update_cookies(cookies_map)
+        # raise TypeError(f"Unsupported session type: {type(session).__name__}")
+
+    def get_cookies(self, to: Literal["str", "dict"] = "str") -> str | dict | None:
+        """현재 세션의 쿠키를 문자열로 반환한다. 세션 객체가 아니라면 None을 반환한다."""
+        session_type = self.get_session_type()
+        if session_type == "per_request":
+            return self.convert_cookies(self.cookies, to=to)
+        elif session_type == "requests.Session":
+            cookies = self.get_session().cookies.get_dict()
+            return self.convert_cookies(cookies, to=to)
+        elif session_type == "aiohttp.ClientSession":
+            cookies = {cookie.key: cookie.value for cookie in self.get_session().cookie_jar}
+            return self.convert_cookies(cookies, to=to)
+        # raise TypeError(f"Unsupported session type: {type(session).__name__}")
+
+    def convert_cookies(self, cookies: str | dict, to: Literal["str", "dict"] = "str") -> str | dict:
+        """쿠키를 지정된 타입(`str` 또는 `dict`)으로 변환하여 반환한다."""
+        type_ = type(cookies).__name__
+        if type_ == to:
+            return cookies
+        elif (to == "str") and isinstance(cookies, dict):
+            return "; ".join([f"{key}={value}" for key, value in cookies.items()])
+        elif (to == "dict") and isinstance(cookies, str):
+            return dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ") if '=' in kv])
+        raise TypeError(f"Unsupported conversion from {type_} to {to}")
 
     ########################## Request Params #########################
 
@@ -135,44 +183,56 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
 
     def set_request_headers(
             self,
-            authority: str = str(),
+            authority: str | None = None,
             accept: str = "*/*",
             encoding: str = "gzip, deflate, br",
             language: Literal["ko", "en"] | str = "ko",
             connection: str = "keep-alive",
-            contents: Literal["form", "javascript", "json", "text", "multipart"] | str | dict = str(),
-            cookies: str = str(),
-            host: str = str(),
-            origin: str = str(),
+            contents: Literal["form", "javascript", "json", "text", "multipart"] | dict | None = None,
+            cookies: str | None = None,
+            host: str | None = None,
+            origin: str | None = None,
             priority: str = "u=0, i",
-            referer: str = str(),
-            client: str = str(),
+            referer: str | None = None,
+            client: str | None = None,
             mobile: bool = False,
-            platform: str = str(),
+            platform: str | None = None,
             metadata: Literal["cors", "navigate"] | dict[str, str] = "cors",
             https: bool = False,
-            user_agent: str = str(),
+            user_agent: str | None = None,
             ajax: bool = False,
             headers: dict | None = None,
+            from_cookies: dict[str, str] | None = None,
             **kwargs: str
         ):
-        """HTTP 요청 헤더 속성을 설정한다."""
+        """HTTP 요청 헤더 속성을 설정한다. 헤더에 쿠키가 있다면 `cookies` 속성 및 세션 객체에 업데이트한다.
+
+        쿠키의 값을 꺼내 헤더에 넣어야 할 경우 `from_cookies`를 `{cookie_key: header_key}` 형태로 전달한다."""
         if headers is None:
             from linkmerce.utils.headers import build_headers
             headers = build_headers(
                 authority, accept, encoding, language, connection, contents, cookies, host, origin, priority,
                 referer, client, mobile, platform, metadata, https, user_agent, ajax, **kwargs)
+        if "cookie" in headers:
+            self.set_cookies(headers["cookie"])
+        if from_cookies:
+            cookies_map = self.get_cookies(to="dict")
+            for cookie_key, header_key in from_cookies.items():
+                try:
+                    headers[header_key] = cookies_map[cookie_key]
+                except KeyError:
+                    raise KeyError(f"Missing '{cookie_key}' in cookies.")
         self.__headers = headers
 
-    def cookies_required(func):
-        """쿠키가 필요한 HTTP 요청 메서드에 실행 전 경고를 추가하는 데코레이터."""
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            if "cookies" not in kwargs:
-                import warnings
-                warnings.warn("Cookies will be required for upcoming requests.")
-            return func(self, *args, **kwargs)
-        return wrapper
+    def require_cookies(self, key: str | None = None):
+        """1. 세션 객체에 쿠키가 없으면 경고 메시지를 발생시킨다.
+        2. `key`가 주어진 경우, 쿠키에 해당 키가 없다면 `ValueError`를 발생시킨다."""
+        cookies = self.get_cookies(to="dict")
+        if key and (key not in cookies):
+            raise KeyError(f"Missing '{key}' in cookies.")
+        elif not cookies:
+            import warnings
+            warnings.warn("Cookies will be required for upcoming requests.")
 
 
 class RequestSessionClient(BaseSessionClient):
@@ -180,6 +240,7 @@ class RequestSessionClient(BaseSessionClient):
 
     method: str | None = None
     url: str | None = None
+    cookies: str | None = None
 
     def request(
             self,
@@ -193,8 +254,8 @@ class RequestSessionClient(BaseSessionClient):
             **kwargs
         ) -> Response:
         """HTTP 요청을 수행하고 `Response` 객체를 반환한다."""
-        message = dict(method=method, url=url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
-        return self.get_session().request(**message)
+        optional = {"params": params, "data": data, "json": json, "headers": headers, "cookies": cookies}
+        return self.get_session().request(method, url, **optional, **kwargs)
 
     def request_status(self, **kwargs) -> int:
         """HTTP 요청을 수행하고 응답 코드를 반환한다."""
@@ -256,6 +317,7 @@ class RequestSessionClient(BaseSessionClient):
                     import requests
                     with requests.Session() as session:
                         self.set_session(session)
+                        self.set_cookies(self.cookies)
                         return func(self, *args, **kwargs)
                 finally:
                     self.set_session("per_request")
@@ -269,6 +331,7 @@ class AiohttpSessionClient(BaseSessionClient):
 
     method: str | None = None
     url: str | None = None
+    cookies: str | None = None
 
     def request(self, *args, **kwargs):
         """비동기 HTTP 요청 시에는 `request` 메서드를 사용하지 않는다."""
@@ -286,8 +349,8 @@ class AiohttpSessionClient(BaseSessionClient):
             **kwargs
         ) -> ClientResponse:
         """비동기 HTTP 요청을 수행하고 `ClientResponse` 객체를 반환한다."""
-        message = dict(method=method, url=url, params=params, data=data, json=json, headers=headers, cookies=cookies, **kwargs)
-        return await self.get_session().request(**message)
+        optional = {"params": params, "data": data, "json": json, "headers": headers, "cookies": cookies}
+        return await self.get_session().request(method, url, **optional, **kwargs)
 
     async def request_async_status(self, **kwargs) -> int:
         """비동기 HTTP 요청을 수행하고 응답 코드를 반환한다."""
@@ -349,6 +412,7 @@ class AiohttpSessionClient(BaseSessionClient):
                     import aiohttp
                     async with aiohttp.ClientSession() as session:
                         self.set_session(session)
+                        self.set_cookies(self.cookies)
                         return await func(self, *args, **kwargs)
                 finally:
                     self.set_session("per_request")
@@ -362,6 +426,7 @@ class SessionClient(RequestSessionClient, AiohttpSessionClient):
 
     method: str | None = None
     url: str | None = None
+    cookies: str | None = None
 
 
 ###################################################################
@@ -534,26 +599,40 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
 
     method: str | None = None
     url: str | None = None
+    cookies: str | None = None
 
     def __init__(
             self,
             session: Literal["per_request"] | Session | ClientSession = "per_request",
+            cookies: str | None = None,
             headers: Headers = dict(),
             options: TaskOptions = dict(),
             configs: Configs = dict(),
             parser: Callable | None = None,
+            **kwargs
         ):
         """HTTP 요청 및 응답 데이터 파싱을 위한 속성을 초기화한다.
 
         Args:
             `session`: HTTP 세션 객체, 또는 `per_request` 설정 시 `extract` 메서드 실행마다 세션을 동적으로 생성.
-            `headers`: 기본 HTTP 요청 헤더. (쿠키는 헤더를 통해 전달한다.)
+            `cookies`: HTTP 세션 객체에 추가할 쿠키. (또는 헤더에 넣어 전달할 수 있다.)
+            `headers`: 기본 HTTP 요청 헤더.
             `options`: Task 생성 시 적용할 속성.
             `configs`: HTTP 요청 중 사용할 설정.
             `parser`: 페이지 별 요청 결과에 적용할 파서 함수."""
+        self.pre_init(**kwargs)
         self.set_configs(configs)
-        SessionClient.__init__(self, session, headers)
+        SessionClient.__init__(self, session, cookies, headers)
         TaskClient.__init__(self, options, parser)
+        self.post_init(**kwargs)
+
+    def pre_init(self, **kwargs):
+        """초기화 전에 호출되는 후크 메서드."""
+        ...
+
+    def post_init(self, **kwargs):
+        """초기화가 완료된 후에 호출되는 후크 메서드."""
+        ...
 
     @abstractmethod
     def extract(self, *args, **kwargs) -> Any:
@@ -683,7 +762,7 @@ class LoginHandler(Extractor):
 
     `login` 메서드를 구현하여 인증을 수행하고, 세션 쿠키를 보존한다."""
 
-    cookies: dict = dict()
+    cookies: str | None = None
 
     @abstractmethod
     def login(self, **kwargs):
@@ -694,6 +773,34 @@ class LoginHandler(Extractor):
         """`Extractor` 부모 클래스의 추상 메서드는 구현하지 않는다. `login` 메서드가 역할을 대신한다."""
         raise NotImplementedError("Direct calls to extract method are not supported. Please use login method instead.")
 
+    def build_headers(
+            self,
+            authority: str | None = None,
+            accept: str = "*/*",
+            encoding: str = "gzip, deflate, br",
+            language: Literal["ko", "en"] | str = "ko",
+            connection: str = "keep-alive",
+            contents: Literal["form", "javascript", "json", "text", "multipart"] | dict | None = None,
+            cookies: str | None = None,
+            host: str | None = None,
+            origin: str | None = None,
+            priority: str = "u=0, i",
+            referer: str | None = None,
+            client: str | None = None,
+            mobile: bool = False,
+            platform: str | None = None,
+            metadata: Literal["cors", "navigate"] | dict[str, str] = "cors",
+            https: bool = False,
+            user_agent: str | None = None,
+            ajax: bool = False,
+            **kwargs
+        ) -> dict:
+        """`build_headers` 함수를 호출하여 HTTP 요청 헤더를 생성한다."""
+        from linkmerce.utils.headers import build_headers
+        return build_headers(
+                authority, accept, encoding, language, connection, contents, cookies, host, origin, priority,
+                referer, client, mobile, platform, metadata, https, user_agent, ajax, **kwargs)
+
     def with_session(func):
         """HTTP 세션을 `per_request`로 설정했을 경우, 요청을 수행할 때마다 세션을 생성하고 종료하는 데코레이터."""
         @functools.wraps(func)
@@ -703,27 +810,16 @@ class LoginHandler(Extractor):
                     import requests
                     with requests.Session() as session:
                         self.set_session(session)
-                        return func(self, *args, **kwargs)
+                        self.set_cookies(self.cookies)
+                        try:
+                            return func(self, *args, **kwargs)
+                        finally:
+                            self.set_cookies(self.get_cookies())
                 finally:
-                    cookies = self.get_cookies()
                     self.set_session("per_request")
-                    self.set_cookies(cookies)
             else:
-                return func(self, *args, **kwargs)
+                try:
+                    return func(self, *args, **kwargs)
+                finally:
+                    self.set_cookies(self.get_cookies())
         return wrapper
-
-    def set_cookies(self, cookies: str):
-        """쿠키 문자열을 파싱하여 현재 세션에 설정한다."""
-        if self.get_session() == "per_request":
-            cookies = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ")])
-            self.cookies.update(cookies)
-        else:
-            super().set_cookies(cookies)
-
-    def get_cookies(self) -> str:
-        """현재 세션의 쿠키를 문자열로 반환한다."""
-        if self.get_session() == "per_request":
-            cookies = self.cookies
-            return "; ".join([f"{key}={value}" for key, value in cookies.items()])
-        else:
-            return super().get_cookies()

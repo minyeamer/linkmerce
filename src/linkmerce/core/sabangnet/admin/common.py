@@ -90,12 +90,16 @@ class SabangnetLogin(LoginHandler, SabangnetAdmin):
     """사방넷 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스."""
 
     @LoginHandler.with_session
-    def login(self, **kwargs) -> dict:
+    def login(self, **kwargs) -> dict[str, str]:
         """사방넷 로그인을 수행하고 쿠키와 토큰을 반환한다."""
         data = self.login_begin()
         self.set_token(**data)
         self.login_history()
-        return {"cookies": self.get_cookies(), "access_token": self.access_token, "refresh_token": self.refresh_token}
+        return {
+            "cookies": self.get_cookies(to="str"),
+            "access_token": self.access_token,
+            "refresh_token": self.refresh_token
+        }
 
 
 def get_order_date_pair(

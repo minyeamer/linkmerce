@@ -69,7 +69,7 @@ class TestCoupangAds:
         from linkmerce.core.coupang.advertising.adreport.extract import Campaign
         _configs = options("coupang.advertising.campaign")
         Campaign(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(Campaign, format="json"),
         ).extract(
             goal_type = _configs.get("goal_type", "SALES"),
@@ -82,7 +82,7 @@ class TestCoupangAds:
         from linkmerce.core.coupang.advertising.adreport.extract import Creative
         _configs = configs("coupang.advertising.creative")
         Creative(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(Creative, format="json", map_index="$campaign_ids"),
         ).extract(
             campaign_ids = _configs["campaign_ids"],
@@ -93,7 +93,7 @@ class TestCoupangAds:
         from linkmerce.core.coupang.advertising.adreport.extract import ProductAdReport
         _configs = options("coupang.advertising.product_adreport")
         ProductAdReport(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(ProductAdReport, format="xlsx"),
         ).extract(
             start_date = _configs.get("start_date", yesterday),
@@ -110,7 +110,7 @@ class TestCoupangAds:
         from linkmerce.core.coupang.advertising.adreport.extract import NewCustomerAdReport
         _configs = options("coupang.advertising.new_customer_adreport")
         NewCustomerAdReport(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(NewCustomerAdReport, format="xlsx"),
         ).extract(
             start_date = _configs.get("start_date", yesterday),
@@ -144,7 +144,7 @@ class TestCoupangWing:
         from linkmerce.core.coupang.wing.product.extract import ProductOption
         _configs = options("coupang.wing.product_option")
         ProductOption(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(ProductOption, format="json"),
         ).extract(
             is_deleted = _configs.get("is_deleted", False),
@@ -155,7 +155,7 @@ class TestCoupangWing:
         from linkmerce.core.coupang.wing.product.extract import ProductDetail
         _configs = configs("coupang.wing.product_detail")
         ProductDetail(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(ProductDetail, format="json", map_index="$vendor_inventory_id"),
         ).extract(
             vendor_inventory_id = _configs["vendor_inventory_id"],
@@ -167,7 +167,7 @@ class TestCoupangWing:
         from linkmerce.core.coupang.wing.product.extract import ProductDownload
         _configs = options("coupang.wing.product_download")
         ProductDownload(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(ProductDownload, format="xlsx"),
         ).extract(
             request_type = _configs.get("request_type", "VENDOR_INVENTORY_ITEM"),
@@ -182,7 +182,7 @@ class TestCoupangWing:
         from linkmerce.core.coupang.wing.product.extract import RocketInventory
         _configs = options("coupang.wing.rocket_inventory")
         RocketInventory(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(RocketInventory, format="json"),
         ).extract(
             hidden_status = _configs.get("hidden_status"),
@@ -193,7 +193,7 @@ class TestCoupangWing:
         from linkmerce.core.coupang.wing.settlement.extract import RocketSettlement
         _configs = options("coupang.wing.rocket_settlement")
         RocketSettlement(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(RocketSettlement, format="json"),
         ).extract(
             start_date = _configs.get("start_date", days_ago(7)),
@@ -206,7 +206,7 @@ class TestCoupangWing:
         from linkmerce.core.coupang.wing.settlement.extract import RocketSettlementDownload
         _configs = options("coupang.wing.rocket_settlement_download")
         RocketSettlementDownload(
-            headers = {"cookies": self.cookies(credentials)},
+            cookies = self.cookies(credentials),
             parser = dump_extract(RocketSettlementDownload, format="xlsx", map_index="$report_type"),
         ).extract(
             start_date = _configs.get("start_date", days_ago(7)),
@@ -902,7 +902,7 @@ class TestSearchAdGfa:
         _credentials = reader("searchad.gfa.0")
         return dict(
             configs = {"account_no": _credentials["account_no"]},
-            headers = {"cookies": _credentials["cookies"]},
+            cookies = _credentials["cookies"],
         )
 
     @pytest.mark.searchad_gfa
@@ -986,7 +986,7 @@ class TestSearchAdManage:
         _credentials = reader("searchad.manage.0")
         return dict(
             configs = {"customer_id": _credentials["customer_id"]},
-            headers = {"cookies": _credentials["cookies"]},
+            cookies = _credentials["cookies"],
         )
 
     @pytest.mark.searchad_manage
@@ -1148,16 +1148,15 @@ class TestPartnerCenter:
 
     eol_date = dt.date(2026, 2, 26)
 
-    def headers(self, reader: YamlReader) -> dict:
-        _credentials = reader("smartstore.hcenter")
-        return {"cookies": _credentials["cookies"]}
+    def cookies(self, reader: YamlReader) -> str:
+        return reader("smartstore.hcenter")["cookies"]
 
     @pytest.mark.smartstore_hcenter
     def test_brand_catalog(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         from linkmerce.core.smartstore.hcenter.catalog.extract import BrandCatalog
         _configs = configs("smartstore.hcenter.brand_catalog")
         BrandCatalog(
-            headers = self.headers(credentials),
+            cookies = self.cookies(credentials),
             parser = dump_extract(BrandCatalog, format="json", map_index="$brand_ids"),
         ).extract(
             brand_ids = _configs["brand_ids"],
@@ -1172,7 +1171,7 @@ class TestPartnerCenter:
         from linkmerce.core.smartstore.hcenter.catalog.extract import BrandProduct
         _configs = configs("smartstore.hcenter.brand_product")
         BrandProduct(
-            headers = self.headers(credentials),
+            cookies = self.cookies(credentials),
             parser = dump_extract(BrandProduct, format="json", map_index="$brand_ids"),
         ).extract(
             brand_ids = _configs["brand_ids"],
@@ -1188,7 +1187,7 @@ class TestPartnerCenter:
         from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByDevice
         _configs = configs("smartstore.hcenter.page_view_by_device")
         PageViewByDevice(
-            headers = self.headers(credentials),
+            cookies = self.cookies(credentials),
             parser = dump_extract(PageViewByDevice, format="json", map_index="$mall_seq"),
         ).extract(
             mall_seq = _configs["mall_seq"],
@@ -1201,7 +1200,7 @@ class TestPartnerCenter:
         from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByUrl
         _configs = configs("smartstore.hcenter.page_view_by_url")
         PageViewByUrl(
-            headers = self.headers(credentials),
+            cookies = self.cookies(credentials),
             parser = dump_extract(PageViewByUrl, format="json", map_index="$mall_seq"),
         ).extract(
             mall_seq = _configs["mall_seq"],
@@ -1214,7 +1213,7 @@ class TestPartnerCenter:
         from linkmerce.core.smartstore.hcenter.sales.extract import StoreSales
         _configs = configs("smartstore.hcenter.store_sales")
         StoreSales(
-            headers = self.headers(credentials),
+            cookies = self.cookies(credentials),
             parser = dump_extract(StoreSales, format="json", map_index="$mall_seq"),
         ).extract(
             mall_seq = _configs["mall_seq"],
@@ -1230,7 +1229,7 @@ class TestPartnerCenter:
         from linkmerce.core.smartstore.hcenter.sales.extract import CategorySales
         _configs = configs("smartstore.hcenter.category_sales")
         CategorySales(
-            headers = self.headers(credentials),
+            cookies = self.cookies(credentials),
             parser = dump_extract(CategorySales, format="json", map_index="$mall_seq"),
         ).extract(
             mall_seq = _configs["mall_seq"],
@@ -1246,7 +1245,7 @@ class TestPartnerCenter:
         from linkmerce.core.smartstore.hcenter.sales.extract import ProductSales
         _configs = configs("smartstore.hcenter.product_sales")
         ProductSales(
-            headers = self.headers(credentials),
+            cookies = self.cookies(credentials),
             parser = dump_extract(ProductSales, format="json", map_index="$mall_seq"),
         ).extract(
             mall_seq = _configs["mall_seq"],

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from linkmerce.common.extract import LoginHandler
 
 from typing import TYPE_CHECKING
@@ -7,23 +8,23 @@ if TYPE_CHECKING:
     from requests import Session
 
 
-def has_accounts(session: Session, cookies: str = str()) -> bool:
-    """스마트스토어센터 로그인 쿠키로 판매자 정보가 조회되는지 검증한다."""
+def has_accounts(session: Session) -> bool:
+    """스마트스토어센터 로그인 세션으로 판매자 정보가 조회되는지 검증한다."""
     from linkmerce.utils.headers import build_headers
     origin = "https://accounts.commerce.naver.com"
     url = f"{origin}/graphql?query=userInfo"
-    headers = build_headers(cookies=cookies, origin=origin, referer=login_url())
+    headers = build_headers(origin=origin, referer=login_url())
     with session.post(url, json=query_user_info(), headers=headers) as response:
         json = response.json()
         return isinstance(json, dict) and isinstance(json.get("data"), dict) and json["data"]["userInfo"]
 
 
-def has_cookies(session: Session, cookies: str = str()) -> bool:
-    """스마트스토어센터 로그인 쿠키가 유효한지 검증한다."""
+def has_cookies(session: Session) -> bool:
+    """스마트스토어센터 로그인 세션이 유효한지 검증한다."""
     from linkmerce.utils.headers import build_headers
     origin = "https://accounts.commerce.naver.com"
     url = f"{origin}/graphql?query=nidAuth"
-    headers = build_headers(url, contents={"type": "json"}, cookies=cookies, origin=origin, referer=login_url())
+    headers = build_headers(url, contents={"type": "json"}, origin=origin, referer=login_url())
     with session.post(url, json=query_nid_auth(), headers=headers) as response:
         return bool(response.json()["data"]["nidAuth"]["nid"])
 
@@ -59,10 +60,6 @@ class SmartstoreCenterLogin(LoginHandler):
         else:
             return login_info
 
-    def build_request_headers(self, authority: str, **kwargs: str) -> dict[str, str]:
-        from linkmerce.utils.headers import build_headers
-        return build_headers(authority, **kwargs)
-
     ########################### Seller Login ##########################
 
     def seller_login(self, userid: str, passwd: str):
@@ -93,13 +90,13 @@ class SmartstoreCenterLogin(LoginHandler):
             ).generate_body(query_options = {"command": "mutation", "selection": {"variables": {"linebreak": True}}, "fields": {"linebreak": True}, "suffix": '\n'})
 
         url = self.login_url + "/graphql"
-        headers = self.build_request_headers(url, referer=f"{self.main_url}/login?{callback_url(return_url=False)}")
+        headers = self.build_headers(url, referer=f"{self.main_url}/login?{callback_url(return_url=False)}")
         self.request("POST", url, json=build_request_body(userid, passwd), headers=headers)
         self.fetch_smartstore(referer=self.login_url)
 
     def fetch_smartstore(self, referer: str = str()):
         url = self.main_url
-        headers = self.build_request_headers(self.main_url, contents={"type": "json"}, referer=referer)
+        headers = self.build_headers(self.main_url, contents={"type": "json"}, referer=referer)
         self.request("GET", url, headers=headers)
 
     ########################### OAuth Login ###########################
@@ -126,7 +123,7 @@ class SmartstoreCenterLogin(LoginHandler):
     def validate_cookies(self, cookies: str) -> str:
         self.set_cookies(cookies)
         url = self.login_url + "/graphql"
-        headers = self.build_request_headers(url, contents={"type": "json"}, origin=self.login_url, referer=login_url())
+        headers = self.build_headers(url, contents={"type": "json"}, origin=self.login_url, referer=login_url())
         self.request("POST", url, json=query_valid_url(), params={"query": "ValidUrl"}, headers=headers)
         self.request("POST", url, json=query_foreign_captcha(), params={"query": "foreignCaptcha"}, headers=headers)
         self.request("POST", url, json=query_user_info(), params={"query": "userInfo"}, headers=headers)
@@ -159,13 +156,13 @@ class SmartstoreCenterLogin(LoginHandler):
             ).generate_body(query_options = {"command": "mutation", "selection": {"variables": {"linebreak": True}}, "fields": {"linebreak": True}, "suffix": '\n'})
 
         url = self.login_url + "/graphql?query=snsLoginBegin"
-        headers = self.build_request_headers(url, contents={"type": "json"}, origin=self.login_url, referer=login_url())
+        headers = self.build_headers(url, contents={"type": "json"}, origin=self.login_url, referer=login_url())
         with self.request("POST", url, json=build_request_body(), headers=headers) as response:
             return response.json()["data"]["snsBegin"]["authUrl"]
 
     def login_redirect(self, url: str, referer: str, extract_location: bool = True) -> str:
         from linkmerce.utils.regex import regexp_extract
-        headers = self.build_request_headers(url, metadata="navigate", https=True, referer=referer)
+        headers = self.build_headers(url, metadata="navigate", https=True, referer=referer)
         with self.request("GET", url, headers=headers) as response:
             if extract_location:
                 return regexp_extract(r'location\.replace\("([^"]+)"\);', response.text)
@@ -192,7 +189,7 @@ class SmartstoreCenterLogin(LoginHandler):
             ).generate_body(query_options = {"command": "mutation", "selection": {"variables": {"linebreak": False}}, "fields": {"linebreak": True}, "suffix": '\n'})
 
         url = self.login_url + "/graphql?query=snsLoginCallback"
-        headers = self.build_request_headers(url, contents={"type": "json"}, origin=self.login_url, referer=callback_url)
+        headers = self.build_headers(url, contents={"type": "json"}, origin=self.login_url, referer=callback_url)
         with self.request("POST", url, json=build_request_body(**variables), headers=headers) as response:
             return response.json()["data"]["snsCallback"]["nextUrl"]
 
@@ -206,7 +203,7 @@ class SmartstoreCenterLogin(LoginHandler):
             return self.get_login_info(response.headers)
 
     def get_login_header(self) -> dict[str, str]:
-        headers = self.build_request_headers(self.main_url, contents={"type": "json", "charset": "UTF-8"}, referer=self.main_url)
+        headers = self.build_headers(self.main_url, contents={"type": "json", "charset": "UTF-8"}, referer=self.main_url)
         headers["x-current-state"] = self.main_url + "/#/login-callback"
         headers["x-current-statename"] = "login-callback"
         headers["x-to-statename"] = "login-callback"
@@ -224,7 +221,7 @@ class SmartstoreCenterLogin(LoginHandler):
         channel_info = self.select_channel(channel_seq)
         login_info = self.set_channel(**channel_info)
         url = login_info["redirectUrl"]
-        headers = self.build_request_headers(url, https=True)
+        headers = self.build_headers(url, https=True)
         self.request("GET", url, headers=headers)
         return login_info
 
@@ -250,7 +247,7 @@ class SmartstoreCenterLogin(LoginHandler):
             return self.get_login_info(response.headers)
 
     def get_channel_header(self) -> dict[str, str]:
-        headers = self.build_request_headers(self.main_url, referer=self.main_url)
+        headers = self.build_headers(self.main_url, referer=self.main_url)
         headers["x-current-state"] = self.main_url + "/#/home/dashboard"
         headers["x-current-statename"] = "work.channel-select"
         headers["x-to-statename"] = "work.channel-select"

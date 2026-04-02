@@ -11,22 +11,6 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def logged_in(cookies: str, **kwargs) -> bool:
-    """네이버 로그인 쿠키가 유효한지 검증한다."""
-    from linkmerce.core.searchad.gfa.common import logged_in
-    import requests
-    with requests.Session() as session:
-        return logged_in(session, cookies)
-
-
-def whoami(cookies: str, **kwargs) -> str | None:
-    """네이버에서 현재 로그인된 사용자의 성과형 디스플레이 광고 계정ID를 조회한다."""
-    from linkmerce.core.searchad.gfa.common import whoami
-    import requests
-    with requests.Session() as session:
-        return whoami(session, cookies)
-
-
 @with_duckdb_connection(table="searchad_campaign_gfa")
 def campaign(
         account_no: int | str,
@@ -46,7 +30,7 @@ def campaign(
     return Campaign(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "request_delay": request_delay,
@@ -77,7 +61,7 @@ def adset(
     return AdSet(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "request_delay": request_delay,
@@ -108,7 +92,7 @@ def creative(
     return Creative(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
-        headers = {"cookies": cookies},
+        cookies = cookies,
         options = {
             "PaginateAll": {
                 "request_delay": request_delay,
@@ -143,7 +127,7 @@ def campaign_report(
     return CampaignReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
-        headers = {"cookies": cookies},
+        cookies = cookies,
     )).extract(start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress)
 
 
@@ -170,5 +154,5 @@ def creative_report(
     return CreativeReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
-        headers = {"cookies": cookies},
+        cookies = cookies,
     )).extract(start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress)

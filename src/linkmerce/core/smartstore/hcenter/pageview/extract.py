@@ -77,7 +77,6 @@ class _PageView(PartnerCenter):
                 "suffix": '\n',
             }))
 
-    @PartnerCenter.cookies_required
     def set_request_headers(self, **kwargs):
         contents = {"type": "text", "charset": "UTF-8"}
         referer = self.origin + "/iframe/brand-analytics/store/pageView"

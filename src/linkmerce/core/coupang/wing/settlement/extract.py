@@ -181,5 +181,6 @@ class RocketSettlementDownload(RocketSettlement):
     def download_excel(self, download_url: str) -> bytes:
         """엑셀 파일을 다운로드하여 바이너리로 반환한다."""
         from linkmerce.utils.headers import build_headers
+        import requests
         headers = build_headers(host=download_url, referer=self.origin, metadata="navigate", https=True)
-        return self.request("GET", download_url, headers=headers).content
+        return requests.request("GET", download_url, headers=headers).content

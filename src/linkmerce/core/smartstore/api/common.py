@@ -59,7 +59,7 @@ class SmartstoreApi(Extractor):
             return response.json()["access_token"]
         except:
             from linkmerce.common.exceptions import AuthenticationError
-            raise AuthenticationError(f"Failed to authenticate with the Naver Commerce API.")
+            raise AuthenticationError("Failed to authenticate with the Naver Commerce API.")
 
     def _build_auth_params(self, client_id: str, client_secret: str) -> dict:
         import base64
