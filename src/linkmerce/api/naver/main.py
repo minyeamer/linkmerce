@@ -43,7 +43,7 @@ def search(
     )).extract(query, mobile, (parse_html and (return_type == "raw")))
 
 
-@with_duckdb_connection(table="naver_cafe")
+@with_duckdb_connection(table="naver_cafe_search")
 def search_cafe(
         query: str | Iterable[str],
         mobile: bool = True,
@@ -56,7 +56,7 @@ def search_cafe(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
-    """네이버 모바일 카페 탭 검색 결과를 조회하고 `naver_cafe` 테이블에 적재한다."""
+    """네이버 모바일 카페 탭 검색 결과를 조회하고 `naver_cafe_search` 테이블에 적재한다."""
     from linkmerce.core.naver.main.search.extract import SearchTab
     from linkmerce.core.naver.main.search.transform import CafeTab as T
     return SearchTab(**prepare_duckdb_extract(
@@ -100,7 +100,7 @@ def cafe_article(
 
 
 @with_duckdb_connection(tables={
-    "search": "naver_cafe",
+    "search": "naver_cafe_search",
     "article": "naver_cafe_article",
     "merged": "naver_cafe_result"
 })
@@ -120,7 +120,7 @@ def search_cafe_plus(
     """네이버 모바일 카페 탭 검색 결과와 각 카페 게시글 데이터를 조합하여 통합된 결과를 생성한다.
 
     테이블 키 | 테이블명 | 설명
-    - `cafe` | `naver_cafe` | 네이버 모바일 카페 탭 검색 결과
+    - `cafe` | `naver_cafe_search` | 네이버 모바일 카페 탭 검색 결과
     - `article` | `naver_cafe_article` | 카페 게시글 데이터
     - `merged` | `naver_cafe_result` | 카페 탭 검색 결과와 게시글 데이터를 병합"""
     SEARCH, ARTICLE = 0, 1

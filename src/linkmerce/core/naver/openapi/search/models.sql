@@ -158,7 +158,7 @@ FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
 
--- ShoppingSearch: create
+-- ShopSearch: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     keyword VARCHAR
   , display_rank SMALLINT
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , PRIMARY KEY (keyword, display_rank)
 );
 
--- ShoppingSearch: bulk_insert
+-- ShopSearch: bulk_insert
 INSERT INTO {{ table }}
 SELECT
     $keyword AS keyword
@@ -202,7 +202,7 @@ FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
 
--- ShoppingRank: create
+-- ShopRank: create
 CREATE TABLE IF NOT EXISTS {{ rank }} (
     keyword VARCHAR
   , id BIGINT
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS {{ product }} (
   , updated_at TIMESTAMP NOT NULL
 );
 
--- ShoppingRank: bulk_insert
+-- ShopRank: bulk_insert
 INSERT INTO {{ rank }}
 SELECT
     $keyword AS keyword

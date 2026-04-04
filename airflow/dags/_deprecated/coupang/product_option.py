@@ -14,7 +14,7 @@ with DAG(
     doc_md = dedent("""
         # 쿠팡 상품 옵션 ETL 파이프라인
 
-        > 안내) 쿠팡 윙 로그인 정책 강화로 사용 중지
+        > 안내) 쿠팡 윙 로그인 정책 강화로 사용 중지 (~ v0.6.8)
 
         ## 인증(Credentials)
         쿠팡 윙 로그인 쿠키가 필요하다.
@@ -66,6 +66,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.wing import product_option, rocket_option
         from linkmerce.extensions.bigquery import BigQueryClient
+        sources = {"table": "coupang_product", "rfm": "coupang_rocket_option"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             for is_deleted in [False, True]:
@@ -88,7 +89,7 @@ with DAG(
                 return_type = "none",
             )
 
-            if conn.table_has_rows("coupang_rocket_option"):
+            if conn.table_has_rows(sources["rfm"]):
                 conn.execute(insert_rocket_options())
 
             with BigQueryClient(service_account) as client:
@@ -99,13 +100,13 @@ with DAG(
                         "see_more": True,
                     },
                     "counts": {
-                        "vendor": conn.count_table("coupang_product"),
-                        "rfm": conn.count_table("coupang_rocket_option"),
+                        "table": conn.count_table(sources["table"]),
+                        "rfm": conn.count_table(sources["rfm"]),
                     },
                     "status": {
-                        "data": client.merge_into_table_from_duckdb(
+                        "table": client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "coupang_product",
+                            source_table = sources["table"],
                             staging_table = f'{tables["temp_option"]}_{vendor_id}',
                             target_table = tables["option"],
                             **merge["option"],

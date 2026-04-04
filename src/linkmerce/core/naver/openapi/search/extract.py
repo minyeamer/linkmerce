@@ -171,7 +171,7 @@ class ImageSearch(_SearchExtractor):
         return await self._extract_async_backend(query, start, display=display, sort=sort, filter=filter, **kwargs)
 
 
-class ShoppingSearch(_SearchExtractor):
+class ShopSearch(_SearchExtractor):
     """네이버 쇼핑 검색 API를 요청하는 클래스."""
 
     content_type = "shop"

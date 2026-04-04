@@ -226,16 +226,16 @@ def search_shop(
         transform_options: dict | None = None,
     ) -> JsonObject:
     """네이버 오픈 API로 쇼핑 검색 결과를 수집하고 `naver_shop` 테이블에 적재한다."""
-    from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
-    from linkmerce.core.naver.openapi.search.transform import ShoppingSearch as T
-    return ShoppingSearch(**prepare_duckdb_extract(
+    from linkmerce.core.naver.openapi.search.extract import ShopSearch
+    from linkmerce.core.naver.openapi.search.transform import ShopSearch as T
+    return ShopSearch(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
     )).run(query, start, display, sort, how_to_run=how_to_run)
 
 
 @with_duckdb_connection(tables={"rank": "naver_shop_rank", "product": "naver_shop_product"})
-def rank_shop(
+def shop_rank(
         client_id: str,
         client_secret: str,
         query: str | Iterable[str],
@@ -258,9 +258,9 @@ def rank_shop(
     테이블 키 | 테이블명 | 설명
     - `rank` | `naver_shop_rank` | 네이버 쇼핑 상품 순위
     - `product` | `naver_shop_product` | 네이버 쇼핑 상품 목록"""
-    from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
-    from linkmerce.core.naver.openapi.search.transform import ShoppingRank as T
-    return ShoppingSearch(**prepare_duckdb_extract(
+    from linkmerce.core.naver.openapi.search.extract import ShopSearch
+    from linkmerce.core.naver.openapi.search.transform import ShopRank as T
+    return ShopSearch(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         **_search_config(client_id, client_secret, max_concurrent, max_retries, request_delay, progress),
     )).run(query, start, display, sort, how_to_run=how_to_run)

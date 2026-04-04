@@ -14,7 +14,7 @@ with DAG(
     doc_md = dedent("""
         # 네이버 로그인 파이프라인
 
-        > 안내) 네이버 로그인 정책 강화로 사용 중지
+        > 안내) 네이버 로그인 정책 강화로 사용 중지 (~ v0.6.8)
 
         네이버 계정 목록을 순회하면서 네이버 로그인 페이지에 접속해 로그인을 진행한다.
         로그인 후 광고 계정이 참조하는 쿠키 경로에 쿠키 문자열을 덮어쓴다.
@@ -55,7 +55,7 @@ with DAG(
     def login_naver(credentials: dict, **kwargs) -> str:
         """Playwright 브라우저로 네이버 로그인하고 쿠키를 지정된 경로에 덮어쓴다."""
         from playwright.sync_api import Page, sync_playwright
-        from linkmerce.api.searchad.manage import has_cookies
+        from linkmerce.api.searchad.manage import has_cookies # v1.0.0부터 함수 사용 불가
         from linkmerce.common.exceptions import AuthenticationError
         import random
         import time

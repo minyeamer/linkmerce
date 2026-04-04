@@ -14,7 +14,7 @@ with DAG(
     doc_md = dedent("""
         # 쿠팡 광고 캠페인/소재 ETL 파이프라인
 
-        > 안내) 쿠팡 광고 로그인 정책 강화로 사용 중지
+        > 안내) 쿠팡 광고 로그인 정책 강화로 사용 중지 (~ v0.6.8)
 
         ## 인증(Credentials)
         쿠팡 광고 로그인 쿠키가 필요하다.
@@ -68,6 +68,11 @@ with DAG(
         from linkmerce.api.coupang.advertising import campaign
         from linkmerce.api.coupang.advertising import creative
         from linkmerce.extensions.bigquery import BigQueryClient
+        sources = {
+            "campaign": "coupang_campaign",
+            "adgroup": "coupang_adgroup",
+            "creative": "coupang_creative",
+        }
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             for goal_type in goal_types:
@@ -103,14 +108,14 @@ with DAG(
                         "is_deleted": [False, True],
                     },
                     "counts": {
-                        "campaign": conn.count_table("coupang_campaign"),
-                        "adgroup": conn.count_table("coupang_adgroup"),
-                        "creative": (conn.count_table("coupang_creative") if nca_campaign_ids else None),
+                        "campaign": conn.count_table(sources["campaign"]),
+                        "adgroup": conn.count_table(sources["adgroup"]),
+                        "creative": (conn.count_table(sources["creative"]) if nca_campaign_ids else None),
                     },
                     "status": {
                         "campaign": client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "coupang_campaign",
+                            source_table = sources["campaign"],
                             staging_table = f'{tables["temp_campaign"]}_{vendor_id}',
                             target_table = tables["campaign"],
                             **merge["campaign"],
@@ -118,7 +123,7 @@ with DAG(
                         ),
                         "adgroup": client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "coupang_adgroup",
+                            source_table = sources["adgroup"],
                             staging_table = f'{tables["temp_adgroup"]}_{vendor_id}',
                             target_table = tables["adgroup"],
                             **merge["adgroup"],
@@ -126,7 +131,7 @@ with DAG(
                         ),
                         "creative": (client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "coupang_creative",
+                            source_table = sources["creative"],
                             staging_table = f'{tables["temp_creative"]}_{vendor_id}',
                             target_table = tables["creative"],
                             **merge["creative"],

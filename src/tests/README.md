@@ -183,10 +183,10 @@ naver/
         ├── ImageSearch(_SearchExtractor)::extract
         │   └── ImageSearch(DuckDBTransformer)::transform
         │       └── SearchParser(JsonTransformer)::transform
-        └── ShoppingSearch(_SearchExtractor)::extract
-            ├── ShoppingSearch(DuckDBTransformer)::transform
+        └── ShopSearch(_SearchExtractor)::extract
+            ├── ShopSearch(DuckDBTransformer)::transform
             │   └── SearchParser(JsonTransformer)::transform
-            └── ShoppingRank(ShoppingSearch)::transform
+            └── ShopRank(ShopSearch)::transform
                 └── SearchParser(JsonTransformer)::transform
 ```
 

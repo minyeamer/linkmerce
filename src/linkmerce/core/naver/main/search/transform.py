@@ -739,10 +739,10 @@ class CafeParser(HtmlTransformer):
 
 
 class CafeTab(DuckDBTransformer):
-    """네이버 모바일 카페 탭 검색 결과를 `naver_cafe` 테이블에 적재하는 클래스."""
+    """네이버 모바일 카페 탭 검색 결과를 `naver_cafe_search` 테이블에 적재하는 클래스."""
 
     extractor = "SearchTab"
-    tables = {"table": "naver_cafe"}
+    tables = {"table": "naver_cafe_search"}
     parser = CafeParser
     params = {"query": "$query"}
 

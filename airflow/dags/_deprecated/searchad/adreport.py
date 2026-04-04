@@ -16,11 +16,10 @@ with DAG(
         # 네이버 검색광고 일별 보고서 ETL 파이프라인
         네이버 검색광고와 성과형 디스플레이 광고에 대해 각각 별도의 TaskGroup으로 구분해 처리한다.
 
-        > 안내) 네이버 로그인 정책 강화로 사용 중지
+        > 안내) 네이버 로그인 정책 강화로 사용 중지 (~ v0.6.8)
 
         ## 인증(Credentials)
-        네이버 검색광고 또는 성과형 디스플레이 광고 계정을 보유한
-        네이버 계정의 로그인 쿠키가 필요하다.
+        네이버 검색광고 및 성과형 디스플레이 광고 계정을 보유한 네이버 계정의 로그인 쿠키가 필요하다.
         (정책 강화로 인한 CAPTCHA 인증을 통과할 수 없어 API로 대체한다.)
 
         ## 추출(Extract)
@@ -74,6 +73,7 @@ with DAG(
             from linkmerce.common.load import DuckDBConnection
             from linkmerce.api.searchad.manage import daily_report
             from linkmerce.extensions.bigquery import BigQueryClient
+            source = "searchad_report"
 
             with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
                 daily_report(
@@ -97,13 +97,13 @@ with DAG(
                             "date": date,
                         },
                         "counts": {
-                            "data": conn.count_table("searchad_report"),
+                            "table": conn.count_table(source),
                         },
                         "status": {
-                            "data": client.load_table_from_duckdb(
+                            "table": client.load_table_from_duckdb(
                                 connection = conn,
-                                source_table = "searchad_report",
-                                target_table = tables["data"],
+                                source_table = source,
+                                target_table = tables["table"],
                                 progress = False,
                             ),
                         },
@@ -147,6 +147,11 @@ with DAG(
             from linkmerce.common.load import DuckDBConnection
             from linkmerce.api.searchad.gfa import campaign_report, creative_report
             from linkmerce.extensions.bigquery import BigQueryClient
+            sources = {
+                "campaign": "searchad_campaign_report",
+                "creative": "searchad_creative_report",
+                "merged": "searchad_report_gfa",
+            }
 
             with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
                 campaign_report(
@@ -171,8 +176,8 @@ with DAG(
                     return_type = "none",
                 )
 
-                conn.copy_table("searchad_creative_report", "searchad_report_gfa")
-                conn.execute(insert_campaign_report())
+                conn.copy_table(sources["creative"], sources["merged"])
+                conn.execute(insert_campaign_report(sources["campaign"], sources["merged"]))
 
                 with BigQueryClient(service_account) as client:
                     return {
@@ -182,21 +187,23 @@ with DAG(
                             "date_type": "DAY",
                         },
                         "counts": {
-                            "data": conn.count_table("searchad_report_gfa"),
+                            "campaign": sources["campaign"],
+                            "creative": sources["creative"],
+                            "merged": conn.count_table(sources["merged"]),
                         },
                         "status": {
-                            "data": client.load_table_from_duckdb(
+                            "merged": client.load_table_from_duckdb(
                                 connection = conn,
-                                source_table = "searchad_report_gfa",
-                                target_table = tables["searchad_report_gfa"],
+                                source_table = sources["merged"],
+                                target_table = tables["table"],
                                 progress = False,
                             ),
                         },
                     }
 
-        def insert_campaign_report() -> str:
+        def insert_campaign_report(campaign: str, merged: str) -> str:
             return dedent(f"""
-                INSERT INTO searchad_report_gfa
+                INSERT INTO {merged}
                 SELECT
                     campaign_no
                     , 0 AS adset_no
@@ -209,9 +216,9 @@ with DAG(
                     , conv_count
                     , conv_amount
                     , ymd
-                FROM searchad_campaign_report AS S
+                FROM {campaign} AS S
                 WHERE NOT EXISTS (
-                    SELECT 1 FROM searchad_report_gfa AS T
+                    SELECT 1 FROM {merged} AS T
                     WHERE (T.account_no = S.account_no) AND (T.campaign_no = S.campaign_no)
                 )""").strip()
 

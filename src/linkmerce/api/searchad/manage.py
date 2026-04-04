@@ -97,7 +97,7 @@ def daily_report(
 
 
 @with_duckdb_connection(table="searchad_exposure")
-def diagnose_exposure(
+def exposure_status(
         account_no: int | str,
         customer_id: int | str,
         cookies: str,
@@ -130,7 +130,7 @@ def diagnose_exposure(
 
 
 @with_duckdb_connection(tables={"rank": "searchad_rank", "product": "searchad_product"})
-def rank_exposure(
+def exposure_rank(
         account_no: int | str,
         customer_id: int | str,
         cookies: str,

@@ -507,7 +507,7 @@ class TestNaverOpenApi:
     - naver.openapi.search.CafeSearch
     - naver.openapi.search.KiNSearch
     - naver.openapi.search.ImageSearch
-    - naver.openapi.search.ShoppingSearch"""
+    - naver.openapi.search.ShopSearch"""
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("naver.openapi.0")
@@ -603,11 +603,11 @@ class TestNaverOpenApi:
 
     @pytest.mark.naver_open_api
     def test_shopping_search(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.naver.openapi.search.extract import ShoppingSearch
+        from linkmerce.core.naver.openapi.search.extract import ShopSearch
         _configs = configs("naver.openapi.shopping_search")
-        ShoppingSearch(
+        ShopSearch(
             configs = self.credentials(credentials),
-            parser = dump_extract(ShoppingSearch, format="json", map_index="$query"),
+            parser = dump_extract(ShopSearch, format="json", map_index="$query"),
         ).extract(
             query = _configs["query"],
             start = _configs.get("start", 1),

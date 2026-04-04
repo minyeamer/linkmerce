@@ -14,7 +14,7 @@ with DAG(
     doc_md = dedent("""
         # 쿠팡 로켓 정산 보고서 ETL 파이프라인
 
-        > 안내) 쿠팡 윙 로그인 정책 강화로 사용 중지
+        > 안내) 쿠팡 윙 로그인 정책 강화로 사용 중지 (~ v0.6.8)
 
         ## 인증(Credentials)
         쿠팡 윙 로그인 쿠키가 필요하다.
@@ -77,6 +77,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.wing import rocket_settlement_download
         from linkmerce.extensions.bigquery import BigQueryClient
+        sources = {"sales": "coupang_rocket_sales", "shipping": "coupang_rocket_shipping"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             rocket_settlement_download(
@@ -101,14 +102,14 @@ with DAG(
                         "date_type": "SALES",
                     },
                     "counts": {
-                        "sales": conn.count_table("coupang_rocket_sales"),
-                        "shipping": conn.count_table("coupang_rocket_shipping"),
+                        "sales": conn.count_table(sources["sales"]),
+                        "shipping": conn.count_table(sources["shipping"]),
                     },
                     "dates": date_array,
                     "status": {
                         "sales": client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "coupang_rocket_sales",
+                            source_table = sources["sales"],
                             staging_table = tables["temp_sales"],
                             target_table = tables["sales"],
                             **merge["sales"],
@@ -120,7 +121,7 @@ with DAG(
                         ),
                         "shipping": client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "coupang_rocket_shipping",
+                            source_table = sources["shipping"],
                             staging_table = tables["temp_shipping"],
                             target_table = tables["shipping"],
                             **merge["shipping"],

@@ -337,8 +337,8 @@ class TestNaverOpenApi:
     - naver.openapi.search.CafeSearch
     - naver.openapi.search.KiNSearch
     - naver.openapi.search.ImageSearch
-    - naver.openapi.search.ShoppingSearch
-    - naver.openapi.search.ShoppingRank"""
+    - naver.openapi.search.ShopSearch
+    - naver.openapi.search.ShopRank"""
 
     @pytest.mark.naver_open_api
     def test_blog_search(self, transformer_harness: Harness, configs: YamlReader):
@@ -402,9 +402,9 @@ class TestNaverOpenApi:
 
     @pytest.mark.naver_open_api
     def test_shopping_search(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.naver.openapi.search.transform import ShoppingSearch
+        from linkmerce.core.naver.openapi.search.transform import ShopSearch
         _configs = configs("naver.openapi.shopping_search")
-        transformer_harness(ShoppingSearch).transform(
+        transformer_harness(ShopSearch).transform(
             query = _configs["query"],
             start = _configs.get("start", 1),
             map_index = _configs["query"],
@@ -412,9 +412,9 @@ class TestNaverOpenApi:
 
     @pytest.mark.naver_open_api
     def test_shopping_rank(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.naver.openapi.search.transform import ShoppingRank
+        from linkmerce.core.naver.openapi.search.transform import ShopRank
         _configs = configs("naver.openapi.shopping_search")
-        transformer_harness(ShoppingRank).transform(
+        transformer_harness(ShopRank).transform(
             query = _configs["query"],
             start = _configs.get("start", 1),
             map_index = _configs["query"],

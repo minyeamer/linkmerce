@@ -14,7 +14,7 @@ with DAG(
     doc_md = dedent("""
         # 쿠팡 광고 성과 보고서 ETL 파이프라인
 
-        > 안내) 쿠팡 광고 로그인 정책 강화로 사용 중지
+        > 안내) 쿠팡 광고 로그인 정책 강화로 사용 중지 (~ v0.6.8)
 
         ## 인증(Credentials)
         쿠팡 광고 로그인 쿠키가 필요하다.
@@ -72,6 +72,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.advertising import adreport
         from linkmerce.extensions.bigquery import BigQueryClient
+        source = f"coupang_adreport_{report_type}"
         report_level = "creative" if report_type == "nca" else "vendorItem"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -97,12 +98,12 @@ with DAG(
                         "report_level": report_level,
                     },
                     "counts": {
-                        "data": conn.count_table(f"coupang_adreport_{report_type}"),
+                        "table": conn.count_table(source),
                     },
                     "status": {
-                        "data": client.load_table_from_duckdb(
+                        "table": client.load_table_from_duckdb(
                             connection = conn,
-                            source_table = f"coupang_adreport_{report_type}",
+                            source_table = source,
                             target_table = tables[report_type],
                             progress = False,
                         ),

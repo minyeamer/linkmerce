@@ -15,8 +15,9 @@ with DAG(
     doc_md = dedent("""
         # 네이버 브랜드스토어 상품 체류시간 ETL 파이프라인
 
-        > 안내) 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
-        > https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782
+        > 안내) 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가,
+        > [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782)
+        > 참고 (~ v0.6.8)
 
         ## 인증(Credentials)
         네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
@@ -67,6 +68,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.hcenter import page_view
         from linkmerce.extensions.bigquery import BigQueryClient
+        source = f"naver_pv_by_{aggregate_by}"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             page_view(
@@ -82,8 +84,7 @@ with DAG(
             )
 
             id_column = {"device": "device_type", "product": "product_id"}[aggregate_by]
-            table_name = f"naver_pv_by_{aggregate_by}"
-            conn.execute(f"ALTER TABLE {table_name} RENAME COLUMN {id_column} TO page_id")
+            conn.execute(f"ALTER TABLE {source} RENAME COLUMN {id_column} TO page_id")
 
             with BigQueryClient(service_account) as client:
                 return {
@@ -93,12 +94,12 @@ with DAG(
                         "date": date,
                     },
                     "counts": {
-                        aggregate_by: conn.count_table(table_name),
+                        aggregate_by: conn.count_table(source),
                     },
                     "status": {
                         aggregate_by: client.load_table_from_duckdb(
                             connection = conn,
-                            source_table = table_name,
+                            source_table = source,
                             target_table = tables[aggregate_by],
                             progress = False,
                         ),

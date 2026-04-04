@@ -6,14 +6,14 @@ import pendulum
 
 
 with DAG(
-    dag_id = "naver_brand_price",
-    schedule = "1 0 * * *",
+    dag_id = "naver_product_catalog",
+    schedule = None, # `naver_rank_shop` DAG 실행 후 트리거 (0 6-18 * * *)
     start_date = pendulum.datetime(2025, 8, 15, tz="Asia/Seoul"),
-    dagrun_timeout = timedelta(hours=1),
+    dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:medium", "naver:price", "naver:product", "login:hcenter", "schedule:daily", "time:night"],
+    tags = ["priority:mediaum", "naver:rank", "login:hcenter", "schedule:hourly", "time:daytime", "manual:dagrun"],
     doc_md = dedent("""
-        # 네이버 브랜드스토어 상품 가격 ETL 파이프라인
+        # 네이버 상품-카탈로그 매핑 ETL 파이프라인
 
         ## 인증(Credentials)
         네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
@@ -24,16 +24,16 @@ with DAG(
         (매개변수로 전달되는 브랜드ID에 대한 브랜드가 등록된 상품들만 검색할 수 있다.)
 
         ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-        정규화된 테이블 구성에 맞춰 가격 부분과 상품 정보 부분을 나눠서 적재한다.
+        JSON 형식의 응답 본문으로부터 카탈로그와 매칭된 상품만 필터한다.
+        상품-카탈로그 매핑 관계를 정리하여 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        - 가격 테이블은 BigQuery 테이블 끝에 추가한다.
-        - 상품 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        - 현재 시간이 포함된 매핑 테이블을 일별 BigQuery 테이블에 끝에 추가해 누적한다.
+        - 동일한 매핑 데이터를 최신 데이터만 기록하는 BigQuery 테이블에 MERGE 문으로 덮어쓴다.
     """).strip(),
 ) as dag:
 
-    PATH = "smartstore.hcenter.price"
+    PATH = "smartstore.hcenter.product_catalog"
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
@@ -41,8 +41,8 @@ with DAG(
         return read(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
 
 
-    @task(task_id="etl_naver_brand_price")
-    def etl_naver_brand_price(ti: TaskInstance, **kwargs) -> dict:
+    @task(task_id="etl_product_catalog", retries=3, retry_delay=timedelta(minutes=1))
+    def etl_product_catalog(ti: TaskInstance, **kwargs) -> dict:
         return main(**ti.xcom_pull(task_ids="read_configs"))
 
     def main(
@@ -55,12 +55,12 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.smartstore.hcenter import brand_price
+        from linkmerce.api.smartstore.hcenter import product_catalog
         from linkmerce.extensions.bigquery import BigQueryClient
-        sources = {"price": "naver_price_history", "product": "naver_product"}
+        source = "naver_catalog_product"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            brand_price(
+            product_catalog(
                 cookies = cookies,
                 brand_ids = brand_ids,
                 mall_seq = mall_seq,
@@ -80,26 +80,25 @@ with DAG(
                         "page": None,
                     },
                     "counts": {
-                        "price": conn.count_table(sources["price"]),
-                        "product": conn.count_table(sources["product"]),
+                        "table": conn.count_table(source),
                     },
                     "status": {
-                        "price": client.load_table_from_duckdb(
+                        "table": client.load_table_from_duckdb(
                             connection = conn,
-                            source_table = sources["price"],
-                            target_table = tables["price"],
+                            source_table = source,
+                            target_table = tables["table"],
                             progress = False,
                         ),
-                        "product": client.merge_into_table_from_duckdb(
+                        "now": client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = sources["product"],
-                            staging_table = tables["temp_product"],
-                            target_table = tables["product"],
-                            **merge["product"],
+                            source_table = source,
+                            staging_table = tables["temp_now"],
+                            target_table = tables["now"],
+                            **merge["now"],
                             progress = False,
                         ),
                     },
                 }
 
 
-    read_configs() >> etl_naver_brand_price()
+    read_configs() >> etl_product_catalog()

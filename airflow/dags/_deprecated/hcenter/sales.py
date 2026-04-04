@@ -15,8 +15,9 @@ with DAG(
     doc_md = dedent("""
         # 네이버 스마트스토어 매출 ETL 파이프라인
 
-        > 안내) 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
-        > https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782
+        > 안내) 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가,
+        > [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782)
+        > 참고 (~ v0.6.8)
 
         ## 인증(Credentials)
         네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
@@ -70,6 +71,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.hcenter import aggregated_sales
         from linkmerce.extensions.bigquery import BigQueryClient
+        sources = {"sales": "naver_sales", "product": "naver_product"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             aggregated_sales(
@@ -91,13 +93,13 @@ with DAG(
                         "end_date": end_date,
                     },
                     "counts": {
-                        "sales": conn.count_table("naver_sales"),
-                        "product": conn.count_table("naver_product"),
+                        "sales": conn.count_table(sources["sales"]),
+                        "product": conn.count_table(sources["product"]),
                     },
                     "status": {
                         "sales": client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "naver_sales",
+                            source_table = sources["sales"],
                             staging_table = tables["temp_sales"],
                             target_table = tables["sales"],
                             **merge["sales"],
@@ -106,7 +108,7 @@ with DAG(
                         ),
                         "product": client.merge_into_table_from_duckdb(
                             connection = conn,
-                            source_table = "naver_product",
+                            source_table = sources["product"],
                             staging_table = tables["temp_product"],
                             target_table = tables["product"],
                             **merge["product"],

@@ -88,10 +88,10 @@ class ImageSearch(DuckDBTransformer):
     params = {"keyword": "$query", "start": "$start"}
 
 
-class ShoppingSearch(DuckDBTransformer):
+class ShopSearch(DuckDBTransformer):
     """네이버 쇼핑 검색 결과를 `naver_shop` 테이블에 적재하는 클래스."""
 
-    extractor = "ShoppingSearch"
+    extractor = "ShopSearch"
     tables = {"table": "naver_shop"}
     parser = SearchParser
     parser_config = dict(
@@ -103,14 +103,14 @@ class ShoppingSearch(DuckDBTransformer):
     params = {"keyword": "$query", "start": "$start"}
 
 
-class ShoppingRank(ShoppingSearch):
+class ShopRank(ShopSearch):
     """네이버 쇼핑 검색 결과로부터 순위 및 상품 목록을 각각의 테이블에 변환 및 적재하는 클래스.
 
     테이블 키 | 테이블명 | 설명
     - `rank` | `naver_shop_rank` | 네이버 쇼핑 상품 순위
     - `product` | `naver_shop_product` | 네이버 쇼핑 상품 목록"""
 
-    extractor = "ShoppingSearch"
+    extractor = "ShopSearch"
     tables = {"rank": "naver_shop_rank", "product": "naver_shop_product"}
     parser = SearchParser
     parser_config = dict(
