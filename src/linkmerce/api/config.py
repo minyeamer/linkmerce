@@ -122,6 +122,19 @@ def read_file(file_path: str | Path) -> str:
         return file.read()
 
 
+def read_string(content: str, format: Literal["json", "yaml"]) -> dict | list:
+    """문자열을 JSON 또는 YAML 형식으로 파싱한다."""
+    if format.lower() == "json":
+        import json
+        return json.loads(content)
+    elif format.lower() in ("yaml", "yml"):
+        from ruamel.yaml import YAML
+        yaml = YAML(typ="safe")
+        return yaml.load(content)
+    else:
+        raise ValueError("Invalid value for format. Supported formats are: json, yaml.")
+
+
 ###################################################################
 ############################## Config #############################
 ###################################################################

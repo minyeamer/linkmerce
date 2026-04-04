@@ -654,11 +654,11 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
             import asyncio
             return asyncio.run(self.extract_async(*args, **kwargs))
         elif how_to_run == "async_loop":
-            import asyncio, nest_asyncio
-            nest_asyncio.apply()
-            loop = asyncio.get_running_loop()
-            task = asyncio.create_task(self.extract_async(*args, **kwargs))
-            return loop.run_until_complete(task)
+            import asyncio
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(asyncio.run, self.extract_async(*args, **kwargs))
+                return future.result()
         raise ValueError("Invalid value for `how_to_run`. Supported values are: sync, async, async_loop.")
 
     @overload
