@@ -528,10 +528,14 @@ class TestSearchAdAPI:
     """네이버 검색광고 API 데이터 변환 테스트.
     - searchad.api.adreport.Campaign
     - searchad.api.adreport.Adgroup
-    - searchad.api.adreport.Ad
+    - searchad.api.adreport.MasterAd
+    - searchad.api.adreport.AdvancedReport
     - searchad.api.contract.TimeContract
     - searchad.api.contract.BrandNewContract
     - searchad.api.keyword.Keyword"""
+
+    def customer_id(self, reader: YamlReader):
+        return reader("searchad.api.0")["customer_id"]
 
     @pytest.mark.searchad_api
     def test_campaign(self, transformer_harness: Harness):
@@ -544,13 +548,13 @@ class TestSearchAdAPI:
         transformer_harness(Adgroup).transform()
 
     @pytest.mark.searchad_api
-    def test_ad(self, transformer_harness: Harness):
-        from linkmerce.core.searchad.api.adreport.transform import Ad, AD_TABLE_KEYS
+    def test_master_ad(self, transformer_harness: Harness, credentials: YamlReader):
+        from linkmerce.core.searchad.api.adreport.transform import MasterAd, AD_TABLE_KEYS
         if TYPE_CHECKING:
-            class AdHarness(TransformerHarness, Ad):
+            class MasterAdHarness(TransformerHarness, MasterAd):
                 ...
 
-        harness: AdHarness = transformer_harness(Ad)
+        harness: MasterAdHarness = transformer_harness(MasterAd)
         table_parser = harness.table_parser
 
         for report_type in table_parser.keys():
@@ -565,7 +569,39 @@ class TestSearchAdAPI:
 
         for table_key in AD_TABLE_KEYS[:4]:
             query_key = f"transform_{table_key}"
-            harness.insert_into(query_key, render=harness.tables)
+            params = {"customer_id": int(self.customer_id(credentials))}
+            harness.insert_into(query_key, render=harness.tables, params=params)
+        harness.dump_tables()
+
+    @pytest.mark.skip
+    @pytest.mark.searchad_api
+    def test_media(self, transformer_harness: Harness):
+        from linkmerce.core.searchad.api.adreport.transform import Media
+        transformer_harness(Media).transform()
+
+    @pytest.mark.searchad_api
+    def test_advanced_report(self, transformer_harness: Harness, credentials: YamlReader, yesterday: dt.date):
+        from linkmerce.core.searchad.api.adreport.transform import AdvancedReport
+        if TYPE_CHECKING:
+            class AdvancedReportHarness(TransformerHarness, AdvancedReport):
+                ...
+
+        harness: AdvancedReportHarness = transformer_harness(AdvancedReport)
+        table_parser = harness.table_parser
+
+        for report_type in table_parser.keys():
+            tsv_data, _ = harness.load_extract(map_index=report_type)
+
+            table_key, parser = table_parser[report_type]
+            result = parser().transform(tsv_data)
+            harness.dump_result(result, parser=parser, index=report_type)
+
+            query_key = f"bulk_insert_{table_key}"
+            harness.bulk_insert(result, query_key, render=harness.get_table(table_key), skip_dump=True)
+
+        query_key = "merge_insert"
+        params = {"customer_id": int(self.customer_id(credentials)), "report_date": yesterday}
+        harness.insert_into(query_key, render=harness.tables, params=params)
         harness.dump_tables()
 
     @pytest.mark.searchad_api

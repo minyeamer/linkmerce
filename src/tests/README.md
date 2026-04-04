@@ -237,32 +237,34 @@ searchad/
 │   │   ├── Adgroup(_MasterReport)::extract
 │   │   │   └── Adgroup(DuckDBTransformer)::transform
 │   │   │       └── TsvTransformer(ResponseTransformer)::transform
-│   │   ├─x PowerLinkAd(_MasterReport)::extract
-│   │   │   └─x PowerLinkAd(TsvTransformer)::transform
-│   │   ├─x PowerContentsAd(_MasterReport)::extract
-│   │   │   └─x PowerContentsAd(TsvTransformer)::transform
-│   │   ├─x ShoppingProductAd(_MasterReport)::extract
-│   │   │   └─x ShoppingProductAd(TsvTransformer)::transform
+│   │   ├─x Ad(_MasterReport)::extract
+│   │   ├─x ContentsAd(_MasterReport)::extract
+│   │   ├─x ShoppingProduct(_MasterReport)::extract
 │   │   ├─x ProductGroup(_MasterReport)::extract
-│   │   │   └─x ProductGroup(TsvTransformer)::transform
 │   │   ├─x ProductGroupRel(_MasterReport)::extract
-│   │   │   └─x ProductGroupRel(TsvTransformer)::transform
-│   │   ├─x BrandThumbnailAd(_MasterReport)::extract
-│   │   │   └─x BrandThumbnailAd(TsvTransformer)::transform
-│   │   ├─x BrandBannerAd(_MasterReport)::extract
-│   │   │   └─x BrandBannerAd(TsvTransformer)::transform
 │   │   ├─x BrandAd(_MasterReport)::extract
-│   │   │   └─x BrandAd(TsvTransformer)::transform
-│   │   └── Ad(_MasterReport)::extract
-│   │       └── Ad(DuckDBTransformer)::transform
-│   │           ├── PowerLinkAd(TsvTransformer)::transform
-│   │           ├── PowerContentsAd(TsvTransformer)::transform
-│   │           ├── ShoppingProductAd(TsvTransformer)::transform
-│   │           ├── ProductGroup(TsvTransformer)::transform
-│   │           ├── ProductGroupRel(TsvTransformer)::transform
-│   │           ├── BrandThumbnailAd(TsvTransformer)::transform
-│   │           ├── BrandBannerAd(TsvTransformer)::transform
-│   │           └── BrandAd(TsvTransformer)::transform
+│   │   ├─x BrandThumbnailAd(_MasterReport)::extract
+│   │   ├─x BrandBannerAd(_MasterReport)::extract
+│   │   ├── MasterAd(_MasterReport)::extract
+│   │   │   └── MasterAd(DuckDBTransformer)::transform
+│   │   │       ├── Ad(TsvTransformer)::transform
+│   │   │       ├── ContentsAd(TsvTransformer)::transform
+│   │   │       ├── ShoppingProduct(TsvTransformer)::transform
+│   │   │       ├── ProductGroup(TsvTransformer)::transform
+│   │   │       ├── ProductGroupRel(TsvTransformer)::transform
+│   │   │       ├── BrandAd(TsvTransformer)::transform
+│   │   │       ├── BrandThumbnailAd(TsvTransformer)::transform
+│   │   │       └── BrandBannerAd(TsvTransformer)::transform
+│   │   ├── Media(_MasterReport)::extract
+│   │   │   └── Media(DuckDBTransformer)::transform
+│   │   │       └── TsvTransformer(ResponseTransformer)::transform
+│   │   ├─x _StatReport(_ReportsDownload)::extract
+│   │   ├─x AdStat(_StatReport)::extract
+│   │   ├─x AdConversion(_StatReport)::extract
+│   │   └── AdvancedReport(_StatReport)::extract
+│   │       └── AdvancedReport(DuckDBTransformer)::transform
+│   │           ├── AdStat(TsvTransformer)::transform
+│   │           └── AdConversion(TsvTransformer)::transform
 │   ├── contract/
 │   │   ├── TimeContract(NaverSearchAdApi)::extract
 │   │   │   └── TimeContract(DuckDBTransformer)::transform >> json

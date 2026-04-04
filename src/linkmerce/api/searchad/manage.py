@@ -44,7 +44,7 @@ def login(account_no: int | str, cookies: str, save_to: str | Path | None = None
     return cookies
 
 
-def adreport(
+def advanced_report(
         account_no: int | str,
         customer_id: int | str,
         cookies: str,

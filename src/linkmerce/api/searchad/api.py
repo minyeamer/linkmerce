@@ -8,12 +8,38 @@ if TYPE_CHECKING:
     from typing import Iterable, Literal
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
+    from linkmerce.core.searchad.api.adreport.extract import _ReportsDownload
     import datetime as dt
 
 
 def _get_api_configs(api_key: str, secret_key: str, customer_id: int | str) -> dict:
     """네이버 검색광고 API 인증에 필요한 설정을 구성한다."""
     return {"api_key": api_key, "secret_key": secret_key, "customer_id": customer_id}
+
+
+def download_report(
+        report_cls: _ReportsDownload | str,
+        api_key: str,
+        secret_key: str,
+        customer_id: int | str,
+        return_type: Literal["csv", "json"] = "csv",
+        **kwargs
+    ) -> list[tuple]:
+    """네이버 검색광고 API로 대용량 다운로드 보고서를 다운로드하여 `csv` 또는 `json` 형식으로 반환하다."""
+    if isinstance(report_cls, str):
+        from importlib import import_module
+        report_cls = getattr(import_module("linkmerce.core.searchad.api.adreport.extract"), report_cls)
+    extractor: _ReportsDownload = report_cls(configs=_get_api_configs(api_key, secret_key, customer_id))
+    tsv_data = extractor.extract(**kwargs)
+
+    if return_type == "json":
+        if tsv_data:
+            return [dict(zip(extractor.columns, row.split('\t'))) for row in tsv_data.split('\n')]
+        return list()
+    else:
+        if tsv_data:
+            return [extractor.columns] + [row.split('\t') for row in tsv_data.split('\n')]
+        return [extractor.columns]
 
 
 @with_duckdb_connection(table="searchad_campaign")
@@ -59,7 +85,7 @@ def adgroup(
 
 
 @with_duckdb_connection(table="searchad_ad")
-def ad(
+def master_ad(
         api_key: str,
         secret_key: str,
         customer_id: int | str,
@@ -71,36 +97,63 @@ def ad(
         transform_options: dict | None = None,
     ) -> JsonObject:
     """모든 소재 유형의 네이버 검색광고 마스터 데이터를 일괄 다운로드하여 `searchad_ad` 테이블에 적재한다."""
-    from linkmerce.core.searchad.api.adreport.extract import Ad
-    from linkmerce.core.searchad.api.adreport.transform import Ad as T
-    return Ad(**prepare_duckdb_extract(
+    from linkmerce.core.searchad.api.adreport.extract import MasterAd
+    from linkmerce.core.searchad.api.adreport.transform import MasterAd as T
+    return MasterAd(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(api_key, secret_key, customer_id),
     )).extract(from_date)
 
 
-@with_duckdb_connection(tables={"brand": "searchad_contract", "new": "searchad_contract_new"})
-def contract(
+@with_duckdb_connection(table="searchad_media")
+def media(
         api_key: str,
         secret_key: str,
         customer_id: int | str,
+        from_date: dt.date | str | None = None,
         *,
         connection: DuckDBConnection | None = None,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
-        extract_options: tuple[dict | None, dict | None] = (None, None),
-        transform_options: tuple[dict | None, dict | None] = (None, None),
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> JsonObject:
+    """네이버 검색광고 광고매체 마스터 데이터를 다운로드하여 `searchad_media` 테이블에 적재한다."""
+    from linkmerce.core.searchad.api.adreport.extract import Media
+    from linkmerce.core.searchad.api.adreport.transform import Media as T
+    return Media(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(api_key, secret_key, customer_id),
+    )).extract(from_date)
+
+
+@with_duckdb_connection(table="searchad_report")
+def advanced_report(
+        api_key: str,
+        secret_key: str,
+        customer_id: int | str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
     ) -> dict[str, JsonObject]:
-    """브랜드 계약 정보(시간 계약 + 브랜드뉴콘텍츠 계약)를 통합 조회한다."""
-    BRAND, NEW = 0, 1
-    return_type = return_type if return_type == "raw" else "none"
-    return {
-        "TimeContract": time_contract(
-            api_key, secret_key, customer_id, connection=connection, return_type=return_type,
-            extract_options=extract_options[BRAND], transform_options=transform_options[BRAND]),
-        "BrandNewContract": brand_new_contract(
-            api_key, secret_key, customer_id, connection=connection, return_type=return_type,
-            extract_options=extract_options[NEW], transform_options=transform_options[NEW]),
-    }
+    """광고성과 및 전환 보고서를 다운로드하고 다차원 보고서를 생성해 `searchad_report` 테이블에 적재한다."""
+    from linkmerce.core.searchad.api.adreport.extract import AdvancedReport
+    from linkmerce.core.searchad.api.adreport.transform import AdvancedReport as T
+    return AdvancedReport(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(api_key, secret_key, customer_id),
+        options = {
+            "RequestEach": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(start_date, end_date)
 
 
 @with_duckdb_connection(table="searchad_contract")

@@ -30,7 +30,6 @@ SELECT
   , ("delTm" IS NOT NULL) AS is_deleted
   , "regTm" AS created_at
   , "delTm" AS deleted_at
-  -- , NULLIF("Shared budget id", 'null') AS shared_budget_id
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
@@ -64,8 +63,6 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
   -- , content_type VARCHAR
-  -- , shared_budget_id VARCHAR
-  -- , using_expanded_search TINYINT -- {0: '사용하지 않음', 1: '사용함'}
 );
 
 -- Adgroup: bulk_insert
@@ -88,8 +85,6 @@ SELECT
   , "regTm" AS created_at
   , "delTm" AS deleted_at
   -- , NULLIF("Content Type", '') AS content_type
-  -- , NULLIF("Shared budget id", 'null') AS shared_budget_id
-  -- , "Using Expanded Search" AS using_expanded_search
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
@@ -110,11 +105,11 @@ FROM UNNEST([
 ]);
 
 
--- Ad: create
+-- MasterAd: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
     ad_id VARCHAR PRIMARY KEY
   , adgroup_id VARCHAR NOT NULL
-  , ad_type TINYINT -- Ad: ad_type
+  , ad_type TINYINT -- MasterAd: ad_type
   , customer_id BIGINT NOT NULL
   , title VARCHAR
   , description VARCHAR
@@ -131,7 +126,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , deleted_at TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS {{ power_link_ad }} (
+CREATE TABLE IF NOT EXISTS {{ link_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -147,7 +142,7 @@ CREATE TABLE IF NOT EXISTS {{ power_link_ad }} (
   , deleted_at TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS {{ power_contents_ad }} (
+CREATE TABLE IF NOT EXISTS {{ contents_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -166,7 +161,7 @@ CREATE TABLE IF NOT EXISTS {{ power_contents_ad }} (
   , deleted_at TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS {{ shopping_product_ad }} (
+CREATE TABLE IF NOT EXISTS {{ shopping_product }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_id VARCHAR PRIMARY KEY
@@ -218,6 +213,23 @@ CREATE TABLE IF NOT EXISTS {{ product_group_rel }} (
   , deleted_at TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS {{ brand_ad }} (
+    customer_id BIGINT NOT NULL
+  , adgroup_id VARCHAR NOT NULL
+  , ad_id VARCHAR PRIMARY KEY
+  , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
+  , is_enabled BOOLEAN
+  , is_deleted BOOLEAN
+  , title VARCHAR
+  , description VARCHAR
+  , logo_image_path VARCHAR
+  , link_url VARCHAR
+  , product_id BIGINT
+  , image_path VARCHAR
+  , created_at TIMESTAMP
+  , deleted_at TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS {{ brand_thumbnail_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
@@ -253,25 +265,8 @@ CREATE TABLE IF NOT EXISTS {{ brand_banner_ad }} (
   , deleted_at TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS {{ brand_ad }} (
-    customer_id BIGINT NOT NULL
-  , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
-  , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
-  , is_enabled BOOLEAN
-  , is_deleted BOOLEAN
-  , title VARCHAR
-  , description VARCHAR
-  , logo_image_path VARCHAR
-  , link_url VARCHAR
-  , product_id BIGINT
-  , image_path VARCHAR
-  , created_at TIMESTAMP
-  , deleted_at TIMESTAMP
-);
-
--- Ad: bulk_insert_power_link_ad
-INSERT INTO {{ power_link_ad }}
+-- MasterAd: bulk_insert_link_ad
+INSERT INTO {{ link_ad }}
 SELECT
     "Customer ID" AS customer_id
   , "Ad Group ID" AS adgroup_id
@@ -296,8 +291,8 @@ SELECT
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
--- Ad: bulk_insert_power_contents_ad
-INSERT INTO {{ power_contents_ad }}
+-- MasterAd: bulk_insert_contents_ad
+INSERT INTO {{ contents_ad }}
 SELECT
     "Customer ID" AS customer_id
   , "Ad Group ID" AS adgroup_id
@@ -318,8 +313,8 @@ SELECT
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
--- Ad: bulk_insert_shopping_product_ad
-INSERT INTO {{ shopping_product_ad }}
+-- MasterAd: bulk_insert_shopping_product
+INSERT INTO {{ shopping_product }}
 SELECT
     "Customer ID" AS customer_id
   , "Ad Group ID" AS adgroup_id
@@ -352,7 +347,7 @@ SELECT
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
--- Ad: bulk_insert_product_group
+-- MasterAd: bulk_insert_product_group
 INSERT INTO {{ product_group }}
 SELECT
     "Customer ID" AS customer_id
@@ -367,7 +362,7 @@ SELECT
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
--- Ad: bulk_insert_product_group_rel
+-- MasterAd: bulk_insert_product_group_rel
 INSERT INTO {{ product_group_rel }}
 SELECT
     "Customer ID" AS customer_id
@@ -379,7 +374,30 @@ SELECT
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
--- Ad: bulk_insert_brand_thumbnail_ad
+-- MasterAd: bulk_insert_brand_ad
+INSERT INTO {{ brand_ad }}
+SELECT
+    "Customer ID" AS customer_id
+  , "Ad Group ID" AS adgroup_id
+  , "Ad ID" AS ad_id
+  , "Ad Creative Inspect Status" AS inspect_status
+  , ("ON/OFF" = 0) AS is_enabled
+  , ("delTm" IS NOT NULL) AS is_deleted
+  , "Headline" AS title
+  , "description" AS description
+  , "Logo image path" AS logo_image_path
+  , "Link URL" AS link_url
+  , TRY_CAST((CASE
+      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
+        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
+      ELSE NULL END) AS BIGINT) AS product_id
+  , "Image path" AS image_path
+  , "regTm" AS created_at
+  , "delTm" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+-- MasterAd: bulk_insert_brand_thumbnail_ad
 INSERT INTO {{ brand_thumbnail_ad }}
 SELECT
     "Customer ID" AS customer_id
@@ -403,7 +421,7 @@ SELECT
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
--- Ad: bulk_insert_brand_banner_ad
+-- MasterAd: bulk_insert_brand_banner_ad
 INSERT INTO {{ brand_banner_ad }}
 SELECT
     "Customer ID" AS customer_id
@@ -426,30 +444,7 @@ SELECT
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
--- Ad: bulk_insert_brand_ad
-INSERT INTO {{ brand_ad }}
-SELECT
-    "Customer ID" AS customer_id
-  , "Ad Group ID" AS adgroup_id
-  , "Ad ID" AS ad_id
-  , "Ad Creative Inspect Status" AS inspect_status
-  , ("ON/OFF" = 0) AS is_enabled
-  , ("delTm" IS NOT NULL) AS is_deleted
-  , "Headline" AS title
-  , "description" AS description
-  , "Logo image path" AS logo_image_path
-  , "Link URL" AS link_url
-  , TRY_CAST((CASE
-      WHEN REGEXP_MATCHES("Link URL", '^https://(brand|smartstore).naver.com/[^/]+/products/(\d+)')
-        THEN REGEXP_EXTRACT("Link URL", '(\d+)$')
-      ELSE NULL END) AS BIGINT) AS product_id
-  , "Image path" AS image_path
-  , "regTm" AS created_at
-  , "delTm" AS deleted_at
-FROM {{ rows }}
-ON CONFLICT DO NOTHING;
-
--- Ad: transform_power_link_ad
+-- MasterAd: transform_link_ad
 INSERT INTO {{ table }} (
     ad_id
   , adgroup_id
@@ -479,10 +474,11 @@ SELECT
   , is_deleted
   , created_at
   , deleted_at
-FROM {{ power_link_ad }}
+FROM {{ link_ad }}
+WHERE customer_id = $customer_id
 ON CONFLICT DO NOTHING;
 
--- Ad: transform_power_contents_ad
+-- MasterAd: transform_contents_ad
 INSERT INTO {{ table }} (
     ad_id
   , adgroup_id
@@ -510,10 +506,11 @@ SELECT
   , is_deleted
   , created_at
   , deleted_at
-FROM {{ power_contents_ad }}
+FROM {{ contents_ad }}
+WHERE customer_id = $customer_id
 ON CONFLICT DO NOTHING;
 
--- Ad: transform_shopping_product_ad
+-- MasterAd: transform_shopping_product
 INSERT INTO {{ table }} (
     ad_id
   , adgroup_id
@@ -549,10 +546,11 @@ SELECT
   , sales_price
   , created_at
   , deleted_at
-FROM {{ shopping_product_ad }}
+FROM {{ shopping_product }}
+WHERE customer_id = $customer_id
 ON CONFLICT DO NOTHING;
 
--- Ad: transform_brand_ad
+-- MasterAd: transform_brand_ad
 INSERT INTO {{ table }} (
     ad_id
   , adgroup_id
@@ -574,16 +572,19 @@ FROM (
       ad_id, adgroup_id, 9 AS ad_type, customer_id, title, description
     , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
   FROM {{ brand_ad }}
+  WHERE customer_id = $customer_id
   UNION ALL
   SELECT
       ad_id, adgroup_id, 12 AS ad_type, customer_id, title, description
     , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
   FROM {{ brand_thumbnail_ad }}
+  WHERE customer_id = $customer_id
   UNION ALL
   SELECT
       ad_id, adgroup_id, 13 AS ad_type, customer_id, title, description
     , link_url AS landing_url_pc, product_id, is_enabled, is_deleted, created_at, deleted_at
   FROM {{ brand_banner_ad }}
+  WHERE customer_id = $customer_id
 ) AS ad
 -- LEFT JOIN {{ product_group_rel }} AS rel
 --   ON ad.adgroup_id = rel.adgroup_id
@@ -595,7 +596,7 @@ FROM (
 --   ON rel.product_group_id = grp.product_group_id
 ON CONFLICT DO NOTHING;
 
--- Ad: ad_type
+-- MasterAd: ad_type
 SELECT *
 FROM UNNEST([
     STRUCT(1 AS type, '파워링크-단일형 소재' AS name)
@@ -611,3 +612,180 @@ FROM UNNEST([
   , STRUCT(12 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 섬네일형 소재' AS name)
   , STRUCT(13 AS type, '쇼핑검색-쇼핑 브랜드형 이미지 배너형 소재' AS name)
 ]);
+
+
+-- Media: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    media_id INTEGER PRIMARY KEY
+  , media_name VARCHAR
+  , is_group BOOLEAN
+  -- , media_url VARCHAR
+  -- , naver_ad_networks_yn BOOLEAN
+  -- , portal_site_yn BOOLEAN
+  -- , pc_media_yn BOOLEAN
+  -- , mobile_media_yn BOOLEAN
+  -- , search_ad_yn BOOLEAN
+  -- , contents_ad_yn BOOLEAN
+  , group_id INTEGER
+  -- , created_at TIMESTAMP
+  -- , deleted_at TIMESTAMP
+);
+
+-- Media: bulk_insert
+INSERT INTO {{ table }}
+SELECT
+    "ID" AS media_id
+  , (CASE
+      WHEN $root_only THEN IF("Media Group ID" IS NULL, "Media name", NULL)
+      ELSE "Media name" END) AS media_name
+  , IF("Type" = 'group', TRUE, NULL) AS is_group -- {'media', 'group'}
+  -- , "URL" AS media_url
+  -- , "NAVER Ad Networks" AS naver_ad_networks_yn
+  -- , "Portal Site" AS portal_site_yn
+  -- , "PC Media" AS pc_media_yn
+  -- , "Mobile Media" AS mobile_media_yn
+  -- , "Search Ad Networks" AS search_ad_yn
+  -- , "Contents Ad Networks" AS contents_ad_yn
+  , "Media Group ID" AS group_id
+  -- , "Date of conclusion of a contract" AS created_at
+  -- , "Date of revocation of a contract" AS deleted_at
+FROM {{ rows }}
+ON CONFLICT DO NOTHING;
+
+
+-- AdvancedReport: create
+CREATE TABLE IF NOT EXISTS {{ ad_stat }} (
+    ad_id VARCHAR
+  , customer_id BIGINT
+  , media_code BIGINT
+  , pc_mobile_type TINYINT
+  , expose_count INTEGER
+  , click_count INTEGER
+  , ad_cost INTEGER
+  , ad_rank_sum INTEGER
+  , ymd DATE
+  , PRIMARY KEY (ymd, customer_id, ad_id, media_code, pc_mobile_type)
+);
+
+CREATE TABLE IF NOT EXISTS {{ ad_conv }} (
+    ad_id VARCHAR
+  , customer_id BIGINT
+  , media_code BIGINT
+  , pc_mobile_type TINYINT
+  , conv_count INTEGER
+  , direct_conv_count INTEGER
+  , conv_amount INTEGER
+  , direct_conv_amount INTEGER
+  , ymd DATE
+  , PRIMARY KEY (ymd, customer_id, ad_id, media_code, pc_mobile_type)
+);
+
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    ad_id VARCHAR
+  , customer_id BIGINT
+  , media_code BIGINT
+  , pc_mobile_type TINYINT
+  , expose_count INTEGER
+  , click_count INTEGER
+  , ad_cost INTEGER
+  , ad_rank_sum INTEGER
+  , conv_count INTEGER
+  , direct_conv_count INTEGER
+  , conv_amount INTEGER
+  , direct_conv_amount INTEGER
+  , ymd DATE
+  , PRIMARY KEY (ymd, customer_id, ad_id, media_code, pc_mobile_type)
+);
+
+-- AdvancedReport: bulk_insert_ad_stat
+INSERT INTO {{ ad_stat }}
+SELECT
+    ad_id
+  , customer_id
+  , media_code
+  , pc_mobile_type
+  , SUM(expose_count) AS expose_count
+  , SUM(click_count) AS click_count
+  , SUM(ad_cost) AS ad_cost
+  , SUM(ad_rank_sum) AS ad_rank_sum
+  , ymd
+FROM (
+  SELECT
+      "AD ID" AS ad_id
+    , "CUSTOMER ID" AS customer_id
+    -- , "Campaign ID" AS campaign_id
+    -- , "AD Group ID" AS adgroup_id
+    -- , "AD Keyword ID" AS keyword_id
+    -- , "Business Channel ID" AS business_channel_id
+    , COALESCE("Media Code", 0) AS media_code
+    , (CASE WHEN "PC Mobile Type" = 'P' THEN 0 WHEN "PC Mobile Type" = 'M' THEN 1 ELSE 2 END) AS pc_mobile_type
+    , "Impression" AS expose_count
+    , "Click" AS click_count
+    , "Cost" AS ad_cost
+    , "Sum of AD rank" AS ad_rank_sum
+    -- , "View count" AS view_count
+    , "Date" AS ymd
+  FROM {{ rows }}
+) AS report
+WHERE (ad_id IS NOT NULL)
+  AND (customer_id IS NOT NULL)
+  AND (ymd IS NOT NULL)
+GROUP BY ymd, customer_id, ad_id, media_code, pc_mobile_type;
+
+-- AdvancedReport: bulk_insert_ad_conv
+INSERT INTO {{ ad_conv }}
+SELECT
+    ad_id
+  , customer_id
+  , media_code
+  , pc_mobile_type
+  , SUM(conv_count) AS conv_count
+  , SUM(IF(conv_method = 1, conv_count, 0)) AS direct_conv_count
+  , SUM(conv_amount) AS conv_amount
+  , SUM(IF(conv_method = 1, conv_amount, 0)) AS direct_conv_amount
+  , ymd
+FROM (
+  SELECT
+      "AD ID" AS ad_id
+    , "CUSTOMER ID" AS customer_id
+    -- , "Campaign ID" AS campaign_id
+    -- , "AD Group ID" AS adgroup_id
+    -- , "AD Keyword ID" AS keyword_id
+    -- , "Business Channel ID" AS business_channel_id
+    , COALESCE("Media Code", 0) AS media_code
+    , (CASE WHEN "PC Mobile Type" = 'P' THEN 0 WHEN "PC Mobile Type" = 'M' THEN 1 ELSE 2 END) AS pc_mobile_type
+    , "Conversion Method" AS conv_method -- {1: '직접 전환', 2: '간접 전환'}
+    -- , "Conversion Type" AS conv_type
+    , "Conversion count" AS conv_count
+    , "Sales by conversion" AS conv_amount
+    , "Date" AS ymd
+  FROM {{ rows }}
+) AS report
+WHERE (ad_id IS NOT NULL)
+  AND (customer_id IS NOT NULL)
+  AND (ymd IS NOT NULL)
+GROUP BY ymd, customer_id, ad_id, media_code, pc_mobile_type;
+
+-- AdvancedReport: merge_insert
+INSERT INTO {{ table }}
+SELECT
+    COALESCE(stat.ad_id, conv.ad_id) AS ad_id
+  , COALESCE(stat.customer_id, conv.customer_id) AS customer_id
+  , COALESCE(stat.media_code, conv.media_code) AS media_code
+  , COALESCE(stat.pc_mobile_type, conv.pc_mobile_type) AS pc_mobile_type
+  , COALESCE(stat.expose_count, 0) AS expose_count
+  , COALESCE(stat.click_count, 0) AS click_count
+  , COALESCE(stat.ad_cost, 0) AS ad_cost
+  , COALESCE(stat.ad_rank_sum, 0) AS ad_rank_sum
+  , COALESCE(conv.conv_count, 0) AS conv_count
+  , COALESCE(conv.direct_conv_count, 0) AS direct_conv_count
+  , COALESCE(conv.conv_amount, 0) AS conv_amount
+  , COALESCE(conv.direct_conv_amount, 0) AS direct_conv_amount
+  , COALESCE(stat.ymd, conv.ymd) AS ymd
+FROM (SELECT * FROM {{ ad_stat }} WHERE (customer_id = $customer_id) AND (ymd = $report_date)) AS stat
+FULL OUTER JOIN (SELECT * FROM {{ ad_conv }} WHERE (customer_id = $customer_id) AND (ymd = $report_date)) AS conv
+  ON stat.ymd = conv.ymd
+  AND stat.customer_id = conv.customer_id
+  AND stat.ad_id = conv.ad_id
+  AND stat.media_code = conv.media_code
+  AND stat.pc_mobile_type = conv.pc_mobile_type;

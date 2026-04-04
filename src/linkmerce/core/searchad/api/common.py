@@ -33,6 +33,10 @@ class NaverSearchAdApi(Extractor):
     def url(self) -> str:
         return self.concat_path(self.origin, self.uri)
 
+    @property
+    def customer_id(self) -> int:
+        return self.get_config("customer_id")
+
     def build_request_headers(self, **kwargs: str) -> dict[str, str]:
         """`api_key`, `secret_key`, `customer_id`를 사용하여 HMAC 서명 기반 인증 헤더를 구성한다."""
         import time

@@ -804,7 +804,8 @@ class TestSearchAdApi:
     """네이버 검색광고 API 데이터 추출 테스트.
     - searchad.api.adreport.Campaign
     - searchad.api.adreport.Adgroup
-    - searchad.api.adreport.Ad
+    - searchad.api.adreport.MasterAd
+    - searchad.api.adreport.AdvancedReport
     - searchad.api.contract.TimeContract
     - searchad.api.contract.BrandNewContract
     - searchad.api.keyword.Keyword"""
@@ -840,20 +841,50 @@ class TestSearchAdApi:
         )
 
     @pytest.mark.searchad_api
-    def test_ad(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.searchad.api.adreport.extract import Ad
-        _configs = options("searchad.api.ad")
-        _parser = dump_extract(Ad, format="tsv", map_index="$report_type")
+    def test_master_ad(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        from linkmerce.core.searchad.api.adreport.extract import MasterAd
+        _configs = options("searchad.api.test_master_ad")
+        _parser = dump_extract(MasterAd, format="tsv", map_index="$report_type")
 
         def custom_dump(response: dict[str, str], *args, **kwargs):
             for report_type, tsv_data in response.items():
                 _parser(tsv_data if tsv_data else str(), *args, report_type=report_type, **kwargs)
 
-        Ad(
+        MasterAd(
             configs = self.credentials(credentials),
             parser = custom_dump,
         ).extract(
             from_date = _configs.get("from_date"),
+        )
+
+    @pytest.mark.skip
+    @pytest.mark.searchad_api
+    def test_media(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        from linkmerce.core.searchad.api.adreport.extract import Media
+        _configs = options("searchad.api.media")
+        Media(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Media, format="tsv"),
+        ).extract(
+            from_date = _configs.get("from_date"),
+        )
+
+    @pytest.mark.searchad_api
+    def test_advanced_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        from linkmerce.core.searchad.api.adreport.extract import AdvancedReport
+        _configs = options("searchad.api.adreport")
+        _parser = dump_extract(AdvancedReport, format="tsv", map_index="$report_type")
+
+        def custom_dump(response: dict[str, str], *args, **kwargs):
+            for report_type, tsv_data in response.items():
+                _parser(tsv_data if tsv_data else str(), *args, report_type=report_type, **kwargs)
+
+        AdvancedReport(
+            configs = self.credentials(credentials),
+            parser = custom_dump,
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
         )
 
     @pytest.mark.searchad_api

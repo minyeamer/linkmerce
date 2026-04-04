@@ -217,7 +217,7 @@ class PerformanceReport(SearchAdGFA):
         ) -> dict[str, bytes]:
         """성과 리포트를 생성하고 엑셀 파일로 다운로드한다."""
         columns = self.db_columns if columns == ":default:" else columns
-        dates = self.generate_date_range(start_date, end_date=(start_date if end_date == ":start_date:" else end_date))
+        dates = self.generate_date_range(start_date, end_date=end_date)
         return self.download(columns, dates, date_type, ad_unit, wait_seconds, wait_interval, progress)
 
     def download(
@@ -258,9 +258,14 @@ class PerformanceReport(SearchAdGFA):
                 self.delete_report(report["no"], **kwargs)
         return results
 
-    def generate_date_range(self, start_date: dt.date | str, end_date: dt.date | str) -> list[tuple[dt.date, dt.date]]:
+    def generate_date_range(
+            self,
+            start_date: dt.date | str,
+            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        ) -> list[tuple[dt.date, dt.date]]:
         """분석 기간 단위가 '일'인 경우, 요청 당 조회 기간은 최대 62일로 제한한다."""
         from linkmerce.utils.date import date_split
+        end_date = start_date if end_date == ":start_date:" else end_date
         return date_split(start_date, end_date, delta={"days": 60}, format=self.date_format)
 
     def request_report(self, **kwargs) -> bool:
