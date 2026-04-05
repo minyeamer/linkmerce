@@ -54,7 +54,7 @@ with DAG(
         dates = dict(zip(["start_date", "end_date"], generate_sales_date(**kwargs)))
         return main(**credentials, **dates, **configs)
 
-    def generate_sales_date(data_interval_end: pendulum.DateTime = None, **kwargs) -> tuple[str,str]:
+    def generate_sales_date(data_interval_end: pendulum.DateTime = None, **kwargs) -> tuple[str, str]:
         """실행 시점(data_interval_end)이 포함된 월요일-일요일 주간을 계산하고, 주의 시작일과 종료일을 반환한다."""
         from airflow_utils import in_timezone
         def get_last_monday(datetime: pendulum.DateTime) -> pendulum.DateTime:
@@ -70,8 +70,8 @@ with DAG(
             start_date: str,
             end_date: str,
             service_account: dict,
-            tables: dict[str,str],
-            merge: dict[str,dict],
+            tables: dict[str, str],
+            merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection

@@ -59,8 +59,8 @@ with DAG(
             cookies: str,
             vendor_id: str,
             service_account: dict,
-            tables: dict[str,str],
-            merge: dict[str,dict],
+            tables: dict[str, str],
+            merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection

@@ -71,8 +71,8 @@ with DAG(
             cookies: str,
             keyword: list[str],
             service_account: dict,
-            tables: dict[str,str],
-            merge: dict[str,dict],
+            tables: dict[str, str],
+            merge: dict[str, dict],
             seq: int = 0,
             **kwargs
         ) -> dict:

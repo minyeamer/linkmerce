@@ -62,7 +62,7 @@ with DAG(
             mall_seq: list[int],
             date: str,
             service_account: dict,
-            tables: dict[str,str],
+            tables: dict[str, str],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection

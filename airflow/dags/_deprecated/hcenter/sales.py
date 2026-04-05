@@ -64,8 +64,8 @@ with DAG(
             start_date: str,
             end_date: str,
             service_account: dict,
-            tables: dict[str,str],
-            merge: dict[str,dict],
+            tables: dict[str, str],
+            merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection

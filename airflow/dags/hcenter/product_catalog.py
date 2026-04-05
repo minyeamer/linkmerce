@@ -7,13 +7,15 @@ import pendulum
 
 with DAG(
     dag_id = "naver_product_catalog",
-    schedule = None, # `naver_rank_shop` DAG 실행 후 트리거 (0 6-18 * * *)
+    schedule = None, # `naver_rank_shop` Dag 실행 후 트리거 (0 6-18 * * *)
     start_date = pendulum.datetime(2025, 8, 15, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
     tags = ["priority:mediaum", "naver:rank", "login:hcenter", "schedule:hourly", "time:daytime", "manual:dagrun"],
     doc_md = dedent("""
         # 네이버 상품-카탈로그 매핑 ETL 파이프라인
+
+        > 안내) 네이버 쇼핑 검색 순위를 수집하는 `naver_shop_rank` Dag 실행 후 트리거된다.
 
         ## 인증(Credentials)
         네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
@@ -50,8 +52,8 @@ with DAG(
             mall_seq: list[int],
             cookies: str,
             service_account: dict,
-            tables: dict[str,str],
-            merge: dict[str,dict],
+            tables: dict[str, str],
+            merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection

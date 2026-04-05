@@ -66,7 +66,7 @@ with DAG(
             report_type: str,
             date: str,
             service_account: dict,
-            tables: dict[str,str],
+            tables: dict[str, str],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
