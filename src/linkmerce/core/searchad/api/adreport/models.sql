@@ -659,7 +659,7 @@ CREATE TABLE IF NOT EXISTS {{ ad_stat }} (
   , customer_id BIGINT
   , media_code BIGINT
   , pc_mobile_type TINYINT
-  , expose_count INTEGER
+  , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
   , ad_rank_sum INTEGER
@@ -685,7 +685,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , customer_id BIGINT
   , media_code BIGINT
   , pc_mobile_type TINYINT
-  , expose_count INTEGER
+  , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
   , ad_rank_sum INTEGER
@@ -704,7 +704,7 @@ SELECT
   , customer_id
   , media_code
   , pc_mobile_type
-  , SUM(expose_count) AS expose_count
+  , SUM(impression_count) AS impression_count
   , SUM(click_count) AS click_count
   , SUM(ad_cost) AS ad_cost
   , SUM(ad_rank_sum) AS ad_rank_sum
@@ -719,7 +719,7 @@ FROM (
     -- , "Business Channel ID" AS business_channel_id
     , COALESCE("Media Code", 0) AS media_code
     , (CASE WHEN "PC Mobile Type" = 'P' THEN 0 WHEN "PC Mobile Type" = 'M' THEN 1 ELSE 2 END) AS pc_mobile_type
-    , "Impression" AS expose_count
+    , "Impression" AS impression_count
     , "Click" AS click_count
     , "Cost" AS ad_cost
     , "Sum of AD rank" AS ad_rank_sum
@@ -773,7 +773,7 @@ SELECT
   , COALESCE(stat.customer_id, conv.customer_id) AS customer_id
   , COALESCE(stat.media_code, conv.media_code) AS media_code
   , COALESCE(stat.pc_mobile_type, conv.pc_mobile_type) AS pc_mobile_type
-  , COALESCE(stat.expose_count, 0) AS expose_count
+  , COALESCE(stat.impression_count, 0) AS impression_count
   , COALESCE(stat.click_count, 0) AS click_count
   , COALESCE(stat.ad_cost, 0) AS ad_cost
   , COALESCE(stat.ad_rank_sum, 0) AS ad_rank_sum

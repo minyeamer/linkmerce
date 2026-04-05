@@ -42,7 +42,7 @@ def campaign(
     )).extract(status)
 
 
-@with_duckdb_connection(table="searchad_adgroup_gfa")
+@with_duckdb_connection(table="searchad_adset_gfa")
 def adset(
         account_no: int | str,
         cookies: str,
@@ -55,7 +55,7 @@ def adset(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> JsonObject:
-    """네이버 성과형 디스플레이 광고그룹 목록을 조회해 `searchad_adgroup_gfa` 테이블에 적재한다."""
+    """네이버 성과형 디스플레이 광고그룹 목록을 조회해 `searchad_adset_gfa` 테이블에 적재한다."""
     from linkmerce.core.searchad.gfa.adreport.extract import AdSet
     from linkmerce.core.searchad.gfa.adreport.transform import AdSet as T
     return AdSet(**prepare_duckdb_extract(

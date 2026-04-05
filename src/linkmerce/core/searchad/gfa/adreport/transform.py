@@ -17,10 +17,10 @@ class Campaign(DuckDBTransformer):
 
 
 class AdSet(DuckDBTransformer):
-    """네이버 성과형 디스플레이 광고그룹 목록을 `searchad_adgroup_gfa` 테이블에 적재하는 클래스."""
+    """네이버 성과형 디스플레이 광고그룹 목록을 `searchad_adset_gfa` 테이블에 적재하는 클래스."""
 
     extractor = "AdSet"
-    tables = {"table": "searchad_adgroup_gfa"}
+    tables = {"table": "searchad_adset_gfa"}
     parser = "json"
     parser_config = dict(
         dtype = dict,
