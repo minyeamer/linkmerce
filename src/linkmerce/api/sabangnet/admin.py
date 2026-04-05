@@ -333,7 +333,7 @@ def option_download(
     )).extract(start_date, end_date, date_type, sort_type, sort_asc, is_deleted, product_status)
 
 
-@with_duckdb_connection(table="sabangnet_add_product_group")
+@with_duckdb_connection(table="sabangnet_add_product")
 def add_product(
         userid: str,
         passwd: str,
@@ -350,7 +350,7 @@ def add_product(
         transform_options: dict | None = None,
     ) -> JsonObject:
     """사방넷 추가상품 관리 메뉴에서 전체 `group_id`를 추출하고,   
-    각 사방넷 추가 상품 그룹 내 상품 목록을 조회해 `sabangnet_add_product_group` 테이블에 적재한다."""
+    각 사방넷 추가 상품 그룹 내 상품 목록을 조회해 `sabangnet_add_product` 테이블에 적재한다."""
     if not group_id:
         from linkmerce.core.sabangnet.admin.product.extract import AddProductGroup
         from linkmerce.core.sabangnet.admin.product.transform import AddProductGroup as T
