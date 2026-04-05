@@ -148,10 +148,10 @@ with DAG(
             # [CONFIG] Slack 메시지를 구성하기 위해 쿼리를 상품별 키워드 목록으로 집계한다.
             table = sources["query"]
             conn.create_table_from_json(table, records, option="replace", temp=True)
-            query_group = conn.execute(f"SELECT query_group FROM {table} LIMIT 1;")[0].fetchall()[0][0] or '0'
+            query_group = conn.execute(f"SELECT query_group FROM {table} LIMIT 1")[0].fetchall()[0][0] or '0'
             query_map = dict(conn.fetch_all_to_csv(
                 "SELECT product, '(''' || string_agg(query, ''',''') || ''')' AS keywords "
-                + f"FROM {table} GROUP BY product ORDER BY product;"
+                + f"FROM {table} GROUP BY product ORDER BY product"
                 , header=False))
 
             # [EXTRACT-TRANSFORM] 네이버 모바일 통합검색 결과를 수집하여 DuckDB 테이블에 적재한다.
@@ -192,15 +192,15 @@ with DAG(
                 progress = False,
                 return_type = "none",
             )
-            conn.fetch_all_to_json(f"SELECT * FROM naver_cafe_article;")
+            conn.fetch_all_to_json(f"SELECT * FROM naver_cafe_article")
 
             # [SAVE] 네이버 카페 게시글의 본문 내용을 로컬에 JSON 파일로 저장한다.
             if search_cafe.get("save_to"):
                 cafe_path = Path(search_cafe["save_to"], str(datetime.year), str(datetime.month), str(datetime.day))
                 cafe_path.mkdir(parents=True, exist_ok=True)
                 save_path = cafe_path / (datetime.format("HHmm") + "_article_" + query_group + ".parquet")
-                conn.fetch_all_to_parquet(f"SELECT * FROM naver_cafe_article;", save_to=str(save_path))
-            cafe_articles = conn.fetch_all_to_json(f"SELECT * FROM naver_cafe_article;")
+                conn.fetch_all_to_parquet(f"SELECT * FROM naver_cafe_article", save_to=str(save_path))
+            cafe_articles = conn.fetch_all_to_json(f"SELECT * FROM naver_cafe_article")
 
             # [SUMMARY] 검색 결과 데이터를 요약하여 서식이 포함된 `openpyxl.Workbook` 객체로 변환한다.
             table = derived["summary"]
@@ -209,7 +209,7 @@ with DAG(
                 summary = enrich_summary(summary, cafe_articles)
             conn.create_table_from_json(table, summary, option="replace", temp=True)
 
-            max_rank = min(max_rank, conn.sql(f"SELECT IFNULL(MAX(rank), 0) FROM {table};")[0].fetchall()[0][0])
+            max_rank = min(max_rank, conn.sql(f"SELECT IFNULL(MAX(rank), 0) FROM {table}")[0].fetchall()[0][0])
             def _select_query(keywords: str) -> str:
                 return wb_summary_query("naver_search_summary", table, max_rank, keywords)
 
@@ -225,14 +225,14 @@ with DAG(
             conn.create_table_from_json(table, contents, option="replace", temp=True)
 
             wb_contents = csv2excel({
-                product: conn.fetch_all_to_csv(f"SELECT * FROM {table} WHERE \"검색어\" IN {keywords};", header=True)
+                product: conn.fetch_all_to_csv(f"SELECT * FROM {table} WHERE \"검색어\" IN {keywords}", header=True)
                     for product, keywords in query_map.items()}, **wb_contents_styles())
 
             # [COUNT] Slack 메시지를 구성하기 위해 상품별 키워드 수를 카운팅한다.
             table = sources["query"]
-            total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {table};")[0].fetchall()[0][0]
+            total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {table}")[0].fetchall()[0][0]
             counts = dict(conn.fetch_all_to_csv(
-                f"SELECT product, COUNT(DISTINCT query) FROM {table} GROUP BY product ORDER BY product;", header=False))
+                f"SELECT product, COUNT(DISTINCT query) FROM {table} GROUP BY product ORDER BY product", header=False))
 
             # [ALERT] Slack 채널에 메시지와 함께 엑셀 파일을 업로드한다.
             return send_excel_to_slack(
@@ -370,7 +370,7 @@ with DAG(
             ) AS C
             ON (S.query = C.query) AND (S.seq = C.seq) AND (S.subject = C.subject)
             WHERE S.query IN {keywords}
-            ORDER BY S.rn, S.seq;
+            ORDER BY S.rn, S.seq
             """).strip()
 
     def wb_summary_concat(header: list[str], summary: list[tuple]) -> list[tuple]:

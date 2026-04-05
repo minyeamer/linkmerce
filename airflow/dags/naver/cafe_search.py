@@ -145,16 +145,16 @@ with DAG(
             # [CONFIG] Slack 메시지를 구성하기 위해 쿼리를 상품별 키워드 목록으로 집계한다.
             table = sources["query"]
             conn.create_table_from_json(table, records, option="replace", temp=True)
-            query_group = conn.execute(f"SELECT query_group FROM {table} LIMIT 1;")[0].fetchall()[0][0] or '0'
+            query_group = conn.execute(f"SELECT query_group FROM {table} LIMIT 1")[0].fetchall()[0][0] or '0'
             query_map = dict(conn.fetch_all_to_csv(
                 "SELECT product, '(''' || string_agg(query, ''',''') || ''')' AS keywords "
-                + f"FROM {table} GROUP BY product ORDER BY product;"
+                + f"FROM {table} GROUP BY product ORDER BY product"
                 , header=False))
 
             # [EXTRACT-TRANSFORM] 네이버 모바일 카페 탭 검색 결과를 수집하여 DuckDB 테이블에 적재한다.
             search_cafe_plus(
                 cookies = cookies,
-                query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {table};")[0].fetchall()],
+                query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {table}")[0].fetchall()],
                 mobile = True,
                 max_rank = max_rank,
                 connection = conn,
@@ -170,7 +170,7 @@ with DAG(
                 for table_key in ["search", "article"]:
                     table = sources[table_key]
                     save_path = path / (datetime.format("HHmm") + f"_{table_key}_" + query_group + ".parquet")
-                    conn.fetch_all_to_parquet(f"SELECT * FROM {table};", save_to=str(save_path))
+                    conn.fetch_all_to_parquet(f"SELECT * FROM {table}", save_to=str(save_path))
 
             # [SUMMARY] 검색 결과 요약 데이터를 서식이 포함된 `openpyxl.Workbook` 객체로 변환한다.
             headers = wb_summary_headers(max_rank)
@@ -185,14 +185,14 @@ with DAG(
             table = derived["details"]
             conn.execute(wb_details_query(sources["merged"], table))
             wb_details = csv2excel({
-                product: conn.fetch_all_to_csv(f"SELECT * FROM {table} WHERE \"검색어\" IN {keywords};", header=True)
+                product: conn.fetch_all_to_csv(f"SELECT * FROM {table} WHERE \"검색어\" IN {keywords}", header=True)
                     for product, keywords in query_map.items()}, **wb_details_styles())
 
             # [COUNT] Slack 메시지를 구성하기 위해 상품별 키워드 수를 카운팅한다.
             table = sources["query"]
-            total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {table};")[0].fetchall()[0][0]
+            total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {table}")[0].fetchall()[0][0]
             counts = dict(conn.fetch_all_to_csv(
-                f"SELECT product, COUNT(DISTINCT query) FROM {table} GROUP BY product ORDER BY product;", header=False))
+                f"SELECT product, COUNT(DISTINCT query) FROM {table} GROUP BY product ORDER BY product", header=False))
 
             # [ALERT] Slack 채널에 메시지와 함께 엑셀 파일을 업로드한다.
             return send_excel_to_slack(
@@ -244,7 +244,7 @@ with DAG(
                 , FIRST(read_count) AS read_count
                 FOR rank IN ({','.join([str(rank) for rank in range(1, max_rank+1)])})
             )
-            ORDER BY seq;
+            ORDER BY seq
             """).strip()
 
     def wb_summary_concat(header: list[str], summary: list[tuple]) -> list[tuple]:
@@ -289,7 +289,7 @@ with DAG(
         return dedent(f"""
             CREATE TABLE {taraget_table} AS
             SELECT {columns}
-            FROM {source_table};
+            FROM {source_table}
             """).strip()
 
     def wb_details_alias() -> list[tuple[str, str]]:
