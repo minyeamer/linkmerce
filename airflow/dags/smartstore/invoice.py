@@ -84,7 +84,7 @@ with DAG(
                 return_type = "none",
             )
 
-            date_array = conn.unique(source)
+            date_array = conn.unique(source, "DATE(payment_dt)")
 
             with BigQueryClient(service_account) as client:
                 return {

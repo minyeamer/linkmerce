@@ -34,7 +34,7 @@ with DAG(
         cookies_path = {"$cookies": Variable.get("cookies")}
 
         def extract_path(cookies: str) -> str:
-            return regexp_extract(r"Path\(([^)]+)\)", cookies.format(cookies_path))
+            return regexp_extract(r"Path\(([^)]+)\)", cookies.format(**cookies_path))
 
         return [{
             "userid": user["userid"],

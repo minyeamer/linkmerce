@@ -105,7 +105,7 @@ class SearchSectionParser(HtmlTransformer):
         from linkmerce.utils.regex import regexp_extract
         import json
         forward = r"document\.getElementById\(\"{}\"\),\s*".format(id)
-        backward = r",\s*\{\s*onRendered:\s*function\(detail\)"
+        backward = r",\s*\{\s*renderer:\s*\"module\",\s*onRendered:\s*function\(detail\)"
         body = regexp_extract(forward + r"(\{.*\})" + backward, response)
         try:
             data = json.loads(body)

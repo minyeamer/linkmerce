@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , option_name VARCHAR
   , option_conv_id BIGINT
   -- , option_conv_name VARCHAR
-  , placement_group TINYINT -- {0: '검색 영역', 1: '비검색 영역', 2: '리타겟팅%'}
+  , placement_group TINYINT -- {0: '검색 영역', 1: '비검색 영역', 2: '외부 채널'}
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
@@ -172,8 +172,7 @@ FROM (
     , (CASE
         WHEN "광고 노출 지면" = '검색 영역' THEN 0
         WHEN "광고 노출 지면" = '비검색 영역' THEN 1
-        WHEN "광고 노출 지면" LIKE '리타겟팅%' THEN 2
-        ELSE NULL END) AS placement_group
+        ELSE 2 END) AS placement_group
     , TRY_CAST(REPLACE(TRY_CAST("노출수" AS VARCHAR), ',', '') AS INTEGER) AS impression_count
     , TRY_CAST(REPLACE(TRY_CAST("클릭수" AS VARCHAR), ',', '') AS INTEGER) AS click_count
     , TRY_CAST(REPLACE(TRY_CAST("광고비" AS VARCHAR), ',', '') AS INTEGER) AS ad_cost
@@ -188,7 +187,6 @@ FROM (
 ) AS report
 WHERE (campaign_id IS NOT NULL)
   AND (option_id IS NOT NULL)
-  AND (placement_group IS NOT NULL)
   AND (ymd IS NOT NULL)
 GROUP BY ymd, campaign_id, option_id, option_conv_id, placement_group
 ON CONFLICT DO NOTHING;
@@ -207,7 +205,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , target_type VARCHAR -- {'매출 최적화', '수동 성과형'}
   , option_id BIGINT
   -- , option_name VARCHAR
-  , placement_group TINYINT -- {0: '검색 영역', 1: '비검색 영역', 2: '리타겟팅%'}
+  , placement_group TINYINT -- {0: '검색 영역', 1: '비검색 영역', 2: '외부 채널'}
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
@@ -249,8 +247,7 @@ FROM (
     , (CASE
         WHEN "광고 노출 지면" = '검색 영역' THEN 0
         WHEN "광고 노출 지면" = '비검색 영역' THEN 1
-        WHEN "광고 노출 지면" LIKE '리타겟팅%' THEN 2
-        ELSE NULL END) AS placement_group
+        ELSE 2 END) AS placement_group
     , TRY_CAST("노출수" AS INTEGER) AS impression_count
     , TRY_CAST("클릭수" AS INTEGER) AS click_count
     , TRY_CAST("집행 광고비" AS INTEGER) AS ad_cost
@@ -263,7 +260,6 @@ FROM (
 ) AS report
 WHERE (campaign_id IS NOT NULL)
   AND (creative_id IS NOT NULL)
-  AND (placement_group IS NOT NULL)
   AND (ymd IS NOT NULL)
 GROUP BY ymd, campaign_id, creative_id, placement_group
 ON CONFLICT DO NOTHING;

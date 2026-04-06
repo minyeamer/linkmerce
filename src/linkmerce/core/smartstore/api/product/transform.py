@@ -9,7 +9,7 @@ class ProductParser(JsonTransformer):
     scope = "contents"
     fields = [
         "channelProductNo", "originProductNo", {"modelId": None}, "channelServiceType", "name",
-        {"sellerManagementCode": None}, {"modelName": None}, "brandName", {"manufacturerName": None},
+        {"sellerManagementCode": None}, {"modelName": None}, {"brandName": None}, {"manufacturerName": None},
         "categoryId", "wholeCategoryId", "wholeCategoryName", "statusType",
         "channelProductDisplayStatusType", "representativeImage.url", "sellerTags",
         "salePrice", {"discountedPrice": None}, "stockQuantity",

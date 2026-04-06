@@ -22,9 +22,9 @@ def download_report(
         api_key: str,
         secret_key: str,
         customer_id: int | str,
-        return_type: Literal["csv", "json"] = "csv",
+        return_type: Literal["csv", "json", "raw"] = "csv",
         **kwargs
-    ) -> list[tuple]:
+    ) -> list[tuple] | str:
     """네이버 검색광고 API로 대용량 다운로드 보고서를 다운로드하여 `csv` 또는 `json` 형식으로 반환하다."""
     if isinstance(report_cls, str):
         from importlib import import_module
@@ -36,10 +36,11 @@ def download_report(
         if tsv_data:
             return [dict(zip(extractor.columns, row.split('\t'))) for row in tsv_data.split('\n')]
         return list()
-    else:
+    elif return_type == "csv":
         if tsv_data:
             return [extractor.columns] + [row.split('\t') for row in tsv_data.split('\n')]
         return [extractor.columns]
+    return tsv_data
 
 
 @with_duckdb_connection(table="searchad_campaign")

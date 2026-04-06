@@ -43,10 +43,10 @@ with DAG(
         return read(PATH, credentials=True)["credentials"]
 
 
-    @task(task_id="etl_searchad_report", map_index_template="{{ queries['customer_id'] }}")
-    def etl_searchad_report(queries: dict, configs: dict, **kwargs) -> dict:
+    @task(task_id="etl_searchad_report", map_index_template="{{ credentials['customer_id'] }}")
+    def etl_searchad_report(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import get_execution_date
-        return main_searchad(**queries, date=get_execution_date(kwargs, subdays=1), **configs)
+        return main_searchad(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
 
     def main_searchad(
             api_key: str,
@@ -55,13 +55,12 @@ with DAG(
             date: str,
             service_account: dict,
             tables: dict[str, str],
-            merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.searchad.api import advanced_report, media
+        from linkmerce.api.searchad.api import advanced_report
         from linkmerce.extensions.bigquery import BigQueryClient
-        sources = {"report": "searchad_report", "media": "searchad_media"}
+        source = "searchad_report"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             advanced_report(
@@ -74,14 +73,6 @@ with DAG(
                 return_type = "none",
             )
 
-            media(
-                api_key = api_key,
-                secret_key = secret_key,
-                customer_id = customer_id,
-                connection = conn,
-                return_type = "none",
-            )
-
             with BigQueryClient(service_account) as client:
                 return {
                     "params": {
@@ -89,22 +80,13 @@ with DAG(
                         "date": date,
                     },
                     "counts": {
-                        "report": conn.count_table(sources["report"]),
-                        "media": conn.count_table(sources["media"]),
+                        "table": conn.count_table(source),
                     },
                     "status": {
-                        "report": client.load_table_from_duckdb(
+                        "table": client.load_table_from_duckdb(
                             connection = conn,
-                            source_table = sources["report"],
-                            target_table = tables["report"],
-                            progress = False,
-                        ),
-                        "media": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["media"],
-                            staging_table = f'{tables["temp_media"]}_{customer_id}',
-                            target_table = tables["media"],
-                            **merge["media"],
+                            source_table = source,
+                            target_table = tables["table"],
                             progress = False,
                         ),
                     },

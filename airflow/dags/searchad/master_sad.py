@@ -20,6 +20,7 @@ with DAG(
         ## 추출(Extract)
         마스터 보고서를 생성, 조회, 삭제하는 API를 순차적으로 실행하면서
         계정별 캠페인, 광고그룹, 소재 목록을 수집한다.
+        첫 번째 계정에 한해 광고매체 목록을 추가로 수집한다.
 
         ## 변환(Transform)
         TSV 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
@@ -39,14 +40,15 @@ with DAG(
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:
         from airflow_utils import read
-        return read(PATH, credentials=True)["credentials"]
+        credentials = read(PATH, credentials=True)["credentials"]
+        return [dict(info, with_media=(i == 0)) for i, info in enumerate(credentials)]
 
 
     @task(task_id="etl_searchad_master", map_index_template="{{ credentials['customer_id'] }}")
     def etl_searchad_master(credentials: dict, configs: dict, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        from_date = get_execution_date(kwargs, subdays=(365*2))
-        types = ["campaign", "adgroup", "ad"]
+        from airflow_utils import today
+        from_date = today(subdays=(365*2)).format("YYYY-MM-DD")
+        types = ["campaign", "adgroup", "ad"] + (["media"] if credentials.get("with_media") else list())
         return {api_type: main(api_type, **credentials, from_date=from_date, **configs) for api_type in types}
 
     def main(
@@ -64,7 +66,8 @@ with DAG(
         from linkmerce.extensions.bigquery import BigQueryClient
         from importlib import import_module
         import logging
-        extract = getattr(import_module("linkmerce.api.searchad.api"), api_type)
+        module = "master_ad" if api_type == "ad" else api_type
+        extract = getattr(import_module("linkmerce.api.searchad.api"), module)
         source = f"searchad_{api_type}"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:

@@ -35,7 +35,7 @@ with DAG(
     """).strip(),
 ) as dag:
 
-    PATH = "naver.main.search"
+    PATH = "naver.main.main_search"
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:

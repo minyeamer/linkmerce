@@ -616,9 +616,9 @@ FROM UNNEST([
 
 -- Media: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    media_id INTEGER PRIMARY KEY
+    media_code INTEGER
   , media_name VARCHAR
-  , is_group BOOLEAN
+  , media_type TINYINT -- {0: 'media', 1: 'group'}
   -- , media_url VARCHAR
   -- , naver_ad_networks_yn BOOLEAN
   -- , portal_site_yn BOOLEAN
@@ -629,16 +629,17 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , group_id INTEGER
   -- , created_at TIMESTAMP
   -- , deleted_at TIMESTAMP
+  , PRIMARY KEY (media_type, media_code)
 );
 
 -- Media: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    "ID" AS media_id
+    "ID" AS media_code
   , (CASE
       WHEN $root_only THEN IF("Media Group ID" IS NULL, "Media name", NULL)
       ELSE "Media name" END) AS media_name
-  , IF("Type" = 'group', TRUE, NULL) AS is_group -- {'media', 'group'}
+  , (CASE WHEN "Type" = 'media' THEN 0 WHEN "Type" = 'group' THEN 1 ELSE 2 END) AS media_type
   -- , "URL" AS media_url
   -- , "NAVER Ad Networks" AS naver_ad_networks_yn
   -- , "Portal Site" AS portal_site_yn

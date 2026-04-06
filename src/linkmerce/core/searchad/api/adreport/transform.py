@@ -59,17 +59,14 @@ class TsvTransformer(ResponseTransformer):
 
     def parse(self, obj: str, **kwargs) -> list[dict]:
         """TSV 문자열을 `csv` 모듈로 파싱하고, `convert_dtypes` 여부에 따라 형변환한다."""
-        from io import StringIO
-        import csv
         data = list()
 
         if obj:
-            reader = csv.reader(StringIO(obj), delimiter='\t')
             columns, types = zip(*self.columns)
             functions = [_cast(dtype) if self.convert_dtypes else (lambda x: x) for dtype in types]
-            for row in reader:
-                values = [cast(value) for cast, value in zip(functions, row)]
-                data.append(dict(zip(columns, values)))
+            for row in obj.split('\n'):
+                if row:
+                    data.append({column: cast(value) for column, cast, value in zip(columns, functions, row.split('\t'))})
         return data
 
     def select_fields(self, data: list[dict], **kwargs) -> list[dict]:

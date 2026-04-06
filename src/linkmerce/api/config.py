@@ -260,7 +260,7 @@ def parse_tables(
                     tables_info[db]["schema"] = read_check(schemas_path, info["schema"], dtype=dict, list=True)
             return tables_info
     else:
-        return {db: info["table"] for db, info in tables_info.items()}
+        return {db: info["name"] for db, info in tables_info.items()}
 
 ############################## Sheets #############################
 
@@ -292,18 +292,21 @@ def read_google_sheets(
         allow_underscores_in_numeric_literals: bool = False,
         empty2zero: bool = False,
         convert_dtypes: bool = True,
+        limit: int | None = None,
     ) -> dict[str, list] | list[dict]:
     """구글 시트에서 데이터를 읽어서 다음 2가지 타입 중 하나로 반환한다.
     - `dict[str, list]`: `axis`가 `0` 또는 `by_col`인 경우 열 단위로 구분된 딕셔너리로 반환한다.
     - `list[dict]`: `axis`가 `1` 또는 `by_row`인 경우 행 단위의 딕셔너리 리스트로 반환한다."""
     client.set_spreadsheet(key)
     client.set_worksheet(sheet)
+
+    filter_headers = [column] if isinstance(column, str) else (column or None)
     records = client.get_all_records(
-        head, expected_headers, (column or None), value_render_option, default_blank,
-            numericise_ignore, allow_underscores_in_numeric_literals, empty2zero, convert_dtypes)
+        head, expected_headers, filter_headers, value_render_option, default_blank,
+        numericise_ignore, allow_underscores_in_numeric_literals, empty2zero, convert_dtypes)[:limit]
 
     if isinstance(column, str):
-        return {column: records}
+        return {column: [record[column] for record in records]}
     elif axis in (0, "by_col"):
         keys = list(records[0].keys())
         return {key: [record[key] for record in records] for key in keys}

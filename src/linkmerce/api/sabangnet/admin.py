@@ -355,8 +355,8 @@ def add_product(
         from linkmerce.core.sabangnet.admin.product.extract import AddProductGroup
         from linkmerce.core.sabangnet.admin.product.transform import AddProductGroup as T
 
-        groups = AddProductGroup(**prepare_duckdb_extract(
-            T, connection, transform_options={"table": "temp_product"}, return_type="json",
+        AddProductGroup(**prepare_duckdb_extract(
+            T, connection, return_type="json",
             configs = _get_login_configs(userid, passwd, domain),
             options = {
                 "PaginateAll": {
@@ -365,8 +365,8 @@ def add_product(
                 }
             },
         )).extract(start_date, end_date, shop_id)
-        connection.execute("DROP TABLE IF EXISTS temp_product")
-        group_id = [group["group_id"] for group in groups]
+        query = "SELECT group_id FROM sabangnet_add_product_group"
+        group_id = [row[0] for row in connection.fetch_all_to_csv(query, header=False)]
 
     from linkmerce.core.sabangnet.admin.product.extract import AddProduct
     from linkmerce.core.sabangnet.admin.product.transform import AddProduct as T

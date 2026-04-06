@@ -69,11 +69,11 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
         self.click_to_center()
 
     def redirect_begin(self, redirect_url: str):
-        headers = self.build_request_headers(redirect_url, referer=self.main_url)
+        headers = self.build_headers(redirect_url, referer=self.main_url)
         self.request("GET", redirect_url, headers=headers)
 
     def get_login_header(self) -> dict[str, str]:
-        headers = self.build_request_headers(self.main_url, referer=self.main_url)
+        headers = self.build_headers(self.main_url, referer=self.main_url)
         headers["x-current-state"] = self.main_url + "/#/home/dashboard"
         headers["x-current-statename"] = "work.channel-select"
         headers["x-to-statename"] = "work.channel-select"
@@ -87,7 +87,7 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
             "groupStateCode": "layout",
             "stateCode": "main.dashboard-pay",
         }
-        headers = self.build_request_headers(url, origin=self.main_url, referer=self.main_url)
+        headers = self.build_headers(url, origin=self.main_url, referer=self.main_url)
         self.request("POST", url, json=body, headers=headers)
 
     ########################### Center Login ##########################
@@ -100,7 +100,7 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
 
         url = self.center_url + "/oauth2/login"
         body = self.build_login_data(pincode, pubkey, login_info)
-        headers = self.build_request_headers(url, contents="form", https=True, referer=(self.center_url + "/v1/slogin2/login"), origin=self.center_url)
+        headers = self.build_headers(url, contents="form", https=True, referer=(self.center_url + "/v1/slogin2/login"), origin=self.center_url)
         with self.request("POST", url, data=body, headers=headers, allow_redirects=False) as response:
             self.celogin_redirect(response.headers["location"])
 
@@ -112,20 +112,20 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
             "redirectUri": (self.center_url + "/login/redirect"),
             "state": "xyz",
         }
-        headers = self.build_request_headers(url, contents="json", origin=self.center_url, referer=(self.center_url + "/v1/slogin2/login"))
+        headers = self.build_headers(url, contents="json", origin=self.center_url, referer=(self.center_url + "/v1/slogin2/login"))
         with self.request("POST", url, json=body, headers=headers) as response:
             return response.json()
 
     def fetch_link(self) -> str:
         url = self.center_url + "/v1/slogin2/login"
-        headers = self.build_request_headers(url, https=True, referer=self.center_url)
+        headers = self.build_headers(url, https=True, referer=self.center_url)
         with self.request("GET", url, headers=headers, allow_redirects=False) as response:
             return response.headers["Link"]
 
     def fetch_pubkey(self, link: str) -> str:
         from linkmerce.utils.regex import regexp_extract
         url = self.center_url + regexp_extract(r"(/_app/[^/]+/immutable/chunks/encrypt\.[^.]+\.js)", link)
-        headers = self.build_request_headers(url, referer=self.center_url)
+        headers = self.build_headers(url, referer=self.center_url)
         with self.request("GET", url, headers=headers) as response:
             return regexp_extract(r"`(-----BEGIN PUBLIC KEY-----[^`]+-----END PUBLIC KEY-----)`", response.text)
 
@@ -150,7 +150,7 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
         return base64.b64encode(cipher.encrypt(username.encode("utf-8")))
 
     def celogin_redirect(self, redirect_url: str):
-        headers = self.build_request_headers(redirect_url, referer=(self.center_url + "/v1/slogin2/login"))
+        headers = self.build_headers(redirect_url, referer=(self.center_url + "/v1/slogin2/login"))
         self.request("GET", redirect_url, headers=headers)
 
     ########################## Embrace Token ##########################
@@ -160,13 +160,13 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
         url = self.center_url + "/v2/members/me/embrace-token-at-url"
         params = dict(subject=subject, **params)
         referer = '/'.join(["https://center.shopping.naver.com", str(subject).replace('.', '/')])
-        headers = self.build_request_headers(url, https=True, referer=referer)
+        headers = self.build_headers(url, https=True, referer=referer)
         headers["Sec-Fetch-Dest"] = "iframe"
         with self.request("GET", url, params=params, headers=headers, allow_redirects=False) as response:
             self.redirect_embrace_token(response.headers["location"], subject, login=login)
 
     def redirect_embrace_token(self, redirect_url: str, referer: str, login: bool = False):
-        headers = self.build_request_headers(redirect_url, https=True, referer=referer)
+        headers = self.build_headers(redirect_url, https=True, referer=referer)
         self.request("GET", redirect_url, headers=headers)
         if login:
             self.login_by_token(redirect_url)
@@ -177,12 +177,12 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
 
         url = self._center_url('h') + "/v1/login/by-token"
         params = dict(token=regexp_extract(r"\?token=(.*)$", redirect_url))
-        headers = self.build_request_headers(url, referer=redirect_url)
+        headers = self.build_headers(url, referer=redirect_url)
         self.request("GET", url, params=params, headers=headers)
 
     def get_member(self):
         url = self._center_url('h') + "/graphql"
-        headers = self.build_request_headers(url, referer=self.center_url)
+        headers = self.build_headers(url, referer=self.center_url)
         self.request("POST", url, data=self.build_member_data(), headers=headers)
 
     def build_member_data(self) -> dict:
@@ -225,13 +225,13 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
 
         url = self._center_url("ad") + "/adbridge/home"
         referer = self._center_url('a') + "/iframe/main.nhn"
-        headers = self.build_request_headers(url, https=True, referer=referer)
+        headers = self.build_headers(url, https=True, referer=referer)
         self.request("GET", url, headers=headers)
 
     def fetch_adcenter(self):
         from bs4 import BeautifulSoup
         url = self._center_url('a') + "/iframe/main.nhn"
-        headers = self.build_request_headers(url, https=True, referer=self.center_url, metadata={
+        headers = self.build_headers(url, https=True, referer=self.center_url, metadata={
             "sec-fetch-dest": "iframe", "sec-fetch-mode": "navigate", "sec-fetch-site": "same-site"
         })
         with self.request("GET", url, headers=headers) as response:
@@ -240,5 +240,5 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
             self.redirect_adcenter(iframe_url, referer=url)
 
     def redirect_adcenter(self, iframe_url: str, referer: str):
-        headers = self.build_request_headers(iframe_url, https=True, referer=referer)
+        headers = self.build_headers(iframe_url, https=True, referer=referer)
         self.request("GET", iframe_url, headers=headers)

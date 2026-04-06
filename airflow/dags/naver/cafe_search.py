@@ -133,7 +133,7 @@ with DAG(
         from linkmerce.utils.excel import csv2excel, save_excel_to_tempfile
         sources = {
             "query": "naver_cafe_query",
-            "cafe": "naver_cafe_search",
+            "search": "naver_cafe_search",
             "article": "naver_cafe_article",
             "merged": "naver_cafe_result",
         }

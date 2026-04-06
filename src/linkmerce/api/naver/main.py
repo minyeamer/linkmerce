@@ -120,7 +120,7 @@ def search_cafe_plus(
     """네이버 모바일 카페 탭 검색 결과와 각 카페 게시글 데이터를 조합하여 통합된 결과를 생성한다.
 
     테이블 키 | 테이블명 | 설명
-    - `cafe` | `naver_cafe_search` | 네이버 모바일 카페 탭 검색 결과
+    - `search` | `naver_cafe_search` | 네이버 모바일 카페 탭 검색 결과
     - `article` | `naver_cafe_article` | 카페 게시글 데이터
     - `merged` | `naver_cafe_result` | 카페 탭 검색 결과와 게시글 데이터를 병합"""
     SEARCH, ARTICLE = 0, 1
@@ -132,9 +132,9 @@ def search_cafe_plus(
         connection=connection, request_delay=request_delay, progress=progress, return_type=return_type,
         extract_options=extract_options[SEARCH], transform_options=transform_options[SEARCH])
     if isinstance(max_rank, int):
-        connection.execute(f"DELETE FROM naver_cafe WHERE rank > {max_rank}")
+        connection.execute(f"DELETE FROM naver_cafe_search WHERE rank > {max_rank}")
 
-    select_query = f"SELECT DISTINCT article_url FROM naver_cafe WHERE article_url IS NOT NULL"
+    select_query = f"SELECT DISTINCT article_url FROM naver_cafe_search WHERE article_url IS NOT NULL"
     article_url = [row[0] for row in connection.execute(select_query)[0].fetchall()]
     results["article"] = cafe_article(
         article_url, "article", cookies,
@@ -174,7 +174,7 @@ def search_cafe_plus(
     results["merged"] = connection.execute(
         keyword
         + f"SELECT {', '.join(columns)} "
-        + f"FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM naver_cafe) AS L "
+        + f"FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM naver_cafe_search) AS L "
         + f"LEFT JOIN naver_cafe_article AS R "
             + "ON (L.cafe_url = R.cafe_url) AND (L.article_id = R.article_id) "
         + "ORDER BY L.seq, L.rank")
