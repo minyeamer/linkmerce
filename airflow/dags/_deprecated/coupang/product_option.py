@@ -107,9 +107,9 @@ with DAG(
                         "table": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["table"],
-                            staging_table = f'{tables["temp_option"]}_{vendor_id}',
-                            target_table = tables["option"],
-                            **merge["option"],
+                            staging_table = f'{tables["temp_table"]}_{vendor_id}',
+                            target_table = tables["table"],
+                            **merge["table"],
                             progress = False,
                         ),
                     },

@@ -100,10 +100,12 @@ with DAG(
                         "date_type": "DAY",
                     },
                     "counts": {
-                        "table": conn.count_table(sources["merged"]),
+                        "campaign": conn.count_table(sources["campaign"]),
+                        "creative": conn.count_table(sources["creative"]),
+                        "merged": conn.count_table(sources["merged"]),
                     },
                     "status": {
-                        "table": client.load_table_from_duckdb(
+                        "merged": client.load_table_from_duckdb(
                             connection = conn,
                             source_table = sources["merged"],
                             target_table = tables["table"],

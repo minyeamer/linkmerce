@@ -106,9 +106,9 @@ with DAG(
                         "table": (client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = source_table,
-                            staging_table = tables["temp_invoice"],
-                            target_table = tables["invoice"],
-                            **merge["invoice"],
+                            staging_table = tables["temp_table"],
+                            target_table = tables["table"],
+                            **merge["table"],
                             where_clause = conn.expr_date_range("T.register_date", date_array),
                             progress = False,
                         ) if date_array else True),

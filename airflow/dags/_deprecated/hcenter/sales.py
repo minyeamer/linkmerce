@@ -38,7 +38,7 @@ with DAG(
     """).strip(),
 ) as dag:
 
-    PATH = "smartstore.brand.naver_brand_sales"
+    PATH = "smartstore.hcenter.sales"
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:

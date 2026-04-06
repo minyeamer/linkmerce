@@ -53,24 +53,31 @@ with DAG(
             secret_key: str,
             customer_id: int | str,
             date: str,
-            userid: str,
             service_account: dict,
             tables: dict[str, str],
+            merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.searchad.api import advanced_report
+        from linkmerce.api.searchad.api import advanced_report, media
         from linkmerce.extensions.bigquery import BigQueryClient
-        source = "searchad_report"
+        sources = {"report": "searchad_report", "media": "searchad_media"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             advanced_report(
                 api_key = api_key,
                 secret_key = secret_key,
                 customer_id = customer_id,
-                userid = userid,
                 start_date = date,
                 end_date = date,
+                connection = conn,
+                return_type = "none",
+            )
+
+            media(
+                api_key = api_key,
+                secret_key = secret_key,
+                customer_id = customer_id,
                 connection = conn,
                 return_type = "none",
             )
@@ -82,13 +89,22 @@ with DAG(
                         "date": date,
                     },
                     "counts": {
-                        "table": conn.count_table(source),
+                        "report": conn.count_table(sources["report"]),
+                        "media": conn.count_table(sources["media"]),
                     },
                     "status": {
-                        "table": client.load_table_from_duckdb(
+                        "report": client.load_table_from_duckdb(
                             connection = conn,
-                            source_table = source,
-                            target_table = tables["table"],
+                            source_table = sources["report"],
+                            target_table = tables["report"],
+                            progress = False,
+                        ),
+                        "media": client.merge_into_table_from_duckdb(
+                            connection = conn,
+                            source_table = sources["media"],
+                            staging_table = f'{tables["temp_media"]}_{customer_id}',
+                            target_table = tables["media"],
+                            **merge["media"],
                             progress = False,
                         ),
                     },

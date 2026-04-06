@@ -110,7 +110,7 @@ with DAG(
                             "table": client.overwrite_table_from_duckdb(
                                 connection = conn,
                                 source_table = source,
-                                target_table = tables["stock"],
+                                target_table = tables["table"],
                                 progress = False,
                                 truncate_target_table = True,
                             ),
@@ -170,15 +170,15 @@ with DAG(
                             "hidden_status": None,
                         },
                         "counts": {
-                            "inventory": conn.count_table(source),
+                            "table": conn.count_table(source),
                         },
                         "status": {
-                            "data": client.merge_into_table_from_duckdb(
+                            "table": client.merge_into_table_from_duckdb(
                                 connection = conn,
                                 source_table = source,
-                                staging_table = f'{tables["temp_inventory"]}_{vendor_id}',
-                                target_table = tables["inventory"],
-                                **merge["inventory"],
+                                staging_table = f'{tables["temp_table"]}_{vendor_id}',
+                                target_table = tables["table"],
+                                **merge["table"],
                                 progress = False,
                             ),
                         },

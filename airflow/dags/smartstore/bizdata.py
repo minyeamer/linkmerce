@@ -79,13 +79,13 @@ with DAG(
                         "date": date,
                     },
                     "counts": {
-                        "data": conn.count_table(source),
+                        "table": conn.count_table(source),
                     },
                     "status": {
-                        "data": client.load_table_from_duckdb(
+                        "table": client.load_table_from_duckdb(
                             connection = conn,
                             source_table = source,
-                            target_table = tables["marketing_channel"],
+                            target_table = tables["table"],
                             progress = False,
                         ),
                     },

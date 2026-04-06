@@ -85,7 +85,7 @@ with DAG(
                 SELECT * FROM {sources['time']}
                 UNION ALL
                 SELECT * FROM {sources['brand_new']}
-            """).strip())
+                """).strip())
 
             with BigQueryClient(service_account) as client:
                 return {
@@ -100,7 +100,7 @@ with DAG(
                         "contract": client.overwrite_table_from_duckdb(
                             connection = conn,
                             source_table = sources["contract"],
-                            target_table = tables["contract"],
+                            target_table = tables["table"],
                             where_clause = f"(contract_end_date > '2000-01-01') AND (customer_id = {customer_id})",
                             progress = False,
                         ),
