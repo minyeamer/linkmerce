@@ -5,8 +5,10 @@ import functools
 
 if TYPE_CHECKING:
     from typing import Any, Literal
+    from linkmerce.common.extract import LoginHandler
     from linkmerce.common.load import DuckDBConnection
     from linkmerce.common.transform import Transformer, DuckDBTransformer
+    from pathlib import Path
 
 
 def prepare_extract(
@@ -113,3 +115,19 @@ def fetch_all_duckdb_tables(
     else:
         return {key: connection.fetch_all(return_type, f"SELECT * FROM {name}")
                 for key, name in tables.items()}
+
+
+def handle_cookies(handler: LoginHandler, save_to: str | Path | None = None, mkdir: bool = True) -> str:
+    """쿠키를 파일로 저장하고 쿠키를 문자열 형태로 반환한다."""
+    cookies = handler.get_cookies(to="str")
+    if not (cookies and save_to):
+        return cookies
+
+    from pathlib import Path
+    file_path = save_to if isinstance(save_to, Path) else Path(save_to)
+    if mkdir:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(file_path, 'w', encoding="utf-8") as file:
+        file.write(cookies)
+    return cookies

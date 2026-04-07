@@ -40,8 +40,8 @@ with DAG(
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
-        from airflow_utils import read
-        return read(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
+        from airflow_utils import read_config
+        return read_config(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
 
 
     @task(task_id="etl_naver_pageview_by_device")

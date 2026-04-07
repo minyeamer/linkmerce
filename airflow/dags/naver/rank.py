@@ -39,13 +39,13 @@ with DAG(
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
-        from airflow_utils import read
-        return read(PATH, tables=True, service_account=True)
+        from airflow_utils import read_config
+        return read_config(PATH, tables=True, service_account=True)
 
     @task(task_id="read_queries", retries=3, retry_delay=timedelta(minutes=1))
     def read_queries() -> list:
-        from airflow_utils import read, split_by_credentials
-        configs = read(PATH, credentials=True, tables=True, sheets=True)
+        from airflow_utils import read_config, split_by_credentials
+        configs = read_config(PATH, credentials=True, tables=True, sheets=True)
         queries = split_by_credentials(configs["credentials"], keyword=configs["keyword"])
         return [dict(query, seq=i) for i, query in enumerate(queries)]
 

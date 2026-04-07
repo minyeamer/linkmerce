@@ -61,7 +61,7 @@ def get_execution_date(
     return format_date(kwargs["data_interval_end"], fmt, locale, add, subtract, subdays, tz)
 
 
-def read(
+def read_config(
         key_path: KeyPath | None = None,
         format: Literal["auto", "json", "yaml"] = "auto",
         credentials: bool | Literal["expand"] = False,
@@ -80,9 +80,9 @@ def read(
         `sheets`: 구글 시트 데이터 포함 여부.
         `service_account`: GCP 서비스 계정 포함 여부."""
     from airflow.sdk import Variable
-    from linkmerce.api.config import read_config
+    from linkmerce.api.config import read_config as read
 
-    config = read_config(
+    config = read(
         file_path = Variable.get("config"),
         key_path = key_path,
         format = format,
@@ -111,6 +111,24 @@ def read(
         config["service_account"] = Variable.get("service_account")
 
     return config
+
+
+def read_credentials(
+        key_path: KeyPath | None = None,
+        format: Literal["auto", "json", "yaml"] = "auto",
+        path_strings: dict[str, str] | None = None,
+        skip_subpath: bool = False,
+    ) -> dict | list:
+    """인증 정보 파일을 읽고 `Path()` 참조를 실제 파일 내용으로 치환한다."""
+    from airflow.sdk import Variable
+    from linkmerce.api.config import read_credentials as read
+    return read(
+        file_path = Variable.get("credentials"),
+        key_path = key_path,
+        format = format,
+        path_strings = ((path_strings or dict()) | {"$cookies": Variable.get("cookies")}),
+        skip_subpath = skip_subpath,
+    )
 
 
 def split_by_credentials(credentials: list[dict], shuffle: bool = False, **kwargs: list) -> list[dict]:

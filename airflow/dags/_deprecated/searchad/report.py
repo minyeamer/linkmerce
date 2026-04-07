@@ -43,13 +43,13 @@ with DAG(
 
         @task(task_id="read_configs_searchad", retries=3, retry_delay=timedelta(minutes=1))
         def read_configs_searchad() -> dict:
-            from airflow_utils import read
-            return read(SEARCHAD_PATH, tables=True, service_account=True)
+            from airflow_utils import read_config
+            return read_config(SEARCHAD_PATH, tables=True, service_account=True)
 
         @task(task_id="read_queries_searchad", retries=3, retry_delay=timedelta(minutes=1))
         def read_queries_searchad() -> list:
-            from airflow_utils import read
-            configs = read(SEARCHAD_PATH, credentials=True)
+            from airflow_utils import read_config
+            configs = read_config(SEARCHAD_PATH, credentials=True)
             params = configs["params"]
             return [dict(credential, **params[credential["customer_id"]]) for credential in configs["credentials"]]
 
@@ -121,13 +121,13 @@ with DAG(
 
         @task(task_id="read_configs_gfa", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
         def read_configs_gfa() -> dict:
-            from airflow_utils import read
-            return read(GFA_PATH, tables=True, service_account=True)
+            from airflow_utils import read_config
+            return read_config(GFA_PATH, tables=True, service_account=True)
 
         @task(task_id="read_credentials_gfa", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
         def read_credentials_gfa() -> list:
-            from airflow_utils import read
-            return read(GFA_PATH, credentials=True)["credentials"]
+            from airflow_utils import read_config
+            return read_config(GFA_PATH, credentials=True)["credentials"]
 
 
         @task(task_id="etl_gfa_report", map_index_template="{{ credentials['account_no'] }}")

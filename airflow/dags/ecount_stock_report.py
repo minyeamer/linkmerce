@@ -58,8 +58,8 @@ with DAG(
 
         @task(task_id="read_cj_configs", retries=3, retry_delay=timedelta(minutes=1))
         def read_cj_configs() -> dict:
-            from airflow_utils import read
-            return read(CJ_PATH, credentials="expand", tables=True, service_account=True)
+            from airflow_utils import read_config
+            return read_config(CJ_PATH, credentials="expand", tables=True, service_account=True)
 
 
         @task(task_id="etl_eflexs_stock")
@@ -135,13 +135,13 @@ with DAG(
 
         @task(task_id="read_coupang_configs", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
         def read_coupang_configs() -> dict:
-            from airflow_utils import read
-            return read(COUPANG_PATH, tables=True, service_account=True)
+            from airflow_utils import read_config
+            return read_config(COUPANG_PATH, tables=True, service_account=True)
 
         @task(task_id="read_coupang_credentials", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
         def read_coupang_credentials() -> list:
-            from airflow_utils import read
-            return read(COUPANG_PATH, credentials=True)["credentials"]
+            from airflow_utils import read_config
+            return read_config(COUPANG_PATH, credentials=True)["credentials"]
 
 
         @task(task_id="etl_coupang_inventory", map_index_template="{{ credentials['vendor_id'] }}", pool="coupang_pool")
@@ -206,8 +206,8 @@ with DAG(
 
         @task(task_id="read_ecount_configs", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
         def read_ecount_configs() -> dict:
-            from airflow_utils import read
-            return read(ECOUNT_PATH, credentials="expand", tables=True, service_account=True)
+            from airflow_utils import read_config
+            return read_config(ECOUNT_PATH, credentials="expand", tables=True, service_account=True)
 
 
         @task(task_id="etl_ecount_inventory")
@@ -287,8 +287,8 @@ with DAG(
 
         @task(task_id="read_report_configs", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALL_SUCCESS)
         def read_report_configs() -> dict:
-            from airflow_utils import read
-            return read(ALERT_PATH, service_account=True)
+            from airflow_utils import read_config
+            return read_config(ALERT_PATH, service_account=True)
 
 
         @task(task_id="send_stock_report")

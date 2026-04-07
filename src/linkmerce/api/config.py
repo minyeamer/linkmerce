@@ -167,7 +167,8 @@ def read_config(
     config = read_check(file_path, key_path, format, dtype=dict)
     if ("credentials" in config) and (credentials_path is not None):
         if path_exists(credentials_path, "credentials_path"):
-            config["credentials"] = parse_credentials(credentials_path, config["credentials"], path_strings, skip_subpath)
+            args = (credentials_path, config["credentials"], format, path_strings, skip_subpath)
+            config["credentials"] = read_credentials(*args)
     if ("tables" in config) and isinstance(with_table_schema, bool):
         config["tables"] = parse_tables(config["tables"], schemas_path, with_table_schema)
     if ("sheets" in config) and read_google_sheets and (service_account is not None):
@@ -194,25 +195,28 @@ def read_check(
 
 ########################### Credentials ###########################
 
-def parse_credentials(
-        credentials_path: str,
+def read_credentials(
+        file_path: str | Path,
         key_path: KeyPath | None = None,
+        format: Literal["auto", "json", "yaml"] = "auto",
         path_strings: dict[str, str] | None = None,
         skip_subpath: bool = False,
     ) -> dict | list:
     """인증 정보 파일을 읽고 `Path()` 참조를 실제 파일 내용으로 치환한다."""
-    credentials = read_check(credentials_path, key_path)
+    credentials = read_check(file_path, key_path, format, dtype=dict)
 
-    def read_if_path(value: Any) -> Any:
-        if isinstance(value, str) and _is_path(value):
+    def read_if_path(obj: Any) -> Any:
+        if isinstance(obj, list):
+            return [read_if_path(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {key: read_if_path(value) for key, value in obj.items()}
+        elif isinstance(obj, str) and _is_path(obj):
             if path_strings:
-                value = value.format(**path_strings)
-            return read_file(value[5:-1])
-        return value
+                obj = obj.format(**path_strings)
+            return obj if skip_subpath else read_file(obj[5:-1])
+        return obj
 
-    if skip_subpath and isinstance(credentials, (list, dict)):
-        return credentials
-    elif isinstance(credentials, list):
+    if isinstance(credentials, list):
         return [({key: read_if_path(value) for key, value in credential.items()}
                     if isinstance(credential, dict) else read_if_path(credential))
                 for credential in credentials]

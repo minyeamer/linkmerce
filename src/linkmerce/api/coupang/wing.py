@@ -21,12 +21,10 @@ def login(
     ) -> str:
     """쿠팡 Wing 또는 서플라이어 허브에 로그인하고 쿠키를 반환한다."""
     from linkmerce.core.coupang.wing.common import CoupangLogin
-    auth = CoupangLogin()
-    cookies = auth.login(userid, passwd, domain, with_token)
-    if cookies and save_to:
-        with open(save_to, 'w', encoding="utf-8") as file:
-            file.write(cookies)
-    return cookies
+    from linkmerce.api.common import handle_cookies
+    handler = CoupangLogin()
+    handler.login(userid, passwd, domain, with_token)
+    return handle_cookies(handler, save_to)
 
 
 @with_duckdb_connection(table="coupang_product")

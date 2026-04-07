@@ -26,28 +26,23 @@ with DAG(
     def read_credentials() -> list:
         """검색광고(`searchad`) 인증 정보에서 네이버 계정(`users`)과 광고 계정(`manage`)을 조회한다.   
         둘을 결합하여, 네이버 계정 로그인 후 광고 계정이 참조하는 쿠키 경로에 로그인 쿠키를 덮어쓰는 설정을 만든다."""
-        from linkmerce.api.config import read_config
+        from airflow_utils import read_credentials
         from linkmerce.utils.regex import regexp_extract
-        from airflow.sdk import Variable
         from typing import Sequence
         import random
 
-        credentials = read_config(Variable.get("credentials"))["searchad"]
+        credentials = read_credentials("searchad", skip_subpath=True)
         users = users if isinstance((users := credentials["users"]), Sequence) else [users]
         random.shuffle(users)
 
         cookies_arr = cookies if isinstance((cookies := credentials["manage"]), Sequence) else [cookies]
         cookies_map = {cookie["customer_id"]: cookie["cookies"] for cookie in cookies_arr}
-        cookies_path = {"$cookies": Variable.get("cookies")}
-
-        def extract_path(cookies: str) -> str:
-            return regexp_extract(r"Path\(([^)]+)\)", cookies.format(cookies_path))
 
         return [{
             "userid": user["userid"],
             "passwd": user["passwd"],
             "customer_id": user["customer_id"],
-            "save_to": extract_path(cookies_map[user["customer_id"]]),
+            "save_to": regexp_extract(r"Path\(([^)]+)\)", cookies_map[user["customer_id"]]),
         } for user in users if user["customer_id"] in cookies_map]
 
 

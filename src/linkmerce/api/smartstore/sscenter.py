@@ -26,10 +26,7 @@ def login(
     ) -> str:
     """스마트스토어센터에 로그인하고 쿠키를 반환한다."""
     from linkmerce.core.smartstore.sscenter.common import SmartstoreCenterLogin
+    from linkmerce.api.common import handle_cookies
     handler = SmartstoreCenterLogin()
     handler.login(userid, passwd, channel_seq, cookies)
-    cookies = handler.get_cookies(to="str")
-    if cookies and save_to:
-        with open(save_to, 'w', encoding="utf-8") as file:
-            file.write(cookies)
-    return cookies
+    return handle_cookies(handler, save_to)

@@ -5,7 +5,7 @@ import pendulum
 
 
 with DAG(
-    dag_id = "smartstore_login",
+    dag_id = "naver_hcenter_login",
     schedule = "0 1 * * *",
     start_date = pendulum.datetime(2025, 9, 8, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1),
@@ -24,26 +24,21 @@ with DAG(
     def read_credentials() -> list:
         """스마트스토어(`smartstore`) 인증 정보에서 판매자 계정(`users`) 중 첫 번째 항목을 조회한다.
         쇼핑파트너센터 인증 정보(`hcenter`)의 쿠키 파일 경로를 계정 정보에 더해 반환한다."""
-        from linkmerce.api.config import read_config
+        from airflow_utils import read_credentials
         from linkmerce.utils.regex import regexp_extract
-        from airflow.sdk import Variable
         from typing import Sequence
 
-        credentials = read_config(Variable.get("credentials"))["smartstore"]
+        credentials = read_credentials("smartstore", skip_subpath=True)
         user = users[0] if isinstance((users := credentials["users"]), Sequence) else users
-        cookies_path = {"$cookies": Variable.get("cookies")}
-
-        def extract_path(cookies: str) -> str:
-            return regexp_extract(r"Path\(([^)]+)\)", cookies.format(**cookies_path))
 
         return [{
             "userid": user["userid"],
             "passwd": user["passwd"],
             "channel_seq": user["channel_seq"],
-            "save_to": extract_path(credentials["hcenter"]["cookies"]),
+            "save_to": regexp_extract(r"Path\(([^)]+)\)", credentials["hcenter"]["cookies"]),
         }]
 
-    @task(task_id="login_hcenter", map_index_template="{{ credentials['channel_seq'] }}", retries=3, retry_delay=timedelta(minutes=1), pool="login_pool")
+    @task(task_id="login_hcenter", map_index_template="{{ credentials['channel_seq'] }}", retries=3, retry_delay=timedelta(minutes=1))
     def login_hcenter(credentials: dict, **kwargs) -> str:
         """네이버 쇼핑파트너센터에 로그인하고 쿠키 문자열을 지정된 파일에 덮어쓴다."""
         from linkmerce.api.smartstore.hcenter import login

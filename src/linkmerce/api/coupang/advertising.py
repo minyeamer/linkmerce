@@ -20,13 +20,10 @@ def login(
     ) -> str:
     """쿠팡 광고 로그인 후 쿠키를 반환한다."""
     from linkmerce.core.coupang.advertising.common import CoupangLogin
+    from linkmerce.api.common import handle_cookies
     handler = CoupangLogin()
     handler.login(userid, passwd, domain)
-    cookies = handler.get_cookies(to="str")
-    if cookies and save_to:
-        with open(save_to, 'w', encoding="utf-8") as file:
-            file.write(cookies)
-    return cookies
+    return handle_cookies(handler, save_to)
 
 
 @with_duckdb_connection(tables={"campaign": "coupang_campaign", "adgroup": "coupang_adgroup"})

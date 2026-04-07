@@ -35,13 +35,10 @@ def get_accounts(cookies: str, page: int = 0, size: int = 10) -> list[dict]:
 def login(account_no: int | str, cookies: str, save_to: str | Path | None = None) -> str:
     """네이버 쿠키를 가지고 네이버 광고주센터에 로그인해 `XSRF-TOKEN`을 발급받는다."""
     from linkmerce.core.searchad.manage.common import NaverAdLogin
+    from linkmerce.api.common import handle_cookies
     handler = NaverAdLogin()
     handler.login(account_no, cookies)
-    cookies = handler.get_cookies(to="str")
-    if cookies and save_to:
-        with open(save_to, 'w', encoding="utf-8") as file:
-            file.write(cookies)
-    return cookies
+    return handle_cookies(handler, save_to)
 
 
 def advanced_report(

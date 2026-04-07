@@ -39,8 +39,8 @@ with DAG(
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
-        from airflow_utils import read
-        return read(PATH, sheets=True)
+        from airflow_utils import read_config
+        return read_config(PATH, sheets=True)
 
 
     def branch_condition(ti: TaskInstance, **kwargs) -> str | None:

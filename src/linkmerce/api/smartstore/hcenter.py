@@ -21,13 +21,10 @@ def login(
     ) -> str:
     """네이버 쇼핑파트너센터에 로그인하고 쿠키를 반환한다."""
     from linkmerce.core.smartstore.hcenter.common import PartnerCenterLogin
+    from linkmerce.api.common import handle_cookies
     handler = PartnerCenterLogin()
     handler.login(userid, passwd, channel_seq, cookies)
-    cookies = handler.get_cookies(to="str")
-    if cookies and save_to:
-        with open(save_to, 'w', encoding="utf-8") as file:
-            file.write(cookies)
-    return cookies
+    return handle_cookies(handler, save_to)
 
 
 @with_duckdb_connection(table="naver_brand_catalog")

@@ -33,17 +33,17 @@ with DAG(
     """).strip(),
 ) as dag:
 
-    GOOGLE_PATH = "google.api.ads"
+    PATH = "google.api.ads"
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
-        from airflow_utils import read
-        return read(GOOGLE_PATH, tables=True, service_account=True)
+        from airflow_utils import read_config
+        return read_config(PATH, tables=True, service_account=True)
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:
-        from airflow_utils import read
-        return read(GOOGLE_PATH, credentials=True)["credentials"]
+        from airflow_utils import read_config
+        return read_config(PATH, credentials=True)["credentials"]
 
 
     @task(task_id="etl_google_campaign", map_index_template="{{ credentials['customer_id'] }}")
