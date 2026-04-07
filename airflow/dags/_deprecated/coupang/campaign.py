@@ -141,4 +141,6 @@ with DAG(
                 }
 
 
-    etl_coupang_campaign.partial(configs=read_configs()).expand(credentials=read_credentials())
+    (etl_coupang_campaign
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))

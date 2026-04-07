@@ -111,8 +111,8 @@ with DAG(
 
 
         (etl_searchad_report
-            .partial(configs=read_configs_searchad())
-            .expand(queries=read_queries_searchad()))
+        .partial(configs=read_configs_searchad())
+        .expand(queries=read_queries_searchad()))
 
 
     with TaskGroup(group_id="gfa_group") as gfa_group:
@@ -223,8 +223,8 @@ with DAG(
                 )""").strip()
 
         (etl_gfa_report
-            .partial(configs=read_configs_gfa())
-            .expand(credentials=read_credentials_gfa()))
+        .partial(configs=read_configs_gfa())
+        .expand(credentials=read_credentials_gfa()))
 
 
     searchad_group >> gfa_group

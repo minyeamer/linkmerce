@@ -10,7 +10,7 @@ with DAG(
     start_date = pendulum.datetime(2025, 9, 8, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1),
     catchup = False,
-    tags = ["priority:high", "hcenter:cookies", "login:hcenter", "schedule:daily", "time:night", "playwright:true"],
+    tags = ["priority:high", "hcenter:cookies", "login:hcenter", "schedule:daily", "time:night"],
     doc_md = dedent("""
         # 네이버 쇼핑파트너센터 로그인 파이프라인
 
@@ -55,4 +55,5 @@ with DAG(
         return dict(cookies = preview(login(**credentials)))
 
 
-    login_hcenter.expand(credentials=read_credentials())
+    (login_hcenter
+    .expand(credentials=read_credentials()))

@@ -137,5 +137,5 @@ with DAG(
 
 
     (etl_searchad_report_gfa
-        .partial(configs=read_configs())
-        .expand(credentials=read_credentials()))
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))

@@ -35,22 +35,32 @@ with DAG(
 
     GOOGLE_PATH = "google.api.ads"
 
-    @task(task_id="read_objects_configs", retries=3, retry_delay=timedelta(minutes=1))
-    def read_objects_configs() -> dict:
+    @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
+    def read_configs() -> dict:
         from airflow_utils import read
         return read(GOOGLE_PATH, tables=True, service_account=True)
 
-    @task(task_id="read_objects_credentials", retries=3, retry_delay=timedelta(minutes=1))
-    def read_objects_credentials() -> list:
+    @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
+    def read_credentials() -> list:
         from airflow_utils import read
         return read(GOOGLE_PATH, credentials=True)["credentials"]
 
 
-    AD_OBJECTS = ["campaign", "adgroup", "ad", "asset"]
+    @task(task_id="etl_google_campaign", map_index_template="{{ credentials['customer_id'] }}")
+    def etl_google_campaign(credentials: dict, configs: dict, **kwargs) -> dict:
+        return main_object(ad_level="campaign", **credentials, **configs)
 
-    @task(task_id="etl_google_objects", map_index_template="{{ credentials['customer_id'] }}")
-    def etl_google_objects(credentials: dict, configs: dict, **kwargs) -> dict:
-        return {ad_level: main_object(ad_level, **credentials, **configs) for ad_level in AD_OBJECTS}
+    @task(task_id="etl_google_adgroup", map_index_template="{{ credentials['customer_id'] }}")
+    def etl_google_adgroup(credentials: dict, configs: dict, **kwargs) -> dict:
+        return main_object(ad_level="adgroup", **credentials, **configs)
+
+    @task(task_id="etl_google_ad", map_index_template="{{ credentials['customer_id'] }}")
+    def etl_google_ad(credentials: dict, configs: dict, **kwargs) -> dict:
+        return main_object(ad_level="ad", **credentials, **configs)
+
+    @task(task_id="etl_google_asset", map_index_template="{{ credentials['customer_id'] }}")
+    def etl_google_asset(credentials: dict, configs: dict, **kwargs) -> dict:
+        return main_object(ad_level="asset", **credentials, **configs)
 
     def main_object(
             ad_level: str,
@@ -100,17 +110,6 @@ with DAG(
                         ),
                     },
                 }
-
-
-    @task(task_id="read_insight_configs", retries=3, retry_delay=timedelta(minutes=1))
-    def read_insight_configs() -> dict:
-        from airflow_utils import read
-        return read(GOOGLE_PATH, tables=True, service_account=True)
-
-    @task(task_id="read_insight_credentials", retries=3, retry_delay=timedelta(minutes=1))
-    def read_insight_credentials() -> list:
-        from airflow_utils import read
-        return read(GOOGLE_PATH, credentials=True)["credentials"]
 
 
     @task(task_id="etl_google_insight", map_index_template="{{ credentials['customer_id'] }}")
@@ -164,14 +163,25 @@ with DAG(
                 }
 
 
-    google_objects = (etl_google_objects
-        .partial(configs=read_objects_configs())
-        .expand(credentials=read_objects_credentials()))
+    configs = read_configs()
+    credentials = read_credentials()
 
+    (etl_google_campaign
+    .partial(configs=configs)
+    .expand(credentials=credentials))
 
-    google_insight = (etl_google_insight
-        .partial(configs=read_insight_configs())
-        .expand(credentials=read_insight_credentials()))
+    (etl_google_adgroup
+    .partial(configs=configs)
+    .expand(credentials=credentials))
 
+    (etl_google_ad
+    .partial(configs=configs)
+    .expand(credentials=credentials))
 
-    google_objects >> google_insight
+    (etl_google_asset
+    .partial(configs=configs)
+    .expand(credentials=credentials))
+
+    (etl_google_insight
+    .partial(configs=configs)
+    .expand(credentials=credentials))

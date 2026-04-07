@@ -61,18 +61,21 @@ with DAG(
 
     @task(task_id="etl_sabangnet_order", pool="sabangnet_pool")
     def etl_sabangnet_order(ti: TaskInstance, **kwargs) -> dict:
+        configs = ti.xcom_pull(task_ids="read_configs")
         kwargs["fmt"] = "YYYYMMDDHHmmss" if ti.run_id.startswith("api__") else "YYYYMMDD"
-        return main(download_type="order", **get_order_date_pair(**kwargs), **ti.xcom_pull(task_ids="read_configs"))
+        return main(download_type="order", **get_order_date_pair(**kwargs), **configs)
 
     @task(task_id="etl_sabangnet_dispatch", pool="sabangnet_pool")
     def etl_sabangnet_dispatch(ti: TaskInstance, **kwargs) -> dict:
+        configs = ti.xcom_pull(task_ids="read_configs")
         kwargs["fmt"] = "YYYYMMDDHHmmss" if ti.run_id.startswith("api__") else "YYYYMMDD"
-        return main(download_type="dispatch", **get_order_date_pair(**kwargs), **ti.xcom_pull(task_ids="read_configs"))
+        return main(download_type="dispatch", **get_order_date_pair(**kwargs), **configs)
 
     @task(task_id="etl_sabangnet_option", pool="sabangnet_pool")
     def etl_sabangnet_option(ti: TaskInstance, **kwargs) -> dict:
+        configs = ti.xcom_pull(task_ids="read_configs")
         kwargs["fmt"] = "YYYYMMDDHHmmss" if ti.run_id.startswith("api__") else "YYYYMMDD"
-        return main(download_type="option", **get_order_date_pair(**kwargs), **ti.xcom_pull(task_ids="read_configs"))
+        return main(download_type="option", **get_order_date_pair(**kwargs), **configs)
 
     def main(
             userid: str,
@@ -165,6 +168,10 @@ with DAG(
     )
 
 
-    (read_configs()
-    >> etl_sabangnet_order() >> etl_sabangnet_dispatch() >> etl_sabangnet_option()
-    >> branch_dagrun_trigger >> [ecount_stock_report])
+    configs = read_configs()
+
+    configs >> etl_sabangnet_order() >> branch_dagrun_trigger
+    configs >> etl_sabangnet_dispatch() >> branch_dagrun_trigger
+    configs >> etl_sabangnet_option() >> branch_dagrun_trigger
+
+    branch_dagrun_trigger >> [ecount_stock_report]

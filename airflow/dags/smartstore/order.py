@@ -159,4 +159,6 @@ with DAG(
                 }
 
 
-    etl_smartstore_order.partial(configs=read_configs()).expand(credentials=read_credentials())
+    (etl_smartstore_order
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))

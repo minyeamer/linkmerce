@@ -92,4 +92,6 @@ with DAG(
                 }
 
 
-    etl_smartstore_bizdata.partial(configs=read_configs()).expand(credentials=read_credentials())
+    (etl_smartstore_bizdata
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))

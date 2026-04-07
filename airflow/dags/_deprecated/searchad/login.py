@@ -115,4 +115,5 @@ with DAG(
         return {"cookies": preview(login(**credentials))}
 
 
-    login_naver.expand(credentials=read_credentials())
+    (login_naver
+    .expand(credentials=read_credentials()))

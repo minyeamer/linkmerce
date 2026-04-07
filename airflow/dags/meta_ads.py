@@ -35,23 +35,31 @@ with DAG(
 
     META_PATH = "meta.api.ads"
 
-    @task(task_id="read_objects_configs", retries=3, retry_delay=timedelta(minutes=1))
-    def read_objects_configs() -> dict:
+    @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
+    def read_configs() -> dict:
         from airflow_utils import read
         return read(META_PATH, tables=True, service_account=True)
 
-    @task(task_id="read_objects_credentials", retries=3, retry_delay=timedelta(minutes=1))
-    def read_objects_credentials() -> list:
+    @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
+    def read_credentials() -> list:
         from airflow_utils import read
         return read(META_PATH, credentials=True)["credentials"]
 
 
-    AD_OBJECTS = ["campaigns", "adsets", "ads"]
+    @task(task_id="etl_meta_campaigns", map_index_template="{{ credentials['app_id'] }}")
+    def etl_meta_campaigns(credentials: dict, configs: dict, **kwargs) -> dict:
+        configs = configs | {"merge": configs["merge"]["objects"]}
+        return main_objects(ad_level="campaigns", **credentials, **configs)
 
-    @task(task_id="etl_meta_objects", map_index_template="{{ credentials['app_id'] }}")
-    def etl_meta_objects(credentials: dict, configs: dict, **kwargs) -> dict:
-        configs = dict(configs, merge=configs["merge"]["objects"])
-        return {ad_level: main_objects(ad_level, **credentials, **configs) for ad_level in AD_OBJECTS}
+    @task(task_id="etl_meta_adsets", map_index_template="{{ credentials['app_id'] }}")
+    def etl_meta_adsets(credentials: dict, configs: dict, **kwargs) -> dict:
+        configs = configs | {"merge": configs["merge"]["objects"]}
+        return main_objects(ad_level="adsets", **credentials, **configs)
+
+    @task(task_id="etl_meta_ads", map_index_template="{{ credentials['app_id'] }}")
+    def etl_meta_ads(credentials: dict, configs: dict, **kwargs) -> dict:
+        configs = configs | {"merge": configs["merge"]["objects"]}
+        return main_objects(ad_level="ads", **credentials, **configs)
 
     def main_objects(
             ad_level: str,
@@ -103,22 +111,11 @@ with DAG(
                 }
 
 
-    @task(task_id="read_insights_configs", retries=3, retry_delay=timedelta(minutes=1))
-    def read_insights_configs() -> dict:
-        from airflow_utils import read
-        return read(META_PATH, tables=True, service_account=True)
-
-    @task(task_id="read_insights_credentials", retries=3, retry_delay=timedelta(minutes=1))
-    def read_insights_credentials() -> list:
-        from airflow_utils import read
-        return read(META_PATH, credentials=True)["credentials"]
-
-
     @task(task_id="etl_meta_insights", map_index_template="{{ credentials['app_id'] }}")
     def etl_meta_insights(credentials: dict, configs: dict, **kwargs) -> dict:
         """앱 ID별 Meta 광고 일별 인사이트 지표를 수집하여 BigQuery에 적재한다."""
         from airflow_utils import get_execution_date
-        configs = dict(configs, merge=configs["merge"]["insights"])
+        configs = configs | {"merge": configs["merge"]["insights"]}
         return main_insights(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
 
     def main_insights(
@@ -206,14 +203,21 @@ with DAG(
                 }
 
 
-    meta_objects = (etl_meta_objects
-        .partial(configs=read_objects_configs())
-        .expand(credentials=read_objects_credentials()))
+    configs = read_configs()
+    credentials = read_credentials()
 
+    (etl_meta_campaigns
+    .partial(configs=configs)
+    .expand(credentials=credentials))
 
-    meta_insights = (etl_meta_insights
-        .partial(configs=read_insights_configs())
-        .expand(credentials=read_insights_credentials()))
+    (etl_meta_adsets
+    .partial(configs=configs)
+    .expand(credentials=credentials))
 
+    (etl_meta_ads
+    .partial(configs=configs)
+    .expand(credentials=credentials))
 
-    meta_objects >> meta_insights
+    (etl_meta_insights
+    .partial(configs=configs)
+    .expand(credentials=credentials))

@@ -111,4 +111,6 @@ with DAG(
                 }
 
 
-    etl_coupang_adreport.partial(configs=read_configs()).expand(credentials=read_credentials())
+    (etl_coupang_adreport
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))

@@ -108,4 +108,6 @@ with DAG(
                 }
 
 
-    etl_searchad_contract.partial(configs=read_configs()).expand(queries=read_credentials())
+    (etl_searchad_contract
+    .partial(configs=read_configs())
+    .expand(queries=read_credentials()))

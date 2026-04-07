@@ -135,4 +135,6 @@ with DAG(
                 }
 
 
-    etl_coupang_rocket_sales.partial(configs=read_configs()).expand(credentials=read_credentials())
+    (etl_coupang_rocket_sales
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))

@@ -133,4 +133,6 @@ with DAG(
     )
 
 
-    etl_naver_shop_rank.partial(configs=read_configs()).expand(queries=read_queries()) >> naver_product_catalog
+    (etl_naver_shop_rank
+    .partial(configs=read_configs())
+    .expand(queries=read_queries())) >> naver_product_catalog

@@ -141,4 +141,6 @@ with DAG(
             """).strip()
 
 
-    etl_coupang_option.partial(configs=read_configs()).expand(credentials=read_credentials())
+    (etl_coupang_option
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))

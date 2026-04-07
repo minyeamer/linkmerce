@@ -56,7 +56,8 @@ with DAG(
         date_type = "dlvery_rcv_dt" if get_execution_date(kwargs, fmt="HH:mm") == LAST_SCHEDULE else "reg_dm"
         start_date = get_execution_date(kwargs, subdays=(TODAY if date_type == "dlvery_rcv_dt" else LAST_7_DAYS))
         end_date = get_execution_date(kwargs)
-        return main(start_date=start_date, end_date=end_date, date_type=date_type, **ti.xcom_pull(task_ids="read_configs"))
+        dates = {"start_date": start_date, "end_date": end_date, "date_type": date_type}
+        return main(**dates, **ti.xcom_pull(task_ids="read_configs"))
 
     def main(
             userid: str,

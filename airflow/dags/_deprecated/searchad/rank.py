@@ -138,4 +138,6 @@ with DAG(
                 }
 
 
-    etl_searchad_rank.partial(configs=read_configs()).expand(queries=read_queries())
+    (etl_searchad_rank
+    .partial(configs=read_configs())
+    .expand(queries=read_queries()))
