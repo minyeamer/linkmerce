@@ -48,6 +48,10 @@ with DAG(
     """).strip(),
 ) as dag:
 
+    ###################################################################
+    ############################# CJ Group ############################
+    ###################################################################
+
     with TaskGroup(group_id="cj_group") as cj_group:
 
         CJ_PATH = "cjlogistics.eflexs.stock"
@@ -121,6 +125,10 @@ with DAG(
         read_cj_configs() >> etl_eflexs_stock()
 
 
+    ###################################################################
+    ########################## Coupang Group ##########################
+    ###################################################################
+
     with TaskGroup(group_id="coupang_group") as coupang_group:
 
         COUPANG_PATH = "coupang.wing.inventory"
@@ -187,6 +195,10 @@ with DAG(
 
         etl_coupang_inventory.partial(configs=read_coupang_configs()).expand(credentials=read_coupang_credentials())
 
+
+    ###################################################################
+    ########################### Ecount Group ##########################
+    ###################################################################
 
     with TaskGroup(group_id="ecount_group") as ecount_group:
 
@@ -264,6 +276,10 @@ with DAG(
 
         read_ecount_configs() >> etl_ecount_inventory() >> etl_ecount_product()
 
+
+    ###################################################################
+    ########################### Report Group ##########################
+    ###################################################################
 
     with TaskGroup(group_id="report_group") as report_group:
 

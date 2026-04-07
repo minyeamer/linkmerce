@@ -10,7 +10,8 @@ class CampaignParser(JsonTransformer):
     scope = "campaigns"
     fields = [
         "id", "name", "campaignType", "vendorType", "goalType", "isActive", "isDeleted",
-        {"roasTarget": None}, "capType", "calculatedBudget", "spentBudget", "createdAt", "updatedAt"
+        *[{key: None} for key in ["roasTarget", "capType", "calculatedBudget", "spentBudget"]],
+        "createdAt", "updatedAt"
     ]
 
 
