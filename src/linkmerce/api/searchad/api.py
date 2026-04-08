@@ -142,7 +142,11 @@ def advanced_report(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> dict[str, JsonObject]:
-    """광고성과 및 전환 보고서를 다운로드하고 다차원 보고서를 생성해 `searchad_report` 테이블에 적재한다."""
+    """광고성과 및 전환 보고서를 다운로드하고 다차원 보고서를 생성해 `searchad_report` 테이블에 적재한다.
+
+    주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
+    - 공지사항 참고:
+    [[2026-02-11] STAT-REPORT 변경사항 안내 (COST 항목)(수정)](https://naver.github.io/searchad-apidoc/#/notice)"""
     from linkmerce.core.searchad.api.adreport.extract import AdvancedReport
     from linkmerce.core.searchad.api.adreport.transform import AdvancedReport as T
     return AdvancedReport(**prepare_duckdb_extract(

@@ -372,7 +372,11 @@ class _StatReport(_ReportsDownload):
     """네이버 검색광고 API로 대용량 보고서를 다운로드하는 공통 클래스.
 
     광고성과, 전환 등 각 유형(`report_type`)별 대용량 보고서를 TSV 형식으로 조회한다.
-    - API 문서: https://naver.github.io/searchad-apidoc/#/tags/StatReport"""
+    - API 문서: https://naver.github.io/searchad-apidoc/#/tags/StatReport
+
+    주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
+    - 공지사항 참고:
+    [[2026-02-11] STAT-REPORT 변경사항 안내 (COST 항목)(수정)](https://naver.github.io/searchad-apidoc/#/notice)"""
 
     job_type = "stat-reports"
 

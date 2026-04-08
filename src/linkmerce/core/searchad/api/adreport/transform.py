@@ -454,7 +454,11 @@ class AdvancedReport(DuckDBTransformer):
     테이블 키 | 테이블명 | 설명
     - `table` | `searchad_report` | 일별 다차원 보고서
     - `ad_stat` | `ad_stat_report` | 일별 소재 광고 성과
-    - `ad_conv` | `ad_conv_report` | 일별 소재 전환 성과"""
+    - `ad_conv` | `ad_conv_report` | 일별 소재 전환 성과
+
+    주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
+    - 공지사항 참고:
+    [[2026-02-11] STAT-REPORT 변경사항 안내 (COST 항목)(수정)](https://naver.github.io/searchad-apidoc/#/notice)"""
 
     extractor = "AdvancedReport"
     queries = ["create", "bulk_insert_ad_stat", "bulk_insert_ad_conv", "merge_insert"]

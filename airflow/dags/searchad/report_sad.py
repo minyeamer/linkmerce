@@ -27,6 +27,8 @@ with DAG(
 
         ## 적재(Load)
         보고서 데이터를 BigQuery 테이블 끝에 추가한다.
+
+        > 주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
     """).strip(),
 ) as dag:
 
