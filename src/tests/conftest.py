@@ -34,6 +34,13 @@ CONFIGS_PATH = TEST_DIR / "fixtures.yaml"
 CREDENTIALS_PATH = ENV_DIR / "credentials.yaml"
 SERVICE_ACCOUNT = ENV_DIR / "service_account.json"
 
+# ANSI 이스케이프 시퀀스 - 색상 코드
+RED = "\033[91m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+CYAN = "\033[96m"
+RESET = "\033[0m"
+
 
 def pytest_configure(config: PytestConfig):
     config.addinivalue_line("markers", "extract: 데이터 추출(Extract) 테스트")
@@ -210,7 +217,7 @@ def _read_file(file_path: Path) -> Any:
                 return file.read()
 
     except Exception as e:
-        print(f"  [WARN] Failed to read {file_path.relative_to(RESULTS_DIR)}: {e}")
+        print(f"  {YELLOW}[WARN]{RESET} Failed to read {CYAN}{file_path.relative_to(RESULTS_DIR)}{RESET}: {e}")
         return None
 
 
@@ -239,7 +246,7 @@ def _save_file(obj: Any, file_path: Path) -> Path | None:
                 file.write(obj)
 
     except Exception as e:
-        print(f"  [WARN] Failed to save to {file_path.relative_to(RESULTS_DIR)}: {e}")
+        print(f"  {RED}[ERROR]{RESET} Failed to save to {CYAN}{file_path.relative_to(RESULTS_DIR)}{RESET}: {e}")
         return None
 
 
@@ -260,7 +267,7 @@ def dump_extract() -> Callable:
         def _dump(response: Any, *args, **kwargs):
             file_path = _build_extract_path(cls, format, map_index, kwargs)
             _save_file(response, file_path)
-            print(f"  [INFO] Saved to {file_path.relative_to(RESULTS_DIR)}")
+            print(f"  {BLUE}[INFO]{RESET} Saved to {CYAN}{file_path.relative_to(RESULTS_DIR)}{RESET}")
         return _dump
 
     return _get_dump
