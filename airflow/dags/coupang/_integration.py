@@ -82,7 +82,7 @@ with DAG(
                 logger.info(f"[{vendor_id}] Login succeeded")
             except Exception as exception:
                 logger.error(f"[{vendor_id}] Login failed: {exception}")
-                exec_info["login"] = f"failed: {str(exception)}"
+                exec_info["login"] = f"failed: {exception}"
                 result[vendor_id] = exec_info
                 continue
 

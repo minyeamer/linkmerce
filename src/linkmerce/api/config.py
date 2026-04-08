@@ -210,10 +210,10 @@ def read_credentials(
             return [read_if_path(item) for item in obj]
         elif isinstance(obj, dict):
             return {key: read_if_path(value) for key, value in obj.items()}
-        elif isinstance(obj, str) and _is_path(obj):
+        elif isinstance(obj, str):
             if path_strings:
                 obj = obj.format(**path_strings)
-            return obj if skip_subpath else read_file(obj[5:-1])
+            return obj if skip_subpath or (not _is_path(obj)) else read_file(obj[5:-1])
         return obj
 
     if isinstance(credentials, list):

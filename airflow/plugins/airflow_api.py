@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def _base_url() -> str:
-    """환경변수로부터 Airflow API의 Base URL을 조합한다."""
+    """환경변수에서 Airflow API의 Base URL을 구성하여 반환한다."""
     import os
     url = os.environ.get("AIRFLOW_WWW_BASE_URL", "http://airflow-apiserver")
     port = os.environ.get("AIRFLOW_WWW_PORT", "8080")

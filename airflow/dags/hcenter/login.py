@@ -8,7 +8,7 @@ with DAG(
     dag_id = "naver_hcenter_login",
     schedule = "0 1 * * *",
     start_date = pendulum.datetime(2025, 9, 8, tz="Asia/Seoul"),
-    dagrun_timeout = timedelta(hours=1),
+    dagrun_timeout = timedelta(minutes=10),
     catchup = False,
     tags = ["priority:high", "hcenter:cookies", "login:hcenter", "schedule:daily", "time:night"],
     doc_md = dedent("""
@@ -37,6 +37,7 @@ with DAG(
             "channel_seq": user["channel_seq"],
             "save_to": regexp_extract(r"Path\(([^)]+)\)", credentials["hcenter"]["cookies"]),
         }]
+
 
     @task(task_id="login_hcenter", map_index_template="{{ credentials['channel_seq'] }}", retries=3, retry_delay=timedelta(minutes=1))
     def login_hcenter(credentials: dict, **kwargs) -> str:
