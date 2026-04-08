@@ -17,8 +17,8 @@ with DAG(
     doc_md = dedent("""
         # 사방넷 주문 ETL 파이프라인
 
-        > 안내) 담당자가 주문 확인 후 Streamlit UI에서 Dag 실행 요청을 보낸다.
-        > 실행 회차가 같이 전달되며, 1차 실행 후 재고 현황을 알리는 `ecount_stock_report` Dag을 트리거한다.
+        > 안내) 담당자가 주문 확인 후 Streamlit UI에서 DAG 실행 요청을 보낸다.
+        > 실행 회차가 같이 전달되며, 1차 실행 후 재고 현황을 알리는 `ecount_stock_report` DAG을 트리거한다.
 
         ## 인증(Credentials)
         사방넷 아이디, 비밀번호와 시스템 도메인 번호가 필요하다.

@@ -16,7 +16,7 @@ with DAG(
     doc_md = dedent("""
         # 네이버 쇼핑 검색 순위 ETL 파이프라인
 
-        > 안내) 실행 후 상품-카탈로그 매핑 관계를 수집하는 `naver_product_catalog` Dag을 트리거한다.
+        > 안내) 실행 후 상품-카탈로그 매핑 관계를 수집하는 `naver_product_catalog` DAG을 트리거한다.
 
         ## 인증(Credentials)
         네이버 오픈 API 인증 키(Client ID, Client Secret)가 필요하다.

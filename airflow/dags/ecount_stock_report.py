@@ -10,7 +10,7 @@ import pendulum
 
 with DAG(
     dag_id = "ecount_stock_report",
-    schedule = None, # `sabangnet_order` Dag 실행 후 트리거 (담당자가 수동으로 API 요청)
+    schedule = None, # `sabangnet_order` DAG 실행 후 트리거 (담당자가 수동으로 API 요청)
     start_date = pendulum.datetime(2025, 12, 18, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
@@ -20,7 +20,7 @@ with DAG(
     doc_md = dedent("""
         # 재고 현황 보고 파이프라인
 
-        > 안내) 사방넷 주문 내역을 수집하는 `sabangnet_order` Dag 실행 후 트리거된다.
+        > 안내) 사방넷 주문 내역을 수집하는 `sabangnet_order` DAG 실행 후 트리거된다.
 
         ## 인증(Credentials)
         다음 3가지 플랫폼에 대한 인증 정보가 필요하다.

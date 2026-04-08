@@ -18,7 +18,7 @@ with DAG(
         # 쿠팡 윙/광고 통합 ETL 파이프라인
 
         ## 동작 방식
-        쿠팡 계정 목록을 순회하면서 한 번에 하나씩 [로그인 >> 개별 ETL Dag 실행] 사이클을 반복한다.
+        쿠팡 계정 목록을 순회하면서 한 번에 하나씩 [로그인 >> 개별 ETL DAG 실행] 사이클을 반복한다.
         로그인은 쿠팡 윙 인증 후 광고센터 탭으로 전환하여 윙/광고에 대한 쿠키를 한번에 수집한다.
 
         ## 주의 사항
@@ -26,10 +26,10 @@ with DAG(
         따라서, 기존에 쿠키를 저장해두고 병렬로 실행하던 동작을 폐기하고 엄격한 직렬 실행 방식으로 전환했다.
 
         ## 예외 처리
-        - 로그인 실패 시: 해당 업체의 전체 ETL Dag을 건너뛰고 다음 업체를 시도한다.
-        - ETL Dag 실패 시: 해당 Dag의 오류를 기록하고 나머지 ETL Dag은 계속 실행한다.
+        - 로그인 실패 시: 해당 업체의 전체 ETL DAG을 건너뛰고 다음 업체를 시도한다.
+        - ETL DAG 실패 시: 해당 DAG의 오류를 기록하고 나머지 ETL DAG은 계속 실행한다.
 
-        ## 트리거 대상 Dag
+        ## 트리거 대상 DAG
         1. 'coupang_rocket_sales' (윙)
         2. 'coupang_adreport' (광고)
         3. 'coupang_product_option' (윙)
@@ -86,7 +86,7 @@ with DAG(
                 result[vendor_id] = exec_info
                 continue
 
-            # 3. 전체 ETL Dag 흐름 제어
+            # 3. 전체 ETL DAG 흐름 제어
             conf = {
                 "vendor_id": vendor_id,
                 "cookies": exec_info["cookies"],
@@ -94,7 +94,7 @@ with DAG(
             }
 
             for dag_id, poke_interval in ETL_DAGS:
-                # 4. 개별 ETL Dag 실행 (REST API로 트리거)
+                # 4. 개별 ETL DAG 실행 (REST API로 트리거)
                 logical_date = pendulum.now("UTC")
                 run_id = f"expanded__{i}__{logical_date.isoformat()}"
                 trigger_dagrun(dag_id, run_id, access_token, logical_date, conf)

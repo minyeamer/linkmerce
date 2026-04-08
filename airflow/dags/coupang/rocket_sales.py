@@ -7,7 +7,7 @@ import pendulum
 
 with DAG(
     dag_id = "coupang_rocket_sales",
-    schedule = None, # `coupang` Dag 실행 후 트리거 (20 8 * * *)
+    schedule = None, # `coupang` DAG 실행 후 트리거 (20 8 * * *)
     start_date = pendulum.datetime(2025, 10, 22, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
@@ -15,10 +15,10 @@ with DAG(
     doc_md = dedent("""
         # 쿠팡 로켓 정산 보고서 ETL 파이프라인
 
-        > 안내) 쿠팡 통합 ETL을 제어하는 `coupang` Dag 실행 중 트리거된다.
+        > 안내) 쿠팡 통합 ETL을 제어하는 `coupang` DAG 실행 중 트리거된다.
 
         ## 인증(Credentials)
-        `coupang` Dag에서 Playwright 브라우저로 쿠팡 윙 로그인 후 쿠키를 추출한다.
+        `coupang` DAG에서 Playwright 브라우저로 쿠팡 윙 로그인 후 쿠키를 추출한다.
         쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
 
         ## 추출(Extract)
@@ -32,7 +32,7 @@ with DAG(
 
         ## 적재(Load)
         각각의 보고서를 대응되는 BigQuery 테이블과 MERGE 문으로 병합한다.
-        (같은 날짜에 여러 번 Dag을 재실행해도 중복된 데이터가 적재되지 않게 보장한다.
+        (같은 날짜에 여러 번 DAG을 재실행해도 중복된 데이터가 적재되지 않게 보장한다.
         특히, 입출고비/배송비 리포트는 파티션 날짜와 조회 기준이 다르므로 반드시 중복 처리해야 한다.)
     """).strip(),
 ) as dag:

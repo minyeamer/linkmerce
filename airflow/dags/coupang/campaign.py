@@ -7,7 +7,7 @@ import pendulum
 
 with DAG(
     dag_id = "coupang_campaign",
-    schedule = None, # `coupang` Dag 실행 후 트리거 (20 8 * * *)
+    schedule = None, # `coupang` DAG 실행 후 트리거 (20 8 * * *)
     start_date = pendulum.datetime(2025, 11, 6, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
@@ -15,10 +15,10 @@ with DAG(
     doc_md = dedent("""
         # 쿠팡 광고 캠페인/소재 ETL 파이프라인
 
-        > 안내) 쿠팡 통합 ETL을 제어하는 `coupang` Dag 실행 중 트리거된다.
+        > 안내) 쿠팡 통합 ETL을 제어하는 `coupang` DAG 실행 중 트리거된다.
 
         ## 인증(Credentials)
-        `coupang` Dag에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
+        `coupang` DAG에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
         쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
 
         ## 추출(Extract)
