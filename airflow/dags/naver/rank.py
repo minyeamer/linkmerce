@@ -122,8 +122,8 @@ with DAG(
                 }
 
 
-    naver_product_catalog = TriggerDagRunOperator(
-        task_id = "naver_product_catalog",
+    trigger_naver_product_catalog = TriggerDagRunOperator(
+        task_id = "trigger_naver_product_catalog",
         trigger_dag_id = "naver_product_catalog",
         trigger_run_id = None,
         trigger_rule = TriggerRule.ONE_SUCCESS,
@@ -135,4 +135,4 @@ with DAG(
 
     (etl_naver_shop_rank
     .partial(configs=read_configs())
-    .expand(queries=read_queries())) >> naver_product_catalog
+    .expand(queries=read_queries())) >> trigger_naver_product_catalog

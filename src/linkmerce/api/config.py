@@ -203,7 +203,7 @@ def read_credentials(
         skip_subpath: bool = False,
     ) -> dict | list:
     """인증 정보 파일을 읽고 `Path()` 참조를 실제 파일 내용으로 치환한다."""
-    credentials = read_check(file_path, key_path, format, dtype=dict)
+    credentials = read_check(file_path, key_path, format)
 
     def read_if_path(obj: Any) -> Any:
         if isinstance(obj, list):

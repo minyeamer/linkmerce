@@ -5,7 +5,7 @@ import pendulum
 
 
 with DAG(
-    dag_id = "searchad_report",
+    dag_id = "searchad_report_sad",
     schedule = "40 5 * * *",
     start_date = pendulum.datetime(2025, 8, 24, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
@@ -43,8 +43,8 @@ with DAG(
         return read_config(PATH, credentials=True)["credentials"]
 
 
-    @task(task_id="etl_searchad_report", map_index_template="{{ credentials['customer_id'] }}")
-    def etl_searchad_report(credentials: dict, configs: dict, **kwargs) -> dict:
+    @task(task_id="etl_searchad_report_sad", map_index_template="{{ credentials['customer_id'] }}")
+    def etl_searchad_report_sad(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import get_execution_date
         return main_searchad(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
 
@@ -93,6 +93,6 @@ with DAG(
                 }
 
 
-    (etl_searchad_report
+    (etl_searchad_report_sad
     .partial(configs=read_configs())
     .expand(credentials=read_credentials()))

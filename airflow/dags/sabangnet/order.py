@@ -158,8 +158,8 @@ with DAG(
     )
 
 
-    ecount_stock_report = TriggerDagRunOperator(
-        task_id = "ecount_stock_report",
+    trigger_ecount_stock_report = TriggerDagRunOperator(
+        task_id = "trigger_ecount_stock_report",
         trigger_dag_id = "ecount_stock_report",
         trigger_run_id = "{{ run_id }}",
         logical_date = "{{ logical_date }}",
@@ -174,4 +174,4 @@ with DAG(
     configs >> etl_sabangnet_dispatch() >> branch_dagrun_trigger
     configs >> etl_sabangnet_option() >> branch_dagrun_trigger
 
-    branch_dagrun_trigger >> [ecount_stock_report]
+    branch_dagrun_trigger >> [trigger_ecount_stock_report]

@@ -38,7 +38,7 @@ class Order(DuckDBTransformer):
         fields = {
             ".": ["productOrderId"],
             "content": {
-                "order": ["orderId", "ordererNo", "payLocationType", "orderDate", "paymentDate"],
+                "order": ["orderId", "ordererNo", "payLocationType", "orderDate", {"paymentDate": None}],
                 "productOrder": [
                     "merchantChannelId", "productId", "optionCode", "productClass", "deliveryAttributeType",
                     {"deliveryTagType": None}, "inflowPath", {"inflowPathAdd": None}, "quantity", "unitPrice", "optionPrice",
@@ -69,7 +69,7 @@ class OrderTime(Order):
         fields = {
             ".": ["productOrderId"],
             "content": {
-                "order": ["orderId", "paymentDate"],
+                "order": ["orderId", {"paymentDate": None}],
                 "productOrder": [{"decisionDate": None}],
                 "delivery": [{"sendDate": None}, {"deliveredDate": None}],
                 "completedClaims.0": [{"claimType": None}, {"claimRequestAdmissionDate": None}]

@@ -5,7 +5,7 @@ import pendulum
 
 
 with DAG(
-    dag_id = "searchad_master",
+    dag_id = "searchad_master_sad",
     schedule = "40 23 * * 1-5",
     start_date = pendulum.datetime(2025, 8, 30, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
@@ -20,7 +20,7 @@ with DAG(
         ## 추출(Extract)
         마스터 보고서를 생성, 조회, 삭제하는 API를 순차적으로 실행하면서
         계정별 캠페인, 광고그룹, 소재 목록을 수집한다.
-        첫 번째 계정에 한해 광고매체 목록을 추가로 수집한다.
+        ~~(첫 번째 계정에 한해 광고매체 목록을 추가로 수집한다.)~~
 
         ## 변환(Transform)
         TSV 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
@@ -44,11 +44,11 @@ with DAG(
         return [dict(info, with_media=(i == 0)) for i, info in enumerate(credentials)]
 
 
-    @task(task_id="etl_searchad_master", map_index_template="{{ credentials['customer_id'] }}")
-    def etl_searchad_master(credentials: dict, configs: dict, **kwargs) -> dict:
+    @task(task_id="etl_searchad_master_sad", map_index_template="{{ credentials['customer_id'] }}")
+    def etl_searchad_master_sad(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import today
         from_date = today(subdays=(365*2)).format("YYYY-MM-DD")
-        types = ["campaign", "adgroup", "ad"] + (["media"] if credentials.get("with_media") else list())
+        types = ["campaign", "adgroup", "ad"] # + (["media"] if credentials.get("with_media") else list())
         return {api_type: main(api_type, **credentials, from_date=from_date, **configs) for api_type in types}
 
     def main(
@@ -103,6 +103,6 @@ with DAG(
                 }
 
 
-    (etl_searchad_master
+    (etl_searchad_master_sad
     .partial(configs=read_configs())
     .expand(credentials=read_credentials()))

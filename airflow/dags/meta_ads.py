@@ -102,7 +102,7 @@ with DAG(
                         "table": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = source,
-                            staging_table = "{}_{}".format(tables[f"temp_{ad_level}"], app_id),
+                            staging_table = "{}_{}_0".format(tables[f"temp_{ad_level}"], app_id),
                             target_table = tables[ad_level],
                             **merge[ad_level],
                             progress = False,
@@ -172,7 +172,7 @@ with DAG(
                         "campaigns": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["campaigns"],
-                            staging_table = f'{tables["temp_campaigns"]}_{app_id}',
+                            staging_table = f'{tables["temp_campaigns"]}_{app_id}_1',
                             target_table = tables["campaigns"],
                             **merge["campaigns"],
                             progress = False,
@@ -180,7 +180,7 @@ with DAG(
                         "adsets": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["adsets"],
-                            staging_table = f'{tables["temp_adsets"]}_{app_id}',
+                            staging_table = f'{tables["temp_adsets"]}_{app_id}_1',
                             target_table = tables["adsets"],
                             **merge["adsets"],
                             progress = False,
@@ -188,7 +188,7 @@ with DAG(
                         "ads": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["ads"],
-                            staging_table = f'{tables["temp_ads"]}_{app_id}',
+                            staging_table = f'{tables["temp_ads"]}_{app_id}_1',
                             target_table = tables["ads"],
                             **merge["ads"],
                             progress = False,
