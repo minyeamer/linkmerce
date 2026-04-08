@@ -136,18 +136,31 @@ with DAG(
         @task(task_id="read_coupang_configs", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
         def read_coupang_configs() -> dict:
             from airflow_utils import read_config
-            return read_config(COUPANG_PATH, tables=True, service_account=True)
-
-        @task(task_id="read_coupang_credentials", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
-        def read_coupang_credentials() -> list:
-            from airflow_utils import read_config
-            return read_config(COUPANG_PATH, credentials=True)["credentials"]
+            return read_config(COUPANG_PATH, credentials=True, tables=True, service_account=True)
 
 
-        @task(task_id="etl_coupang_inventory", map_index_template="{{ credentials['vendor_id'] }}", pool="coupang_pool")
-        def etl_coupang_inventory(credentials: dict, configs: dict, **kwargs) -> dict:
-            """업체별 쿠팡 로켓 배송 재고 내역을 수집하여 BigQuery 테이블에 적재한다."""
-            return main_coupang(**credentials, **configs)
+        @task(task_id="etl_coupang_inventory")
+        def etl_coupang_inventory(configs: dict, **kwargs) -> dict:
+            """업체별 쿠팡 로켓 배송 재고 내역을 순차 로그인 후 수집하여 BigQuery 테이블에 적재한다."""
+            from pw_actions import coupang_login
+            import logging
+
+            logger = logging.getLogger(__name__)
+            result = dict()
+
+            for credentials in configs.pop("credentials", list()):
+                if not (isinstance(credentials, dict) and ("vendor_id" in credentials)):
+                    continue
+                vendor_id = credentials["vendor_id"]
+                try:
+                    cookies = coupang_login(credentials["userid"], credentials["passwd"], navigate_to_ads=False)
+                    result[vendor_id] = main_coupang(cookies=cookies, vendor_id=vendor_id, **configs)
+                    logger.info(f"[{vendor_id}] succeeded")
+                except Exception as exception:
+                    logger.error(f"[{vendor_id}] failed: {exception}")
+                    result[vendor_id] = f"failed: {str(exception)}"
+
+            return result
 
         def main_coupang(
                 cookies: str,
@@ -193,7 +206,7 @@ with DAG(
                     }
 
 
-        etl_coupang_inventory.partial(configs=read_coupang_configs()).expand(credentials=read_coupang_credentials())
+        etl_coupang_inventory(configs=read_coupang_configs())
 
 
     ###################################################################
@@ -569,4 +582,4 @@ with DAG(
         read_report_configs() >> send_stock_report()
 
 
-    cj_group >> coupang_group >> ecount_group >> report_group
+    [cj_group, coupang_group, ecount_group] >> report_group

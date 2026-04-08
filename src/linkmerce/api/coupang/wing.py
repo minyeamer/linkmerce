@@ -53,7 +53,7 @@ def product_option(
         common = dict(tables={"table": "coupang_product"})
 
     products = ProductOption(**prepare_duckdb_extract(
-        T, connection, extract_options, transform_options[OPTION], return_type,
+        T, connection, extract_options[OPTION], transform_options[OPTION], return_type,
         configs = {"domain": domain},
         cookies = cookies,
         options = {
@@ -78,7 +78,7 @@ def product_option(
             vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
 
         details = ProductDetail(**prepare_duckdb_extract(
-            T, connection, extract_options,
+            T, connection, extract_options[DETAIL],
             transform_options = ((transform_options[DETAIL] or dict()) | common),
             return_type = return_type,
             cookies = cookies,
@@ -198,7 +198,7 @@ def rocket_option(
         common = dict(tables={"table": "coupang_rocket_option"})
 
     product = RocketInventory(**prepare_duckdb_extract(
-        T, connection, extract_options, transform_options[OPTION], return_type,
+        T, connection, extract_options[OPTION], transform_options[OPTION], return_type,
         configs = {"domain": domain},
         cookies = cookies,
         options = {"CursorAll": {"request_delay": request_delay}},
@@ -212,7 +212,7 @@ def rocket_option(
         vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
 
         return ProductDetail(**prepare_duckdb_extract(
-            T, connection, extract_options,
+            T, connection, extract_options[DETAIL],
             transform_options = ((transform_options[DETAIL] or dict()) | common),
             return_type = return_type,
             configs = {"domain": domain},

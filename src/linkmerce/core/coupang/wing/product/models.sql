@@ -113,13 +113,16 @@ INSERT INTO {{ table }} (
   , barcode
   , price
 )
-SELECT
-    vendorItemId AS option_id
-  , vendorInventoryItemId AS vendor_inventory_item_id
-  , itemId AS item_id
-  , barcode
-  , originalPrice AS price
-FROM {{ rows }} AS S
+SELECT *
+FROM (
+  SELECT
+      vendorItemId AS option_id
+    , vendorInventoryItemId AS vendor_inventory_item_id
+    , itemId AS item_id
+    , barcode
+    , originalPrice AS price
+  FROM {{ rows }}
+) AS S
 WHERE EXISTS (SELECT 1 FROM {{ table }} AS T WHERE T.option_id = S.option_id)
 ON CONFLICT (option_id) DO UPDATE SET
     vendor_inventory_item_id = EXCLUDED.vendor_inventory_item_id
@@ -224,7 +227,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , display_category_id INTEGER
   , category_id INTEGER
   , category_name VARCHAR
-  , product_status TINYINT  -- {0: '판매중', 1: '품절', 2: '숨김상품'}
+  , product_status TINYINT -- {0: '판매중', 1: '품절', 2: '숨김상품'}
   , price INTEGER
   , sales_price INTEGER
   , order_quantity INTEGER

@@ -1768,3 +1768,145 @@ Phase 3 — Extractor 메서드 docstring (24개 extract.py)
   3. 환경 공유:
     airflow/.env 파일을 호스트의 모듈에서도 참조하여 설정 중복 제거.
 
+
+================================================================================
+[2026-04-08] Q28~Q36: 쿠팡 통합 DAG 아키텍처 설계 및 최종 구현
+================================================================================
+
+배경
+----
+  쿠팡 로그인 정책이 강화되어 동시에 여러 계정이 로그인 상태를 유지할 수 없게 됨.
+  기존의 "쿠키를 미리 저장 후 병렬 ETL 실행" 패턴을 폐기하고,
+  "계정 1개씩 로그인 → 해당 계정의 ETL 전부 완료 → 다음 계정"이라는
+  엄격한 직렬 실행 구조로 전환이 필요.
+
+  기존 deprecated DAG 경로: airflow/dags/_deprecated/coupang/
+  신규 DAG 경로: airflow/dags/coupang/
+
+아키텍처 결정: 단일 오케스트레이터 Task 구조
+--------------------------------------------
+  Dynamic Task Mapping / TriggerDagRunOperator 등 여러 방식 검토 후,
+  아래 이유로 "단일 @task 내 직렬 루프" 구조를 최종 채택.
+
+  Dynamic Task Mapping 채택 불가 이유:
+  - DAG 그래프는 파싱 시점에 정적으로 확정됨.
+  - 계정 수는 런타임에 결정되므로, N-depth 직렬 루프를 그래프로 표현 불가.
+  - max_active_tis_per_dag=1로 직렬화할 수 있으나, 이 경우에도
+    "로그인 → ETL 4개 → 다음 로그인" 순서를 보장하는 것이 불가능.
+
+  TriggerDagRunOperator.execute() 직접 호출 방식 채택 불가 이유:
+  - Operator를 @task 내부에서 수동으로 생성/호출하면 Airflow의 DB 세션과
+    XCom 백엔드 처리가 정상적으로 이루어지지 않아 AttributeError 위험.
+  - context 전달 시 부모 Task의 메타데이터를 오염시킬 가능성.
+  - task_id를 동적으로 생성해도 UI에 개별 Task로 나타나지 않아 모니터링 불가.
+
+  최종 채택: airflow.api.common.trigger_dag + DagRun.find 폴링
+  - trigger_dag(): 자식 DAG의 DagRun을 직접 생성하는 내부 API.
+  - DagRun.find(): run_id 기반 폴링으로 완료 여부 확인.
+  - 모든 처리가 단일 @task 내에서 순번대로 실행되므로 직렬성 완전 보장.
+  - 자식 DAG는 독립적인 DagRun으로 UI에서 별도 확인 가능.
+
+신규 파일 목록
+--------------
+  airflow/dags/coupang/_integration.py  — 오케스트레이터 (메인 DAG)
+  airflow/dags/coupang/rocket_sales.py  — 로켓배송 정산 ETL
+  airflow/dags/coupang/adreport.py      — 광고 보고서 ETL (PA/NCA)
+  airflow/dags/coupang/product_option.py — 상품 옵션 메타데이터 ETL
+  airflow/dags/coupang/campaign.py      — 광고 캠페인 구조 ETL
+
+DAG 명칭 결정
+-------------
+  Master DAG:   coupang__integration  (언더바 2개로 UI 정렬 최상단 고정)
+  Child DAGs:   coupang_rocket_sales, coupang_adreport,
+                coupang_product_option, coupang_campaign
+
+  네이밍 배경:
+  - 다른 플랫폼(네이버, 메타 등)의 DAG와 구분하기 위해 반드시 coupang_ 으로 시작.
+  - coupang__integration (언더바 2개)은 coupang_ 계열 중 알파벳 정렬 최상단에 위치.
+
+run_id 설계 결정
+----------------
+  고려 방식들:
+  1. DagRunType.MANUAL.generate_run_id(logical_date)
+    → Airflow 3에서 시그니처 변경. positional argument 불가. 검토 후 폐기.
+  2. DagRunType.MANUAL.generate_run_id(suffix=dt.isoformat())
+    → 동일한 logical_date로 여러 계정 실행 시 suffix가 같아 run_id 중복 발생.
+  3. f"manual__{pendulum.now('UTC').isoformat()}__{vendor_id}"
+    → vendor_id를 suffix로 붙이면 너무 길어 UI 가독성 저하.
+
+  최종 채택: f"expanded__{i}_{pendulum.now('UTC').isoformat()}"
+  - run_id prefix로 "expanded"를 사용: Dynamic Task Mapping의 "Expanded Tasks" 개념을
+    차용하여, 이 실행이 통합 DAG에 의해 동적으로 확장된 개별 실행 단위임을 표현.
+  - i: 계정 루프 인덱스. 같은 루프 내 동일 타임스탬프 충돌 가능성을 방지.
+  - pendulum.now('UTC'): 실행 시점의 UTC 현재 시간. 세션 전체에서 유일성 보장.
+  - 각 DAG가 순차 실행되고 poke_interval(최소 30초) 이상 대기 후 다음 run_id를
+    생성하므로 타임스탬프 충돌 가능성은 0.
+  - DagRun.run_id 컬럼은 VARCHAR(250). 최장 run_id 샘플은 약 44자로 여유 충분.
+
+  run_id 유일성 범위:
+  - Airflow의 run_id 유일성은 동일 DAG 내에서만 적용됨.
+  - coupang_rocket_sales와 coupang_adreport가 우연히 동일 run_id를 가져도 무관.
+  - 따라서 dag_id를 run_id에 포함시킬 필요 없음.
+
+trigger_dag() API 변경 사항 (Airflow 3.1.3)
+-------------------------------------------
+  Airflow 3.1.3에서 trigger_dag() 시그니처에 triggered_by 필수 인자 추가.
+  기존 Airflow 2.x 코드와 호환되지 않음.
+
+  필수 인자: triggered_by: DagRunTriggeredByType (keyword-only)
+  채택 값: DagRunTriggeredByType.OPERATOR
+  이유: 사람이 직접 실행한 것이 아닌, 상위 Task(오케스트레이터)에 의해
+      프로그래밍적으로 트리거되는 상황이므로 OPERATOR가 의미적으로 정확.
+
+wait_for_completion 함수 분리
+-----------------------------
+  최초 설계에서 trigger_dag 호출과 폴링 로직이 trigger_dag_run 단일 함수에
+  포함되어 있었으나, 사용자가 직접 분리하여 가독성 향상.
+
+  AS-IS:
+    def trigger_dag_run(dag_id, poke_interval) -> str:
+        trigger_dag(...)  # 트리거
+        while ...: DagRun.find(...)  # 폴링 (하나의 함수에 혼재)
+
+  TO-BE:
+    run_id = f"expanded__{i}_{pendulum.now('UTC').isoformat()}"
+    trigger_dag(dag_id=dag_id, run_id=run_id, conf=conf,
+                triggered_by=DagRunTriggeredByType.OPERATOR)
+    state = wait_for_completion(dag_id, run_id, poke_interval)
+
+    def wait_for_completion(dag_id, run_id, poke_interval, timeout=600) -> str:
+        # DagRun.find 폴링 전용 함수
+
+  wait_for_completion 설계 포인트:
+  - dag_id, run_id를 인자로 명시적 수신 → outer scope 클로저 의존성 없음.
+  - timeout 초과 시 "timeout" 문자열 반환 (예외 미발생, 루프 지속 가능).
+  - DagRunState.SUCCESS / FAILED 두 상태에서만 종료. QUEUED/RUNNING 중 대기.
+
+자식 DAG 공통 설계 (conf 수신 구조)
+------------------------------------
+  자식 DAG 4개는 모두 동일한 패턴으로 dag_run.conf를 통해 실행 파라미터를 수신.
+
+  conf 구조:
+    {
+      "vendor_id": str,    # 업체 식별자
+      "cookies": dict,     # 로그인 세션 쿠키 전체
+      "nca": bool,         # 광고 계정 유형 (PA/NCA 분기)
+    }
+
+  credentials.yaml 수정:
+    nca: true 플래그를 특정 업체에 추가하여, adreport / campaign DAG에서
+    PA와 NCA를 구분하여 다른 API 엔드포인트를 호출하도록 처리.
+
+최종 검증 결과 (Airflow 3.1.3 환경)
+------------------------------------
+  검증 항목:
+  1. trigger_dag() 시그니처: triggered_by 필수 인자 정상 전달 ✓
+  2. DagRun.find() run_id 타입: str (단일 문자열) 정상 처리 ✓
+  3. DagRunState 종료 상태: SUCCESS / FAILED 정상 처리 ✓
+  4. DagRunTriggeredByType.OPERATOR 값 존재 ✓
+  5. run_id 포맷(expanded__i_timestamp): VARCHAR(250) 제한 내 (44자) ✓
+  6. wait_for_completion 클로저 의존성: 없음 (모든 인자 명시적 수신) ✓
+  7. 구문 검증 (ast.parse): OK ✓
+
+  결론: 현재 코드는 Airflow 3.1.3 환경에서 정상 동작 가능.
+
