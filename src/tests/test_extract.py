@@ -918,6 +918,52 @@ class TestSearchAdApi:
 
 
 ###################################################################
+######################## SearchAd Center ##########################
+###################################################################
+
+class TestSearchAdCenter:
+    """네이버 검색광고 데이터 추출 테스트.
+    - searchad.center.adreport.DailyReport
+    - searchad.center.exposure.ExposureDiagnosis"""
+
+    def credentials(self, reader: YamlReader) -> dict:
+        _credentials = reader("searchad.center.0")
+        return dict(
+            configs = {"customer_id": _credentials["customer_id"]},
+            cookies = _credentials["cookies"],
+        )
+
+    @pytest.mark.searchad_center
+    def test_daily_report(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        from linkmerce.core.searchad.center.adreport.extract import DailyReport
+        _configs = configs("searchad.center.daily_report")
+        DailyReport(
+            **self.credentials(credentials),
+            parser = dump_extract(DailyReport, format="csv"),
+        ).extract(
+            report_id = _configs["report_id"],
+            report_name = _configs["report_name"],
+            userid = _configs["userid"],
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+        )
+
+    @pytest.mark.searchad_center
+    def test_exposure_diagnosis(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        from linkmerce.core.searchad.center.exposure.extract import ExposureDiagnosis
+        _configs = configs("searchad.center.exposure_diagnosis")
+        ExposureDiagnosis(
+            **self.credentials(credentials),
+            parser = dump_extract(ExposureDiagnosis, format="json", map_index="$keyword"),
+        ).extract(
+            keyword = _configs["keyword"],
+            domain = _configs.get("domain", "search"),
+            mobile = _configs.get("mobile", True),
+            is_own = _configs.get("is_own"),
+        )
+
+
+###################################################################
 ######################### SearchAd GFA ############################
 ###################################################################
 
@@ -1001,52 +1047,6 @@ class TestSearchAdGfa:
             wait_seconds = _configs.get("wait_seconds", 60),
             wait_interval = _configs.get("wait_interval", 1),
             progress = _configs.get("progress", True),
-        )
-
-
-###################################################################
-######################## SearchAd Manage ##########################
-###################################################################
-
-class TestSearchAdManage:
-    """네이버 검색광고 데이터 추출 테스트.
-    - searchad.manage.adreport.DailyReport
-    - searchad.manage.exposure.ExposureDiagnosis"""
-
-    def credentials(self, reader: YamlReader) -> dict:
-        _credentials = reader("searchad.manage.0")
-        return dict(
-            configs = {"customer_id": _credentials["customer_id"]},
-            cookies = _credentials["cookies"],
-        )
-
-    @pytest.mark.searchad_manage
-    def test_daily_report(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
-        from linkmerce.core.searchad.manage.adreport.extract import DailyReport
-        _configs = configs("searchad.manage.daily_report")
-        DailyReport(
-            **self.credentials(credentials),
-            parser = dump_extract(DailyReport, format="csv"),
-        ).extract(
-            report_id = _configs["report_id"],
-            report_name = _configs["report_name"],
-            userid = _configs["userid"],
-            start_date = _configs.get("start_date", yesterday),
-            end_date = _configs.get("end_date", ":start_date:"),
-        )
-
-    @pytest.mark.searchad_manage
-    def test_exposure_diagnosis(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        from linkmerce.core.searchad.manage.exposure.extract import ExposureDiagnosis
-        _configs = configs("searchad.manage.exposure_diagnosis")
-        ExposureDiagnosis(
-            **self.credentials(credentials),
-            parser = dump_extract(ExposureDiagnosis, format="json", map_index="$keyword"),
-        ).extract(
-            keyword = _configs["keyword"],
-            domain = _configs.get("domain", "search"),
-            mobile = _configs.get("mobile", True),
-            is_own = _configs.get("is_own"),
         )
 
 

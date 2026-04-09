@@ -1,1 +1,1 @@
-from linkmerce.core.searchad.gfa.common import SearchAdGFA
+from linkmerce.core.searchad.gfa.common import SearchAdGfa

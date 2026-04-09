@@ -30,7 +30,7 @@ def get_accounts(session: Session, page: int = 0, size: int = 10) -> list[dict]:
         return json.loads(response.text)["content"]
 
 
-class SearchAdManager(Extractor):
+class SearchAdCenter(Extractor):
     """네이버 광고주센터 데이터를 조회하는 공통 클래스. 로그인 쿠키가 제공되어야 한다."""
 
     method: str | None = None
@@ -114,7 +114,7 @@ class NaverAdLogin(LoginHandler):
 
 # """
 # 네이버 검색광고 플랫폼이 네이버 광고플랫폼으로 통합되면서
-# `SearchAdManager` 공통 클래스의 동작을 수정.
+# `SearchAdCenter` 공통 클래스의 동작을 수정.
 # 공지: https://ads.naver.com/notice/30459?searchValue=&page=1
 # """
 
@@ -148,7 +148,7 @@ class NaverAdLogin(LoginHandler):
 #         return body.get("customer") if isinstance(body, dict) else None
 
 
-# class SearchAdManager(Extractor):
+# class SearchAdCenter(Extractor):
 #     """네이버 검색광고 시스템에서 데이터를 조회하는 공통 클래스.
 
 #     네이버 로그인 쿠키와 `customer_id`를 사용하여 `access_token`을 발급받고 토큰 기반으로 요청한다."""
@@ -182,7 +182,7 @@ class NaverAdLogin(LoginHandler):
 #     def with_token(func):
 #         """네이버 로그인 쿠키와 `customer_id`를 사용하여 `access_token`을 발급받는 데코레이터."""
 #         @functools.wraps(func)
-#         def wrapper(self: SearchAdManager, *args, **kwargs):
+#         def wrapper(self: SearchAdCenter, *args, **kwargs):
 #             self.authenticate()
 #             self.authorize()
 #             return func(self, *args, **kwargs)

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.searchad.manage import SearchAdManager
+from linkmerce.core.searchad.center import SearchAdCenter
 
 from typing import TYPE_CHECKING
 
@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import JsonObject
 
 
-class ExposureDiagnosis(SearchAdManager):
+class ExposureDiagnosis(SearchAdCenter):
     """네이버 검색광고 키워드 노출 진단 데이터를 추출하는 클래스.
 
     `RequestEachLoop` Task를 사용하여 키워드(`keyword`)별 노출 상품 목록을 조회한다."""
@@ -20,7 +20,7 @@ class ExposureDiagnosis(SearchAdManager):
     def default_options(self) -> dict:
         return {"RequestEach": {"request_delay": 1}}
 
-    @SearchAdManager.with_session
+    @SearchAdCenter.with_session
     def extract(
             self,
             keyword: str | Iterable[str],

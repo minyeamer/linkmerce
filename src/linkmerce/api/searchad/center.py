@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 def has_accounts(cookies: str) -> bool:
     """네이버 로그인 쿠키가 광고 계정을 가지고 있는지 검증한다."""
-    from linkmerce.core.searchad.manage.common import has_accounts
+    from linkmerce.core.searchad.center.common import has_accounts
     import requests
     with requests.Session() as session:
         cookies_map = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ") if '=' in kv])
@@ -24,7 +24,7 @@ def has_accounts(cookies: str) -> bool:
 
 def get_accounts(cookies: str, page: int = 0, size: int = 10) -> list[dict]:
     """네이버 로그인 쿠키로 사용 가능한 광고 계정 목록을 조회한다."""
-    from linkmerce.core.searchad.manage.common import get_accounts
+    from linkmerce.core.searchad.center.common import get_accounts
     import requests
     with requests.Session() as session:
         cookies_map = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ") if '=' in kv])
@@ -34,7 +34,7 @@ def get_accounts(cookies: str, page: int = 0, size: int = 10) -> list[dict]:
 
 def login(account_no: int | str, cookies: str, save_to: str | Path | None = None) -> str:
     """네이버 쿠키를 가지고 네이버 광고주센터에 로그인해 `XSRF-TOKEN`을 발급받는다."""
-    from linkmerce.core.searchad.manage.common import NaverAdLogin
+    from linkmerce.core.searchad.center.common import NaverAdLogin
     from linkmerce.api.common import handle_cookies
     handler = NaverAdLogin()
     handler.login(account_no, cookies)
@@ -58,8 +58,8 @@ def advanced_report(
         transform_options: dict | None = None,
     ) -> Sequence:
     """네이버 검색광고 시스템에서 다차원 보고서를 다운로드한다."""
-    from linkmerce.core.searchad.manage.adreport.extract import AdvancedReport
-    from linkmerce.core.searchad.manage.adreport.transform import AdvancedReport as T
+    from linkmerce.core.searchad.center.adreport.extract import AdvancedReport
+    from linkmerce.core.searchad.center.adreport.transform import AdvancedReport as T
     return AdvancedReport(**prepare_extract(
         T, extract_options, transform_options, return_type,
         configs = {"account_no": account_no, "customer_id": customer_id},
@@ -84,8 +84,8 @@ def daily_report(
         transform_options: dict | None = None,
     ) -> JsonObject:
     """네이버 검색광고 시스템에서 다차원 보고서를 일별로 다운로드하여 `searchad_report` 테이블에 적재한다."""
-    from linkmerce.core.searchad.manage.adreport.extract import DailyReport
-    from linkmerce.core.searchad.manage.adreport.transform import DailyReport as T
+    from linkmerce.core.searchad.center.adreport.extract import DailyReport
+    from linkmerce.core.searchad.center.adreport.transform import DailyReport as T
     return DailyReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no, "customer_id": customer_id},
@@ -111,8 +111,8 @@ def exposure_status(
         transform_options: dict | None = None,
     ) -> JsonObject:
     """네이버 검색광고 키워드 노출 진단 데이터를 조회하고 `searchad_exposure` 테이블에 적재한다."""
-    from linkmerce.core.searchad.manage.exposure.extract import ExposureDiagnosis
-    from linkmerce.core.searchad.manage.exposure.transform import ExposureDiagnosis as T
+    from linkmerce.core.searchad.center.exposure.extract import ExposureDiagnosis
+    from linkmerce.core.searchad.center.exposure.transform import ExposureDiagnosis as T
     return ExposureDiagnosis(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no, "customer_id": customer_id},
@@ -148,8 +148,8 @@ def exposure_rank(
     테이블 키 | 테이블명 | 설명
     - `rank` | `searchad_rank` | 광고 노출 순위
     - `product` | `searchad_product` | 광고 노출 상품 목록"""
-    from linkmerce.core.searchad.manage.exposure.extract import ExposureDiagnosis
-    from linkmerce.core.searchad.manage.exposure.transform import ExposureRank as T
+    from linkmerce.core.searchad.center.exposure.extract import ExposureDiagnosis
+    from linkmerce.core.searchad.center.exposure.transform import ExposureRank as T
     return ExposureDiagnosis(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no, "customer_id": customer_id},

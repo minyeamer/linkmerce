@@ -6,11 +6,11 @@ import pendulum
 
 with DAG(
     dag_id = "searchad_login_gfa",
-    schedule = "10 1 * * *",
+    schedule = "0 5 * * *",
     start_date = pendulum.datetime(2026, 4, 9, tz="Asia/Seoul"),
-    dagrun_timeout = timedelta(minutes=10),
+    dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:high", "searchad:cookies", "login:gfa", "schedule:daily", "time:night"],
+    tags = ["priority:high", "searchad:cookies", "login:gfa", "schedule:daily", "time:morning"],
     doc_md = dedent("""
         # 네이버 성과형 디스플레이 광고 로그인 파이프라인
 
@@ -64,7 +64,7 @@ with DAG(
     @task(task_id="login_gfa")
     def login_gfa(credentials: list, **kwargs) -> dict:
         from pw_actions import naver_login
-        from linkmerce.api.searchad.manage import login as center_login
+        from linkmerce.api.searchad.center import login as center_login
         import logging
 
         logger = logging.getLogger(__name__)

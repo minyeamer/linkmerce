@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from linkmerce.common.extract import Configs
 
 
-class SearchAdGFA(Extractor):
+class SearchAdGfa(Extractor):
     """네이버 광고주센터 데이터를 조회하는 공통 클래스. 로그인 쿠키가 제공되어야 한다."""
 
     method: str | None = None
@@ -51,7 +51,7 @@ class SearchAdGFA(Extractor):
 
 # """
 # 네이버 성과형 디스플레이 광고가 네이버 광고플랫폼으로 통합되면서
-# `SearchAdGFA` 공통 클래스를 `SearchAdManager` 공통 클래스로 대체.
+# `SearchAdGfa` 공통 클래스를 `SearchAdCenter` 공통 클래스로 대체.
 # 공지: https://ads.naver.com/notice/30459?searchValue=&page=1
 # """
 
@@ -72,7 +72,7 @@ class SearchAdGFA(Extractor):
 #         return body.get("naverId") if isinstance(body, dict) else None
 
 
-# class SearchAdGFA(Extractor):
+# class SearchAdGfa(Extractor):
 #     """네이버 성과형 디스플레이 광고에서 데이터를 조회하는 공통 클래스.
 
 #     네이버 로그인 쿠키와 `account_no`를 사용하여 `XSRF-TOKEN`을 발급받고 토큰 기반으로 요청한다."""
@@ -105,7 +105,7 @@ class SearchAdGFA(Extractor):
 #     def with_token(func):
 #         """네이버 로그인 쿠키와 `account_no`를 사용하여 `XSRF-TOKEN`을 발급받는 데코레이터."""
 #         @functools.wraps(func)
-#         def wrapper(self: SearchAdGFA, *args, **kwargs):
+#         def wrapper(self: SearchAdGfa, *args, **kwargs):
 #             self.authenticate()
 #             self.authorize()
 #             self.set_request_headers(cookies=self.get_cookies())

@@ -39,7 +39,7 @@ with DAG(
 
     with TaskGroup(group_id="searchad_group") as searchad_group:
 
-        SEARCHAD_PATH = "searchad.manage.adreport"
+        SEARCHAD_PATH = "searchad.center.adreport"
 
         @task(task_id="read_configs_searchad", retries=3, retry_delay=timedelta(minutes=1))
         def read_configs_searchad() -> dict:
@@ -71,7 +71,7 @@ with DAG(
                 **kwargs
             ) -> dict:
             from linkmerce.common.load import DuckDBConnection
-            from linkmerce.api.searchad.manage import daily_report
+            from linkmerce.api.searchad.center import daily_report
             from linkmerce.extensions.bigquery import BigQueryClient
             source = "searchad_report"
 

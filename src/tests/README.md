@@ -273,35 +273,35 @@ searchad/
 │   └── keyword/
 │       └── Keyword(NaverSearchAdApi)::extract
 │           └── Keyword(DuckDBTransformer)::transform >> json
-├── gfa/
-│   ├── SearchAdGFA(Extractor)::common
-│   └── adreport/
-│       ├─x _MasterReport(SearchAdGFA)::extract
-│       ├── Campaign(_MasterReport)::extract
-│       │   └── Campaign(DuckDBTransformer)::transform >> json
-│       ├── AdSet(_MasterReport)::extract
-│       │   └── AdSet(DuckDBTransformer)::transform >> json
-│       ├── Creative(_MasterReport)::extract
-│       │   └── Creative(DuckDBTransformer)::transform >> json
-│       ├─x PerformanceReport(SearchAdGFA)::extract
-│       ├── CampaignReport(PerformanceReport)::extract
-│       │   └── CampaignReport(DuckDBTransformer)::transform
-│       │       └── CsvTransformer(ExcelTransformer)::transform
-│       └── CreativeReport(PerformanceReport)::extract
-│           └── CreativeReport(DuckDBTransformer)::transform
-│               └── CsvTransformer(ExcelTransformer)::transform
-└── manage/
-    ├─x SearchAdManager(Extractor)::common
-    ├── adreport/
-    │   ├─x AdvancedReport(SearchAdManager)::extract
-    │   └── DailyReport(AdvancedReport)::extract
-    │       └── DailyReport(DuckDBTransformer)::transform
-    │           └── AdvancedReport(ExcelTransformer)::transform
-    └── exposure/
-        └── ExposureDiagnosis(SearchAdManager)::extract
-            └── ExposureDiagnosis(DuckDBTransformer)::transform
-                ├── ExposureParser(JsonTransformer)::transform
-                └── ExposureRank(ExposureDiagnosis)::transform
+├── center/
+│   ├─x SearchAdCenter(Extractor)::common
+│   ├── adreport/
+│   │   ├─x AdvancedReport(SearchAdCenter)::extract
+│   │   └── DailyReport(AdvancedReport)::extract
+│   │       └── DailyReport(DuckDBTransformer)::transform
+│   │           └── AdvancedReport(ExcelTransformer)::transform
+│   └── exposure/
+│       └── ExposureDiagnosis(SearchAdCenter)::extract
+│           └── ExposureDiagnosis(DuckDBTransformer)::transform
+│               ├── ExposureParser(JsonTransformer)::transform
+│               └── ExposureRank(ExposureDiagnosis)::transform
+└── gfa/
+    ├── SearchAdGfa(Extractor)::common
+    └── adreport/
+        ├─x _MasterReport(SearchAdGfa)::extract
+        ├── Campaign(_MasterReport)::extract
+        │   └── Campaign(DuckDBTransformer)::transform >> json
+        ├── AdSet(_MasterReport)::extract
+        │   └── AdSet(DuckDBTransformer)::transform >> json
+        ├── Creative(_MasterReport)::extract
+        │   └── Creative(DuckDBTransformer)::transform >> json
+        ├─x PerformanceReport(SearchAdGfa)::extract
+        ├── CampaignReport(PerformanceReport)::extract
+        │   └── CampaignReport(DuckDBTransformer)::transform
+        │       └── CsvTransformer(ExcelTransformer)::transform
+        └── CreativeReport(PerformanceReport)::extract
+            └── CreativeReport(DuckDBTransformer)::transform
+                └── CsvTransformer(ExcelTransformer)::transform
 ```
 
 ## SmartStore

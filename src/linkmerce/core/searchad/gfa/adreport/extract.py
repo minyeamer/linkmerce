@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.searchad.gfa import SearchAdGFA
+from linkmerce.core.searchad.gfa import SearchAdGfa
 
 from typing import TYPE_CHECKING
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class _MasterReport(SearchAdGFA):
+class _MasterReport(SearchAdGfa):
     """네이버 성과형 디스플레이 광고 리포트를 조회하는 공통 클래스.
 
     `RequestEachPages` Task를 사용하여 캠페인, 광고그룹, 소재 목록을 조회한다."""
@@ -193,7 +193,7 @@ class Creative(_MasterReport):
         }
 
 
-class PerformanceReport(SearchAdGFA):
+class PerformanceReport(SearchAdGfa):
     """네이버 성과형 디스플레이 광고 성과 리포트를 다운로드하는 클래스.
 
     날짜 범위를 최대 62일 단위로 분할하여 엑셀 리포트를 요청하고 다운로드한다."""
@@ -202,7 +202,7 @@ class PerformanceReport(SearchAdGFA):
     version = "v1"
     path = "/report/downloads"
 
-    @SearchAdGFA.with_session
+    @SearchAdGfa.with_session
     def extract(
             self,
             start_date: dt.date | str,

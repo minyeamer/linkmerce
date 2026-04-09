@@ -35,7 +35,7 @@ with DAG(
     """).strip(),
 ) as dag:
 
-    PATH = "searchad.manage.rank"
+    PATH = "searchad.center.rank"
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
@@ -51,7 +51,7 @@ with DAG(
 
     def filter_valid_accounts(credentials: list[dict]) -> list[dict]:
         """`has_permission` 함수로 네이버 검색광고 시스템에 권한이 있는 인증 정보만 필터한다."""
-        from linkmerce.api.searchad.manage import has_permission # v1.0.0부터 함수 사용 불가
+        from linkmerce.api.searchad.center import has_permission # v1.0.0부터 함수 사용 불가
         accounts = [credential for credential in credentials if has_permission(**credential)]
         if credentials and (not accounts):
             from airflow.exceptions import AirflowFailException
@@ -77,7 +77,7 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.searchad.manage import exposure_rank
+        from linkmerce.api.searchad.center import exposure_rank
         from linkmerce.extensions.bigquery import BigQueryClient
         import logging
         import time

@@ -524,7 +524,7 @@ class TestSabangNet:
 ########################## SearchAd API ###########################
 ###################################################################
 
-class TestSearchAdAPI:
+class TestSearchAdApi:
     """네이버 검색광고 API 데이터 변환 테스트.
     - searchad.api.adreport.Campaign
     - searchad.api.adreport.Adgroup
@@ -621,10 +621,51 @@ class TestSearchAdAPI:
 
 
 ###################################################################
+######################## SearchAd Center ##########################
+###################################################################
+
+class TestSearchAdCenter:
+    """네이버 검색광고 관리 데이터 변환 테스트.
+    - searchad.center.adreport.DailyReport
+    - searchad.center.exposure.ExposureDiagnosis
+    - searchad.center.exposure.ExposureRank"""
+
+    def customer_id(self, reader: YamlReader):
+        return reader("searchad.center.0")["customer_id"]
+
+    @pytest.mark.searchad_center
+    def test_daily_report(self, transformer_harness: Harness, credentials: YamlReader):
+        from linkmerce.core.searchad.center.adreport.transform import DailyReport
+        transformer_harness(DailyReport).transform(
+            customer_id = self.customer_id(credentials),
+        )
+
+    @pytest.mark.searchad_center
+    def test_exposure_diagnosis(self, transformer_harness: Harness, configs: YamlReader):
+        from linkmerce.core.searchad.center.exposure.transform import ExposureDiagnosis
+        _configs = configs("searchad.center.exposure_diagnosis")
+        transformer_harness(ExposureDiagnosis).transform(
+            keyword = _configs["keyword"],
+            is_own = _configs.get("is_own"),
+            map_index = _configs["keyword"],
+        )
+
+    @pytest.mark.searchad_center
+    def test_exposure_rank(self, transformer_harness: Harness, configs: YamlReader):
+        from linkmerce.core.searchad.center.exposure.transform import ExposureRank
+        _configs = configs("searchad.center.exposure_diagnosis")
+        transformer_harness(ExposureRank).transform(
+            keyword = _configs["keyword"],
+            is_own = _configs.get("is_own"),
+            map_index = _configs["keyword"],
+        )
+
+
+###################################################################
 ########################## SearchAd GFA ###########################
 ###################################################################
 
-class TestSearchAdGFA:
+class TestSearchAdGfa:
     """네이버 GFA 데이터 변환 테스트.
     - searchad.gfa.adreport.Campaign
     - searchad.gfa.adreport.AdSet
@@ -673,47 +714,6 @@ class TestSearchAdGFA:
         from linkmerce.core.searchad.gfa.adreport.transform import CreativeReport
         transformer_harness(CreativeReport).transform(
             account_no = self.account_no(credentials),
-        )
-
-
-###################################################################
-######################## SearchAd Manage ##########################
-###################################################################
-
-class TestSearchAdManage:
-    """네이버 검색광고 관리 데이터 변환 테스트.
-    - searchad.manage.adreport.DailyReport
-    - searchad.manage.exposure.ExposureDiagnosis
-    - searchad.manage.exposure.ExposureRank"""
-
-    def customer_id(self, reader: YamlReader):
-        return reader("searchad.manage.0")["customer_id"]
-
-    @pytest.mark.searchad_manage
-    def test_daily_report(self, transformer_harness: Harness, credentials: YamlReader):
-        from linkmerce.core.searchad.manage.adreport.transform import DailyReport
-        transformer_harness(DailyReport).transform(
-            customer_id = self.customer_id(credentials),
-        )
-
-    @pytest.mark.searchad_manage
-    def test_exposure_diagnosis(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.searchad.manage.exposure.transform import ExposureDiagnosis
-        _configs = configs("searchad.manage.exposure_diagnosis")
-        transformer_harness(ExposureDiagnosis).transform(
-            keyword = _configs["keyword"],
-            is_own = _configs.get("is_own"),
-            map_index = _configs["keyword"],
-        )
-
-    @pytest.mark.searchad_manage
-    def test_exposure_rank(self, transformer_harness: Harness, configs: YamlReader):
-        from linkmerce.core.searchad.manage.exposure.transform import ExposureRank
-        _configs = configs("searchad.manage.exposure_diagnosis")
-        transformer_harness(ExposureRank).transform(
-            keyword = _configs["keyword"],
-            is_own = _configs.get("is_own"),
-            map_index = _configs["keyword"],
         )
 
 

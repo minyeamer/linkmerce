@@ -1,5 +1,5 @@
 from __future__ import annotations
-from linkmerce.core.searchad.manage import SearchAdManager
+from linkmerce.core.searchad.center import SearchAdCenter
 
 from typing import TYPE_CHECKING
 
@@ -9,14 +9,14 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-class AdvancedReport(SearchAdManager):
+class AdvancedReport(SearchAdCenter):
     """네이버 검색광고 시스템에서 다차원 보고서를 다운로드하는 클래스."""
     method = "POST"
     path = "/advanced-report/downloads"
     date_format = "%Y-%m-%d"
     days_limit = 731
 
-    @SearchAdManager.with_session
+    @SearchAdCenter.with_session
     def extract(
             self,
             report_id: str,
@@ -70,7 +70,7 @@ class AdvancedReport(SearchAdManager):
 class DailyReport(AdvancedReport):
     """네이버 검색광고 시스템에서 다차원 보고서를 일별로 다운로드하는 클래스."""
 
-    @SearchAdManager.with_session
+    @SearchAdCenter.with_session
     def extract(
             self,
             report_id: str,
