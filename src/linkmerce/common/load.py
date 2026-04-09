@@ -329,6 +329,16 @@ class DuckDBConnection(Connection):
 
     ############################## Fetch ##############################
 
+    def fetch_one(self, query: str, index: int = 0, params: object | None = None) -> Any:
+        """SQL 쿼리로 값 하나를 가져온다."""
+        relation = self.conn.execute(query, parameters=params)
+        return relation.fetchall()[0][index]
+
+    def fetch_values(self, query: str, params: object | None = None) -> tuple[Any, ...]:
+        """SQL 쿼리 결과의 첫 번째 행을 반환한다."""
+        relation = self.conn.execute(query, parameters=params)
+        return relation.fetchall()[0]
+
     def fetch_all(
             self,
             format: Literal["csv", "json", "parquet"],

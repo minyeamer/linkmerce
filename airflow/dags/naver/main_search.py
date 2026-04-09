@@ -148,7 +148,7 @@ with DAG(
             # [CONFIG] Slack 메시지를 구성하기 위해 쿼리를 상품별 키워드 목록으로 집계한다.
             table = sources["query"]
             conn.create_table_from_json(table, records, option="replace", temp=True)
-            query_group = conn.execute(f"SELECT query_group FROM {table} LIMIT 1")[0].fetchall()[0][0] or '0'
+            query_group = conn.fetch_one(f"SELECT query_group FROM {table} LIMIT 1") or '0'
             query_map = dict(conn.fetch_all_to_csv(
                 "SELECT product, '(''' || string_agg(query, ''',''') || ''')' AS keywords "
                 + f"FROM {table} GROUP BY product ORDER BY product"
@@ -209,7 +209,7 @@ with DAG(
                 summary = enrich_summary(summary, cafe_articles)
             conn.create_table_from_json(table, summary, option="replace", temp=True)
 
-            max_rank = min(max_rank, conn.sql(f"SELECT IFNULL(MAX(rank), 0) FROM {table}")[0].fetchall()[0][0])
+            max_rank = min(max_rank, conn.fetch_one(f"SELECT IFNULL(MAX(rank), 0) FROM {table}"))
             def _select_query(keywords: str) -> str:
                 return wb_summary_query("naver_search_summary", table, max_rank, keywords)
 
@@ -230,7 +230,7 @@ with DAG(
 
             # [COUNT] Slack 메시지를 구성하기 위해 상품별 키워드 수를 카운팅한다.
             table = sources["query"]
-            total = conn.execute(f"SELECT COUNT(DISTINCT query) FROM {table}")[0].fetchall()[0][0]
+            total = conn.fetch_one(f"SELECT COUNT(DISTINCT query) FROM {table}")
             counts = dict(conn.fetch_all_to_csv(
                 f"SELECT product, COUNT(DISTINCT query) FROM {table} GROUP BY product ORDER BY product", header=False))
 
