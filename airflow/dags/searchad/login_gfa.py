@@ -63,7 +63,7 @@ with DAG(
 
     @task(task_id="login_gfa")
     def login_gfa(credentials: list, **kwargs) -> dict:
-        from pw_actions import naver_login
+        from pw_actions import login_naver
         from linkmerce.api.searchad.center import login as center_login
         import logging
 
@@ -77,7 +77,7 @@ with DAG(
 
             # 1. 네이버 로그인 (Playwright 브라우저 활용)
             try:
-                exec_info["cookies"] = naver_login(userid, creds["passwd"], creds["storage_state"])
+                exec_info["cookies"] = login_naver(userid, creds["passwd"], creds["storage_state"])
                 exec_info["status"]["naver"] = "success"
                 logger.info(f"[{account_no}] Naver login succeeded for '{userid}'")
             except Exception as exception:

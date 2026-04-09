@@ -133,7 +133,7 @@ with DAG(
 
         COUPANG_PATH = "coupang.wing.inventory"
 
-        @task(task_id="read_coupang_configs", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
+        @task(task_id="read_coupang_configs", retries=3, retry_delay=timedelta(minutes=1))
         def read_coupang_configs() -> dict:
             from airflow_utils import read_config
             return read_config(COUPANG_PATH, credentials=True, tables=True, service_account=True)
@@ -141,9 +141,10 @@ with DAG(
 
         @task(task_id="etl_coupang_inventory")
         def etl_coupang_inventory(configs: dict, **kwargs) -> dict:
-            """업체별 쿠팡 로켓 배송 재고 내역을 순차 로그인 후 수집하여 BigQuery 테이블에 적재한다."""
-            from pw_actions import coupang_login
+            """업체별 순차적으로 쿠팡 윙 로그인 후, 쿠팡 로켓 배송 재고 내역을 수집하여 BigQuery 테이블에 적재한다."""
+            from pw_actions import login_coupang
             import logging
+            import time
 
             logger = logging.getLogger(__name__)
             result = dict()
@@ -152,13 +153,38 @@ with DAG(
                 if not (isinstance(credentials, dict) and ("vendor_id" in credentials)):
                     continue
                 vendor_id = credentials["vendor_id"]
+
+                exec_info = {"vendor_id": vendor_id, "cookies": dict(), "login": None, "etl": dict()}
+                user_info = (credentials["userid"], credentials["passwd"])
+
+                # 1. 쿠팡 윙 로그인 (최대 3회 재시도)
+                error_flag = False
+                for _ in range(3):
+                    try:
+                        exec_info["cookies"] = login_coupang(*user_info, navigate_to_ads=False)
+                        exec_info["login"] = "success"
+                        logger.info(f"[{vendor_id}] Login succeeded")
+                        error_flag = False
+                        break
+                    except Exception as exception:
+                        error_flag = True
+                        logger.error(f"[{vendor_id}] Login failed: {exception}")
+                        exec_info["login"] = f"failed: {exception}"
+                        time.sleep(60)
+                if error_flag:
+                    result[vendor_id] = exec_info
+                    continue
+
+                # 2. ETL 파이프라인 실행
                 try:
-                    cookies = coupang_login(credentials["userid"], credentials["passwd"], navigate_to_ads=False)
-                    result[vendor_id] = main_coupang(cookies=cookies, vendor_id=vendor_id, **configs)
-                    logger.info(f"[{vendor_id}] succeeded")
+                    cookies = exec_info["cookies"]["wing"]
+                    exec_info["etl"] = main_coupang(cookies, vendor_id, **configs)
+                    logger.info(f"[{vendor_id}] ETL succeeded")
                 except Exception as exception:
-                    logger.error(f"[{vendor_id}] failed: {exception}")
-                    result[vendor_id] = f"failed: {str(exception)}"
+                    logger.info(f"[{vendor_id}] ETL failed: {exception}")
+                    exec_info["etl"] = {"exception": str(exception)}
+
+                result[vendor_id] = exec_info
 
             return result
 
@@ -217,7 +243,7 @@ with DAG(
 
         ECOUNT_PATH = "ecount.api.inventory"
 
-        @task(task_id="read_ecount_configs", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
+        @task(task_id="read_ecount_configs", retries=3, retry_delay=timedelta(minutes=1))
         def read_ecount_configs() -> dict:
             from airflow_utils import read_config
             return read_config(ECOUNT_PATH, credentials="expand", tables=True, service_account=True)

@@ -148,7 +148,7 @@ with DAG(
 
     def branch_condition(ti: TaskInstance, **kwargs) -> str | None:
         if ti.run_id.startswith("api__1st__"):
-            return "ecount_stock_report"
+            return "trigger_ecount_stock_report"
         else:
             return None
 

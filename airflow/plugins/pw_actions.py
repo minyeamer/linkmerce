@@ -44,7 +44,7 @@ def get_browser_cookies(
 ############################# Coupang #############################
 ###################################################################
 
-def coupang_login(userid: str, passwd: str, navigate_to_ads: bool = True) -> dict:
+def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True) -> dict:
     """Playwright 브라우저로 쿠팡 윙/광고 로그인을 수행하고 `{wing: "...", ads: "..."}` 형태의 쿠키를 반환한다.
 
     주의) Playwright 브라우저가 `headless=False` 옵션 또는 가상 렌더링을 지원하지 않으면   
@@ -78,7 +78,6 @@ def coupang_login(userid: str, passwd: str, navigate_to_ads: bool = True) -> dic
         with context.expect_page() as new_page_info:
             selector = '#wing-top-main-side-menu [data-menu-code="ADS_CENTER_ALL"] a'
             page.locator(selector).first.click()
-
 
         ad_page = new_page_info.value
         ad_page.wait_for_url("https://advertising.coupang.com/**", timeout=60_000)
@@ -139,7 +138,7 @@ class NaverStateExpiredError(NaverLoginError):
     ...
 
 
-def naver_login(userid: str, passwd: str, storage_state: str | Path | None = None) -> str:
+def login_naver(userid: str, passwd: str, storage_state: str | Path | None = None) -> str:
     """Playwright 브라우저로 네이버 로그인을 수행하고 쿠키 문자열을 반환한다.
 
     저장된 세션(storage_state)이 있으면 불러와서 로그인을 스킵하고,
