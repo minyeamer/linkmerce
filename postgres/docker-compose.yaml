@@ -1,0 +1,23 @@
+---
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE_NAME:-custom/postgres:13}
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-linkmerce}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-linkmerce}
+      POSTGRES_DB: ${POSTGRES_DB:-linkmerce}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-linkmerce}"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+volumes:
+  postgres-data:
