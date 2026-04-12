@@ -1910,3 +1910,291 @@ wait_for_completion 함수 분리
 
   결론: 현재 코드는 Airflow 3.1.3 환경에서 정상 동작 가능.
 
+[2026-04-11] dbt 셋업 가이드 문서 작성
+================================================================================
+
+배경
+----
+  사용자가 기존 Airflow + DuckDB + BigQuery 파이프라인에 로컬 PostgreSQL 이중 적재와
+  dbt 분석 레이어를 추가하려 함. dbt 폴더는 현재 비어 있는 상태.
+
+의사결정
+--------
+  - dbt 어댑터: dbt-postgres (필수), dbt-bigquery (BigQuery 직접 실행 시 선택)
+  - PostgreSQL 드라이버: psycopg2-binary (Airflow 환경), 또는 DuckDB postgres 확장 활용
+  - BigQuery 동기화: dbt 자체 크로스-DB 동기화 미지원 → Airflow에서 처리 권장
+  - dbt 프로파일: profiles.yml을 dbt/ 폴더 내에 두고 .gitignore에 추가
+  - 모델 구조: staging(view) → intermediate(ephemeral) → marts(table) 3단계 구조
+
+결과물
+------
+  - docs/dbt-setup-guide.md 생성: 아키텍처 개요, 패키지 설치, PostgreSQL 설정,
+    dbt 초기화, profiles.yml/dbt_project.yml 작성, Airflow 연동, .gitignore 항목 포함
+
+[2026-04-11] PostgreSQL 원천 DB 컨테이너 설정 (postgres/ 폴더 신설)
+================================================================================
+
+배경
+----
+  Airflow DAG의 이중 적재(BigQuery + PostgreSQL) 및 dbt 분석 레이어 구성을 위해
+  로컬 PostgreSQL 컨테이너가 필요. dbt/ 폴더에 섞으면 역할이 흐려지므로
+  프로젝트 루트에 postgres/ 폴더를 별도 생성하기로 결정.
+
+의사결정
+--------
+  - postgres/ 위치: 루트 (airflow/, streamlit/과 동일한 "서비스 폴더" 패턴)
+  - DB 버전: Airflow 내부 postgres와 동일한 postgres:13
+  - 호스트 포트: 5432 기본값 (Airflow는 5431 사용 — 충돌 없음)
+  - init.sql: docker-entrypoint-initdb.d에 포함하여 최초 기동 시 자동 실행
+  - 테이블 DDL: schemas.json(BigQuery 스키마 정의) 기반 Python 스크립트로 자동 생성
+  - 초기 테이블명 규칙: <platform>.<group>__<table> (이후 다음 세션에서 변경)
+
+결과물
+------
+  - postgres/docker-compose.yaml: build: . 방식으로 컨테이너 정의
+  - postgres/Dockerfile: FROM postgres:13 + init.sql COPY
+  - postgres/init.sql: schemas.json 기반 전체 DDL (1030 라인)
+
+[2026-04-11] PostgreSQL init.sql 스키마 명명 개선 + Docker 이미지 빌드 방식 변경
+================================================================================
+
+배경
+----
+  - `coupang.wing__rocket_shipping` 형태의 테이블명이 너무 길고 DBeaver에서 보기 불편
+  - `build: .` 방식은 빌드 시 태그 제어가 안되어 불편
+
+의사결정 1: Docker 이미지 빌드
+------------------------------
+  - airflow의 build.sh 패턴과 동일하게 postgres/build.sh 신설
+  - 이미지 태그: custom/postgres:13
+  - docker-compose.yaml에서 build: . 제거 → image: custom/postgres:13 사용
+
+의사결정 2: 스키마 명명 규칙 변경
+----------------------------------
+  - 기존: <platform>.<group>__<table>  (언더스코어 2개로 그룹 구분)
+  - 신규: <platform_group>.<table>     (그룹을 스키마로 올려서 분리)
+  - DBeaver에서 스키마 트리로 플랫폼+그룹이 분리되어 탐색 편의성 향상
+
+  명시적 오버라이드 (사용자 지정):
+    coupang.wing      → coupang
+    sabangnet.admin   → sabangnet
+    searchad.api      → searchad
+    smartstore.api    → smartstore
+
+  자동 규칙:
+    group == 'api' 단독  → platform (api 생략)
+    그 외                → platform_group
+
+  최종 스키마 목록 (17개):
+    cjlogistics_eflexs, cjlogistics_loisparcel,
+    coupang, coupang_advertising,
+    ecount, ecount_manual,
+    google, meta, naver_openapi,
+    relation,
+    sabangnet, searchad, searchad_gfa, searchad_manage,
+    smartstore, smartstore_hcenter, smt_bizdata
+
+결과물
+------
+  - postgres/build.sh 신설: docker build --tag custom/postgres:13 .
+  - postgres/docker-compose.yaml 수정: build: . → image: custom/postgres:13
+  - postgres/init.sql 재생성: 새 스키마 명명 규칙 적용 (1060 라인)
+
+
+
+
+[현재 세션] PRIMARY KEY + BigQuery 파티션/클러스터링 반영
+================================================================================
+
+배경
+----
+  postgres/init.sql의 테이블 구조에 PRIMARY KEY 제약과 PostgreSQL
+  성능 최적화 구성이 없었음.
+  - src/linkmerce/core/**/models.sql : 각 테이블의 PK 정보 포함
+  - GCP 프로젝트 BigQuery : DATE/TIMESTAMP 파티션 및
+    클러스터링 필드 메타데이터 포함
+
+작업 내용
+---------
+  1. models.sql 파싱
+    - core/**/ 전체 rglob("models.sql") 탐색
+    - CREATE TABLE 블록에서 PRIMARY KEY 절 및 인라인 PRIMARY KEY 추출
+    - 인라인 (col TYPE PRIMARY KEY): coupang option, ecount product/inventory,
+      sabangnet product/option/order, searchad campaign/adgroup/ad/contract,
+      smartstore product/option/order 등
+    - 테이블 수준 (PRIMARY KEY (cols)): adreport_pa, adreport_nca,
+      google insight/ad/adgroup/campaign, meta insights/ads/adsets/campaigns,
+      smartstore order_status/order_detail 등
+
+  2. BigQuery 메타데이터 조회 (google.cloud.bigquery 사용)
+    - 대상 데이터셋: cjlogistics, coupang, ecount, google, meta,
+      nshopping, relation, sabangnet, searchad, smartstore, smt_bizdata
+    - 수집 정보: time_partitioning (field, type), clustering_fields
+    - BQ DAY 파티션 테이블 (18개):
+        coupang.adreport_pa/nca, coupang.rocket_sales/shipping,
+        ecount.cost, google.insight, meta.insights,
+        nshopping.rank, sabangnet.order/order_invoice/order_dispatch/
+        order_status, searchad.rank/report/report_gfa,
+        smartstore.order/order_delivery/order_detail/order_status,
+        smt_bizdata.marketing_channel
+
+  3. init.sql 재생성 (1483 라인)
+    PRIMARY KEY 전략:
+      - models.sql에서 명시된 경우: 그대로 적용
+      - NOT NULL 컬럼만 있는 경우: 자연키 추론 (invoice_no, order_seq 등)
+      - 관계 테이블: 복합 PK (option_id+product_code 등)
+
+    PARTITION BY RANGE 적용 (18개 테이블):
+      - BQ DAY 파티션 테이블 전체 적용
+      - 조건: 파티션 컬럼이 PK에 포함되어야 함 (PostgreSQL 제약)
+        → payment_dt, sales_date 등은 PK에 추가
+        → sabangnet.order 등 order_seq가 자연 PK인 경우: 파티션 미적용,
+          인덱스만 추가
+      - 파티션 테이블별 연도 파티션 (2021~2025) + DEFAULT 파티션 자동 생성
+
+    CREATE INDEX 전략:
+      - BQ clustering_fields → B-tree index (상위 1~3 컬럼)
+      - DATE/TIMESTAMP 파티션 컬럼 → 파티션 미적용 테이블에만 인덱스 추가
+      - 파티션 적용 테이블: 부모 테이블에 정의 시 자식 파티션에 자동 상속
+
+설계 결정 사항
+--------------
+  파티션 컬럼 PK 포함 원칙:
+    PostgreSQL 선언적 파티션(Declarative Partitioning)에서 PK가 있으면
+    파티션 키가 PK에 포함되어야 한다. 따라서:
+      - smartstore.order: PK = (payment_dt, order_id)  ← payment_dt 추가
+      - coupang.rocket_sales: PK = (sales_date, vendor_id, order_id, ...)
+      - sabangnet.order: 자연 PK(order_seq)를 유지하고 파티션 미적용 결정
+
+  BQ RANGE 파티션 (media_code, depth):
+    INT64 RANGE 파티션은 PostgreSQL에서 단순 B-tree index로 대체.
+
+결과물
+------
+  - postgres/init.sql 재생성: 1483 라인
+    (PRIMARY KEY, PARTITION BY RANGE ×18, 연도 파티션, CREATE INDEX)
+  - postgres/init.sql.bak: 이전 1060 라인 백업 유지
+
+스키마별 최종 구조 요약
+-----------------------
+  cj_eflexs      : invoice(PK), invoice_order(PK), stock(index)
+  cj_loisparcel  : invoice(PK)
+  coupang        : option(PK), inventory(PK), rocket_sales(PK+PART),
+                  rocket_shipping(PK+PART), vendor
+  coupang_ads    : campaign(PK), adgroup(PK), creative(PK),
+                  adreport_pa(PK+PART), adreport_nca(PK+PART)
+  ecount         : inventory(PK), product(PK), cost(PK+index)
+  google         : campaign(PK), adgroup(PK), ad(PK), asset(PK),
+                  insight(PK+PART)
+  meta           : accounts(PK), campaigns(PK), adsets(PK), ads(PK),
+                  insights(PK+PART)
+  naver          : category(PK), keyword(PK), kwd_pid(PK), product(PK),
+                  rank(PK+PART)
+  relation       : 6개 테이블 복합 PK
+  sabangnet      : 14개 테이블 (8개 PK, order계열 index)
+  searchad       : account~contract(PK), report(PK+PART), rank(PK+PART)
+  searchad_gfa   : report(PK+PART)
+  smartstore     : channel~order_option(PK), order계열 4개(PK+PART)
+  ss_hcenter     : category~product(PK), pageview(PK+PART), sales(PK+PART),
+                  stock(복합PK)
+  ss_bizdata     : marketing_channel(PK+PART)
+
+================================================================================
+세션: init.sql 컬럼 타입 정밀화 + 인덱스 위치 재배치
+================================================================================
+
+작업 내용
+---------
+1. 컬럼 타입 정밀화 (models.sql 기반)
+  - BIGINT → SMALLINT: DuckDB TINYINT 원천 컬럼
+    예) settlement_type/period_type (coupang), device_type (google.insight),
+        pc_mobile_type (searchad.report), contract_status (searchad.contract),
+        display_rank (searchad/naver rank), product_type (naver/smartstore),
+        creative_type (coupang_ads.adreport_nca), vendor_type/goal_type (coupang_ads),
+        order_status (smartstore.order_status)
+  - BIGINT → INTEGER: models.sql에서 INTEGER로 명시된 수량/금액/코드 컬럼
+    적용 범위: 모든 스키마(cj_eflexs, coupang, coupang_ads, ecount, google,
+      meta, naver, sabangnet, searchad, searchad_gfa, smartstore,
+      ss_hcenter, ss_bizdata)의 수량·가격·광고지표·비용 컬럼
+  - BIGINT 유지: PK/FK ID 컬럼, barcode, orderer_id, catalog_id 등
+
+2. 인덱스 위치 재배치
+  - 기존: 파일 맨 하단의 단일 인덱스 블록
+  - 변경: 각 CREATE TABLE 직후 해당 테이블 인덱스 배치
+  - 효과: 테이블-인덱스 관계를 코드 위치에서 즉시 파악 가능
+
+3. order_id BIGINT 유효성 확인
+  - smartstore.order.order_id 예시값: x (16자리)
+  - BIGINT 최대값: 9,223,372,036,854,775,807 (19자리) → 안전하게 수용
+
+결과물
+------
+  - postgres/init.sql: 1291 라인 → 1254 라인
+    (타입 정밀화, 인덱스 인라인 배치, 하단 인덱스 블록 제거)
+
+================================================================================
+세션: BRIN → 선언적 파티셔닝 전환 + PostgreSQL 클라이언트 모듈
+================================================================================
+
+배경
+----
+  BRIN 인덱스가 BigQuery 파티션의 결정론적 프루닝을 대체할 수 없음을 확인.
+  BRIN은 블록 범위 요약 기반의 손실(lossy) 인덱스로, False Positive 발생.
+  INSERT ON CONFLICT(UPSERT) 워크로드에서도 추가 이점 없음.
+  → PostgreSQL 선언적 파티셔닝(PARTITION BY RANGE)으로 전면 전환 결정.
+
+작업 내용
+---------
+1. init.sql: BRIN → PARTITION BY RANGE 전환
+  - 29개 테이블에 PARTITION BY RANGE 적용 (DATE 17개, TIMESTAMP 12개)
+  - BRIN 인덱스 제거, 클러스터링 B-tree 인덱스 유지
+  - PK에 파티션 키 미포함 테이블 11개 PK 변경
+    예) cj_eflexs.invoice: (invoice_no) → (pickup_date, invoice_no)
+        ecount.cost: (id) → (end_date, id)
+        sabangnet.order: (order_seq) → (order_dt, order_seq)
+        searchad.contract: (contract_id) → (contract_end_date, contract_id)
+  - TIMESTAMP 칼럼은 직접 RANGE 파티셔닝 (월별 범위 지정)
+  - 부모 테이블만 정의, 자식 파티션은 PostgresClient에서 동적 생성
+
+2. extensions/postgres.py 신규 작성
+  - PostgresClient(Connection) 클래스: psycopg2 기반
+  - BigQueryClient와 동등한 인터페이스, PostgreSQL 네이티브 용어 사용
+  - 주요 메서드:
+    · fetch_all_to_csv/json: 쿼리 결과 조회
+    · copy_from_csv/copy_to_csv: COPY FROM/TO STDIN (대량 적재)
+    · insert_rows: execute_batch 기반 INSERT
+    · upsert: INSERT ON CONFLICT DO UPDATE (BigQuery MERGE 대응)
+    · upsert_from_staging: 스테이징 테이블→타겟 UPSERT
+    · overwrite_table: DELETE + INSERT (트랜잭션 보호)
+    · ensure_partition/ensure_monthly_partitions: 파티션 자동 생성
+    · get_partitions/is_partitioned: 파티션 조회
+    · load_from_duckdb: DuckDB→CSV→COPY 적재
+    · upsert_from_duckdb: DuckDB→스테이징→UPSERT
+    · overwrite_from_duckdb: DuckDB→DELETE+COPY
+    · expr_now/expr_today: PG 네이티브 표현식
+  - matched 파라미터: BigQuery와 동일한 전략 지원
+    :replace_all:, :do_nothing:, replace, ignore, greatest, least,
+    source_first, target_first
+    S.col → EXCLUDED.col, T.col → table.col 매핑
+
+3. docs/postgres-partitioning.md 신규 작성
+  - BRIN 한계 분석, 선언적 파티셔닝 설계, 클라이언트 모듈 API 문서
+  - BigQuery↔PostgreSQL 메서드 매핑 테이블
+  - UPSERT matched 파라미터 변환 규칙
+  - DuckDB→PG 적재 패턴 (CSV COPY, 스테이징 패턴)
+  - 참고 링크 첨부
+
+주요 설계 결정
+--------------
+  - PG 13: MERGE 미지원 → INSERT ON CONFLICT 사용 (PG 15부터 MERGE 지원)
+  - TIMESTAMP 파티셔닝: generated DATE 칼럼 대신 TIMESTAMP 직접 RANGE 파티셔닝
+    (PostgreSQL은 TIMESTAMP에도 RANGE 파티셔닝 지원, 월별 범위 지정)
+  - 파티션 관리: init.sql은 부모 테이블만, PostgresClient가 월별 파티션 동적 생성
+  - DuckDB→PG 적재: DuckDB postgres 확장 대신 DataFrame→CSV→COPY 패턴
+    (확장 의존성 제거, 범용성 확보)
+
+결과물
+------
+  - postgres/init.sql: PARTITION BY RANGE 적용, BRIN 인덱스 제거
+  - src/linkmerce/extensions/postgres.py: PostgreSQL 클라이언트 모듈 신규
+  - docs/postgres-partitioning.md: 설계 문서 신규
