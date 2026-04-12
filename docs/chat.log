@@ -1,1940 +1,289 @@
 LinkMerce 프로젝트 의사결정 로그
 ================================================================================
 
-[2026-03-09] Q8: T-2 상세화 — JsonTransformer fill_paths + deep_fill 설계
+[2026-04-11] dbt 셋업 가이드 문서 작성
 ================================================================================
 
 배경
 ----
-  plan-transformer.md T-2에서 "SELECT 파싱으로 JSON 키 자동 정규화"를 제안.
-  사용자가 smartstore/api/order/transform.py의 OrderList를 예시로
-  구체적인 설계를 요청. 현재 validate_* 패턴이 너무 더럽다고 지적.
+  사용자가 기존 Airflow + DuckDB + BigQuery 파이프라인에 로컬 PostgreSQL 이중 적재와
+  dbt 분석 레이어를 추가하려 함. dbt 폴더는 현재 비어 있는 상태.
 
-문제 재확인
------------
-  OrderList.validate_content() → validate_order() → validate_product_order() 등
-  5개 메서드, 72줄. 모두 동일한 패턴:
-    "if key not in dict: dict[key] = None"
-
-  SharedProduct: SQL에서 이미 content.order.orderId 등 전체 경로를 선언.
-  Python에서 같은 경로를 다시 선언하는 것은 중복.
-
-  DuckDB BinderException 발생 조건:
-    - UNNEST($obj)로 json list를 컬럼화할 때 obj[0]의 키 집합으로 스키마 결정
-    - SELECT에서 참조하는 컬럼이 obj[0]에 없으면 파싱 시점 BinderException
-    - 현재 validate_*(orders[0])만 패치. rows 1+는 DuckDB가 NULL로 처리.
-
-설계 결정 1: deep_fill 유틸리티 (utils/fill.py 신설)
------------------------------------------------------
-  deep_fill(obj, paths) — 점 표기법 경로의 최하위까지 None 채움
-
-  경로 형식:
-    dict 형식: {"content.order": ["orderId", "ordererNo"]}  ← compact
-    list 형식: ["content.order.orderId", "content.order.ordererNo"]  ← explicit
-
-  path 파싱:
-    "a.b.c"       → ["a", "b", "c"]
-    "a.list[0].c" → ["a", "list", 0, "c"]  (리스트 인덱스 지원)
-
-  중간 경로 처리:
-    - 누락/None → 빈 dict 자동 생성
-    - 다음 키가 int → 빈 list 자동 생성
-    - 리스트 길이 부족 → {} 추가로 확장
-    - 최하위 키 누락 → None 설정
-
-설계 결정 2: JsonTransformer.fill_paths 클래스 속성 추가
----------------------------------------------------------
-  fill_paths: dict[str, list[str]] | list[str] | None = None
-
-  transform() 오버라이드:
-    result = super().transform(obj)
-    if result and self.fill_paths is not None:
-        for item in (result if isinstance(result, list) else [result]):
-            if isinstance(item, dict):
-                deep_fill(item, self.fill_paths)
-    return result
-
-  → validate_* 메서드 전부 삭제, transform() 오버라이드 불필요.
-
-OrderList 변환 예시 (비교)
---------------------------
-  AS-IS: 72줄, validate_content + 4개 메서드
-  TO-BE: 20줄, fill_paths dict 선언만
-
-  TO-BE 전문:
-    class OrderList(JsonTransformer):
-        dtype = dict
-        path = ["data", "contents"]
-        fill_paths = {
-            "content.order": [
-                "orderId", "ordererNo", "ordererId", "ordererName",
-                "payLocationType", "orderDate", "paymentDate",
-            ],
-            "content.productOrder": [
-                "merchantChannelId", "productId", "optionCode",
-                "sellerProductCode", "optionManageCode", "productOrderStatus",
-                "claimStatus", "productClass", "productName", "productOption",
-                "inflowPath", "inflowPathAdd", "deliveryAttributeType",
-                "deliveryTagType", "quantity", "unitPrice", "optionPrice",
-                "deliveryFeeAmount", "totalPaymentAmount", "paymentCommission",
-                "expectedSettlementAmount", "decisionDate",
-            ],
-            "content.productOrder.shippingAddress": ["zipCode", "latitude", "longitude"],
-            "content.delivery": [
-                "trackingNumber", "deliveryCompany", "deliveryMethod",
-                "pickupDate", "sendDate", "deliveredDate",
-            ],
-            "content.completedClaims[0]": ["claimType", "claimRequestAdmissionDate"],
-        }
-
-T-2-3과의 역할 분담 (최종 형태)
----------------------------------
-  T-2-3 완성(SELECT auto-parse) 이후:
-    - content.order.*, content.productOrder.*, content.delivery.* 경로:
-      insert_into_table()이 SELECT 파싱으로 자동 처리 → fill_paths 불필요
-    - content.completedClaims[0].* 경로:
-      SELECT에 직접 등장하지 않는 리스트 인덱스 → fill_paths에만 남음
-
-  최종 OrderList (T-2-3 완성 후):
-    class OrderList(JsonTransformer):
-        dtype = dict
-        path = ["data", "contents"]
-        fill_paths = {
-            "content.completedClaims[0]": ["claimType", "claimRequestAdmissionDate"],
-        }
-
-  패턴: fill_paths는 "SQL에 등장하지 않는 list[0] 경로"에만 남음.
-  나머지는 SELECT 파싱으로 자동화.
-
-OrderStatus.validate_change_status 처리
-----------------------------------------
-  OrderStatus(DuckDBTransformer)의 validate_change_status()는
-  OrderList의 validate_* 패턴과 동일. 단, JsonTransformer가 아닌
-  DuckDBTransformer에 위치.
-
-  T-2-3 완성 시 insert_into_table()이 SELECT 파싱으로 자동 처리 →
-  validate_change_status() 메서드 삭제 가능.
-
-  이 패턴은 코드베이스 전체에 걸쳐 반복되며, T-2-3이 모두 해소.
-
-결정 사항
----------
-  1. utils/fill.py 신설: deep_fill(obj, paths) + _parse_path() + _fill_path()
-  2. JsonTransformer에 fill_paths 클래스 속성 추가 및 transform() 수정
-  3. dict 형식(compact)이 기본 권장 형식
-  4. list[n] 인덱스 경로는 fill_paths로 처리 (SELECT 파싱 대상 외)
-  5. DuckDBTransformer의 validate_* 패턴은 T-2-3(insert_into_table 자동화) 완성 후 제거
-  6. plan-transformer.md T-2 섹션에 fill_paths 설계 상세화 예정
-
-
-[2026-03-09] Q9: 변수명 확정 + T-3 DuckDBTransformer 선언적 추상화 설계
-================================================================================
-
-배경
-----
-  Q8의 fill_paths 설계를 검토한 후:
-    1. 변수명 변경: path → root_path, fill_paths → key_paths 로 확정.
-    2. DuckDBTransformer 단에서도 동일한 선언적 추상화 도입.
-      set_tables / create_table / transform 3개 메서드가 표준 패턴에서
-      모두 직접 구현되고 있음 → 클래스 속성으로 추상화 가능.
-
-변수명 변경 결정
-----------------
-  path → root_path
-    이유: JSON 경로 탐색의 "시작점(root)"임을 명시. 단순 path보다 의미 명확.
-  fill_paths → key_paths
-    이유: 채울 키(key) 경로를 선언한다는 의미 강조. fill은 구현 방식이고
-          key는 선언 내용에 집중.
-  변경 범위: JsonTransformer 클래스 속성 + plan-transformer.md T-2-5 섹션.
-  chat.log Q8의 fill_paths 표기는 역사 기록이므로 수정하지 않음.
-
-T-3 설계: 신규 DuckDBTransformer 클래스 속성
---------------------------------------------
-  json_source: type[JsonTransformer] | None = None
-    → transform()에서 obj를 파싱할 JsonTransformer 클래스
-    → None이면 transform()을 직접 구현 (기존 방식 유지)
-
-  table_keys: list[str] | None = None
-    → 다중 테이블 모드. 각 키는 테이블명 접미사 (e.g., "order", "product_order")
-    → None이면 단일 테이블 모드
-
-  table_prefix: str | None = None
-    → f"{table_prefix}_{key}" 패턴으로 실제 테이블명 생성
-    → e.g., table_prefix="smartstore", key="order" → "smartstore_order"
-
-자동화 동작 (3개 메서드)
-------------------------
-  queries:      table_keys 설정 시 [f"{kw}_{key}" for key in table_keys for kw in ...] 자동
-                json_source만 설정 시 ["create", "select", "insert"] 자동
-  set_tables(): table_keys + table_prefix → {key: f"{prefix}_{key}"} 자동
-  create_table(): table_keys → for key in table_keys: super().create_table(...) 자동
-  transform():  json_source 설정 시 → 파싱 후 단일/다중 삽입 자동 분기
-                single: insert_into_table(data, params=kwargs or None)
-                multi:  for key in table_keys: insert_into_table(data, key=..., table=..., values=...)
-
-Before/After (Order, OrderTime)
---------------------------------
-  Order (15줄 → 3줄):
-    AS-IS: queries 선언 + set_tables + create_table + transform 4개 메서드
-    TO-BE:
-      class Order(DuckDBTransformer):
-          table_keys   = ["order", "product_order", "delivery", "option"]
-          table_prefix = "smartstore"
-          json_source  = OrderList
-
-  OrderTime (8줄 → 1줄):
-    AS-IS: queries 선언 + transform 구현 (channel_seq params)
-    TO-BE:
-      class OrderTime(DuckDBTransformer):
-          json_source = OrderList
-    channel_seq는 **kwargs로 전달 → params=kwargs 자동 언팩.
-
-적용 범위
----------
-  표준 패턴 (json_source 추상화 가능):
-    - json_source 파싱 후 추가 가공 없는 단일/다중 테이블 Transformer 전체
-  비표준 (직접 구현 유지):
-    - searchad/api/adreport: TSV 멀티 타입, 테이블별 다른 로직
-    - 파싱 후 enrich() 등 추가 가공이 있는 경우
-
-결정 사항
----------
-  1. path → root_path, fill_paths → key_paths 로 변수명 확정
-  2. plan-transformer.md: T-2-5(key_paths/root_path 상세) + T-3 섹션 추가
-  3. T-3 구현: json_source, table_keys, table_prefix 신규 클래스 속성
-  4. queries 자동 계산: __init_subclass__ 또는 __init__ 시점에 처리
-  5. 하위 호환: T-3 속성 미선언 시 기존 동작 완전 유지
-
-
-================================================================================
-Q11. T-2 설계 변경: sqlglot 제거, key_paths 단일 메커니즘으로 전환
-================================================================================
-
-배경
-----
-  Q10에서 sqlglot 기반 SELECT 파싱 + key_paths 조합으로 T-2를 설계했으나,
-  사용자가 SELECT 파싱 방식을 거부하고 key_paths 단일 메커니즘으로 재결정.
-
-변경 이유
----------
-  - Q8/Q9에서 key_paths를 정의하는 방식으로 이미 결정한 상태였음.
-  - SELECT 파싱(sqlglot)은 추가로 제안된 방식이었으나 채택하지 않음.
-  - 모든 JsonTransformer에서 key_paths를 명시적으로 선언하는 것이 더 명확하고
-    제어 가능한 방식.
-
-신규 동작 (핵심)
-----------------
-  key_paths = ["key1.key2", "key3"]
-  입력: {}
-  출력: {"key1": {"key2": None}, "key3": None}
-
-  입력: {"key1": {"key2": "v", "extra": "x"}, "key3": "y", "unrelated": "z"}
-  출력: {"key1": {"key2": "v"}, "key3": "y"}        ← extra, unrelated 제거
-
-  - key_paths에 선언된 경로만 남긴다 (필터링)
-  - 선언된 경로에 값이 없으면 None으로 채운다
-  - 모든 행이 동일한 키 구조 → DuckDB UNNEST schema 안정 → BinderException 해소
-
-폐기된 T-2 설계
----------------
-  T-2-0: pyproject.toml sqlglot 의존성 추가 → 불필요
-  T-2-1: utils/sql_parse.py (sqlglot.parse_one, extract_source_columns) → 삭제
-  T-2-2: DBTransformer.normalize_json + _get_source_columns (SELECT 파싱 캐싱) → 삭제
-  T-2-3: insert_into_table 자동 normalize_json 호출 → 삭제
-  T-2-4: json_keys 명시 선언 fallback → 삭제
-  T-2-5: key_paths (list[0] 경로만 대상) → 전체 경로 대상 주 메커니즘으로 승격
-
-확정된 T-2 설계
----------------
-  utils/fill.py:
-    project_paths(row: dict, paths: list[str]) → dict
-      - dot-notation 경로 목록에 따라 row를 필터링 + None 채움하여 새 dict 반환
-      - "a.b.c", "d", "items[0].id" 등 경로 지원
-
-  JsonTransformer:
-    root_path: list | None = None   (기존 path 대체, 의미 동일)
-    key_paths: list[str] | None = None
-    transform() 수정:
-      key_paths가 설정된 경우 각 행에 project_paths 적용하여 반환
-
-  적용 대상:
-    - 기존 validate_* 메서드 보유 클래스: OrderList, Product(smartstore/api)
-    - 기존 obj[0].get() 패치 보유 클래스: Product(ecount), Option(sabangnet)
-    - DuckDBTransformer 레벨 validate_* 클래스: OrderStatus, ExposureRank
-      → 해당 JsonTransformer(OrderStatusList 등)의 key_paths 선언으로 처리
-
-T2-B 분류 제거
---------------
-  이전: T2-B = DuckDBTransformer 레벨 obj[0].get() 패치 (T-2-3 자동화 기대)
-  현재: T2-B 분류 제거. 기존 T2-B 항목 전부 T2-A로 재분류.
-    - ecount/Product, sabangnet/Option: key_paths에 "fnlChgDt" 추가
-    - smartstore/OrderStatus: OrderStatusList.key_paths 선언
-    - searchad/ExposureRank: key_paths에 "lowPrice", "mobileLowPrice" 추가
-
-결정 사항
----------
-  1. sqlglot 의존성 추가 없음 (pyproject.toml 수정 불필요)
-  2. utils/sql_parse.py 신설 없음
-  3. utils/fill.py: project_paths(row, paths) 구현
-  4. JsonTransformer: key_paths = list[str] | None 단일 형식으로 통일 (dict 형식 폐기)
-  5. key_paths는 필터링 + None 채움 두 역할 동시 담당
-  6. plan-transformer.md T-2-0~T-2-5 → T-2-1~T-2-3으로 단순화 완료
-  7. 구현 순서: T-2 → T-3 → T-1 (BinderException 즉각 해소 우선)
-
-JsonTransformer 서브클래스 scope/fields/on_missing 일괄 적용
-------------------------------------------------------------
-  배경:
-    - JsonTransformer 서브클래스들이 path/body 속성을 혼용하고, fields/on_missing 선언이 없었음
-    - scope(dot-notation 문자열), fields(list 또는 dict 형태), on_missing 을 각 클래스에 명시
-
-  결정 원칙:
-    - path/body → scope 로 통일 (숫자 인덱스 포함: [0,"results"] → "0.results")
-    - fields: list = flat top-level 키 추출; dict = select_values() schema (중첩 경로)
-    - on_missing: SQL에 ->, ->>, json_extract_string, FROM_BASE64, json_each 등
-      JSON 파싱 함수가 있으면 "ignore", 없으면 "raise"
-    - runtime에 path를 전달받는 클래스(CatalogItems, SalesList, SearchItems 등)는
-      scope 선언 불가 → fields/on_missing 만 추가
-    - 완전 커스텀 transform() 보유 클래스도 scope/fields/on_missing 선언 추가 (참조용)
-
-  처리된 클래스 목록:
-    cj/eflexs/stock               StockList           scope="dsRealTime", 16 fields, raise
-    ecount/api/inventory          InventoryList       scope="Data.Result", 2 fields, raise
-    ecount/api/product            ProductList         scope="Data.Result", 10 fields, raise
-    google/api/ads                AdResults           scope="0.results", 8 fields, ignore
-                                  AdList              scope="0.results", 5 fields, ignore
-                                  AssetViewList       scope="0.results", 6 fields, ignore
-    meta/api/ads                  AdObjects           scope="data", 19 fields, ignore
-    sabangnet/admin/order         OrderList           scope="data.orderList", 29 fields, raise
-                                  ProductList         scope="data.list", 7 fields, raise
-                                  SkuList             scope="data", 8 fields, raise
-    sabangnet/admin/product       ProductList         body→scope="data.list", raise
-                                  OptionList          body→scope="data.optionList", raise
-    searchad/api/keyword          KeywordList         scope="keywordList", 7 fields, raise
-    searchad/manage/exposure      AdList              body→scope="adList", ignore
-    searchad/gfa/adreport         Content             scope="content", 12 fields, ignore
-    smartstore/api/bizdata        MarketingChannelList scope="rows", 10 fields, raise
-    smartstore/api/order          OrderStatusList     body→scope="data.lastChangeStatuses", raise
-    smartstore/api/product        ProductList         scope="contents", 20 fields, ignore
-                                  OptionList          scope="originProduct.detailAttribute.optionInfo", ignore
-                                  SupplementList      scope="...supplementProducts", ignore
-    smartstore/brand/catalog      CatalogItems        no scope(runtime), 30 fields, ignore
-    smartstore/brand/pageview     PageViewItems       scope="data.storePageView.items", dict, ignore
-    smartstore/brand/sales        SalesList           no scope(runtime), dict fields, ignore
-    naver/openapi/search          SearchItems         no scope(runtime), 22 fields, ignore
-    coupang/wing/product          ProductList         scope="data.productList", 19 fields, raise
-                                  OptionList          scope="data", 10 fields, raise
-                                  RocketInventorylist scope="viProperties", 9 fields, ignore
-    coupang/wing/settlement       RocketSettlementList scope="settlementStatusReports", 6 fields, raise
-    coupang/advertising/adreport  CampaignList        (사용자 완료) scope="campaigns", 12 fields, ignore
-                                  AdgroupList         path→scope="campaigns", 8 fields, ignore
-
-  제외 대상:
-    naver/main/search     - HtmlTransformer/PropsTransformer (JsonTransformer 아님)
-    searchad/api/adreport - TsvTransformer (JsonTransformer 아님)
-    searchad/manage/adreport - AdvancedReport가 Transformer 직접 상속
-    sabangnet/admin/product/OptionDownload - DuckDBTransformer
-
-AI 가이드라인 강화 (ai-guidelines.md 수정)
------------------------------------------
-  배경:
-    - AI가 따라야 하는 지침문서의 강제성과 명확성을 높이기 위해 구조 및 표현 수정
-  수정 사항:
-    - 'AI Coding Guidelines (Mandatory)' 제목 및 강제 준수 선언 추가
-    - 각 항목에 명확한 식별 이름(예: 파일 수정 원칙) 부여
-    - '반드시', '엄격히 금지', '필수', '항상 수행' 등 강한 명령형 표현으로 교체
-    - 대용량 파일 처리 시 생략 금지 및 사용자 확인 절차 명시
-    - 로그 기록 및 커밋 메시지 출력 의무 재강조
-
-JsonTransformer scope/fields 추가 작업 보완
--------------------------------------------
-  추후 발견된 JsonTransformer 서브클래스들에 대해 scope/fields/on_missing 선언을 추가함.
-
-  추가 처리된 클래스:
-    coupang/advertising/adreport  CreativeList        path→scope="adGroup.videoAds", fields 추가
-    naver/main/search             CafeArticleJson     path→scope="result", fields 추가, parse logic 유지
-    naver/openapi/search          SearchItems         scope="items" 선언 및 호출부 수정
-    smartstore/brand/catalog      CatalogItems        scope="data.contents" 선언
-    smartstore/brand/pageview     PageViewItems       parse() 내에서 self.path → self.scope 로 수정
-    smartstore/brand/sales        SalesList           scope="data.contents" 선언
-
-  기타:
-    - _PropsTransformer (naver/main/search): HTML 파싱용 base 클래스이므로 제외
-    - models.sql의 주석 처리된 필드(`-- field`)들도 fields 목록에 포함하여 BinderException 예방
-    - path 속성을 사용하는 기존 인스턴스화 코드를 scope 기준으로 정리
-
-
-================================================================================
-[2026-03-11] Q12: plan.md 전면 재작성 — 아키텍처 방향 전환
-================================================================================
-
-배경
-----
-  사용자가 PostgreSQL 다이렉트 변환 방식을 검토했으나 QUALIFY 등 DuckDB 전용
-  기능 제약으로 포기. DuckDB를 변환 엔진으로 고정하고 PostgreSQL/BigQuery는
-  출력 대상(sink)으로만 사용하는 구조로 확정.
-
-아키텍처 방향 변경 결정
------------------------
-  1. T-1(SQL 방언 추상화) 폐기: DuckDB 전용 SQL 구문을 그대로 유지.
-  2. T-2 + T-3 병합: 두 작업을 "T-2: DuckDBTransformer 선언적 추상화 + fields
-    기반 JSON 행 정규화"로 통합.
-  3. JsonTransformer 직접 상속 폐지:
-    - 서브클래스는 DuckDBTransformer만 상속.
-    - scope / fields / on_missing / defaults 등 JSON 파싱 속성을
-      DuckDBTransformer에 직접 선언.
-    - 내부적으로 JsonTransformer 인스턴스를 생성·호출 (_parse_source()).
-    - JsonTransformer 클래스 자체는 내부 유틸리티로 유지.
-  4. HtmlTransformer 연동: html_source / html_source_selector 속성 추가.
-    CafeTab, CafeArticle 등 HTML → DuckDB 패턴 통일.
-  5. PostgreSQLTransformer 분리: extensions/postgresql.py 에
-    PostgreSQLClient(BigQueryClient 동일 패턴)로 구현.
-    DuckDB 결과를 list[dict] 또는 Parquet으로 받아 PG에 적재하는 역할만.
-
-신규 DuckDBTransformer 클래스 속성
------------------------------------
-  JSON 파싱: scope, fields, on_missing, defaults, json_source_scope
-  DB 삽입:   table_keys, table_prefix
-  HTML 연동: html_source, html_source_selector
-
-신규 메서드 (_parse_source)
-----------------------------
-  scope/fields 선언 시 내부 _InlineSource(JsonTransformer) 생성·호출.
-  html_source 선언 시 HtmlTransformer 인스턴스 생성·호출.
-  둘 다 None이면 None 반환 (transform() 직접 구현 모드 유지).
-
-자동화 동작
------------
-  queries:      table_keys 기반 자동 계산 (__init_subclass__)
-  set_tables(): table_keys + table_prefix 설정 시 자동 등록
-  create_table(): table_keys 설정 시 자동 루프
-  transform():  scope/fields 선언 시 _parse_source() → insert_into_table() 자동 분기
-
-구현 순서
----------
-  T-2(DuckDBTransformer 수정 + 패턴 A/B/C/D 적용) →
-  HTML(CafeTab, CafeArticle html_source 적용) →
-  EXT(extensions/postgresql.py 신설)
-
-변경 파일
----------
-  docs/plan.md    전면 재작성 (893줄 → 758줄, T-1 섹션 삭제, T-2/T-3 병합)
-  docs/size.yaml  plan.md lines/words 업데이트
-
-
-================================================================================
-[2026-03-11] Q13: HtmlTransformer 구조 개선 및 utils/parse 주석 보완
-================================================================================
-
-배경
-----
-  HtmlTransformer를 JsonTransformer와 동일한 4단계 파이프라인 구조로 통일하여
-  선언적 파싱이 가능하도록 개선. 또한 utils/parse 모듈의 가독성을 위해 한글
-  주석을 추가.
-
-HtmlTransformer 구조 개선
--------------------------
-  1. JsonTransformer와 동일한 4단계 파이프라인 적용:
-    assert_valid_response → get_scope → parse → select_fields
-  2. 주요 설정 변수 도입:
-    - scope: 데이터를 추출할 대상 요소를 찾는 CSS 셀렉터
-    - fields: {필드명: CSS_Selector} 형식의 명시적 추출 스키마
-    - on_missing: 셀렉터 탐색 실패 시 에러 발생 여부 (raise/ignore)
-  3. 메서드 변경:
-    - get_scope: utils/parse.select 를 사용하여 scope 탐색
-    - select_fields: fields 스키마에 따라 각 요소에서 값 추출 (리스트 지원)
-    - select: utils/parse.select 호출 래퍼 및 on_missing="raise" 처리 추가
-
-utils/parse 모듈 보완
----------------------
-  - 모든 주요 함수(clean_html, select, select_attr, hier_select 등)에
-    동작 및 목적을 설명하는 한두 줄의 한글 주석(docstring) 추가.
-
-결정 사항
----------
-  1. HtmlTransformer를 JsonTransformer의 선언적 모델에 맞춰 재설계 완료.
-  2. 데이터 추출 시 fields 스키마를 {필드명: 셀렉터} 형식으로 사용하도록 확정.
-  3. 모든 유틸리티 함수에 한글 주석을 추가하여 유지보수성 향상.
-
-
-================================================================================
-[2026-03-11] Q14: DBTransformer / DuckDBTransformer 한글 주석 추가 및 ExcelTransformer 도입
-================================================================================
-
-배경
-----
-  ResponseTransformer / JsonTransformer / HtmlTransformer 에 이미 한글 주석이
-  적용되어 있었고, 동일한 기준으로 DBTransformer와 DuckDBTransformer에도
-  클래스 및 메서드 단위 docstring을 추가함.
-
-주요 변경 사항
---------------
-  1. ExcelTransformer 신설 (JsonTransformer 상속)
-    - get_scope에서 excel2json(openpyxl 기반)으로 시트 데이터 로드
-    - scope = 시트 이름 (None이면 활성 시트)
-    - assert_valid_response = pass (타입 검증 생략)
-
-  2. DBTransformer 주석 추가
-    - 클래스 docstring: parser/parser_config/tables/queries 설정 변수 설명
-    - __init__: 각 인자(db_info, model_path, tables, create_options, parser,
-      parser_config) 역할 설명 포함
-    - parse: parser 유형별(dict/type/str/None) 동작 설명
-    - 나머지 메서드(CRUD, fetch, render, models, queries 등) 1줄 한글 docstring 추가
-
-  3. DuckDBTransformer 주석 추가
-    - 클래스 docstring: DuckDB UNNEST 구문 기반 배열 일괄 삽입 특징 명시
-    - bulk_insert: 데이터 없으면 None 반환 동작 명시
-    - prepare_bulk_params: render/params 준비 로직 및 반환값 설명
-    - expr_rows: UNNEST 표현식 변환 역할 설명
-    - execute/sql: 위치 인자(obj)와 키워드 인자(params) 구분 설명
-    - CRUD 메서드: create의 "tables" render 기본값 동작 포함
-
-  4. 타입 힌트 멀티라인 적용 (parser 필드)
-    - DBTransformer / DuckDBTransformer 모두 parser 타입을 괄호 사용 멀티라인 형식으로 변경
-
-  5. ParserConfig TypedDict 신설
-    - dtype, scope, fields, defaults, on_missing 를 키로 가지는
-      total=False TypedDict 로 parser_config 타입을 명확히 정의
-
-  6. dict 리터럴 표현식 통일 (core/coupang/advertising/adreport/transform.py)
-    - tables = dict(...) → tables = {...} 로 변경
-
-결정 사항
----------
-  1. ExcelTransformer를 JsonTransformer 상속 구조로 신설 (scope = 시트명)
-  2. parser 타입 힌트는 괄호 기반 멀티라인으로 표기
-  3. ParserConfig TypedDict로 parser_config 타입 명확화
-  4. DBTransformer/DuckDBTransformer 전 메서드에 1줄 이상 한글 docstring 적용
-
-
-================================================================================
-[2026-03-16] Q15: Transformer 리팩터링 검증 테스트 코드 작성
-================================================================================
-
-배경
-----
-  refactor/transform 브랜치에서 10개 커밋, 74개 파일에 걸친 DuckDBTransformer
-  선언적 추상화 리팩터링이 완료됨. 모든 Transformer가 정상 동작하는지 검증할
-  테스트 코드가 필요.
-
-리팩터링 변경 사항 요약
------------------------
-  - common/transform.py: ResponseTransformer(JsonTransformer, HtmlTransformer,
-    ExcelTransformer) 5단계 파이프라인 도입
-  - DBTransformer: parser / parser_config / render / params 선언적 속성 추가
-  - DuckDBTransformer: bulk_insert / prepare_bulk_params / expr_rows 자동화
-  - 24개 core/ 하위 transform.py 모듈 전면 선언적 방식으로 전환
-  - utils/nested.py: select_values 스키마 기반 필드 추출 기능 강화
-  - utils/map.py 삭제, utils/parse.py HTML 선택자 보완
-
-테스트 전략 결정
-----------------
-  1. 3계층 테스트 구조:
-    - Unit: ResponseTransformer (mock JSON 데이터로 파서 검증)
-    - Unit: DuckDBTransformer (mock 데이터 → 인메모리 DuckDB 삽입 검증)
-    - Integration: 실제 API 호출 → DuckDB 적재 파이프라인 검증
-
-  2. 민감정보 보호:
-    - credentials.yaml은 .gitignore에 포함 (기존)
-    - conftest.py에서 런타임 로딩, 파일 없으면 pytest.skip()
-    - 환경변수 LINKMERCE_CREDENTIALS_PATH 지원
-    - 통합 테스트는 @pytest.mark.integration 마커로 기본 실행 제외
-
-  3. 디버깅 편의:
-    - helpers.py에 debug_parse / debug_bulk_params / debug_table /
-      debug_pipeline / debug_response_transformer 함수 제공
-    - pytest -s 옵션으로 중간 출력물 콘솔 확인 가능
-
-생성된 파일
------------
-  docs/plan-test.md           - 테스트 계획서 마크다운
-  src/tests/__init__.py       - 테스트 패키지 초기화
-  src/tests/conftest.py       - 공통 fixture (config/credentials 로딩, DuckDB 연결)
-  src/tests/helpers.py        - 디버깅 헬퍼 함수 모음
-  src/tests/test_unit_parsers.py  - ResponseTransformer 단위 테스트 (11개 테스트)
-  src/tests/test_unit_duckdb.py   - DuckDBTransformer 단위 테스트 (11개 테스트)
-  src/tests/test_integration.py   - API 호출 통합 테스트 (8개 테스트)
-  src/tests/fixtures/             - mock JSON 데이터 (5개 파일)
-  pyproject.toml              - [tool.pytest.ini_options] 섹션 추가
-
-수정된 파일
------------
-  pyproject.toml - pytest 설정 추가 (testpaths, markers, addopts, pythonpath)
-
-결정 사항
----------
-  1. 테스트 코드는 src/tests/ 하위에 위치 (pypi 업로드 대상인 src/linkmerce/ 외부)
-  2. 통합 테스트는 @pytest.mark.integration으로 분리, 기본 실행 시 제외
-  3. credentials.yaml은 런타임 로딩 방식으로 민감정보 보호
-  4. helpers.py로 parse → bulk_insert → table 조회까지 단계별 디버깅 가능
-  5. pyproject.toml에 pytest 설정 통합 (별도 pytest.ini 불필요)
-
-
-================================================================================
-[2026-03-16] Q16: 실제 테스트 실행 및 버그 수정 (Unit/Integration Test)
-================================================================================
-
-배경
-----
-  Q15에서 작성한 테스트 코드를 실제로 실행하면서 발견된 오류들을 수정하고,
-  최종적으로 모든 테스트가 통과하도록 코드베이스를 안정화하는 작업이 필요.
-  또한 테스트 실행 과정과 결과를 문서화하여 향후 참고 자료로 활용하고자 함.
-
-발견된 주요 오류 및 수정 (17건)
--------------------------------
-  1. DuckDB 관련:
-    - create_options=None 기본값 문제 → run_with_duckdb() 등에서 {} 자동 주입
-    - 멀티 스테이트먼트 쿼리 실행 문제 → load.py execute()에서 분리 실행 로직 추가
-    - INSERT 순서 보장 안됨 → 테스트 코드에 ORDER BY 추가
-
-  2. 파서 및 트랜스포머 관련:
-    - transform.py $key 파라미터 치환 누락 → get_params() 수정
-    - Coupang Campaign: campaignId 필드 누락 → AdgroupParser 수정
-    - SmartStore Order: 중첩 JSON 구조 파싱 버그 → utils/nested.py select_values() 전면 수정
-    - SmartStore Product: optional 필드(modelId 등) 처리 미흡 → {"field": None} 스키마 적용
-
-  3. 테스트 데이터(fixture) 관련:
-    - ID 형식이 실제 API(숫자형 문자열, BigInt 등)와 달라 캐스팅 오류 발생
-    - → smartstore_order.json, sabangnet_order.json 등 fixture 데이터를 실제 형식에 맞춰 수정
-
-결과
-----
-  - Unit Tests: 30/30 PASSED (0.93s)
-  - Integration Tests: 7/8 PASSED
-    (Coupang Campaign은 쿠키 만료로 인한 500 오류 확인, 코드 문제가 아님을 검증)
-
-문서화
-------
-  docs/test-run.md 작성:
-    - 테스트 실행 환경 및 명령어
-    - 주요 오류 원인 및 해결 방법 상세 기록
-    - 각 파이프라인별 실제 추출 데이터 샘플(마스킹 전) 기록
-
-결정 사항
----------
-  1. DuckDB 멀티 스테이트먼트 실행 지원을 위해 load.py 수정 확정
-  2. utils/nested.py의 이중 중첩(CASE 2) 로직 수정본 확정
-  3. 모든 JsonTransformer의 create_options는 명시적으로 {}를 권장
-  4. 테스트 fixture는 최대한 실제 API 응답 타입(특히 숫자형 ID)을 준수하도록 관리
-
-
-================================================================================
-[2026-03-16] Q17: 테스트 직접 실행 및 전과정 버그 수정 (Unit/Integration 완결)
-================================================================================
-
-배경
-----
-  사용자의 요청에 따라 `credentials.yaml`을 포함한 실제 환경에서 테스트를 직접
-  실행하고, 발생한 모든 결함(설계 오류, API 명칭 오기, 데이터 타입 불일치 등)을
-  실시간으로 수정하며 전체 과정을 기록함.
-
-주요 수정 사항 (상세)
----------------------
-  1. API 호출부 정규화:
-    - `blog_search` -> `search_blog` 등 실재하지 않는 함수명 일제 수정.
-    - Google Ads 등 필수 파라미터(`service_account` 등) 누락분 보완.
-
-  2. DuckDB 실행 엔진 고도화:
-    - `load.py`: 멀티 스테이트먼트 실행 시 파라미터 바인딩이 마지막 문장에만
-      적용되는 DuckDB 제약을 해결하기 위해 쿼리 분리 및 정규식 기반 파라미터
-      필터링 로직 구현.
-
-  3. 파싱 엔진(`nested.py`) 핵심 버그 수정:
-    - SmartStore Order와 같은 복잡한 중첩 JSON 구조에서 `select_values` CASE 2의
-      재귀 호출 로직이 경로를 중첩시키는 치명적 버그 수정 (`KeyError` 해결).
-
-  4. 데이터 안정성 확보:
-    - `smartstore_order.json` 등 fixture 데이터를 실제 API가 사용하는
-      추적 가능하고 유효한 숫자형 문자열(15자리 등)로 전면 교체하여
-      `NOT NULL` 제약 및 캐스팅 오류 방지.
-
-  5. API 파이프라인(`api.py`) 편의성 개선:
-    - `run_with_duckdb`: `create_options` 누락 시 자동 `create table` 수행.
-    - `fetch_all_from_duckdb_table`: 테이블 수에 따른 동적 쿼리 생성 로직 보완.
-
-결과
-----
-  - Unit Tests: 30/30 PASSED ✓
-  - Integration Tests: 7/8 PASSED (Coupang 쿠키 만료 제외 전 기능 정상) ✓
-  - GitHub 업로드 준비: 개인정보 마스킹(`test-run.md`) 및 샘플 출력부 주석 처리 완료.
-
-
-================================================================================
-[2026-03-19] Q20: 테스트 인프라 정리 — fixtures/helpers → conftest.py 통합,
-             transform 반환값 패턴 정정, SmartStore Brand 자격증명 분리
-================================================================================
-
-배경
-----
-  Q19에서 작성된 70개 통합 테스트가 직접 Extractor→DuckDBTransformer 패턴으로
-  전면 재작성된 상태. 코드 검토 중 세 가지 문제가 발견됨:
-    1. fixtures.py + helpers.py 분리 유지 여부 검토
-    2. DuckDBTransformer.transform() 반환값 오용 (결과를 _print_result에 전달)
-    3. SmartStore Brand 테스트에서 brand_ids에 channel_seq를 잘못 할당
-
-문제 1: fixtures.py + helpers.py 구조
---------------------------------------
-  AS-IS:
-    - src/tests/fixtures.py — pytest fixture 정의
-    - src/tests/helpers.py  — save_extract / save_parser_results / save_duckdb_tables
-    - 두 파일은 분리되어 있었으나, 실제로는 stage_capture fixture 하나만을 위해
-      helpers.py가 존재. 또한 fixtures.py는 conftest.py가 아니어서 pytest가
-      자동으로 fixture를 로드하지 않는 치명적 문제가 있었음.
-
-  TO-BE:
-    - src/tests/conftest.py 신설: fixtures.py + helpers.py 전체 통합
-    - fixtures.py, helpers.py 삭제
-    - pytest 표준에 따라 conftest.py에서 fixture가 자동 등록됨
-
-문제 2: DuckDBTransformer.transform() 반환값 오용
---------------------------------------------------
-  AS-IS:
-    with stage_capture(ExtractorCls):
-        result = TransformerCls(db_info=...).transform(raw)
-    _print_result("name", result)   ← result는 DuckDB 연결 객체 or None
-
-  문제: transform()은 데이터를 반환하지 않고 DuckDB에만 적재함.
-        또한 _print_result를 DuckDBConnection 블록 바깥에서 호출하면
-        연결이 닫힌 뒤 fetch_all_to_json을 호출하게 됨.
-
-  TO-BE:
-    with DuckDBConnection(...) as conn:
-        tr = TransformerCls(db_info=dict(conn=conn))
-        with stage_capture(ExtractorCls):
-            tr.transform(raw)
-        _print_result("name", tr)   ← 연결이 열린 채로 LIMIT 5 쿼리
-
-  변경 범위:
-    - _print_result(name, transformer): transformer.tables 기반 LIMIT 5 콘솔 출력
-    - _fetch_rows(transformer): 첫 번째 non-empty 테이블 전체 행 반환 (step-1용)
-    - 모든 테스트 70개에서 result 변수 제거, tr 변수 도입 (자동화 스크립트 적용)
-    - step-1(stage_capture 없는 선행 transform) 6개 케이스도 동일하게 수정:
-        pm_result → pm_tr + pm_rows = _fetch_rows(pm_tr)
-        p_result  → p_tr  + p_rows  = _fetch_rows(p_tr)
-        g_result  → g_tr  + g_rows  = _fetch_rows(g_tr)
-        c_result  → c_tr  + c_rows  = _fetch_rows(c_tr)
-
-문제 3: SmartStore Brand brand_ids / mall_seq 오입력
------------------------------------------------------
-  AS-IS:
-    def _cookies(self, credential_reader): ...   ← smartstore.brand 쿠키만 읽음
-    def _api_cred(self, credential_reader): ...  ← smartstore.api[0] 반환
-    brand_ids = str(api.get("channel_seq", ""))  ← channel_seq != brand_ids
-    mall_seq  = api.get("channel_seq")           ← smartstore.api의 channel_seq 사용
-
-  문제: brand_ids와 mall_seq는 브랜드스토어 전용 ID로, smartstore.api의
-        channel_seq와 다른 값. 잘못된 값으로 API 호출 시 테스트 실패.
-
-  TO-BE:
-    def _brand_cred(self, credential_reader) -> dict:
-        """credentials.yaml의 smartstore.brand에서 직접 읽음.
-        brand_ids / mall_seq 없으면 pytest.skip으로 안내 메시지 출력.
-        
-        smartstore.brand 에 아래 항목을 추가하세요:
-          brand_ids: <브랜드 ID>
-          mall_seq:  <몰 시퀀스>
-        """
-        ...
-        return dict(brand_ids=str(brand_ids), mall_seq=mall_seq, cookies=cookies)
-
-  변경 범위: TestSmartStoreBrandIntegration 클래스 내 모든 테스트 메서드
-  credentials.yaml 추가 필요 항목:
-    smartstore:
-      brand:
-        brand_ids: <브랜드 ID>    ← 신규
-        mall_seq:  <몰 시퀀스>    ← 신규
-        cookies: Path(...)
-
-변경 파일
----------
-  src/tests/conftest.py  신설 (fixtures.py + helpers.py 통합)
-  src/tests/fixtures.py  삭제
-  src/tests/helpers.py   삭제
-  src/tests/test_integration.py  전면 수정 (패턴 정정, 브랜드 자격증명 분리)
-
-결정 사항
----------
-  1. conftest.py가 pytest fixture 자동 등록의 표준 진입점임을 확인.
-     fixtures.py 방식은 conftest.py로부터 import하거나 pytest_plugins 등록이
-     별도로 필요 — 분리 유지 실익 없음.
-  2. DuckDBTransformer.transform()은 결과를 반환하지 않으므로 반환값에 의존하지 않음.
-     결과 조회는 항상 fetch_all_to_json 또는 _fetch_rows(tr) 사용.
-  3. SmartStore Brand 자격증명 키(brand_ids, mall_seq)는 credentials.yaml에
-     직접 선언해야 함. 없으면 pytest.skip으로 사용자에게 명확히 안내.
-
-문서화
-------
-  - `fix_process_detail.txt`: 모든 명령과 Before/After 코드가 포함된 기술 전과정.
-  - `fix_process_q16.txt`: 핵심 결함 중심의 요약본.
-  - `test-run.md`: 실행 환경, 명령어, 실제 데이터 샘플(마스킹됨) 기록.
-
-결정 사항
----------
-  1. `nested.py`의 수정된 CASE 2 로직을 프로덕션 표준으로 확정.
-  2. `load.py`의 멀티 스테이트먼트 지원 로직을 통해 복잡한 SQL 템플릿 지원 강화.
-  3. 통합 테스트 결과물 노출 방지를 위해 `TestIntegration` 내 `print`문 주석 처리 유지.
-
-
-================================================================================
-[2026-03-16] Q18: 3단계 파이프라인 중간 데이터 캡처 시스템 구현
-================================================================================
-
-배경
-----
-  사용자가 코드 스타일을 수정한 후 재테스트를 요청.
-  추가로 통합 테스트 실행 시 파이프라인 3단계(Extractor→Transformer→DuckDB)의
-  중간 결과물을 파일로 저장하는 시스템 구현을 요청함.
-
-  요구사항:
-    - 저장 경로: src/tests/results/{core 이후 모듈경로}/{단계}.{확장자}
-    - 1-extractor.{ext}: transform() 입력 원본 HTTP 응답
-    - 2-transformer.{ext}: parse()/select_fields 결과 (list[dict])
-    - 3-duckdb.{ext}: DuckDB 테이블 적재 데이터
-    - 테스트 실행 시에만 저장 (프로덕션 코드 수정 없음)
-    - 저장 오류가 테스트를 중단시키지 않아야 함
-
-사용자 코드 수정 사항 (수동 변경)
----------------------------------
-  `DuckDBTransformer.execute()` 시그니처:
-    AS-IS: execute(self, query, **params)  — kwargs 방식
-    TO-BE: execute(self, query, params=None)  — dict 방식
-
-  → `bulk_insert()`에서 `self.execute(query, **params)` 호출이 TypeError 유발.
-    `self.execute(query, params)`로 수정하여 해결.
-
-구현 내용
----------
-  1. helpers.py — 결과 저장 유틸리티 추가:
-    - `_module_dir(cls)`: cls.__module__에서 'core.' 이후를 디렉터리 경로로 변환
-      예: linkmerce.core.ecount.api.inventory.transform → ecount/api/inventory
-    - `save_result(obj, cls, step)`: 데이터 타입별 저장
-      · dict/list → .json (indent=2, ensure_ascii=False, default=str)
-      · bytes → .bin (바이너리)
-      · str → .txt
-      · BeautifulSoup Tag → .html
-      · 기타 → str()로 .txt 저장
-      · 모든 단계에서 예외 발생 시 repr()로 최후 저장 시도
-    - `save_duckdb_tables(transformer)`: 테이블 데이터 JSON 저장
-      · 단일 테이블 → 3-duckdb.json
-      · 다중 테이블 → 3-duckdb-{key}.json
-
-  2. conftest.py — stage_capture fixture 추가:
-    - pytest fixture로 컨텍스트 매니저 반환
-    - `DuckDBTransformer.transform`을 monkey-patch하여 3단계 캡처:
-      · Stage 1: transform(obj) 입력 → save_result(obj, cls, "1-extractor")
-      · Stage 2: self.parse(obj) 결과 → save_result(result, cls, "2-transformer")
-      · Stage 3: self.bulk_insert(result) 후 → save_duckdb_tables(self)
-    - finally 블록에서 원본 메서드 복원
-    - 프로덕션 코드 변경 없이 테스트에서만 동작
-
-  3. test_integration.py — stage_capture 적용:
-    - 모든 통합 테스트 메서드에 `stage_capture` 파라미터 추가
-    - API 호출부를 `with stage_capture():` 블록으로 래핑
-    - 기존 테스트 로직(assert, print)은 블록 외부에서 유지
-
-결과
-----
-  - Unit Tests: 30/30 PASSED (0.94s) ✓
-  - Integration Tests: 7/8 PASSED (23.52s) ✓
-    · Coupang: 쿠키 만료로 500 응답 (코드 문제 아님, 1-extractor만 저장됨)
-
-  저장된 결과 파일 (7개 모듈, 총 22개 파일):
-    src/tests/results/
-    ├── ecount/api/inventory/    1-extractor.json, 2-transformer.json, 3-duckdb.json
-    ├── ecount/api/product/      1-extractor.json, 2-transformer.json, 3-duckdb.json
-    ├── naver/openapi/search/    1-extractor.json, 2-transformer.json, 3-duckdb.json
-    ├── smartstore/api/product/  1-extractor.json, 2-transformer.json, 3-duckdb.json
-    ├── meta/api/ads/            1-extractor.json, 2-transformer.json, 3-duckdb.json
-    ├── google/api/ads/          1-extractor.json, 2-transformer.json, 3-duckdb.json
-    ├── sabangnet/admin/order/   1-extractor.json, 2-transformer.json, 3-duckdb.json
-    └── coupang/advertising/adreport/  1-extractor.json (에러 응답만)
-
-결정 사항
----------
-  1. DuckDBTransformer.execute()의 dict 파라미터 시그니처 확정 (사용자 스타일 반영).
-  2. 파이프라인 중간 데이터 캡처는 monkey-patch 방식으로 프로덕션 코드 무변경 원칙 유지.
-  3. src/tests/results/ 디렉터리는 .gitignore에 포함 (민감 데이터 보호).
-  4. 저장 실패는 경고 출력만 하고 테스트를 중단하지 않음.
-
-
-================================================================================
-[2026-03-18] Q19: 전체 DuckDBTransformer 통합 테스트 완성 및 예외 문서화
-================================================================================
-
-배경
-----
-  이전 세션(Q18)에서 7개 모듈만 테스트했던 것을 전체 48개 DuckDBTransformer
-  클래스로 확장. 14개 테스트 클래스, 70개 테스트 메서드 작성 후 반복 실행-분석-수정
-  사이클을 통해 최종 결과 도출.
-
-  요구사항:
-    - core/ 디렉터리의 모든 Extractor-Transformer 쌍을 테스트
-    - 테스트 불가한 항목은 test-exception.md로 문서화
-    - 결과를 chat.log에 기록
-    - 저장 경로를 {module_path}/{ClassName}/{stage}.{ext} 형식으로 변경
-
-수행 과정
----------
-  1단계: helpers.py 경로 형식 변경
-    - `_module_dir(cls)` 수정: 클래스명을 경로에 포함
-    - AS-IS: results/ecount/api/inventory/1-extractor.json
-    - TO-BE: results/ecount/api/inventory/Inventory/1-extractor.json
-
-  2단계: test_integration.py 대규모 확장 (8개 → 70개 테스트)
-    - 14개 테스트 클래스:
-      · TestEcountIntegration (2)
-      · TestNaverOpenAPIIntegration (8)
-      · TestNaverMainIntegration (3)
-      · TestSmartStoreAPIIntegration (5)
-      · TestSmartStoreBrandIntegration (9)
-      · TestMetaAdsIntegration (4)
-      · TestGoogleAdsIntegration (6)
-      · TestCoupangAdvertisingIntegration (4)
-      · TestCoupangWingIntegration (8)
-      · TestSearchAdAPIIntegration (6)
-      · TestSearchAdManageIntegration (2)
-      · TestSearchAdGFAIntegration (5)
-      · TestSabangNetIntegration (8)
-      · TestCJLogisticsIntegration (1)
-
-  3단계: 1차 테스트 실행 (31 failed, 39 passed)
-    - pyproject.toml에 addopts = "-m 'not integration'" 설정 발견
-      → pytest -m integration 명시 필요
-    - 31개 실패 분석: 날짜 형식, 추상 클래스, API 구조 변경, 인증 만료 등
-
-  4단계: 날짜 형식 수정
-    - `:today:` 리터럴 → datetime 기반 상수로 교체
-    - _TODAY, _YESTERDAY, _LAST_WEEK 상수 추가
-    - 9개소 수정: SmartStore order/order_status, Meta insights,
-      Coupang product_adreport/rocket_settlement/rocket_settlement_download,
-      SearchAd daily_report, GFA campaign_report/creative_report, CJ stock
-
-  5단계: 2차 테스트 실행 (29 failed, 41 passed)
-    - 날짜 수정으로 2개 추가 통과:
-      · rocket_settlement ✓
-      · rocket_settlement_download ✓
-    - SmartStore order/order_status: 날짜 해결 후 KeyError 발생 (API 구조 변경)
-
-  6단계: 29개 실패 테스트 skip 처리
-    - 모든 실패 테스트에 @pytest.mark.skip(reason="...") 추가
-    - 한글 reason으로 실패 원인 명시
-
-  7단계: 최종 테스트 실행
-    - 결과: 41 passed, 29 skipped, 1 warning in 84.53s ✓
-
-실패 원인 분류 (29건)
----------------------
-  | 카테고리                        | 건수 |
-  |---------------------------------|------|
-  | API 응답 구조 변경 (KeyError)   |    9 |
-  | 라이브러리/파서 버그             |    5 |
-  | DuckDB SQL 문법/구조 오류       |    5 |
-  | 엑셀/바이트 파싱 실패           |    4 |
-  | 추상 클래스 미구현              |    3 |
-  | 인증 실패/쿠키 만료             |    3 |
-
-변경 파일
----------
-  - src/tests/helpers.py: _module_dir() 경로에 클래스명 포함
-  - src/tests/test_integration.py: 70개 테스트 메서드 (41 pass + 29 skip)
-  - src/tests/test-exception.md: 29개 스킵 항목 상세 문서화
-
-결정 사항
----------
-  1. 라이브러리 버그(soupsieve, Tag 미정의 등)는 테스트에서 수정 불가 → skip 처리.
-  2. API 응답 구조 변경(KeyError)은 transform의 select_fields 업데이트 필요 → 별도 이슈.
-  3. 추상 클래스(TsvTransformer, PowerLinkAd)는 select_fields 구현 필요 → 별도 이슈.
-  4. 인증 만료(CJ, smartstore.bizdata, Coupang advertising)는 자격증명 갱신 필요.
-  5. `:today:` 리터럴 대신 datetime 상수 사용을 테스트 표준으로 확정.
-  6. SabangNet은 `:today:` 리터럴 지원 (라이브러리 내부 처리) → 그대로 유지.
-
-================================================================================
-[2026-03-19~20] Q20 + 커밋: DuckDBTransformer 선언적 추상화 전면 완성 1단계
-  커밋: 853d47a (2026-03-20) refactor(transform): implement dynamic rendering and
-        overhaul transformation pipeline
-================================================================================
-
-배경
-----
-  Q19(통합 테스트 70개 완성) 직후, DuckDBTransformer 선언적 추상화 리팩터링의
-  나머지 작업을 계속 진행. render / params 속성 도입과 API 네이밍 규칙 정비가
-  이 커밋의 핵심.
-
-주요 변경 사항
---------------
-  1. API 클래스명 PEP 8 준수 (API → Api)
-    - CJApi, EcountApi, GoogleApi, MetaApi, NaverApi, SearchAdApi, SmartStoreApi
-      등 전체 공개 클래스 이름을 CamelCase로 정규화.
-
-  2. render / params 선언적 속성 도입 (common/transform.py)
-    - DuckDBTransformer에 render: dict | None, params: dict | None 클래스 속성 추가.
-    - bulk_insert / prepare_query 호출 시 render/params 자동 주입.
-    - SQL 템플릿의 $key 치환이 클래스 수준에서 선언 가능하게 됨.
-
-  3. load.py 멀티 스테이트먼트 파라미터 바인딩 개선
-    - 정규식 기반으로 각 문장에 관련 파라미터만 필터링하여 바인딩.
-
-  4. hier_get + dot-notation 경로 통일
-    - extract.py 파일들에서 리스트 기반 경로를 점 표기법 문자열로 전환.
-
-변경 파일 (주요)
-----------------
-  src/linkmerce/common/transform.py, common/load.py
-  core/coupang/advertising/adreport/transform.py
-  core/coupang/wing/product/transform.py, settlement/transform.py
-  core/ecount/api/inventory, product / extract.py
-  core/google/api/ads/extract.py, transform.py, common.py
-  core/naver/openapi/search/extract.py
-  core/sabangnet/admin/order/extract.py, transform.py
-  core/searchad/api, gfa, manage / __init__.py
-  + 다수 __init__.py API 이름 정규화
-
-
-================================================================================
-[2026-03-22] Q21 + 커밋 2개: table_map 적용 및 Extractor 테스트 인프라 구축
-  커밋: 268c648 (2026-03-22 13:52) refactor(transform): add table_map mapping
-  커밋: d3e241f (2026-03-22 20:05) test(extract): implement test suite and fix extraction bugs
-================================================================================
-
-배경
-----
-  853d47a 커밋 이후 후속 작업으로 두 가지 독립적인 과제를 진행.
-
-268c648: table_map 추가
------------------------
-  DuckDBTransformer에 table_map: dict | None 클래스 속성 추가.
-  - 단일 쿼리 결과를 테이블명 → 결과 dict로 매핑하는 용도.
-  - 28개 transform.py에 table_map 선언 일괄 적용:
-    cj, coupang, ecount, google, meta, naver, sabangnet, searchad, smartstore 전 모듈.
-  - sabangnet/admin.py API 메서드 시그니처 호환성 수정.
-
-d3e241f: Extractor 테스트 인프라 구축 및 버그 수정
-----------------------------------------------------
-  1. src/tests/ 구조 정비
-    - conftest.py 신설: credentials/config 로딩 fixture, DuckDBConnection fixture.
-    - pytest.ini 추가: markers (integration, slow), testpaths 설정.
-    - src/tests/README.md 작성: 테스트 실행 안내 및 구조 설명.
-
-  2. test_extract.py 작성 (전체 Extractor 클래스 커버)
-    - 14개 테스트 클래스, 약 60개 테스트 메서드 구현.
-    - credentials.yaml 없으면 자동 skip.
-    - 실제 API 호출 후 HTTP 응답 타입/상태 검증.
-
-  3. 버그 수정
-    - GoogleAuth JWT audience URL 대소문자 오류 수정
-      (googleapis.COM → googleapis.com).
-    - CoupangAdvertisingAdreport extract.py 요청 파라미터 정규화.
-
-  4. 문서 업데이트
-    - docs/ai-guidelines.md: 파일 수정 원칙 강화, 강제 준수 표현 추가.
-    - docs/chat.log: Q11~Q20 분량 추가 기록.
-
-
-================================================================================
-[2026-03-26] Q22 + 커밋: DuckDBTransformer 선언적 추상화 최종 완성 및 transform 테스트
-  커밋: 43ea9d2 (2026-03-26 23:10) refactor(transform): finalize overhaul of
-        transformation pipeline and unit tests
-================================================================================
-
-배경
-----
-  268c648·d3e241f 이후 남아있던 파이프라인 수정 사항과 테스트 커버리지 확장을
-  단일 커밋으로 마무리.
-
-주요 변경 사항
---------------
-  1. common/transform.py 대규모 재정비 (92줄 변경)
-    - ResponseTransformer: post_init → post_parse 훅 명칭 정리.
-    - DuckDBTransformer: multi-table SELECT 렌더링 버그 수정.
-    - ExcelTransformer: 동적 헤더/시트 처리 안정화.
-
-  2. 남은 transform.py 선언적 전환 완료
-    - smartstore/api/order: OrderList key_paths + 중첩 JSON 구조 최종 정리.
-    - smartstore/api/product: optional 필드 처리 ({field: None} 스키마).
-    - smartstore/brand/catalog: scope/fields 선언 완료.
-    - smartstore/brand/pageview: self.path → self.scope 수정.
-    - naver/main/search: Search transformer + CafeArticleJson 정리.
-    - coupang/wing/product, settlement: table_map 기반 DuckDB 삽입 정리.
-    - sabangnet/admin/order, product: 파서 config 최종 정비.
-    - searchad/manage/exposure: AdList scope/fields 완성.
-    - searchad/manage/adreport, api/adreport: bulk_insert 파라미터 통일.
-
-  3. utils/nested.py 보강 (46줄 변경)
-    - select_values() CASE 2 재귀 경로 중첩 버그 완전 수정.
-    - 중첩 dict 경로의 키 보존 로직 개선.
-
-  4. utils/parse.py 보강 (17줄 변경)
-    - select_attrs: non-string 상수값 처리 안정화.
-    - 한글 docstring 보완.
-
-  5. models.sql 수정
-    - coupang/advertising/adreport, sabangnet/admin/order, smartstore/api/order,
-      brand/catalog: INSERT/SELECT 쿼리 최종 정합성 확인.
-
-  6. src/tests/test_transform.py 신설 (877줄)
-    - 24개 DuckDBTransformer 클래스 전체 단위 테스트.
-    - mock JSON fixture 기반, 실제 API 호출 없음.
-    - conftest.py에 transform fixture 추가 (181줄 확장).
-    - test_extract.py 테스트 메서드 보완 (52줄 변경).
-
-변경 파일 (주요)
-----------------
-  src/linkmerce/common/transform.py (+92)
-  src/linkmerce/utils/nested.py (+46), utils/parse.py (+17)
-  core/naver/main/search/transform.py (+17)
-  core/sabangnet/admin/order/transform.py (+4), product/transform.py (+8)
-  core/smartstore/api/order/transform.py (+42), product/transform.py (+10)
-  core/smartstore/brand/catalog/transform.py (+5), pageview/transform.py (+2)
-  core/searchad/api/adreport/transform.py (+2), manage/adreport/transform.py (+3)
-  core/searchad/manage/exposure/transform.py (+2)
-  src/tests/conftest.py (+181), test_transform.py (신설 877줄)
-  src/tests/test_extract.py (+52), README.md (+2)
-  models.sql 4개 수정
-
-
-================================================================================
-[2026-03-27] Q23 (현재 세션): API 함수 docstring 추가 + Airflow DAG 정비
-  (미커밋 — 작업 중)
-================================================================================
-
-배경
-----
-  두 가지 요청을 순차 처리:
-    1. src/linkmerce/api/ 하위 14개 API 파일에 함수 단위 docstring 추가
-       (테이블명·컬럼명 기준으로 어떤 데이터를 반환하는지 한글 설명).
-    2. airflow/dags/ 전체 27개 DAG 파일에 대해:
-       a. 스테일(stale) 테이블 참조 수정 (key="default" 또는 테이블명="data")
-       b. Airflow 표준(doc_md + 태스크 docstring) 방식의 한글 주석 추가.
-
-1. API 함수 docstring 추가 (14개 파일)
----------------------------------------
-  대상 파일 및 적용 함수:
-    api/cj/eflexs.py      — stock (→ cj_stock, cj_loisparcel_invoice)
-    api/coupang/advertising.py — adreport, campaign, adgroup, creative
-    api/coupang/wing.py   — product, option, rocket_option, rocket_inventory,
-                            rocket_settlement, rocket_settlement_download
-    api/ecount/api.py     — inventory, product
-    api/google/api.py     — campaign, adgroup, ad, asset, asset_view, insight
-    api/meta/api.py       — objects (campaign/adset/ad), insights
-    api/naver/main.py     — search, _search_tab, search_cafe, cafe_article,
-                            search_cafe_plus
-    api/naver/openapi.py  — rank_ad, rank_shop (→ naver_shop_rank/naver_shop_product),
-                            brand_price (→ naver_price_history/naver_product),
-                            brand_sales (aggregated_sales → naver_sales/naver_product),
-                            brand_pageview, product_catalog, bizdata
-    api/sabangnet/admin.py — order, dispatch, option, product, option(product),
-                             add_product, mapping, invoice, login
-    api/searchad/api.py   — keyword, master, daily_report, hourly_report,
-                            campaign_report, adgroup_report, ad_report, contract
-    api/searchad/gfa.py   — campaign, adset, creative, campaign_report,
-                            creative_report, bizreader
-    api/searchad/manage.py — adreport, rank_exposure (→ searchad_rank/searchad_product)
-    api/smartstore/api.py — order, order_status, product, option, bizdata
-    api/smartstore/brand.py — brand_price (→ naver_price_history), catalog,
-                              pageview (device/product/url), sales (→ naver_sales),
-                              invoice, login
-
-  부수적 발견 및 수정:
-    - naver/openapi.py: rank_shop 테이블명 오기 수정
-      (naver_rank_shop → naver_shop_rank, naver_product → naver_shop_product)
-    - searchad/manage.py: rank_exposure 테이블명 오기 수정
-      (naver_rank_ad → searchad_rank, naver_product → searchad_product)
-    - smartstore/brand.py: brand_price 테이블명 오기 수정
-      (naver_brand_price → naver_price_history)
-    - smartstore/brand.py: aggregated_sales 테이블명 오기 수정
-      (naver_brand_sales → naver_sales, naver_brand_product → naver_product)
-    - api/config.py: 설정 구조 관련 주석 추가
-
-2. Airflow DAG 스테일 참조 수정 (8개 파일)
---------------------------------------------
-  발견 방법: grep "\"default\"" / grep "\"data\"" 패턴으로 전수 탐색.
-
-  수정 내용:
-    coupang_option.py:
-      {"default": "vendor"}       → {"table": "vendor"}
-      {"default": "rfm"}          → {"table": "rfm"}
-    coupang_campaign.py:
-      {"default": "coupang_creative"} → {"table": "coupang_creative"}
-    naver_main_search.py:
-      {"default": cafe_table}     → {"table": cafe_table}
-    meta_ads.py:
-      sources dict key "metrics"  → "insights"
-      테이블명 "meta_insight"      → "meta_insights"
-      (총 3개소 수정)
-    naver_product_catalog.py:
-      tables["data"]              → tables["naver_catalog_product"]
-    searchad_contract.py:
-      DuckDB 임시 테이블 "data"   → "searchad_contract_merged"
-      (SQL UNION ALL + COUNT 쿼리 5개소)
-      tables["data"]              → tables["searchad_contract"]
-    searchad_report.py:
-      searchad_group: tables["data"] → tables["searchad_report"]
-      gfa_group: merged="data"    → "searchad_report_gfa"
-      gfa_group: {"default": ...} → {"table": ...} 2개소
-      gfa_group: tables["data"]   → tables["searchad_report_gfa"]
-    cj_loisparcel_invoice.py:
-      source_table = "data"       → source_table = "cj_loisparcel_invoice"
-
-3. Airflow DAG 한글 주석 추가 (27개 파일 전체)
------------------------------------------------
-  Airflow 표준 doc_md (DAG 단위 Markdown 설명)를 전 DAG 파일에 추가.
-  추가 위치: DAG 생성자의 tags=[] 줄 직후.
-
-  각 파일별 doc_md 내용 (요약):
-    all_login.py            — 각 플랫폼 인증 쿠키 자동 갱신
-    cj_loisparcel_invoice.py — CJ 로이스파슬 운송장 데이터 수집
-    coupang_adreport.py     — 쿠팡 광고 성과 리포트(PA/NCA) 수집
-    coupang_campaign.py     — 쿠팡 광고 캠페인·광고그룹·크리에이티브 수집
-    coupang_login.py        — 쿠팡 쿠키 갱신 플레이스홀더 DAG
-    coupang_option.py       — 쿠팡 상품 옵션·로켓 옵션 수집
-    coupang_rocket_sales.py — 쿠팡 로켓배송 정산 데이터 수집
-    ecount_stock_report.py  — 재고 현황 집계 후 Slack 리포트 전송
-    google_ads.py           — Google Ads 캠페인·소재·인사이트 수집
-    meta_ads.py             — Meta 광고 목록 및 인사이트 수집
-    naver_brand_pageview.py — 브랜드스토어 페이지뷰 수집
-    naver_brand_price.py    — 브랜드스토어 가격 이력 수집
-    naver_brand_sales.py    — 브랜드스토어 매출 데이터 수집
-    naver_cafe_search.py    — 카페 탭 검색 결과 수집 및 Slack 리포트
-    naver_main_search.py    — 통합검색 결과 수집 및 Slack 리포트
-    naver_product_catalog.py — 브랜드스토어 상품-카탈로그 매핑 수집
-    naver_rank_ad.py        — 검색광고 노출 순위 시간대별 수집
-    naver_rank_shop.py      — 쇼핑 검색 순위 시간대별 수집
-    sabangnet_invoice.py    — 사방넷 운송장 번호 수집
-    sabangnet_order.py      — 사방넷 주문 데이터 수집
-    sabangnet_product.py    — 사방넷 상품·옵션·SKU 매핑 수집
-    searchad_contract.py    — 검색광고 계약 정보 수집
-    searchad_master.py      — 검색광고 API/GFA 마스터 리포트 수집
-    searchad_report.py      — 검색광고 일별 리포트 / GFA 리포트 수집
-    smartstore_bizdata.py   — 스마트스토어 마케팅 채널 유입 수집
-    smartstore_invoice.py   — 스마트스토어 배송 운송장 수집
-    smartstore_order.py     — 스마트스토어 주문 데이터 수집
-    smartstore_product.py   — 스마트스토어 상품·옵션 목록 수집
-
-  각 ETL 태스크 함수(@task 데코레이터 적용 함수)에도 1줄 한글 docstring 추가:
-    총 27개 파일 × 1~5개 태스크 = 약 60개 함수 docstring 추가.
-
-    파일별 태스크 함수 목록:
-      all_login.py           — login_partner_center, login_naver
-      cj_loisparcel_invoice.py — etl_loisparcel_invoice
-      coupang_adreport.py    — etl_coupang_adreport
-      coupang_campaign.py    — etl_coupang_campaign
-      coupang_option.py      — etl_coupang_option
-      coupang_rocket_sales.py — etl_coupang_rocket_sales
-      ecount_stock_report.py — etl_eflexs_stock, etl_coupang_inventory,
-                               etl_ecount_inventory, etl_ecount_product,
-                               send_stock_report
-      google_ads.py          — etl_google_objects, etl_google_insight
-      meta_ads.py            — etl_meta_objects, etl_meta_insights
-      naver_brand_pageview.py — etl_naver_device_pageview, etl_naver_product_pageview
-      naver_brand_price.py   — etl_naver_brand_price
-      naver_brand_sales.py   — etl_naver_brand_sales
-      naver_cafe_search.py   — etl_naver_cafe_search
-      naver_main_search.py   — etl_naver_main_search
-      naver_product_catalog.py — etl_product_catalog
-      naver_rank_ad.py       — etl_naver_rank_ad
-      naver_rank_shop.py     — etl_naver_rank_shop
-      sabangnet_invoice.py   — etl_sabangnet_invoice
-      sabangnet_order.py     — etl_sabangnet_order, etl_sabangnet_dispatch,
-                               etl_sabangnet_option
-      sabangnet_product.py   — etl_sabangnet_product, etl_sabangnet_option,
-                               etl_sabangnet_add_product, etl_sabangnet_mapping
-      searchad_contract.py   — etl_searchad_contract
-      searchad_master.py     — etl_searchad_master, etl_gfa_master
-      searchad_report.py     — etl_searchad_report, etl_gfa_report
-      smartstore_bizdata.py  — etl_smartstore_bizdata
-      smartstore_invoice.py  — etl_smartstore_invoice
-      smartstore_order.py    — etl_smartstore_order
-      smartstore_product.py  — etl_smartstore_product
-
-변경 파일 (전체)
-----------------
-  airflow/dags/*.py          — 27개 파일 전체 수정
-  airflow/plugins/variables.py — 관련 주석 보완
-  src/linkmerce/api/cj/eflexs.py
-  src/linkmerce/api/coupang/advertising.py
-  src/linkmerce/api/coupang/wing.py
-  src/linkmerce/api/ecount/api.py
-  src/linkmerce/api/google/api.py
-  src/linkmerce/api/meta/api.py
-  src/linkmerce/api/naver/main.py
-  src/linkmerce/api/naver/openapi.py
-  src/linkmerce/api/sabangnet/admin.py
-  src/linkmerce/api/searchad/api.py
-  src/linkmerce/api/searchad/gfa.py
-  src/linkmerce/api/searchad/manage.py
-  src/linkmerce/api/smartstore/api.py
-  src/linkmerce/api/smartstore/brand.py
-  src/linkmerce/api/config.py
-  총 43개 파일, +408줄 / -146줄
-
-결정 사항
----------
-  1. Airflow doc_md + @task docstring을 표준 주석 방식으로 확정.
-  2. read_variables / read_credentials 태스크는 self-explanatory → docstring 제외.
-  3. API 함수 docstring은 BigQuery 테이블명/컬럼 범위 위주로 기술.
-  4. stale 테이블 참조(key="default", 테이블명="data")는 발견 즉시 수정.
-  5. API 파일에서 발견된 테이블명 오기 4건도 docstring 작성 과정에서 함께 수정.
-
-[2026-03-28] Q24: API 함수 일괄 마이그레이션 — run_with_duckdb → prepare_duckdb_extract
-================================================================================
-
-배경
-----
-  Q23에서 docstring 작성 과정 중 common/api.py의 run_with_duckdb, update_options,
-  run 함수를 삭제하고, 대체 함수 prepare_duckdb_extract + with_duckdb_connection
-  데코레이터(api/common.py)로 전환하기로 결정. naver/openapi.py와 cj/eflexs.py는
-  사용자가 선행 변환 완료. 나머지 전체 API 모듈을 일괄 변환하는 작업.
-
-변환 패턴 (old → new)
----------------------
-  1. `from linkmerce.common.api import run_with_duckdb, update_options`
-     → `from linkmerce.api.common import prepare_duckdb_extract, with_duckdb_connection`
-
-  2. `get_module()` 헬퍼 삭제, 주석 처리된 import 문을 실제 import로 전환
-     (extractor는 원래 이름, transformer는 `as T` 별칭)
-
-  3. 단일 테이블 함수:
-     `@with_duckdb_connection(table="테이블명")` 데코레이터 추가
-     `Extractor(**prepare_duckdb_extract(T, connection, ...)).run(args, how_to_run=...)`
-
-  4. 다중 테이블 함수:
-     `@with_duckdb_connection(tables={...})` 데코레이터 추가
-
-  5. 함수 서명 변경:
-     - `tables` 매개변수 제거 (데코레이터로 이동)
-     - `how` → `how_to_run` 이름 변경
-     - `.extract()` → `.run()` 메서드 변경
-     - `*` 키워드 전용 구분자 추가 (connection, how_to_run 등은 keyword-only)
-
-  6. DuckDB 미사용 함수 (request, summary 등):
-     직접 import + merge()로 extract_options 병합
-
-  7. 다단계(multi-step) 함수:
-     - 내부 호출을 keyword argument로 변환 (positional splat 제거)
-     - 가능한 경우 prepare_duckdb_extract로 변환
-     - 복잡한 경우 기존 로직 유지하되 삭제된 함수 참조만 교체
-
-  8. 내부 디스패치 헬퍼 (_ad_stream, _ad_objects, _master_report, _search_tab) 제거:
-     각 개별 함수에 인라인하고 자체 데코레이터 적용
-
-변환된 파일 (12개)
-------------------
-  src/linkmerce/api/coupang/advertising.py
-    - product_adreport, new_customer_adreport: 데코레이터 + prepare 패턴
-    - adreport: 디스패치 함수, 내부 호출을 keyword args로 전환
-
-  src/linkmerce/api/ecount/api.py
-    - request, test: merge() 직접 사용
-    - product, inventory: 데코레이터 + prepare 패턴
-
-  src/linkmerce/api/google/api.py
-    - _ad_stream 헬퍼 제거, campaign/adgroup/ad 각각에 인라인
-    - insight, asset, asset_view: 데코레이터 적용
-    - _get_variables, _get_options 헬퍼 유지
-
-  src/linkmerce/api/meta/api.py
-    - _ad_objects 헬퍼 제거, campaigns/adsets/ads 각각에 인라인
-    - insights: tables=dict 다중 테이블 데코레이터
-
-  src/linkmerce/api/naver/main.py
-    - _search_tab 헬퍼 제거, search_cafe에 인라인
-    - search: tables=dict 다중 테이블 데코레이터
-    - search_cafe_plus: 다단계 유지, keyword args 전환
-
-  src/linkmerce/api/sabangnet/admin.py
-    - 8개 단순 함수 데코레이터 적용
-    - option_mapping: 다단계 유지, keyword args 전환
-    - add_product: 2단계 모두 prepare_duckdb_extract 직접 사용
-
-  src/linkmerce/api/searchad/api.py
-    - _master_report 헬퍼 제거, campaign/adgroup/ad 인라인
-    - contract: 디스패치 유지, keyword args 전환
-    - time_contract, brand_new_contract, keyword: 데코레이터 적용
-
-  src/linkmerce/api/searchad/gfa.py
-    - _master_report 헬퍼 제거, campaign/adset/creative 인라인
-    - campaign_report, creative_report: 데코레이터 적용
-
-  src/linkmerce/api/searchad/manage.py
-    - adreport: DuckDB 미사용, 직접 import + 수동 transformer 와이어링
-    - daily_report, diagnose_exposure, rank_exposure: 데코레이터 적용
-
-  src/linkmerce/api/smartstore/api.py
-    - request: merge() 직접 사용 (update_options 대체)
-    - product, option, order, order_status, marketing_channel: 데코레이터 적용
-    - product_option: 다단계 유지, keyword args 전환
-    - aggregated_order_status: 다단계, prepare_duckdb_extract 직접 사용
-
-  src/linkmerce/api/smartstore/brand.py
-    - 8개 단순 함수 데코레이터 적용 (brand_catalog~aggregated_sales)
-    - page_view: 동적 extractor/transformer → if/elif/else 분기 + 수동 DuckDB 관리
-    - 헬퍼 함수명 _each_page_options 등으로 private 전환
-
-  src/linkmerce/api/coupang/wing.py
-    - product_detail, product_download, rocket_inventory: 데코레이터 적용
-    - rocket_settlement, rocket_settlement_download: 데코레이터 적용
-    - product_option, rocket_option: 다단계 유지, prepare_duckdb_extract 직접 사용
-    - summary: DuckDB 미사용, 직접 import + merge()
-
-결정 사항
----------
-  1. common/api.py의 run_with_duckdb, update_options, run 함수 완전 삭제 확정.
-  2. 모든 API 함수에서 `tables` 매개변수 제거 — 테이블명은 데코레이터에 선언.
-  3. 다단계 함수의 내부 호출은 keyword arguments로 통일.
-  4. 동적 extractor/transformer 선택이 필요한 경우 (page_view 등) if/else 분기 사용.
-  5. DuckDB 미사용 함수는 merge() + 직접 import 패턴으로 통일.
-
-
-[2026-07-XX] Q25: 프로젝트 전체 한글 주석(Docstring) 추가
-================================================================================
-
-배경
-----
-  linkmerce 프로젝트 내 모든 클래스, 함수에 한글 주석을 추가하라는 요청.
-  코드 변경 없이 docstring만 추가. transform.py 모듈은 이미 주석이 있어 제외.
-
-작업 범위
+의사결정
 --------
-  4단계로 나누어 진행:
-    Phase 1: common/ 모듈 (5개 파일)
-    Phase 2: core/ 모듈 (38개 파일 — common.py 14개 + extract.py 24개)
-    Phase 3: api/ 모듈 (17개 파일)
-    Phase 4: extensions/ + utils/ 모듈 (11개 파일)
+  - dbt 어댑터: dbt-postgres (필수), dbt-bigquery (BigQuery 직접 실행 시 선택)
+  - PostgreSQL 드라이버: psycopg2-binary (Airflow 환경), 또는 DuckDB postgres 확장 활용
+  - BigQuery 동기화: dbt 자체 크로스-DB 동기화 미지원 → Airflow에서 처리 권장
+  - dbt 프로파일: profiles.yml을 dbt/ 폴더 내에 두고 .gitignore에 추가
+  - 모델 구조: staging(view) → intermediate(ephemeral) → marts(table) 3단계 구조
 
-Phase 1 — common/ (5개 파일, ~30개 클래스/함수)
------------------------------------------------
-  common/exceptions.py
-    - ExtractError, TransformError, LoginError, MissingCredentialsError
+결과물
+------
+  - docs/dbt-setup-guide.md 생성: 아키텍처 개요, 패키지 설치, PostgreSQL 설정,
+    dbt 초기화, profiles.yml/dbt_project.yml 작성, Airflow 연동, .gitignore 항목 포함
 
-  common/models.py
-    - Models 클래스 + read_yaml, read_json, read_sql 함수
+[2026-04-11] PostgreSQL 원천 DB 컨테이너 설정 (postgres/ 폴더 신설)
+================================================================================
 
-  common/extract.py
-    - Client, BaseSessionClient, RequestSessionClient, AiohttpSessionClient,
-      SessionClient, TaskClient (7개 Task 팩토리 메서드), Extractor, LoginHandler
+배경
+----
+  Airflow DAG의 이중 적재(BigQuery + PostgreSQL) 및 dbt 분석 레이어 구성을 위해
+  로컬 PostgreSQL 컨테이너가 필요. dbt/ 폴더에 섞으면 역할이 흐려지므로
+  프로젝트 루트에 postgres/ 폴더를 별도 생성하기로 결정.
 
-  common/tasks.py
-    - Task, Request, RunLoop, RequestLoop, ForEach, RequestEach,
-      RequestEachLoop, PaginateAll, RequestEachPages, CursorAll, RequestEachCursor
-
-  common/load.py
-    - concat_sql, where, csv_to_json 등 유틸리티 함수
-    - Connection, DuckDBConnection (execute, fetch_all, read, create_table 등)
-    - DuckDBIterator
-
-Phase 2 — core/ (38개 파일, 84+ 클래스)
-----------------------------------------
-  core/*/common.py (14개 파일)
-    - SearchAdManager, NaverSearchAdApi, SearchAdGFA, SabangnetAdmin,
-      EcountApi, MetaApi, GoogleApi, CoupangWing, CoupangAds, CjEflexs,
-      SmartstoreApi, PartnerCenter, SmartstoreLogin, NaverOpenApi 등
-
-  core/*/extract.py (24개 파일, 84+ Extractor 클래스)
-    - searchad: 13 + 7 + 2 + 1 + 1 + 2 = 26개 클래스
-    - naver: 3 + 8 = 11개 클래스
-    - coupang: 4 + 3 + 5 = 12개 클래스
-    - meta: 7개, google: 7개, cj: 1개
-    - sabangnet: 6 + 5 = 11개, smartstore: 2 + 1 + 2 + 3 + 5 + 3 = 16개
-    - ecount: 2개
-
-  Extractor docstring 규칙: 어떤 파라미터를 받고 어떤 Task를 사용하는지 기술
-
-Phase 3 — api/ (17개 파일, ~65개 함수)
---------------------------------------
-  api/common.py: fetch_all_duckdb_tables
-  api/config.py: 16개 함수 (exists, read, parse_credentials 등)
-  api/searchad/manage.py: _get_options, has_cookies, has_permission, whoami, adreport
-  api/searchad/api.py: _get_variables
-  api/searchad/gfa.py: _get_options, logged_in, whoami
-  api/sabangnet/admin.py: _get_paginate_options, _get_request_options, login
-  api/smartstore/brand.py: login, _each_page_options, _each_request_options 등
-  api/smartstore/api.py: _get_order_options, request
-  api/smartstore/center.py: has_accounts, login
-  api/ecount/api.py: request, test
-  api/meta/api.py: _get_variables, _get_options
-  api/google/api.py: _get_variables, _get_options
-  api/naver/main.py: _get_options
-  api/naver/openapi.py: _search_config
-  api/coupang/wing.py: summary
-
-Phase 4 — extensions/ + utils/ (11개 파일, ~180+ 함수/클래스)
--------------------------------------------------------------
-  extensions/bigquery.py
-    - ServiceAccount, PartitionOptions, BigQueryClient (40+ 메서드)
-    - CRUD, Load Job, MERGE, DuckDB 연동, SQL Expression 메서드
-
-  extensions/gsheets.py
-    - ServiceAccount, worksheet2py, py2worksheet
-    - WorksheetClient (조회, 업데이트, 덮어쓰기, UPSERT)
-    - upsert_records
-
-  utils/cast.py: safe_float, safe_int
-  utils/date.py: strptime, safe_strptime, strpdate, safe_strpdate, now, today,
-    trunc_datetime, get_timezone, set_timezone, YearMonth 클래스,
-    date_range, date_pairs, date_split, _generate_date_range, _generate_range
-
-  utils/excel.py (56개 함수)
-    - TypedDict: StyleConfig, RuleConfig, ConditionalConfig, MergeConfig,
-      ColumnFilters, FilterConfig
-    - 변환: csv2json, excel2json, csv2excel, json2excel, json2csv
-    - 스타일: style_sheet, style_cell, _yellow_headers
-    - 컬럼/범위: get_column_index, get_column_letter, colstr, get_ranges,
-      is_range_string, to_valid_excel_range, split_range_string
-    - 필터: _filter_column, _value_filter, _top10_filter, _custom_filter,
-      _dynamic_filter, _color_filter, _icon_filter, filter_values 등
-    - 조건부 서식: _conditional_rule, _formula_rule
-    - 셀 병합: find_merge_ranges, get_largest_rectangle
-    - XML 필터: apply_filters, _apply_filter
-
-  utils/graphql.py
-    - GraphQLObject, GraphQLVariables, GraphQLFields, GraphQLSelection,
-      GraphQLFragment, GraphQLOperation, _add_brackets, _replace
-
-  utils/headers.py
-    - build_headers, add_headers, get_hostname, get_default_language,
-      get_content_type, get_default_client, get_current_platform,
-      get_fetch_metadata, get_user_agent, zip_headers
-
-  utils/jinja.py: render_string
-  utils/progress.py: import_tqdm, import_tqdm_asyncio, gather, gather_async,
-    _get_seconds, expand, expand_async, _expand_kwargs
-  utils/regex.py: regexp_match, regexp_extract, regexp_groups,
-    regexp_replace, regexp_replace_map
-
-  이미 한글 docstring 완비: utils/nested.py, utils/parse.py (변경 없음)
-
-Docstring 스타일 규칙
----------------------
-  1. 한국어, 간결한 1~2문장
-  2. 클래스: 목적 + 핵심 정보 (Task 유형, API 문서 URL 등)
-  3. 메서드/함수: 단문 1줄 설명
-  4. Extractor: 파라미터와 사용 Task 기술
-  5. 기존 영어 docstring이 있는 경우 한국어로 교체/보완
-
-총 작업량
+의사결정
 --------
-  - 대상 파일: ~71개
-  - 대상 클래스: ~130+
-  - 대상 함수/메서드: ~310+
-  - 코드 변경: 없음 (docstring만 추가)
+  - postgres/ 위치: 루트 (airflow/, streamlit/과 동일한 "서비스 폴더" 패턴)
+  - DB 버전: Airflow 내부 postgres와 동일한 postgres:13
+  - 호스트 포트: 5432 기본값 (Airflow는 5431 사용 — 충돌 없음)
+  - init.sql: docker-entrypoint-initdb.d에 포함하여 최초 기동 시 자동 실행
+  - 테이블 DDL: schemas.json(BigQuery 스키마 정의) 기반 Python 스크립트로 자동 생성
+  - 초기 테이블명 규칙: <platform>.<group>__<table> (이후 다음 세션에서 변경)
 
+결과물
+------
+  - postgres/docker-compose.yaml: build: . 방식으로 컨테이너 정의
+  - postgres/Dockerfile: FROM postgres:13 + init.sql COPY
+  - postgres/init.sql: schemas.json 기반 전체 DDL (1030 라인)
 
-[2026-07-XX] Q26: Extractor 메서드 한글 주석 추가 (Phase 3)
+[2026-04-11] PostgreSQL init.sql 스키마 명명 개선 + Docker 이미지 빌드 방식 변경
 ================================================================================
 
 배경
 ----
-  Q25에서 클래스/함수 수준의 docstring을 추가한 후,
-  Extractor 메서드에는 주석이 없어 한줄 docstring을 추가하는 추가 작업.
-  파일 하나씩 세세하게 읽으며 Extractor, Transformer, API를 세트로 진행.
-  코드 동작은 절대 수정하지 않음.
+  - `coupang.wing__rocket_shipping` 형태의 테이블명이 너무 길고 DBeaver에서 보기 불편
+  - `build: .` 방식은 빌드 시 태그 제어가 안되어 불편
 
-작업 규칙
----------
-  1. 파일을 완전히 읽은 후 편집 (read → edit)
-  2. Extractor, Transformer, API를 세트로 진행
-  3. 한줄 한국어 docstring: """설명."""
-  4. 해당 플랫폼에서 정의한 용어를 그대로 사용
-  5. 코드 동작 수정 금지
+의사결정 1: Docker 이미지 빌드
+------------------------------
+  - airflow의 build.sh 패턴과 동일하게 postgres/build.sh 신설
+  - 이미지 태그: custom/postgres:13
+  - docker-compose.yaml에서 build: . 제거 → image: custom/postgres:13 사용
 
-Phase 3 — Extractor 메서드 docstring (24개 extract.py)
-------------------------------------------------------
-  coupang/wing/product/extract.py
-    - default_options, extract, count_total, build_request_params 등
+의사결정 2: 스키마 명명 규칙 변경
+----------------------------------
+  - 기존: <platform>.<group>__<table>  (언더스코어 2개로 그룹 구분)
+  - 신규: <platform_group>.<table>     (그룹을 스키마로 올려서 분리)
+  - DBeaver에서 스키마 트리로 플랫폼+그룹이 분리되어 탐색 편의성 향상
 
-  coupang/wing/settlement/extract.py
-    - default_options, extract, build_request_params 등
+  명시적 오버라이드 (사용자 지정):
+    coupang.wing      → coupang
+    sabangnet.admin   → sabangnet
+    searchad.api      → searchad
+    smartstore.api    → smartstore
 
-  coupang/advertising/adreport/extract.py
-    - extract, build_request_params, set_request_body 등
+  자동 규칙:
+    group == 'api' 단독  → platform (api 생략)
+    그 외                → platform_group
 
-  smartstore/api/order/extract.py
-    - default_options, extract, count_total, build_request_json 등
+  최종 스키마 목록 (17개):
+    cjlogistics_eflexs, cjlogistics_loisparcel,
+    coupang, coupang_advertising,
+    ecount, ecount_manual,
+    google, meta, naver_openapi,
+    relation,
+    sabangnet, searchad, searchad_gfa, searchad_manage,
+    smartstore, smartstore_hcenter, smt_bizdata
 
-  smartstore/api/product/extract.py
-    - default_options, extract, build_request_json 등
+결과물
+------
+  - postgres/build.sh 신설: docker build --tag custom/postgres:13 .
+  - postgres/docker-compose.yaml 수정: build: . → image: custom/postgres:13
+  - postgres/init.sql 재생성: 새 스키마 명명 규칙 적용 (1060 라인)
 
-  smartstore/api/bizdata/extract.py
-    - default_options, extract, build_request_params
 
-[2026-03-31] Q27: Airflow DAG doc_md 전면 확장 — 단일행 → 구조화된 다중행 형식
+[현재 세션] PRIMARY KEY + BigQuery 파티션/클러스터링 반영
 ================================================================================
 
 배경
 ----
-  기존 DAG의 `doc_md`가 한 줄 요약 형태로만 작성되어 있었다.
-  `price.py`와 `adreport.py`를 예시로, 제목/인증/추출/변환/적재 5개 섹션으로
-  구조화된 `dedent()` 다중행 형식으로 전체 DAG의 `doc_md`를 확장한다.
+  postgres/init.sql의 테이블 구조에 PRIMARY KEY 제약과 PostgreSQL
+  성능 최적화 구성이 없었음.
+  - src/linkmerce/core/**/models.sql : 각 테이블의 PK 정보 포함
+  - GCP 프로젝트 BigQuery : DATE/TIMESTAMP 파티션 및
+    클러스터링 필드 메타데이터 포함
 
-형식 규칙
+작업 내용
 ---------
-  1. `from textwrap import dedent` 임포트 추가
-  2. `doc_md = dedent("""` 으로 시작, 내용은 한 단계 들여쓰기
-  3. 마지막 `""").strip(),` 는 `doc_md`와 동일 들여쓰기
-  4. 섹션: 제목(#), 인증(##), 추출(##), 변환(##), 적재(##)
-  5. 인증: 어떤 쿠키/API 키 필요한지 기술
-  6. 추출: Extractor 작업 요약
-  7. 변환: Transformer 작업 요약
-  8. 적재: APPEND / MERGE / OVERWRITE 방식 명시
+  1. models.sql 파싱
+    - core/**/ 전체 rglob("models.sql") 탐색
+    - CREATE TABLE 블록에서 PRIMARY KEY 절 및 인라인 PRIMARY KEY 추출
+    - 인라인 (col TYPE PRIMARY KEY): coupang option, ecount product/inventory,
+      sabangnet product/option/order, searchad campaign/adgroup/ad/contract,
+      smartstore product/option/order 등
+    - 테이블 수준 (PRIMARY KEY (cols)): adreport_pa, adreport_nca,
+      google insight/ad/adgroup/campaign, meta insights/ads/adsets/campaigns,
+      smartstore order_status/order_detail 등
 
-변경 파일 (22개)
-----------------
-  smartstore/product.py — 상품·옵션: API 키, JSON 파싱, MERGE
-  smartstore/order.py — 주문: API 키, JSON 파싱, APPEND+MERGE
-  smartstore/invoice.py — 운송장: API 키, JSON 파싱, MERGE
-  smartstore/bizdata.py — 마케팅 채널: API 키, JSON 파싱, APPEND
+  2. BigQuery 메타데이터 조회 (google.cloud.bigquery 사용)
+    - 대상 데이터셋: cjlogistics, coupang, ecount, google, meta,
+      nshopping, relation, sabangnet, searchad, smartstore, smt_bizdata
+    - 수집 정보: time_partitioning (field, type), clustering_fields
+    - BQ DAY 파티션 테이블 (18개):
+        coupang.adreport_pa/nca, coupang.rocket_sales/shipping,
+        ecount.cost, google.insight, meta.insights,
+        nshopping.rank, sabangnet.order/order_invoice/order_dispatch/
+        order_status, searchad.rank/report/report_gfa,
+        smartstore.order/order_delivery/order_detail/order_status,
+        smt_bizdata.marketing_channel
 
-  sabangnet/order.py — 주문: 로그인 쿠키, 다운로드 파싱, MERGE
-  sabangnet/product.py — 상품·옵션·SKU: 로그인 쿠키, 다운로드 파싱, MERGE
-  sabangnet/invoice.py — 운송장: 로그인 쿠키, 다운로드 파싱, MERGE
+  3. init.sql 재생성 (1483 라인)
+    PRIMARY KEY 전략:
+      - models.sql에서 명시된 경우: 그대로 적용
+      - NOT NULL 컬럼만 있는 경우: 자연키 추론 (invoice_no, order_seq 등)
+      - 관계 테이블: 복합 PK (option_id+product_code 등)
 
-  searchad/report.py — 일별 리포트: 쿠키+GFA 쿠키, TSV/CSV 파싱, APPEND
-  searchad/master.py — 마스터: API 키+GFA 쿠키, TSV/JSON 파싱, MERGE
-  searchad/contract.py — 계약: API 키, JSON 파싱+UNION ALL, OVERWRITE
+    PARTITION BY RANGE 적용 (18개 테이블):
+      - BQ DAY 파티션 테이블 전체 적용
+      - 조건: 파티션 컬럼이 PK에 포함되어야 함 (PostgreSQL 제약)
+        → payment_dt, sales_date 등은 PK에 추가
+        → sabangnet.order 등 order_seq가 자연 PK인 경우: 파티션 미적용,
+          인덱스만 추가
+      - 파티션 테이블별 연도 파티션 (2021~2025) + DEFAULT 파티션 자동 생성
 
-  naver/rank_shop.py — 쇼핑 순위: 오픈 API 키, JSON 파싱, APPEND+MERGE
-  naver/rank_ad.py — 광고 순위: 검색광고 쿠키, JSON 파싱, APPEND+MERGE
-  naver/product_catalog.py — 카탈로그 매핑: 파트너센터 쿠키, JSON 파싱, APPEND+MERGE
-  naver/main_search.py — 통합검색: 네이버 쿠키, HTML/JSON 파싱, Slack 전송
-  naver/cafe_search.py — 카페 검색: 네이버 쿠키, HTML/JSON 파싱, Slack 전송
+    CREATE INDEX 전략:
+      - BQ clustering_fields → B-tree index (상위 1~3 컬럼)
+      - DATE/TIMESTAMP 파티션 컬럼 → 파티션 미적용 테이블에만 인덱스 추가
+      - 파티션 적용 테이블: 부모 테이블에 정의 시 자식 파티션에 자동 상속
 
-  google_ads.py — Google Ads: API 인증, JSON 파싱, MERGE+APPEND
-  meta_ads.py — Meta Ads: API 인증, JSON 파싱, MERGE+APPEND
-  cj_loisparcel_invoice.py — CJ 운송장: 로그인+2FA, 웹 스크래핑, MERGE
-  ecount_stock_report.py — 재고 현황: 다중 플랫폼, 다중 파싱, OVERWRITE+MERGE+Slack
-
-  _deprecated/hcenter/pageview.py — 페이지뷰: 파트너센터 쿠키, JSON 파싱, APPEND
-  _deprecated/hcenter/sales.py — 매출: 파트너센터 쿠키, JSON 파싱, MERGE
-  _deprecated/coupang/campaign.py — 광고 캠페인: 광고 쿠키, JSON 파싱, MERGE
-  _deprecated/coupang/option.py — 상품 옵션: Wing 쿠키, JSON 파싱, MERGE
-  _deprecated/coupang/rocket_sales.py — 로켓 정산: Wing 쿠키, 다운로드 파싱, MERGE
-  _deprecated/report.py — (searchad/report.py와 동일 구조)
-
-스킵한 파일 (3개)
------------------
-  hcenter/price.py — 이미 다중행 형식 (예시)
-  hcenter/login.py — 이미 다중행 형식
-  _deprecated/coupang/adreport.py — 이미 다중행 형식 (예시)
-
-결정 사항
----------
-  1. 모든 DAG의 `doc_md`를 `dedent()` 다중행 형식으로 통일.
-  2. `doc_md` 외 코드 변경 없음 (`textwrap.dedent` 임포트만 추가).
-  3. .airflowignore 내 비활성 DAG도 동일 형식 적용.
-
-  smartstore/brand/catalog/extract.py (13 docstrings)
-    - _VPartnerCenter: default_options, count_total, split_map_kwargs,
-      set_request_headers, select_sort_type
-    - BrandCatalog: extract, extract_async, build_request_json
-    - BrandProduct: extract, extract_async, split_map_kwargs, build_request_json
-
-  smartstore/brand/sales/extract.py (10 docstrings)
-    - _SalesExtractor: default_options, extract, extract_async,
-      build_request_json, set_request_body, set_request_headers
-    - StoreSales/CategorySales/ProductSales: fields
-
-  smartstore/brand/pageview/extract.py (11 docstrings)
-    - _PageView: default_options, is_valid_response, count_total,
-      build_request_json, set_request_body, set_request_headers, fields
-    - PageViewByDevice/PageViewByUrl: extract, extract_async
-
-  naver/openapi/search/extract.py (14 docstrings)
-    - _SearchExtractor: url, default_options, extract, extract_async,
-      _extract_backend, _extract_async_backend, build_request_params,
-      is_valid_response
-    - KiNSearch/ImageSearch/ShoppingSearch: extract, extract_async
-
-  naver/main/search/extract.py (17 docstrings)
-    - Search: default_options+extract, search, save_search_query,
-      build_request_params, ackey
-    - SearchTab: default_options+extract, build_request_params,
-      set_request_headers, tab_type
-    - CafeArticle: default_options+extract, build_request_message,
-      build_request_headers, set_request_headers, get_ids_from_url,
-      make_article_url, make_article_params, make_referral_url
-
-  searchad/api/adreport/extract.py (8 docstrings)
-    - _ReportsDownload: extract, _extract_backend, create_report,
-      get_report, download_report, delete_report, request
-    - Ad: extract
-
-  searchad/api/keyword/extract.py (4 docstrings)
-    - default_options, extract, chunk_keywords, build_request_params
-
-  searchad/api/contract/extract.py (2 docstrings)
-    - TimeContract.extract, BrandNewContract.extract
-
-  searchad/manage/adreport/extract.py (10 docstrings)
-    - AdvancedReport: extract, is_valid_response, build_request_data,
-      build_request_params, build_request_headers, set_request_headers
-    - DailyReport: extract, attributes, fields
-
-  searchad/manage/exposure/extract.py (5 docstrings)
-    - default_options, extract, build_request_params,
-      build_request_headers, set_request_headers
-
-  searchad/gfa/adreport/extract.py (31 docstrings)
-    - _MasterReport: default_options, url, count_total, build_request_headers
-    - Campaign: extract, build_request_params, campaign_objective
-    - AdSet: extract, build_request_params, status, budget_type,
-      bid_type, placement_group
-    - Creative: extract, build_request_params, status, creative_type
-    - PerformanceReport: default_options, url, extract, download,
-      request_report, wait_reports, download_excel, delete_report,
-      query_to_filename, build_download_json, build_request_headers,
-      referer, db_columns, ad_unit
-    - CampaignReport: extract, db_columns
-    - CreativeReport: extract, db_columns
-
-  google/api/ads/extract.py (10 docstrings)
-    - GoogleAds: url, extract, set_service_account, build_request_json,
-      build_request_headers, where, fetch_date_range
-    - Insight: default_options, extract
-    - Asset: extract
-
-  meta/api/ads/extract.py (9 docstrings)
-    - MetaAds: default_options, _extract_backend, request_json_by_account,
-      list_accounts, time_range
-    - _AdObjects: extract, build_request_params
-    - Insights: extract, build_request_params
-
-  sabangnet/admin/order/extract.py (19 docstrings)
-    - Order: default_options, extract, count_total, build_request_json,
-      date_type, sort_type, order_status_div, order_status
-    - OrderDownload: default_options, extract, get_file_name, build_request_json
-    - OrderStatus: default_options, extract
-    - ProductMapping: default_options, extract, count_total, build_request_json
-    - SkuMapping: default_options, extract, build_request_json
-
-  sabangnet/admin/product/extract.py (21 docstrings)
-    - Product: default_options, extract, count_total, build_request_json,
-      date_type, sort_type, product_status, search_condition
-    - Option: default_options, extract, build_request_json, option_type
-    - OptionDownload: extract, get_file_name, build_request_json,
-      date_type, sort_type, product_status
-    - AddProductGroup: default_options, extract, count_total, build_request_json
-    - AddProduct: default_options, extract, build_request_json
-
-  cj/eflexs/stock/extract.py (3 docstrings)
-    - default_options, extract, set_date, build_request_data
-
-  ecount/api/inventory/extract.py (2 docstrings)
-    - extract, build_request_json
-
-  ecount/api/product/extract.py (2 docstrings)
-    - extract, build_request_json
-
-총 작업량
----------
-  - 대상 파일: 24개 extract.py
-  - 추가 docstring: ~190개
-  - 코드 변경: 없음 (docstring만 추가)
-  - 구문 검증: ast.parse() 전체 24개 파일 통과
-
-[2026-04-07] 브라우저 자동화 호스트 PC 이전 및 쿠팡 통합 DAG 구현
-================================================================================
-
-배경
-----
-  Airflow 컨테이너 환경에서 Playwright 브라우저 로그인이 보안 정책 강화로 인해
-  차단되거나 불안정한 문제 발생. 이를 해결하기 위해 로그인을 호스트 PC에서
-  직접 수행하고 결과(쿠키)를 테스크로 전달하는 구조로 개편.
-
-주요 질의 및 결정 사항
---------------------
-  1. Playwright 컨테이너 접근:
-    Docker 내부망(ws://playwright:3000/) 외에 호스트 PC에서 접근 시
-    포트 매핑된 ws://localhost:3000/ 사용 확인.
-
-  2. 모듈 위치 결정:
-    루트 경로에 'playwright/' 폴더를 신설하여 관심사 분리.
-    - src/linkmerce: 순수 비즈니스 로직
-    - playwright/: 브라우저 제어 및 자동화 에이전트
-
-  3. 로그인 직렬화(Serialization):
-    로그인 작업은 반드시 한 번에 하나씩 수행되어야 하므로, Airflow DAG에서
-    SSHHook을 통해 루프를 돌며 직렬로 실행하도록 설계.
-
-작업 내용 요약
--------------
-  1. playwright/core/coupang/login.py:
-    - 단일 vendor_id에 대해 윙/광고센터 로그인을 수행하고 쿠키를 JSON으로 반환.
-    - CLI 인터페이스 제공으로 SSH 실행 최적화.
-
-  2. airflow/dags/coupang.py:
-    - SSH 기반 로그인 Task 및 매출/광고/옵션/캠페인 ETL 통합.
-    - Dynamic Task Mapping(expand)을 적용하여 다수 업체의 데이터를 효율적으로 수집.
-    - 로그인 정보(쿠키)를 순차적으로 획득한 후 후속 작업을 병렬로 트리거하는 구조.
-
-  3. 환경 공유:
-    airflow/.env 파일을 호스트의 모듈에서도 참조하여 설정 중복 제거.
-
-
-================================================================================
-[2026-04-08] Q28~Q36: 쿠팡 통합 DAG 아키텍처 설계 및 최종 구현
-================================================================================
-
-배경
-----
-  쿠팡 로그인 정책이 강화되어 동시에 여러 계정이 로그인 상태를 유지할 수 없게 됨.
-  기존의 "쿠키를 미리 저장 후 병렬 ETL 실행" 패턴을 폐기하고,
-  "계정 1개씩 로그인 → 해당 계정의 ETL 전부 완료 → 다음 계정"이라는
-  엄격한 직렬 실행 구조로 전환이 필요.
-
-  기존 deprecated DAG 경로: airflow/dags/_deprecated/coupang/
-  신규 DAG 경로: airflow/dags/coupang/
-
-아키텍처 결정: 단일 오케스트레이터 Task 구조
---------------------------------------------
-  Dynamic Task Mapping / TriggerDagRunOperator 등 여러 방식 검토 후,
-  아래 이유로 "단일 @task 내 직렬 루프" 구조를 최종 채택.
-
-  Dynamic Task Mapping 채택 불가 이유:
-  - DAG 그래프는 파싱 시점에 정적으로 확정됨.
-  - 계정 수는 런타임에 결정되므로, N-depth 직렬 루프를 그래프로 표현 불가.
-  - max_active_tis_per_dag=1로 직렬화할 수 있으나, 이 경우에도
-    "로그인 → ETL 4개 → 다음 로그인" 순서를 보장하는 것이 불가능.
-
-  TriggerDagRunOperator.execute() 직접 호출 방식 채택 불가 이유:
-  - Operator를 @task 내부에서 수동으로 생성/호출하면 Airflow의 DB 세션과
-    XCom 백엔드 처리가 정상적으로 이루어지지 않아 AttributeError 위험.
-  - context 전달 시 부모 Task의 메타데이터를 오염시킬 가능성.
-  - task_id를 동적으로 생성해도 UI에 개별 Task로 나타나지 않아 모니터링 불가.
-
-  최종 채택: airflow.api.common.trigger_dag + DagRun.find 폴링
-  - trigger_dag(): 자식 DAG의 DagRun을 직접 생성하는 내부 API.
-  - DagRun.find(): run_id 기반 폴링으로 완료 여부 확인.
-  - 모든 처리가 단일 @task 내에서 순번대로 실행되므로 직렬성 완전 보장.
-  - 자식 DAG는 독립적인 DagRun으로 UI에서 별도 확인 가능.
-
-신규 파일 목록
+설계 결정 사항
 --------------
-  airflow/dags/coupang/_integration.py  — 오케스트레이터 (메인 DAG)
-  airflow/dags/coupang/rocket_sales.py  — 로켓배송 정산 ETL
-  airflow/dags/coupang/adreport.py      — 광고 보고서 ETL (PA/NCA)
-  airflow/dags/coupang/product_option.py — 상품 옵션 메타데이터 ETL
-  airflow/dags/coupang/campaign.py      — 광고 캠페인 구조 ETL
+  파티션 컬럼 PK 포함 원칙:
+    PostgreSQL 선언적 파티션(Declarative Partitioning)에서 PK가 있으면
+    파티션 키가 PK에 포함되어야 한다. 따라서:
+      - smartstore.order: PK = (payment_dt, order_id)  ← payment_dt 추가
+      - coupang.rocket_sales: PK = (sales_date, vendor_id, order_id, ...)
+      - sabangnet.order: 자연 PK(order_seq)를 유지하고 파티션 미적용 결정
 
-DAG 명칭 결정
--------------
-  Master DAG:   coupang__integration  (언더바 2개로 UI 정렬 최상단 고정)
-  Child DAGs:   coupang_rocket_sales, coupang_adreport,
-                coupang_product_option, coupang_campaign
+  BQ RANGE 파티션 (media_code, depth):
+    INT64 RANGE 파티션은 PostgreSQL에서 단순 B-tree index로 대체.
 
-  네이밍 배경:
-  - 다른 플랫폼(네이버, 메타 등)의 DAG와 구분하기 위해 반드시 coupang_ 으로 시작.
-  - coupang__integration (언더바 2개)은 coupang_ 계열 중 알파벳 정렬 최상단에 위치.
+결과물
+------
+  - postgres/init.sql 재생성: 1483 라인
+    (PRIMARY KEY, PARTITION BY RANGE ×18, 연도 파티션, CREATE INDEX)
+  - postgres/init.sql.bak: 이전 1060 라인 백업 유지
 
-run_id 설계 결정
-----------------
-  고려 방식들:
-  1. DagRunType.MANUAL.generate_run_id(logical_date)
-    → Airflow 3에서 시그니처 변경. positional argument 불가. 검토 후 폐기.
-  2. DagRunType.MANUAL.generate_run_id(suffix=dt.isoformat())
-    → 동일한 logical_date로 여러 계정 실행 시 suffix가 같아 run_id 중복 발생.
-  3. f"manual__{pendulum.now('UTC').isoformat()}__{vendor_id}"
-    → vendor_id를 suffix로 붙이면 너무 길어 UI 가독성 저하.
+스키마별 최종 구조 요약
+-----------------------
+  cj_eflexs      : invoice(PK), invoice_order(PK), stock(index)
+  cj_loisparcel  : invoice(PK)
+  coupang        : option(PK), inventory(PK), rocket_sales(PK+PART),
+                  rocket_shipping(PK+PART), vendor
+  coupang_ads    : campaign(PK), adgroup(PK), creative(PK),
+                  adreport_pa(PK+PART), adreport_nca(PK+PART)
+  ecount         : inventory(PK), product(PK), cost(PK+index)
+  google         : campaign(PK), adgroup(PK), ad(PK), asset(PK),
+                  insight(PK+PART)
+  meta           : accounts(PK), campaigns(PK), adsets(PK), ads(PK),
+                  insights(PK+PART)
+  naver          : category(PK), keyword(PK), kwd_pid(PK), product(PK),
+                  rank(PK+PART)
+  relation       : 6개 테이블 복합 PK
+  sabangnet      : 14개 테이블 (8개 PK, order계열 index)
+  searchad       : account~contract(PK), report(PK+PART), rank(PK+PART)
+  searchad_gfa   : report(PK+PART)
+  smartstore     : channel~order_option(PK), order계열 4개(PK+PART)
+  ss_hcenter     : category~product(PK), pageview(PK+PART), sales(PK+PART),
+                  stock(복합PK)
+  ss_bizdata     : marketing_channel(PK+PART)
 
-  최종 채택: f"expanded__{i}_{pendulum.now('UTC').isoformat()}"
-  - run_id prefix로 "expanded"를 사용: Dynamic Task Mapping의 "Expanded Tasks" 개념을
-    차용하여, 이 실행이 통합 DAG에 의해 동적으로 확장된 개별 실행 단위임을 표현.
-  - i: 계정 루프 인덱스. 같은 루프 내 동일 타임스탬프 충돌 가능성을 방지.
-  - pendulum.now('UTC'): 실행 시점의 UTC 현재 시간. 세션 전체에서 유일성 보장.
-  - 각 DAG가 순차 실행되고 poke_interval(최소 30초) 이상 대기 후 다음 run_id를
-    생성하므로 타임스탬프 충돌 가능성은 0.
-  - DagRun.run_id 컬럼은 VARCHAR(250). 최장 run_id 샘플은 약 44자로 여유 충분.
+================================================================================
+세션: init.sql 컬럼 타입 정밀화 + 인덱스 위치 재배치
+================================================================================
 
-  run_id 유일성 범위:
-  - Airflow의 run_id 유일성은 동일 DAG 내에서만 적용됨.
-  - coupang_rocket_sales와 coupang_adreport가 우연히 동일 run_id를 가져도 무관.
-  - 따라서 dag_id를 run_id에 포함시킬 필요 없음.
+작업 내용
+---------
+1. 컬럼 타입 정밀화 (models.sql 기반)
+  - BIGINT → SMALLINT: DuckDB TINYINT 원천 컬럼
+    예) settlement_type/period_type (coupang), device_type (google.insight),
+        pc_mobile_type (searchad.report), contract_status (searchad.contract),
+        display_rank (searchad/naver rank), product_type (naver/smartstore),
+        creative_type (coupang_ads.adreport_nca), vendor_type/goal_type (coupang_ads),
+        order_status (smartstore.order_status)
+  - BIGINT → INTEGER: models.sql에서 INTEGER로 명시된 수량/금액/코드 컬럼
+    적용 범위: 모든 스키마(cj_eflexs, coupang, coupang_ads, ecount, google,
+      meta, naver, sabangnet, searchad, searchad_gfa, smartstore,
+      ss_hcenter, ss_bizdata)의 수량·가격·광고지표·비용 컬럼
+  - BIGINT 유지: PK/FK ID 컬럼, barcode, orderer_id, catalog_id 등
 
-trigger_dag() API 변경 사항 (Airflow 3.1.3)
--------------------------------------------
-  Airflow 3.1.3에서 trigger_dag() 시그니처에 triggered_by 필수 인자 추가.
-  기존 Airflow 2.x 코드와 호환되지 않음.
+2. 인덱스 위치 재배치
+  - 기존: 파일 맨 하단의 단일 인덱스 블록
+  - 변경: 각 CREATE TABLE 직후 해당 테이블 인덱스 배치
+  - 효과: 테이블-인덱스 관계를 코드 위치에서 즉시 파악 가능
 
-  필수 인자: triggered_by: DagRunTriggeredByType (keyword-only)
-  채택 값: DagRunTriggeredByType.OPERATOR
-  이유: 사람이 직접 실행한 것이 아닌, 상위 Task(오케스트레이터)에 의해
-      프로그래밍적으로 트리거되는 상황이므로 OPERATOR가 의미적으로 정확.
+3. order_id BIGINT 유효성 확인
+  - smartstore.order.order_id 예시값: x (16자리)
+  - BIGINT 최대값: 9,223,372,036,854,775,807 (19자리) → 안전하게 수용
 
-wait_for_completion 함수 분리
------------------------------
-  최초 설계에서 trigger_dag 호출과 폴링 로직이 trigger_dag_run 단일 함수에
-  포함되어 있었으나, 사용자가 직접 분리하여 가독성 향상.
+결과물
+------
+  - postgres/init.sql: 1291 라인 → 1254 라인
+    (타입 정밀화, 인덱스 인라인 배치, 하단 인덱스 블록 제거)
 
-  AS-IS:
-    def trigger_dag_run(dag_id, poke_interval) -> str:
-        trigger_dag(...)  # 트리거
-        while ...: DagRun.find(...)  # 폴링 (하나의 함수에 혼재)
+================================================================================
+세션: BRIN → 선언적 파티셔닝 전환 + PostgreSQL 클라이언트 모듈
+================================================================================
 
-  TO-BE:
-    run_id = f"expanded__{i}_{pendulum.now('UTC').isoformat()}"
-    trigger_dag(dag_id=dag_id, run_id=run_id, conf=conf,
-                triggered_by=DagRunTriggeredByType.OPERATOR)
-    state = wait_for_completion(dag_id, run_id, poke_interval)
+배경
+----
+  BRIN 인덱스가 BigQuery 파티션의 결정론적 프루닝을 대체할 수 없음을 확인.
+  BRIN은 블록 범위 요약 기반의 손실(lossy) 인덱스로, False Positive 발생.
+  INSERT ON CONFLICT(UPSERT) 워크로드에서도 추가 이점 없음.
+  → PostgreSQL 선언적 파티셔닝(PARTITION BY RANGE)으로 전면 전환 결정.
 
-    def wait_for_completion(dag_id, run_id, poke_interval, timeout=600) -> str:
-        # DagRun.find 폴링 전용 함수
+작업 내용
+---------
+1. init.sql: BRIN → PARTITION BY RANGE 전환
+  - 29개 테이블에 PARTITION BY RANGE 적용 (DATE 17개, TIMESTAMP 12개)
+  - BRIN 인덱스 제거, 클러스터링 B-tree 인덱스 유지
+  - PK에 파티션 키 미포함 테이블 11개 PK 변경
+    예) cj_eflexs.invoice: (invoice_no) → (pickup_date, invoice_no)
+        ecount.cost: (id) → (end_date, id)
+        sabangnet.order: (order_seq) → (order_dt, order_seq)
+        searchad.contract: (contract_id) → (contract_end_date, contract_id)
+  - TIMESTAMP 칼럼은 직접 RANGE 파티셔닝 (월별 범위 지정)
+  - 부모 테이블만 정의, 자식 파티션은 PostgresClient에서 동적 생성
 
-  wait_for_completion 설계 포인트:
-  - dag_id, run_id를 인자로 명시적 수신 → outer scope 클로저 의존성 없음.
-  - timeout 초과 시 "timeout" 문자열 반환 (예외 미발생, 루프 지속 가능).
-  - DagRunState.SUCCESS / FAILED 두 상태에서만 종료. QUEUED/RUNNING 중 대기.
+2. extensions/postgres.py 신규 작성
+  - PostgresClient(Connection) 클래스: psycopg2 기반
+  - BigQueryClient와 동등한 인터페이스, PostgreSQL 네이티브 용어 사용
+  - 주요 메서드:
+    · fetch_all_to_csv/json: 쿼리 결과 조회
+    · copy_from_csv/copy_to_csv: COPY FROM/TO STDIN (대량 적재)
+    · insert_rows: execute_batch 기반 INSERT
+    · upsert: INSERT ON CONFLICT DO UPDATE (BigQuery MERGE 대응)
+    · upsert_from_staging: 스테이징 테이블→타겟 UPSERT
+    · overwrite_table: DELETE + INSERT (트랜잭션 보호)
+    · ensure_partition/ensure_monthly_partitions: 파티션 자동 생성
+    · get_partitions/is_partitioned: 파티션 조회
+    · load_from_duckdb: DuckDB→CSV→COPY 적재
+    · upsert_from_duckdb: DuckDB→스테이징→UPSERT
+    · overwrite_from_duckdb: DuckDB→DELETE+COPY
+    · expr_now/expr_today: PG 네이티브 표현식
+  - matched 파라미터: BigQuery와 동일한 전략 지원
+    :replace_all:, :do_nothing:, replace, ignore, greatest, least,
+    source_first, target_first
+    S.col → EXCLUDED.col, T.col → table.col 매핑
 
-자식 DAG 공통 설계 (conf 수신 구조)
-------------------------------------
-  자식 DAG 4개는 모두 동일한 패턴으로 dag_run.conf를 통해 실행 파라미터를 수신.
+3. docs/postgres-partitioning.md 신규 작성
+  - BRIN 한계 분석, 선언적 파티셔닝 설계, 클라이언트 모듈 API 문서
+  - BigQuery↔PostgreSQL 메서드 매핑 테이블
+  - UPSERT matched 파라미터 변환 규칙
+  - DuckDB→PG 적재 패턴 (CSV COPY, 스테이징 패턴)
+  - 참고 링크 첨부
 
-  conf 구조:
-    {
-      "vendor_id": str,    # 업체 식별자
-      "cookies": dict,     # 로그인 세션 쿠키 전체
-      "nca": bool,         # 광고 계정 유형 (PA/NCA 분기)
-    }
+주요 설계 결정
+--------------
+  - PG 13: MERGE 미지원 → INSERT ON CONFLICT 사용 (PG 15부터 MERGE 지원)
+  - TIMESTAMP 파티셔닝: generated DATE 칼럼 대신 TIMESTAMP 직접 RANGE 파티셔닝
+    (PostgreSQL은 TIMESTAMP에도 RANGE 파티셔닝 지원, 월별 범위 지정)
+  - 파티션 관리: init.sql은 부모 테이블만, PostgresClient가 월별 파티션 동적 생성
+  - DuckDB→PG 적재: DuckDB postgres 확장 대신 DataFrame→CSV→COPY 패턴
+    (확장 의존성 제거, 범용성 확보)
 
-  credentials.yaml 수정:
-    nca: true 플래그를 특정 업체에 추가하여, adreport / campaign DAG에서
-    PA와 NCA를 구분하여 다른 API 엔드포인트를 호출하도록 처리.
-
-최종 검증 결과 (Airflow 3.1.3 환경)
-------------------------------------
-  검증 항목:
-  1. trigger_dag() 시그니처: triggered_by 필수 인자 정상 전달 ✓
-  2. DagRun.find() run_id 타입: str (단일 문자열) 정상 처리 ✓
-  3. DagRunState 종료 상태: SUCCESS / FAILED 정상 처리 ✓
-  4. DagRunTriggeredByType.OPERATOR 값 존재 ✓
-  5. run_id 포맷(expanded__i_timestamp): VARCHAR(250) 제한 내 (44자) ✓
-  6. wait_for_completion 클로저 의존성: 없음 (모든 인자 명시적 수신) ✓
-  7. 구문 검증 (ast.parse): OK ✓
-
-  결론: 현재 코드는 Airflow 3.1.3 환경에서 정상 동작 가능.
-
-  [2026-04-30] Q-docstring-task: API docstring 작성 지시 문서 정리
-  ================================================================================
-
-  배경
-  ----
-    extract/transform 모듈을 근거로 api/ 경로 아래 API 함수 docstring을
-    일관되게 작성하기 위한 GPT-5.4용 작업 지시 문서가 필요해짐.
-
-  정리한 규칙
-  -----------
-    1. source of truth 우선순위:
-      api 함수 시그니처 > core/extract.py > core/transform.py > 승인된 기준 docstring
-    2. 한 줄 설명 바로 아래에 Table/Tables 배치
-    3. connection 문구 고정:
-      사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
-    4. raw 설명 구분:
-      - 수집형: 데이터 수집 후 원본 응답 반환
-      - 다운로드형: 데이터 다운로드 후 {파일명: 엑셀 바이너리} 구조 반환
-    5. none 설명 고정:
-      모든 과정을 수행한 후 `None`을 반환한다.
-    6. 요청 간 표현 유지, 명사형 설명 끝 마침표 금지
-
-  산출물
-  ------
-    docs/api-docstring-task-instructions.md
-    - GPT-5.4가 그대로 따라 쓸 수 있는 작업 규칙
-    - 금지 사항, Returns 작성 규칙, 테이블 수별 패턴, 체크리스트 포함
-
+결과물
+------
+  - postgres/init.sql: PARTITION BY RANGE 적용, BRIN 인덱스 제거
+  - src/linkmerce/extensions/postgres.py: PostgreSQL 클라이언트 모듈 신규
+  - docs/postgres-partitioning.md: 설계 문서 신규
