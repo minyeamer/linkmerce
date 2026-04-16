@@ -308,7 +308,7 @@ debug*.sh
 
 # Locals only
 airflow/extensions/
-airflow/dags/private/
+airflow/dags/_private/
 docs/draft/
 src/tests/results/
 src/tests/fixtures.yaml
