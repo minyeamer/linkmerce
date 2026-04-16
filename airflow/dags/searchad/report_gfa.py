@@ -32,20 +32,19 @@ with DAG(
 ) as dag:
 
     PATH = "searchad.gfa.report"
-    RETRY_OPTIONS = {"retries": 3, "retry_delay": timedelta(minutes=1)}
 
-    @task(task_id="read_configs", **RETRY_OPTIONS)
+    @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
         return read_config(PATH, tables=True, service_account=True)
 
-    @task(task_id="read_credentials", **RETRY_OPTIONS)
+    @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:
         from airflow_utils import read_config
         return read_config(PATH, credentials=True)["credentials"]
 
 
-    @task(task_id="etl_searchad_report_gfa", map_index_template="{{ credentials['account_no'] }}", **RETRY_OPTIONS)
+    @task(task_id="etl_searchad_report_gfa", map_index_template="{{ credentials['account_no'] }}")
     def etl_searchad_report_gfa(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import get_execution_date
         return main(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
