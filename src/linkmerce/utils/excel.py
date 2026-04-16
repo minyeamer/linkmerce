@@ -96,6 +96,15 @@ def filter_warnings():
     warnings.filterwarnings("ignore", module="openpyxl.*")
 
 
+def clean_illegal_chars(value: Any) -> Any:
+    """Excel에서 허용되지 않는 제어 문자를 제거한다. (`IllegalCharacterError` 방지)"""
+    import re
+    if isinstance(value, str):
+        # XML 1.0에서 허용되지 않는 제어 문자 범위 (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F)
+        return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", str(), value)
+    return value
+
+
 ###################################################################
 ###################### Convert Excel to JSON ######################
 ###################################################################
@@ -345,7 +354,7 @@ def _rows2sheet(
         return
 
     for row in rows:
-        ws.append(row)
+        ws.append([clean_illegal_chars(v) for v in row])
 
     if not isinstance(header_styles, dict):
         header_styles = _yellow_headers() if header_styles == "yellow" else dict()
