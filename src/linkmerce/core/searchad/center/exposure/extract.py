@@ -11,7 +11,18 @@ if TYPE_CHECKING:
 class ExposureDiagnosis(SearchAdCenter):
     """네이버 검색광고 키워드 노출 진단 데이터를 추출하는 클래스.
 
-    `RequestEachLoop` Task를 사용하여 키워드(`keyword`)별 노출 상품 목록을 조회한다."""
+    - **Menu**: 도구 > 광고 노출 진단
+    - **API URL**: `GET` https://ads.naver.com/apis/sa/api/ncc/sam/exposure-status-shopping
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "GET"
     path = "/ncc/sam/exposure-status-shopping"

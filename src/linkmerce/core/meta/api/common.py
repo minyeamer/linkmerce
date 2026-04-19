@@ -18,7 +18,19 @@ class OAuthException(Exception):
 class MetaApi(Extractor):
     """메타 Graph API를 처리하는 공통 클래스.
 
-    `access_token`을 사용하며, 토큰 만료 시 `app_id`와 `app_secret`으로 자동 갱신한다."""
+    - **API Docs**: https://developers.facebook.com/docs/graph-api
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_token: str
+        메타 액세스 토큰
+    app_id: str
+        메타 앱 ID (토큰 자동 갱신 시 필수)
+    app_secret: str
+        메타 앱 시크릿 (토큰 자동 갱신 시 필수)
+    """
 
     method: str = "GET"
     origin: str = "https://graph.facebook.com/"

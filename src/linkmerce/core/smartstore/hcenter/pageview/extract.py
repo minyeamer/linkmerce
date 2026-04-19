@@ -10,10 +10,22 @@ if TYPE_CHECKING:
 
 
 class _PageView(PartnerCenter):
-    """네이버 브랜드 스토어의 일별 페이지뷰 데이터를 조회하는 공통 클래스.
+    """네이버 브랜드 스토어 브랜드 상품분석 페이지뷰 데이터를 조회하는 공통 클래스.
 
-    `RequestEachLoop` Task를 사용하여 판매처번호(`mall_seq`)에 대한 GraphQL API 요청으로   
-    기기별/URL별 페이지뷰를 조회한다. 조회 기간은 최대 90일로 제한된다."""
+    - **Menu**: 브랜드 애널리틱스 > 브랜드 상품분석
+    - **API URL**: `POST` https://hcenter.shopping.naver.com/brand/content (GraphQL)
+
+    조회 기간은 최대 90일로 제한된다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/brand/content"

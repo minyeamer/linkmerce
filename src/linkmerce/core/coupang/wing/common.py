@@ -9,7 +9,14 @@ if TYPE_CHECKING:
 
 
 class CoupangWing(Extractor):
-    """쿠팡 Wing 데이터를 조회하는 공통 클래스. 헤더에 로그인 쿠키가 제공되어야 한다."""
+    """쿠팡 Wing 로그인 쿠키를 가지고 데이터를 조회하는 공통 클래스.
+
+    - **URL**: https://wing.coupang.com
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+    """
 
     method: str | None = None
     origin = "https://wing.coupang.com"
@@ -28,12 +35,21 @@ class CoupangWing(Extractor):
 
 
 class CoupangSupplierHub(CoupangWing):
-    """쿠팡 서플라이어 허브 데이터를 수집하는 클래스."""
+    """쿠팡 서플라이어 허브 데이터를 수집하는 공통 클래스.
+
+    - **URL**: https://supplier.coupang.com
+    """
+
     origin = "https://supplier.coupang.com"
 
 
 class CoupangLogin(LoginHandler):
-    """쿠팡 Wing 로그인을 수행하여 쿠키를 발급하는 클래스."""
+    """쿠팡 Wing 또는 서플라이어 허브 로그인을 수행하여 쿠키를 발급하는 클래스.
+
+    - **Wing URL**: https://wing.coupang.com
+    - **Supplier URL**: https://supplier.coupang.com
+    """
+
     origin = "https://wing.coupang.com"
 
     @LoginHandler.with_session
@@ -45,7 +61,19 @@ class CoupangLogin(LoginHandler):
             with_token: bool = True,
             **kwargs
         ) -> str:
-        """로그인 수행 후 `XSRF-TOKEN`을 쿠키에 더한다."""
+        """로그인 수행 후 `XSRF-TOKEN`을 쿠키에 더한다.
+
+        Parameters
+        ----------
+        userid: str
+            쿠팡 Wing 또는 서플라이어 허브 로그인 아이디
+        passwd: str
+            쿠팡 Wing 또는 서플라이어 허브 로그인 비밀번호
+        domain: Literal["wing", "supplier"]
+            로그인할 판매자 계정의 도메인
+            - **wing**: 쿠팡 Wing
+            - **supplier**: 쿠팡 서플라이어 허브
+        """
         self.origin = f"https://{domain}.coupang.com"
         self.vendor_login(userid, passwd)
         if with_token:

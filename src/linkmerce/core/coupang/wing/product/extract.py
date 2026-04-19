@@ -10,9 +10,21 @@ if TYPE_CHECKING:
 
 
 class ProductOption(CoupangWing):
-    """쿠팡 상품 목록을 조회하는 클래스.
+    """쿠팡 Wing 상품 목록을 조회하는 클래스.
 
-    `PaginateAll` Task를 사용하여 전체 상품 목록을 조회한다."""
+    - **Menu**: 상품관리 > 상품조회/수정
+    - **Page URL**: `GET` https://wing.coupang.com/vendor-inventory/list
+    - **API URL**: `POST` https://wing.coupang.com/tenants/seller-web/v2/vendor-inventory/search
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/tenants/seller-web/v2/vendor-inventory/search"
@@ -73,9 +85,20 @@ class ProductOption(CoupangWing):
 
 
 class ProductDetail(CoupangWing):
-    """쿠팡 상품의 상세 정보를 조회하는 클래스.
+    """쿠팡 Wing 상품의 상세 정보를 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 등록상품ID(`vendor_inventory_id`)별 상세 정보를 조회한다."""
+    - **Menu**: 상품관리 > 상품조회/수정 > 상품 상세
+    - **API URL**: `GET` https://wing.coupang.com/tenants/seller-web/v2/vendor-inventory/vendor-inventory-items-with-vendorItems/{vendor_inventory_id}
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "GET"
     path = "/tenants/seller-web/v2/vendor-inventory/vendor-inventory-items-with-vendorItems/{}"
@@ -111,7 +134,11 @@ class ProductDetail(CoupangWing):
 
 
 class ProductDownload(ProductOption):
-    """쿠팡 상품 목록을 엑셀로 다운로드하는 클래스."""
+    """쿠팡 Wing 상품 목록을 엑셀로 다운로드하는 클래스.
+
+    - **Menu**: 상품관리 > 상품조회/수정 > 엑셀 다운로드
+    - **API URL**: `POST` https://wing.coupang.com/tenants/seller-web/excel/request/download/create/vendor-inventory/all
+    """
 
     method = "POST"
     token_required = False
@@ -249,7 +276,21 @@ class ProductDownload(ProductOption):
 class RocketInventory(CoupangWing):
     """쿠팡 로켓 재고 현황을 커서 기반으로 조회하는 클래스.
 
-    `CursorAll` Task를 사용하여 `searchAfterSortValues` 커서로 순차 조회한다."""
+    - **Menu**: 로켓성장 > 재고관리 > 로켓물류 재고관리
+    - **Page URL**: `GET` https://wing.coupang.com/tenants/rfm-inventory/management/list
+    - **API URL**: `POST` https://wing.coupang.com/tenants/rfm-inventory/inventory-health-dashboard/search
+
+    `CursorAll` Task를 사용하여 `searchAfterSortValues` 커서로 순차 조회한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `CursorAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/tenants/rfm-inventory/inventory-health-dashboard/search"

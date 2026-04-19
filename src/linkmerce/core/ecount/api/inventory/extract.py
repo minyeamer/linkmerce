@@ -10,7 +10,12 @@ if TYPE_CHECKING:
 
 
 class Inventory(EcountApi):
-    """이카운트 창고별/품목별 재고 현황을 조회하는 클래스."""
+    """이카운트 재고현황 데이터를 조회하는 클래스.
+
+    - **Menu**: 재고 > 현황 > 재고현황
+    - **API URL**: `POST` https://oapi{ZONE}.ecount.com/OAPI/V2/InventoryBalance/GetListInventoryBalanceStatus
+    - **API Docs**: https://oapi.ecount.com/
+    """
 
     method = "POST"
     path = "/InventoryBalance/GetListInventoryBalanceStatus"
@@ -29,7 +34,7 @@ class Inventory(EcountApi):
             safe_yn: bool = False,
             **kwargs
         ) -> JsonObject:
-        """재고 현황 조회해 JSON 형식으로 반환한다."""
+        """재고현황 데이터를 조회해 JSON 형식으로 반환한다."""
         if base_date == ":today:":
             import datetime as dt
             base_date = dt.date.today()

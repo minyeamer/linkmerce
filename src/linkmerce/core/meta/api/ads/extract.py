@@ -20,8 +20,17 @@ class AdAccount(TypedDict):
 class MetaAds(MetaApi):
     """메타 Marketing API로 광고 데이터를 조회하는 공통 클래스.
 
-    `RequestEach` Task를 사용하여 계정별 광고 데이터를 조회한다.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/v24.0"""
+    - **API Docs**: https://developers.facebook.com/docs/marketing-api/reference/v24.0
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method: str = "GET"
     version: str = "v24.0"
@@ -95,7 +104,7 @@ class _AdObjects(MetaAds):
 
 class Campaigns(_AdObjects):
     """메타 광고 캠페인 목록을 조회하는 클래스.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/campaigns/v24.0"""
+    - **API Docs**: https://developers.facebook.com/docs/marketing-api/reference/ad-account/campaigns/v24.0"""
 
     path = "/campaigns"
 
@@ -108,7 +117,7 @@ class Campaigns(_AdObjects):
 
 class Adsets(_AdObjects):
     """메타 광고세트 목록을 조회하는 클래스.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/adsets/v24.0"""
+    - **API Docs**: https://developers.facebook.com/docs/marketing-api/reference/ad-account/adsets/v24.0"""
 
     path = "/adsets"
 
@@ -122,7 +131,7 @@ class Adsets(_AdObjects):
 
 class Ads(_AdObjects):
     """메타 광고 목록을 조회하는 클래스.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/ads/v24.0"""
+    - **API Docs**: https://developers.facebook.com/docs/marketing-api/reference/ad-account/ads/v24.0"""
 
     path = "/ads"
 
@@ -136,7 +145,7 @@ class Ads(_AdObjects):
 
 class Insights(MetaAds):
     """메타 광고 성과 보고서를 조회하는 클래스.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/v24.0"""
+    - **API Docs**: https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/v24.0"""
 
     path = "/insights"
 

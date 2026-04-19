@@ -14,7 +14,21 @@ class GoogleAds(GoogleApi):
     """구글 Ads API로 광고 데이터를 조회하는 공통 클래스.
 
     GAQL(구글 Ads Query Language)로 searchStream 요청을 보내 데이터를 조회한다.
-    - API 문서: https://developers.google.com/google-ads/api/fields/v23/overview"""
+    - **API Docs**: https://developers.google.com/google-ads/api/fields/v23/overview
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    customer_id: int | str
+        구글 광고 고객 ID
+    manager_id: int | str
+        구글 광고 관리자 ID
+    developer_token: str
+        구글 Ads API 개발자 토큰
+    service_account: str | Path | dict[str, str]
+        구글 서비스 계정 JSON 파일 경로 또는 딕셔너리
+    """
 
     service: str = "googleads"
     method: str = "POST"
@@ -140,7 +154,7 @@ class GoogleAds(GoogleApi):
 
 class Campaign(GoogleAds):
     """구글 광고 캠페인 목록을 조회하는 클래스.
-    - API 문서: https://developers.google.com/google-ads/api/fields/v23/campaign"""
+    - **API Docs**: https://developers.google.com/google-ads/api/fields/v23/campaign"""
 
     table = "campaign"
 
@@ -164,7 +178,7 @@ class Campaign(GoogleAds):
 
 class AdGroup(GoogleAds):
     """구글 광고그룹 목록을 조회하는 클래스.
-    - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group"""
+    - **API Docs**: https://developers.google.com/google-ads/api/fields/v23/ad_group"""
 
     table = "ad_group"
 
@@ -188,7 +202,7 @@ class AdGroup(GoogleAds):
 
 class Ad(GoogleAds):
     """구글 광고 소재 목록을 조회하는 클래스.
-    - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad"""
+    - **API Docs**: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad"""
 
     table = "ad_group_ad"
 
@@ -231,8 +245,17 @@ class Ad(GoogleAds):
 class Insight(GoogleAds):
     """구글 광고 소재의 성과 데이터를 날짜/기기별로 구분해 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 기간별 데이터를 조회한다.
-    - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad"""
+    - **API Docs**: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     table = "ad_group_ad"
 
@@ -287,7 +310,7 @@ class Insight(GoogleAds):
 
 class Asset(GoogleAds):
     """구글 광고 애셋 목록을 조회하는 클래스.
-    - API 문서: https://developers.google.com/google-ads/api/fields/v23/asset"""
+    - **API Docs**: https://developers.google.com/google-ads/api/fields/v23/asset"""
 
     table = "asset"
 
@@ -314,7 +337,7 @@ class Asset(GoogleAds):
 
 class AssetView(Insight):
     """구글 광고 소재-애셋 관계를 조회하는 클래스.
-    - API 문서: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad_asset_view"""
+    - **API Docs**: https://developers.google.com/google-ads/api/fields/v23/ad_group_ad_asset_view"""
 
     table = "ad_group_ad_asset_view"
 

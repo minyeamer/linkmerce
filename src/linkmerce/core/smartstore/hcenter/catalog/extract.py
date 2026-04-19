@@ -11,7 +11,17 @@ if TYPE_CHECKING:
 class _CatalogProduct(PartnerCenter):
     """네이버 브랜드 카탈로그/상품 조회를 위한 공통 클래스.
 
-    `RequestEachPages` Task를 사용하여 브랜드ID(`brand_ids`) 목록에 대해 순차 조회한다."""
+    - **API URL**: `POST` https://vcenter.shopping.naver.com
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     origin: str = "https://vcenter.shopping.naver.com"

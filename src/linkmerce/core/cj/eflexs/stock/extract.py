@@ -10,9 +10,35 @@ if TYPE_CHECKING:
 
 
 class Stock(CjEflexs):
-    """CJ eFLEXs 상세 재고현황을 조회하는 클래스.
+    """CJ eFLEXs 상세 재고 현황을 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 고객사(`customer_id`)별 재고 데이터를 조회한다."""
+    - **Menu**: 재고관리 > 현황 > 상세재고현황 (`IMSI0002M`)
+    - **Page URL**: `GET` https://eflexs-x.cjlogistics.com/index.do
+    - **API URL**: `POST` https://eflexs-x.cjlogistics.com/IMSI0002M/selectDtlStckSearch.do
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    userid: str
+        CJ eFLEXs 로그인을 위한 User ID.
+    passwd: str
+        CJ eFLEXs 로그인을 위한 Password.
+    mail_info: dict[str, str]
+        2단계 인증을 위한 이메일 정보. 다음 키값을 포함해야 한다.
+        - **origin**: 메일 서비스 도메인.
+        - **email**: 메일 계정 아이디.
+        - **passwd**: 메일 계정 비밀번호.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     menu = "IMSI0002M"
     path = "/selectDtlStckSearch.do"
@@ -31,7 +57,27 @@ class Stock(CjEflexs):
             end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             **kwargs
         ) -> JsonObject:
-        """고객사(`customer_id`)별 상세 재고를 조회해 JSON 형식으로 반환한다."""
+        """고객(`customer_id`)별 상세 재고를 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        customer_id: int | str | Iterable
+            조회할 고객 ID. 여러 고객을 조회하려면 리스트로 전달한다.
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+                - `":last_week:"` 전달 시 오늘 기준 7일 전 날짜로 대체된다.
+                - 기본값은 `":last_week:"`
+        end_date: dt.date | str
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+                - `":start_date:"` 전달 시 `start_date`와 동일한 날짜 값으로 대체된다.
+                - `":today:"` 전달 시 오늘 날짜로 대체된다.
+                - 기본값은 `":today:"`
+
+        Returns
+        -------
+        list[dict]
+            고객별 상세 재고 데이터 목록. 각 항목은 품목, 로케이션, 수량 등의 필드를 포함한다.
+        """
         return (self.request_each(self.request_json)
                 .partial(**self.set_date(start_date, end_date))
                 .expand(customer_id=customer_id)

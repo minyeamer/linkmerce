@@ -10,9 +10,21 @@ if TYPE_CHECKING:
 
 
 class EcountApi(Extractor):
-    """이카운트 오픈 API를 요청을 처리하는 공통 클래스.
+    """이카운트 오픈 API 요청을 처리하는 공통 클래스.
 
-    오픈 API 호출을 위해 `com_code`, `userid`, `api_key`가 필요하다."""
+    - **API Docs**: https://oapi.ecount.com/
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    com_code: int | str
+        이카운트 회사 코드
+    userid: str
+        이카운트 사용자 ID
+    api_key: str
+        오픈 API 인증 키
+    """
 
     method: str = "POST"
     origin: str = "https://oapi{ZONE}.ecount.com/OAPI/"
@@ -88,7 +100,10 @@ class EcountApi(Extractor):
 
 
 class EcountRequestApi(EcountApi):
-    """이카운트 오픈 API 요청을 처리하는 클래스."""
+    """이카운트 오픈 API 경로를 직접 지정하여 요청을 처리하는 클래스.
+
+    - **API Docs**: https://oapi.ecount.com/
+    """
 
     @EcountApi.with_session
     @EcountApi.with_oapi
@@ -105,7 +120,10 @@ class EcountRequestApi(EcountApi):
 
 
 class EcountTestApi(EcountApi):
-    """이카운트 테스트 환경 API 요청을 처리하는 클래스."""
+    """이카운트 테스트 환경 API 경로를 직접 지정하여 요청을 처리하는 클래스.
+
+    - **API Docs**: https://oapi.ecount.com/
+    """
 
     origin: str = "https://sboapi{ZONE}.ecount.com/OAPI/"
 

@@ -8,7 +8,14 @@ import base64
 
 
 class PartnerCenter(Extractor):
-    """네이버 쇼핑파트너센터에서 데이터를 조회하는 공통 클래스. 헤더에 로그인 쿠키가 제공되어야 한다."""
+    """네이버 쇼핑파트너센터에서 데이터를 조회하는 공통 클래스.
+
+    - **URL**: https://hcenter.shopping.naver.com
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+    """
 
     method: str | None = None
     origin: str = "https://hcenter.shopping.naver.com"
@@ -27,7 +34,12 @@ class PartnerCenter(Extractor):
 ###################################################################
 
 class PartnerCenterLogin(SmartstoreCenterLogin):
-    """네이버 쇼핑파트너센터 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스."""
+    """네이버 쇼핑파트너센터 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스.
+
+    - **URL**: https://center.shopping.naver.com
+
+    스마트스토어센터 로그인 → 쇼핑파트너센터 전환(celogin) → embrace_token 발급 순서로 진행한다.
+    """
 
     center_url = "https://center.shopping.naver.com"
 

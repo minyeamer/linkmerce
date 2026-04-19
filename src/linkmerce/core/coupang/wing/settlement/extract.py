@@ -16,7 +16,11 @@ def isoformat(date: dt.date | str) -> str:
 
 
 class Summary(CoupangWing):
-    """쿠팡 로켓 손익 현황 요약 데이터를 조회하는 클래스."""
+    """쿠팡 로켓 손익 현황 요약 데이터를 조회하는 클래스.
+
+    - **Menu**: 로켓성장 > 정산관리 > 로켓손익현황
+    - **API URL**: `POST` https://wing.coupang.com/tenants/rfm/v2/settlements/profit-status/search
+    """
 
     method = "POST"
     path = "/tenants/rfm/v2/settlements/profit-status/search"
@@ -34,7 +38,12 @@ class Summary(CoupangWing):
 
 
 class RocketSettlement(CoupangWing):
-    """쿠팡 로켓 정산 현황을 조회하는 클래스."""
+    """쿠팡 로켓 정산 현황을 조회하는 클래스.
+
+    - **Menu**: 로켓성장 > 정산관리 > 로켓정산현황
+    - **Page URL**: `GET` https://wing.coupang.com/tenants/rfm/settlements/status-new
+    - **API URL**: `POST` https://wing.coupang.com/tenants/rfm/v2/settlements/status/api
+    """
 
     method = "POST"
     path = "/tenants/rfm/v2/settlements/status/api"
@@ -86,7 +95,11 @@ class RocketSettlement(CoupangWing):
 
 
 class RocketSettlementDownload(RocketSettlement):
-    """쿠팡 로켓 정산 보고서를 엑셀로 다운로드하는 클래스."""
+    """쿠팡 로켓 정산 보고서를 엑셀로 다운로드하는 클래스.
+
+    - **Menu**: 로켓성장 > 정산관리 > 로켓정산현황 > 엑셀 다운로드
+    - **API URL**: `POST` https://wing.coupang.com/tenants/rfm/v2/settlements/request-download/api
+    """
 
     method = "POST"
     locale = "ko"

@@ -12,7 +12,18 @@ if TYPE_CHECKING:
 class Order(SabangnetAdmin):
     """사방넷 주문서 확인 처리 메뉴의 주문 내역을 페이지네이션으로 조회하는 클래스.
 
-    `PaginateAll` Task를 사용하여 주문 내역을 조회한다."""
+    - **Menu**: 주문관리 > 주문서확인처리
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/order/OrderConfirm/searchOrders
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/prod-api/customer/order/OrderConfirm/searchOrders"
@@ -121,7 +132,11 @@ class Order(SabangnetAdmin):
 
 
 class OrderDownload(Order):
-    """사방넷 주문서 확인 처리 메뉴의 주문 내역을 엑셀로 다운로드하는 클래스."""
+    """사방넷 주문서 확인 처리 메뉴의 주문 내역을 엑셀로 다운로드하는 클래스.
+
+    - **Menu**: 주문관리 > 주문서확인처리 > 엑셀 다운로드
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/order/OrderConfirm/partner/downloadOrderConfirmExcelSearch
+    """
 
     method = "POST"
     path = "/prod-api/customer/order/OrderConfirm/partner/downloadOrderConfirmExcelSearch"
@@ -192,9 +207,20 @@ class OrderDownload(Order):
 
 
 class OrderStatus(OrderDownload):
-    """사방넷 주문서 확인 처리 메뉴의 주문 내역을 엑셀로 다운로드하는 클래스.
+    """사방넷 주문 내역을 기간별로 엑셀 다운로드하는 클래스.
 
-    `RequestEach` Task를 사용하여 기간(`date_type`)별로 주문 내역을 다운로드한다."""
+    - **Menu**: 주문관리 > 주문서확인처리 > 엑셀 다운로드
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/order/OrderConfirm/partner/downloadOrderConfirmExcelSearch
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     @property
     def default_options(self) -> dict:
@@ -230,7 +256,18 @@ class OrderStatus(OrderDownload):
 class ProductMapping(SabangnetAdmin):
     """사방넷 품번코드 매핑 내역을 페이지네이션으로 조회하는 클래스.
 
-    `PaginateAll` Task를 사용하여 쇼핑몰 상품과 사방넷 상품의 매핑 정보를 조회한다."""
+    - **Menu**: 주문관리 > 코드매핑관리 > 단품코드매핑
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/order/SkuCodeMapping/getSkuCodeMappingSearch
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     # path = "/prod-api/customer/order/ProductCodeMapping/getProductCodeMappingSearch"
@@ -298,7 +335,18 @@ class SkuQuery(TypedDict):
 class SkuMapping(SabangnetAdmin):
     """사방넷 단품코드 매핑 내역을 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 `SkuQuery` 목록에 대해 순차 조회한다."""
+    - **Menu**: 주문관리 > 코드매핑관리 > 단품코드매핑 > 매핑 상세
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/order/SkuCodeMapping/getMpngHisSkuCodeMappingLists
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/prod-api/customer/order/SkuCodeMapping/getMpngHisSkuCodeMappingLists"

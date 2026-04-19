@@ -12,7 +12,18 @@ if TYPE_CHECKING:
 class Product(SabangnetAdmin):
     """사방넷 상품 목록을 페이지네이션으로 조회하는 클래스.
 
-    `PaginateAll` Task를 사용하여 검색 조건에 맞는 모든 상품 목록을 조회한다."""
+    - **Menu**: 상품관리 > 상품조회
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/product/getProductInquirySearchList
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/prod-api/customer/product/getProductInquirySearchList"
@@ -119,7 +130,18 @@ class Product(SabangnetAdmin):
 class Option(SabangnetAdmin):
     """사방넷 단품 옵션 목록을 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 단품코드(`product_id`)에 대해 순차 조회한다."""
+    - **Menu**: 상품관리 > 상품조회 > 단품 옵션
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/product/getOptionInfoList
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/prod-api/customer/product/getOptionInfoList"
@@ -146,7 +168,11 @@ class Option(SabangnetAdmin):
 
 
 class OptionDownload(SabangnetAdmin):
-    """사방넷 단품 대량 수정 메뉴의 옵션 목록을 다운로드하는 클래스."""
+    """사방넷 단품 대량 수정 메뉴의 옵션 목록을 다운로드하는 클래스.
+
+    - **Menu**: 상품관리 > 단품대량수정 > 엑셀 다운로드
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/product/getSkuBulkModifyExcel
+    """
 
     method = "POST"
     path = "/prod-api/customer/product/getSkuBulkModifyExcel"
@@ -239,7 +265,18 @@ class OptionDownload(SabangnetAdmin):
 class AddProductGroup(SabangnetAdmin):
     """사방넷 추가상품 관리 메뉴의 추가상품 목록을 페이지네이션으로 조회하는 클래스.
 
-    `PaginateAll` Task를 사용하여 추가상품 그룹 목록을 조회한다."""
+    - **Menu**: 상품관리 > 추가상품관리
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/product/getAddProductList
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/prod-api/customer/product/getAddProductList"
@@ -297,7 +334,18 @@ class AddProductGroup(SabangnetAdmin):
 class AddProduct(SabangnetAdmin):
     """사방넷 추가 상품 그룹 내 상품 목록을 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 그룹코드(`group_id`)별 추가상품 목록을 조회한다."""
+    - **Menu**: 상품관리 > 추가상품관리 > 그룹 상세
+    - **API URL**: `POST` https://sbadmin{domain}.sabangnet.co.kr/prod-api/customer/product/getAddProductListInGroup
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/prod-api/customer/product/getAddProductListInGroup"

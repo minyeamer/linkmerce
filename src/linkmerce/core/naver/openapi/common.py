@@ -11,7 +11,17 @@ if TYPE_CHECKING:
 class NaverOpenApi(Extractor):
     """네이버 오픈 API 요청을 처리하는 공통 클래스.
 
-    API 요청을 위해 `client_id`와 `client_secret`이 필요하다."""
+    - **API Docs**: https://developers.naver.com/docs/serviceapi/search/
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    client_id: str
+        네이버 오픈 API 클라이언트 ID
+    client_secret: str
+        네이버 오픈 API 클라이언트 시크릿
+    """
 
     method: str | None = None
     origin: str = "https://openapi.naver.com"

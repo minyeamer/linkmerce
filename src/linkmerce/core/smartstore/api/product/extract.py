@@ -12,7 +12,18 @@ if TYPE_CHECKING:
 class Product(SmartstoreApi):
     """네이버 커머스 API로 상품 목록 조회 결과를 수집하는 클래스.
 
-    `PaginateAll` Task를 사용하여 검색 조건에 대한 전체 상품 목록을 조회한다."""
+    - **API URL**: `POST` https://api.commerce.naver.com/external/v1/products/search
+    - **API Docs**: https://apicenter.commerce.naver.com/ko/basic/commerce-api
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     version = "v1"
@@ -107,7 +118,18 @@ class Product(SmartstoreApi):
 class Option(SmartstoreApi):
     """네이버 커머스 API로 채널 상품 조회 결과를 수집하는 클래스.
 
-    `RequestEach` Task를 사용하여 상품코드(`product_id`) 목록에 대해 순차 조회한다."""
+    - **API URL**: `GET` https://api.commerce.naver.com/external/v2/products/channel-products/{product_id}
+    - **API Docs**: https://apicenter.commerce.naver.com/ko/basic/commerce-api
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "GET"
     version = "v2"

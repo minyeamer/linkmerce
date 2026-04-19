@@ -13,7 +13,15 @@ if TYPE_CHECKING:
 class GoogleApi(Extractor):
     """구글 API 요청을 처리하는 공통 클래스.
 
-    `service_account`와 `scope` 변수를 사용하여 JWT 기반 인증을 수행한다."""
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    service_account: str | Path | dict[str, str]
+        구글 서비스 계정 JSON 파일 경로 또는 딕셔너리
+    scope: str
+        OAuth 인증 스코프
+    """
 
     service: str
     method: str = "POST"

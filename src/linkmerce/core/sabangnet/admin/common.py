@@ -14,7 +14,19 @@ if TYPE_CHECKING:
 class SabangnetAdmin(Extractor):
     """사방넷 시스템에서 데이터를 조회하는 공통 클래스.
 
-    `userid`, `passwd`, `domain`를 사용하여 로그인 후 토큰 기반으로 요청한다."""
+    - **URL**: https://www.sabangnet.co.kr
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    userid: str
+        사방넷 사용자 ID
+    passwd: str
+        사방넷 비밀번호
+    domain: int
+        사방넷 도메인 번호
+    """
 
     method: str | None = None
     main_url: str = "https://www.sabangnet.co.kr"
@@ -87,7 +99,21 @@ class SabangnetAdmin(Extractor):
 
 
 class SabangnetLogin(LoginHandler, SabangnetAdmin):
-    """사방넷 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스."""
+    """사방넷 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스.
+
+    - **URL**: https://www.sabangnet.co.kr/login/login-main
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    userid: str
+        사방넷 사용자 ID
+    passwd: str
+        사방넷 비밀번호
+    domain: int
+        사방넷 도메인 번호
+    """
 
     @LoginHandler.with_session
     def login(self, **kwargs) -> dict[str, str]:

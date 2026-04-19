@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 class _ReportsDownload(NaverSearchAdApi):
     """네이버 검색광고 API로 대용량 다운로드 보고서를 요청하는 공통 클래스.
 
-    1. POST 요청으로 보고서를 생성한다.
-    2. GET 요청으로 보고서가 "BUILT" 상태가 될 때까지 폴링한다.
-    3. 다운로드 URL로 TSV 데이터를 가져온다.
-    4. 처리 후 생성된 보고서를 삭제한다."""
+    - **API Docs**: https://naver.github.io/searchad-apidoc/
+
+    보고서 생성(→ 상태 폴링) → 다운로드 → 삭제 순서로 워크플로우를 실행한다.
+    """
 
     job_type: Literal["master-reports", "stat-reports"]
     report_type: str
@@ -85,8 +85,8 @@ class _ReportsDownload(NaverSearchAdApi):
 class _MasterReport(_ReportsDownload):
     """네이버 검색광고 API로 광고 정보 마스터 보고서를 다운로드하는 공통 클래스.
 
-    캠페인, 광고그룹, 광고, 상품 등 각 유형(`report_type`)별 마스터 보고서를 TSV 형식으로 조회한다.
-    - API 문서: https://naver.github.io/searchad-apidoc/#/tags/MasterReport"""
+    - **API Docs**: https://naver.github.io/searchad-apidoc/#/tags/MasterReport
+    """
 
     job_type = "master-reports"
 
@@ -371,12 +371,12 @@ class MasterAd(_MasterReport):
 class _StatReport(_ReportsDownload):
     """네이버 검색광고 API로 대용량 보고서를 다운로드하는 공통 클래스.
 
-    광고성과, 전환 등 각 유형(`report_type`)별 대용량 보고서를 TSV 형식으로 조회한다.
-    - API 문서: https://naver.github.io/searchad-apidoc/#/tags/StatReport
+    - **API Docs**: https://naver.github.io/searchad-apidoc/#/tags/StatReport
 
     주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
     - 공지사항 참고:
-    [[2026-02-11] STAT-REPORT 변경사항 안내 (COST 항목)(수정)](https://naver.github.io/searchad-apidoc/#/notice)"""
+    [[2026-02-11] STAT-REPORT 변경사항 안내 (COST 항목)(수정)](https://naver.github.io/searchad-apidoc/#/notice)
+    """
 
     job_type = "stat-reports"
 

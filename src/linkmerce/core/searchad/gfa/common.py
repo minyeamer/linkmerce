@@ -9,7 +9,18 @@ if TYPE_CHECKING:
 
 
 class SearchAdGfa(Extractor):
-    """네이버 광고주센터 데이터를 조회하는 공통 클래스. 로그인 쿠키가 제공되어야 한다."""
+    """네이버 성과형 디스플레이 광고 데이터를 조회하는 공통 클래스.
+
+    - **URL**: https://ads.naver.com
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을,   
+    `configs` 인자로 아래 설정값을 반드시 전달해야 한다.
+
+    account_no: int | str
+        광고 계정 번호
+    """
 
     method: str | None = None
     origin = "https://ads.naver.com"

@@ -12,7 +12,17 @@ if TYPE_CHECKING:
 class SmartstoreApi(Extractor):
     """네이버 커머스 API 요청을 처리하는 공통 클래스.
 
-    API 요청을 위해 `client_id`와 `client_secret`이 필요하다."""
+    - **API Docs**: https://apicenter.commerce.naver.com/ko/basic/commerce-api
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    client_id: str
+        커머스 API 애플리케이션 ID
+    client_secret: str
+        커머스 API 애플리케이션 시크릿
+    """
 
     method: str | None = None
     origin: str = "https://api.commerce.naver.com/external"
@@ -102,7 +112,10 @@ class SmartstoreApi(Extractor):
 
 
 class SmartstoreTestAPI(SmartstoreApi):
-    """지정된 커머스 API 경로에 대한 요청을 처리하는 클래스."""
+    """지정된 커머스 API 경로에 대한 요청을 처리하는 테스트 클래스.
+
+    - **API Docs**: https://apicenter.commerce.naver.com/ko/basic/commerce-api
+    """
 
     @SmartstoreApi.with_session
     @SmartstoreApi.with_token

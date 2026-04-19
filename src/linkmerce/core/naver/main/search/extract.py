@@ -16,7 +16,17 @@ if TYPE_CHECKING:
 class Search(Extractor):
     """네이버 통합검색 결과를 스크래핑하여 추출하는 클래스.
 
-    `RequestEach` Task를 사용하여 여러 개의 키워드를 검색한다."""
+    - **Page URL**: `GET` https://m.search.naver.com/search.naver
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
     method = "GET"
     url = "https://{m}search.naver.com/search.naver"
     state = {"oquery": None, "tqi": None, "ackey": None}
@@ -94,7 +104,17 @@ class Search(Extractor):
 class SearchTab(Extractor):
     """네이버 탭별 검색 결과를 추출하는 클래스.
 
-    `RequestEach` Task를 사용하여 이미지, 블로그, 카페, 뉴스 등 탭 유형별로 요청한다."""
+    - **Page URL**: `GET` https://m.search.naver.com/search.naver
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
     method = "GET"
     url = "https://{m}search.naver.com/search.naver"
 
@@ -145,7 +165,17 @@ class SearchTab(Extractor):
 class CafeArticle(Extractor):
     """네이버 카페 게시글 데이터를 추출하는 클래스.
 
-    `RequestEach` Task를 사용하여 URL 목록에 대해 요청한다."""
+    - **API URL**: `GET` https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
     method = "GET"
     url = "https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}"
     referer = "https://{m_}cafe.naver.com/{cafe_url}/{article_id}"

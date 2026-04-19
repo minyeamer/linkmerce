@@ -12,7 +12,17 @@ if TYPE_CHECKING:
 class _MasterReport(SearchAdGfa):
     """네이버 성과형 디스플레이 광고 리포트를 조회하는 공통 클래스.
 
-    `RequestEachPages` Task를 사용하여 캠페인, 광고그룹, 소재 목록을 조회한다."""
+    - **URL**: https://ads.naver.com
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     report_type: Literal["Campaign", "AdSet", "Creative"]
     method = "GET"
@@ -196,7 +206,11 @@ class Creative(_MasterReport):
 class PerformanceReport(SearchAdGfa):
     """네이버 성과형 디스플레이 광고 성과 리포트를 다운로드하는 클래스.
 
-    날짜 범위를 최대 62일 단위로 분할하여 엑셀 리포트를 요청하고 다운로드한다."""
+    - **Menu**: 보고서 > 성과 리포트
+    - **API URL**: `POST` https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/report/downloads
+
+    날짜 범위를 최대 62일 단위로 분할하여 엑셀 리포트를 요청하고 다운로드한다.
+    """
 
     date_format = "%Y-%m-%d"
     version = "v1"

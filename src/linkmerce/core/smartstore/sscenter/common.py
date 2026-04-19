@@ -34,7 +34,12 @@ def has_cookies(session: Session) -> bool:
 ###################################################################
 
 class SmartstoreCenterLogin(LoginHandler):
-    """스마트스토어센터 로그인을 수행하여 쿠키를 발급하는 클래스."""
+    """스마트스토어센터 로그인을 수행하여 쿠키를 발급하는 클래스.
+
+    - **URL**: https://sell.smartstore.naver.com
+
+    판매자 아이디(`userid`/`passwd`) 또는 네이버 쿠키(`cookies`)로 로그인한다.
+    """
     main_url = "https://sell.smartstore.naver.com"
     login_url = "https://accounts.commerce.naver.com"
 

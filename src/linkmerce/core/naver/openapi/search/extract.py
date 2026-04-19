@@ -9,10 +9,20 @@ if TYPE_CHECKING:
 
 
 class _SearchExtractor(NaverOpenApi):
-    """네이버 오픈 API로 다양한 콘텐츠를 검색하는 공통 클래스.
+    """네이버 오픈 API 검색 결과를 조회하는 공통 클래스.
 
-    `RequestEachLoop` Task를 사용하여 `query`와 `start` 파라미터의 조합으로 API 요청을 순차 또는 병렬 실행한다.
-    - API 문서: https://developers.naver.com/docs/serviceapi/search/"""
+    - **API URL**: `GET` https://openapi.naver.com/v1/search/{content_type}.{response_type}
+    - **API Docs**: https://developers.naver.com/docs/serviceapi/search/
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "GET"
     content_type: Literal["blog", "news", "book", "adult", "encyc", "cafearticle", "kin", "local", "errata", "webkr", "image", "shop", "doc"]
@@ -38,7 +48,26 @@ class _SearchExtractor(NaverOpenApi):
             display: int = 100,
             sort: Literal["sim", "date"] = "sim",
         ) -> JsonObject:
-        """키워드(`query`)별 검색 결과를 동기 방식으로 순차 조회한다."""
+        """키워드(`query`)별 검색 결과를 동기 방식으로 순차 조회한다.
+
+        Parameters
+        ----------
+        query: str | Iterable[str]
+            검색 키워드 또는 키워드 목록
+        start: int | Iterable[int]
+            검색 시작 위치(1-based) 또는 시작 위치 목록
+        display: int
+            조회 건수. 기본값은 100
+        sort: Literal["sim", "date"]
+            정렬 방식
+            - `"sim"`: 정확도순
+            - `"date"`: 날짜순
+
+        Returns
+        -------
+        list[dict] | dict
+            키워드별 검색 결과 데이터
+        """
         return self._extract_backend(query, start, display=display, sort=sort)
 
     @NaverOpenApi.async_with_session
@@ -49,7 +78,26 @@ class _SearchExtractor(NaverOpenApi):
             display: int = 100,
             sort: Literal["sim", "date"] = "sim",
         ) -> JsonObject:
-        """키워드(`query`)별 검색 결과를 비동기 방식으로 병렬 조회한다."""
+        """키워드(`query`)별 검색 결과를 비동기 방식으로 병렬 조회한다.
+
+        Parameters
+        ----------
+        query: str | Iterable[str]
+            검색 키워드 또는 키워드 목록
+        start: int | Iterable[int]
+            검색 시작 위치(1-based) 또는 시작 위치 목록
+        display: int
+            조회 건수. 기본값은 100
+        sort: Literal["sim", "date"]
+            정렬 방식
+            - `"sim"`: 정확도순
+            - `"date"`: 날짜순
+
+        Returns
+        -------
+        list[dict] | dict
+            키워드별 검색 결과 데이터
+        """
         return await self._extract_async_backend(query, start, display=display, sort=sort)
 
     def _extract_backend(

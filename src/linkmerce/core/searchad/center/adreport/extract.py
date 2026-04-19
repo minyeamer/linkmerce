@@ -10,7 +10,11 @@ if TYPE_CHECKING:
 
 
 class AdvancedReport(SearchAdCenter):
-    """네이버 검색광고 시스템에서 다차원 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 시스템에서 다차원 보고서를 다운로드하는 클래스.
+
+    - **Menu**: 보고서 > 다차원 보고서
+    - **API URL**: `POST` https://ads.naver.com/apis/sa/api/advanced-report/downloads
+    """
     method = "POST"
     path = "/advanced-report/downloads"
     date_format = "%Y-%m-%d"
@@ -68,7 +72,11 @@ class AdvancedReport(SearchAdCenter):
 
 
 class DailyReport(AdvancedReport):
-    """네이버 검색광고 시스템에서 다차원 보고서를 일별로 다운로드하는 클래스."""
+    """네이버 검색광고 시스템에서 다차원 보고서를 일별로 다운로드하는 클래스.
+
+    - **Menu**: 보고서 > 다차원 보고서
+    - **API URL**: `POST` https://ads.naver.com/apis/sa/api/advanced-report/downloads
+    """
 
     @SearchAdCenter.with_session
     def extract(

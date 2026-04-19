@@ -8,7 +8,11 @@ if TYPE_CHECKING:
 
 
 class TimeContract(NaverSearchAdApi):
-    """네이버 검색광고 API로 브랜드검색 광고 계약기간 데이터를 조회하는 클래스."""
+    """네이버 검색광고 API로 브랜드검색 광고 계약기간 데이터를 조회하는 클래스.
+
+    - **API URL**: `GET` https://api.searchad.naver.com/ncc/time-contracts
+    - **API Docs**: https://naver.github.io/searchad-apidoc/
+    """
     method = "GET"
     uri = "/ncc/time-contracts"
 
@@ -20,7 +24,11 @@ class TimeContract(NaverSearchAdApi):
 
 
 class BrandNewContract(NaverSearchAdApi):
-    """네이버 검색광고 API로 신제품검색 광고 계약기간 데이터를 조회하는 클래스."""
+    """네이버 검색광고 API로 신제품검색 광고 계약기간 데이터를 조회하는 클래스.
+
+    - **API URL**: `GET` https://api.searchad.naver.com/ncc/brand-new/contracts
+    - **API Docs**: https://naver.github.io/searchad-apidoc/
+    """
     method = "GET"
     uri = "/ncc/brand-new/contracts"
 

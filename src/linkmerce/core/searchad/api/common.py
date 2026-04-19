@@ -11,7 +11,19 @@ if TYPE_CHECKING:
 class NaverSearchAdApi(Extractor):
     """네이버 검색광고 API 요청을 처리하는 공통 클래스.
 
-    `api_key`, `secret_key`, `customer_id`를 사용하여 HMAC 서명 기반 인증 헤더를 구성한다."""
+    - **API Docs**: https://naver.github.io/searchad-apidoc/
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        검색광고 API 키
+    secret_key: str
+        검색광고 API 시크릿 키
+    customer_id: int | str
+        검색광고 고객 ID
+    """
 
     method: str | None = None
     origin: str = "https://api.searchad.naver.com"

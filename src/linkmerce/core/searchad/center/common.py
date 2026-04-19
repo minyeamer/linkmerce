@@ -31,7 +31,20 @@ def get_accounts(session: Session, page: int = 0, size: int = 10) -> list[dict]:
 
 
 class SearchAdCenter(Extractor):
-    """네이버 광고주센터 데이터를 조회하는 공통 클래스. 로그인 쿠키가 제공되어야 한다."""
+    """네이버 광고주센터 데이터를 조회하는 공통 클래스.
+
+    - **URL**: https://ads.naver.com
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을,   
+    `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        광고 계정 번호
+    customer_id: int | str
+        검색광고 고객 ID
+    """
 
     method: str | None = None
     origin = "https://ads.naver.com"
@@ -69,7 +82,14 @@ class SearchAdCenter(Extractor):
 
 
 class NaverAdLogin(LoginHandler):
-    """네이버 광고주센터 로그인을 수행하여 쿠키를 발급하는 클래스."""
+    """네이버 광고주센터 로그인을 수행하여 쿠키를 발급하는 클래스.
+
+    - **URL**: https://ads.naver.com
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 네이버 로그인 쿠키 문자열을 전달해야 한다.
+    """
     origin = "https://ads.naver.com"
 
     @property
