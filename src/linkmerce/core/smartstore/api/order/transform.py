@@ -1,23 +1,6 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
-
-
-class OrderParser(JsonTransformer):
-    """스마트스토어 조건형 상품 주문 상세 내역 조회 API 응답 데이터에서 변환 대상 필드 구성을 보장하는 파서 클래스."""
-
-    dtype = dict
-    scope = "data.contents"
-
-    def select_and_extend(self, item: dict, extends: dict | None = None, **kwargs) -> dict:
-        """항목 내 필수 키 존재 여부를 확인하고 보정한 뒤 필드 추출을 수행한다."""
-        content: dict = item["content"]
-        for key in ["order", "productOrder", "delivery"]:
-            if not isinstance(content.get(key), dict):
-                content[key] = dict()
-        if not isinstance(content.get("completedClaims"), list):
-            content["completedClaims"] = [dict()]
-        return super().select_and_extend(item, extends=extends, **kwargs)
+from linkmerce.common.transform import DuckDBTransformer
 
 
 class Order(DuckDBTransformer):
@@ -95,3 +78,8 @@ class OrderStatus(DuckDBTransformer):
         ],
     )
     params = {"channel_seq": "$channel_seq"}
+
+    def parse(self, obj: dict, **kwargs) -> list[dict]:
+        if isinstance(obj, dict) and ("data" not in obj):
+            return list()
+        return super().parse(obj, **kwargs)
