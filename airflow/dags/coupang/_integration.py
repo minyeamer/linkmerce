@@ -1,5 +1,6 @@
 from airflow.sdk import DAG, task
 from airflow.models.dagrun import DagRun
+from airflow.exceptions import AirflowException
 from datetime import timedelta
 from textwrap import dedent
 import pendulum
@@ -91,7 +92,12 @@ with DAG(
         return list()
 
     @task(task_id="etl_coupang_integration")
-    def etl_coupang_integration(credentials: list, dag_run: DagRun, **kwargs) -> dict:
+    def etl_coupang_integration(
+            credentials: list,
+            dag_run: DagRun,
+            data_interval_end: pendulum.DateTime,
+            **kwargs
+        ) -> dict:
         from airflow_api import authenticate, trigger_dagrun, wait_for_completion
         from pw_actions import login_coupang
         import logging
@@ -99,7 +105,7 @@ with DAG(
 
         filters = dag_run.conf.get("filters") or dict() # vendor-DAG 필터
         logger = logging.getLogger(__name__)
-        result = dict()
+        start_time = time.time()
 
         # 1. Airflow API 사용을 위한 액세스 토큰 발급 (유효 기간 1시간)
         try:
@@ -108,6 +114,9 @@ with DAG(
         except Exception as exception:
             logger.error(f"Failed to authenticate with Airflow API: {exception}")
             raise exception
+
+        result = dict()
+        dag_error_flag = False
 
         for i, creds in enumerate(credentials):
             if not (isinstance(creds, dict) and ("vendor_id" in creds)):
@@ -123,20 +132,21 @@ with DAG(
             user_info = (creds["userid"], creds["passwd"])
 
             # 2. 쿠팡 윙/광고 로그인 (최대 3회 재시도)
-            error_flag = False
+            login_error_flag = False
             for _ in range(3):
                 try:
                     exec_info["cookies"] = login_coupang(*user_info, navigate_to_ads=True)
                     exec_info["login"] = "success"
                     logger.info(f"[{vendor_id}] Login succeeded")
-                    error_flag = False
+                    login_error_flag = False
                     break
                 except Exception as exception:
-                    error_flag = True
+                    login_error_flag = True
                     logger.error(f"[{vendor_id}] Login failed: {exception}")
                     exec_info["login"] = f"failed: {exception}"
                     time.sleep(60)
-            if error_flag:
+            if login_error_flag:
+                dag_error_flag |= True
                 result[vendor_id] = exec_info
                 continue
 
@@ -149,14 +159,21 @@ with DAG(
 
             for dag_id, poke_interval in subdag_ids:
                 # 4. 개별 SubDAG 실행 (REST API로 트리거)
-                logical_date = pendulum.now("UTC")
+                elapsed_seconds = int(time.time() - start_time)
+                logical_date = data_interval_end.add(seconds=elapsed_seconds)
                 run_id = f"expanded__{i}__{logical_date.isoformat()}"
+
                 trigger_dagrun(dag_id, run_id, access_token, logical_date, conf)
                 state = wait_for_completion(dag_id, run_id, access_token, poke_interval, timeout=(poke_interval*20))
                 logger.info(f"[{vendor_id}] DAG run {state}: /dags/{dag_id}/runs/{run_id}")
                 exec_info["subdags"][dag_id] = state
+                dag_error_flag |= (state == "failed")
 
             result[vendor_id] = exec_info
+
+        if dag_error_flag:
+            message = "One or more SubDAGs failed during execution. Check the 'result' or logs for details."
+            raise AirflowException(message)
 
         return result
 

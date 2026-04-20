@@ -65,8 +65,6 @@ SCHEDULED_DAGS = {
     "naver_cafe_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     "naver_main_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     # MultipleCronTriggerTimetable ──────────────────────────────────────────
-    "barn_alert": last_multi_cron_utc(["0 10 * * 2,4,5", "30 9 * * 3"]),
-    # ㄴ 화/목/금 10:00, 수 09:30
     "sabangnet_invoice": last_multi_cron_utc(["30 10 * * 1-5", "30 14 * * 1-5", "50 23 * * 1-5"]),
     # ㄴ 평일 10:30 / 14:30 / 23:50
     "smartstore_invoice": last_multi_cron_utc(["0 3 * * *", "30 10 * * 1-5", "0 15 * * 1-5"]),
