@@ -10,9 +10,24 @@ if TYPE_CHECKING:
 
 
 class CjEflexs(Extractor):
-    """CJ eFLEXs 데이터를 조회하는 공통 클래스.
+    """CJ eFLEXs 로그인 및 2단계 인증을 처리하는 공통 클래스.
 
-    로그인을 위해 `userid`, `passwd`, 그리고 2단계 인증을 위해 이메일 정보(`mail_info`)가 필요하다."""
+    - **URL**: https://eflexs-x.cjlogistics.com/index.do
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    userid: str
+        CJ eFLEXs 로그인을 위한 User ID
+    passwd: str
+        CJ eFLEXs 로그인을 위한 Password
+    mail_info: dict[str, str]
+        2단계 인증을 위한 이메일 정보. 다음 키값을 포함해야 한다.
+        - **origin**: 메일 서비스 도메인
+        - **email**: 메일 주소
+        - **passwd**: 메일 계정 비밀번호
+    """
 
     method: str = "POST"
     origin = "https://eflexs-x.cjlogistics.com"
@@ -20,19 +35,12 @@ class CjEflexs(Extractor):
     path: str
 
     def set_configs(self, configs: Configs = dict()):
+        from linkmerce.utils.nested import select_values
         try:
-            self.set_login_info(**configs)
+            required = ["userid", "passwd", {"mail_info": ["origin", "email", "passwd"]}]
+            super().set_configs(select_values(configs, required, on_missing="raise"))
         except TypeError:
-            raise TypeError("CJ eFLEXs Login requires variables for userid, passwd, and mail_info.")
-
-    def set_login_info(self, userid: str, passwd: str, mail_info: dict, **configs):
-        if not (isinstance(mail_info, dict) and all([mail_info.get(key) for key in ["origin", "email", "passwd"]])):
-            raise ValueError("The 2-step verification email information is incorrect.")
-        super().set_configs(dict(userid=userid, passwd=passwd, mail_info=mail_info, **configs))
-
-    @property
-    def url(self) -> str:
-        return self.concat_path(self.origin, self.menu, self.path)
+            raise TypeError("CJ eFLEXs Login requires userid, passwd, and mail_info.")
 
     @property
     def userid(self) -> str:
@@ -43,11 +51,15 @@ class CjEflexs(Extractor):
         return self.get_config("passwd")
 
     @property
-    def mail_info(self) -> dict:
+    def mail_info(self) -> dict[str, str]:
         return self.get_config("mail_info")
 
+    @property
+    def url(self) -> str:
+        return self.concat_path(self.origin, self.menu, self.path)
+
     def with_auth_info(func):
-        """데이터 요청 전 로그인을 처리하는 데코레이터."""
+        """데이터 수집 전에 로그인 및 2단계 인증을 처리하는 데코레이터."""
         @functools.wraps(func)
         def wrapper(self: CjEflexs, *args, **kwargs):
             self.login(self.userid, self.passwd, self.mail_info)
@@ -57,29 +69,29 @@ class CjEflexs(Extractor):
     def login(self, userid: str, passwd: str, mail_info: dict, **context):
         """CJ eFLEXs 로그인 및 2단계 인증을 처리한다."""
         try:
-            self.disable_warnings()
-            self.init_session()
-            key = self.login_action(userid, passwd)
+            self._disable_warnings()
+            self._init_session()
+            key = self._login_action(userid, passwd)
             code = get_2fa_code(**mail_info)
-            self.login_2fa(key, code)
-            self.login_final(userid, key, code)
+            self._login_2fa(key, code)
+            self._login_final(userid, key, code)
         except:
             from linkmerce.common.exceptions import AuthenticationError
             raise AuthenticationError("Failed to login in to CJ eFLEXs.")
 
-    def disable_warnings(self):
+    def _disable_warnings(self):
         from urllib3 import disable_warnings as disable
         from urllib3.exceptions import InsecureRequestWarning
         disable(InsecureRequestWarning)
 
-    def init_session(self):
+    def _init_session(self):
         from linkmerce.utils.headers import build_headers
 
         url = self.origin + "/index.do"
         headers = build_headers(host=self.origin, metadata="navigate", https=True)
         self.request("GET", url, headers=headers, verify=False) # 'Set-Cookie': 'JSESSIONID='
 
-    def login_action(self, userid: str, passwd: str) -> str:
+    def _login_action(self, userid: str, passwd: str) -> str:
         url = self.origin + "/auth/loginProc.do"
         body = {
             "pgmId": "", "requestDataIds": "dmParam", "cjLoginId": userid, "cjLoginPw": passwd,
@@ -89,7 +101,7 @@ class CjEflexs(Extractor):
         with self.request("POST", url, data=body, headers=headers, verify=False) as response:
             return response.json()["_METADATA_"]["key"]
 
-    def login_2fa(self, key: str, code: str) -> str:
+    def _login_2fa(self, key: str, code: str) -> str:
         url = self.origin + "/CMLN0003M/checkAuthInfo.do"
         body = {
             "pgmId": None, "requestDataIds": "reqParam", "@d1#loginId": None, "@d1#freeYn": None,
@@ -102,7 +114,7 @@ class CjEflexs(Extractor):
                 raise ValueError()
             return results["checkKeyEnc"]
 
-    def login_final(self, userid: str, key: str, code: str):
+    def _login_final(self, userid: str, key: str, code: str):
         url = self.origin + "/CMLN0001P/certiLogin.do"
         body = {
             "pgmId": None, "requestDataIds": "reqParam", "@d1#loginId": userid, "@d1#freeYn": 'E',
@@ -130,18 +142,33 @@ def get_2fa_code(
         wait_interval: int = 1,
         **kwargs
     ) -> str:
-    """2단계 인증 이메일을 읽고 인증 코드를 반환한다."""
+    """메일 서비스에 로그인 후 2단계 인증 메일이 도착할 때까지 기다린다.   
+    메일이 확인되면 내용을 읽고 인증 코드를 반환한다.
+
+    Parameters
+    ----------
+    origin: str
+        메일 서비스 도메인
+    email: str
+        메일 주소
+    passwd: str
+        메일 계정 비밀번호
+    wait_seconds: int
+        인증 메일 수신을 기다릴 시간(초). 기본값은 290(4분 50초)이고, 최대 유효시간은 5분이다.
+    wait_interval: int
+        인증 메일이 도착했는지 확인하기 위해 GET 요청을 보내는 간격(초). 기본값은 1(초)다.
+    """
     from linkmerce.utils.headers import build_headers
     import requests
     import time
 
-    def login_action(session: requests.Session, origin: str, email: str, passwd: str):
+    def _login_action(session: requests.Session, origin: str, email: str, passwd: str):
         url = f"https://auth-api.{origin}/office-web/login"
         body = {"id": email, "password": passwd, "ip_security_level": "1"}
         headers = build_headers(contents="json", host=f"auth-api.{origin}", origin=f"https://login.{origin}", referer=f"https://login.{origin}/")
         session.post(url, json=body, headers=headers)
 
-    def wait_2fa_mail(session: requests.Session, origin: str) -> int:
+    def _wait_2fa_mail(session: requests.Session, origin: str) -> int:
         url = f"https://mail-api.{origin}/v2/mails"
         params = {"page[limit]": 30, "page[offset]": 0, "sort[received_date]": "desc", "filter[mailbox_id][eq]": "b0"}
         headers = build_headers(host=f"mail-api.{origin}", origin=f"https://mails.{origin}", referer=f"https://mails.{origin}/")
@@ -154,7 +181,7 @@ def get_2fa_code(
             time.sleep(wait_interval)
         raise ValueError("인증코드가 전달되지 않았습니다")
 
-    def retrieve_2fa_code(session: requests.Session, origin: str, mail_no: int) -> str:
+    def _retrieve_2fa_code(session: requests.Session, origin: str, mail_no: int) -> str:
         import re
         url = f"https://mail-api.{origin}/v2/mails/{mail_no}"
         headers = build_headers(host=f"mail-api.{origin}", origin=f"https://mails.{origin}", referer=f"https://mails.{origin}/")
@@ -163,15 +190,15 @@ def get_2fa_code(
                 content = response.json()["data"]["message"]["content"]
                 return re.search(r"인증번호 : (\d{4})", content).group(1)
             finally:
-                make_mail_as_read(session, origin, mail_no)
+                _make_mail_as_read(session, origin, mail_no)
 
-    def make_mail_as_read(session: requests.Session, origin: str, mail_no: int):
+    def _make_mail_as_read(session: requests.Session, origin: str, mail_no: int):
         url = f"https://mail-api.{origin}/v2/mails/{mail_no}"
         headers = build_headers(accept="application/json;charset=UTF-8", contents="application/json;charset=UTF-8",
             host=f"mail-api.{origin}", origin=f"https://mails.{origin}", referer=f"https://mails.{origin}/")
         session.patch(url, json={"is_read": True}, headers=headers)
 
     with requests.Session() as session:
-        login_action(session, origin, email, passwd)
-        mail_no = wait_2fa_mail(session, origin)
-        return retrieve_2fa_code(session, origin, mail_no)
+        _login_action(session, origin, email, passwd)
+        mail_no = _wait_2fa_mail(session, origin)
+        return _retrieve_2fa_code(session, origin, mail_no)

@@ -10,9 +10,25 @@ if TYPE_CHECKING:
 
 
 class ProductOption(CoupangWing):
-    """쿠팡 상품 목록을 조회하는 클래스.
+    """쿠팡 Wing 상품 목록을 조회하는 클래스.
 
-    `PaginateAll` Task를 사용하여 전체 상품 목록을 조회한다."""
+    - **Menu**: 상품관리 > 상품조회/수정
+    - **API**: https://wing.coupang.com/tenants/seller-web/v2/vendor-inventory/search
+    - **Referer**: https://wing.coupang.com/vendor-inventory/list
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/tenants/seller-web/v2/vendor-inventory/search"
@@ -26,7 +42,18 @@ class ProductOption(CoupangWing):
 
     @CoupangWing.with_session
     def extract(self, is_deleted: bool = False, **kwargs) -> JsonObject:
-        """상품 목록을 조회해 JSON 형식으로 반환한다."""
+        """상품 목록을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        is_deleted: bool
+            삭제된 상품 조회 여부. 기본값은 `False`
+
+        Returns
+        -------
+        list[dict]
+            전체 또는 삭제된 상품 목록
+        """
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(is_deleted=is_deleted))
 
@@ -73,9 +100,25 @@ class ProductOption(CoupangWing):
 
 
 class ProductDetail(CoupangWing):
-    """쿠팡 상품의 상세 정보를 조회하는 클래스.
+    """쿠팡 Wing 상품의 상세 정보를 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 등록상품ID(`vendor_inventory_id`)별 상세 정보를 조회한다."""
+    - **Menu**: 상품관리 > 상품조회/수정 > 상품 등록
+    - **API**: https://wing.coupang.com/tenants/seller-web/v2/vendor-inventory/vendor-inventory-items-with-vendorItems/{vendor_inventory_id}
+    - **Referer**: https://wing.coupang.com/tenants/seller-web/vendor-inventory/modify
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "GET"
     path = "/tenants/seller-web/v2/vendor-inventory/vendor-inventory-items-with-vendorItems/{}"
@@ -89,7 +132,18 @@ class ProductDetail(CoupangWing):
 
     @CoupangWing.with_session
     def extract(self, vendor_inventory_id: Sequence[int | str], **kwargs) -> JsonObject:
-        """등록상품ID(`vendor_inventory_id`)에 대한 상세 정보를 조회해 JSON 형식으로 반환한다."""
+        """등록상품ID(`vendor_inventory_id`)에 대한 상세 정보를 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        vendor_inventory_id: Sequence[int | str]
+            조회할 상품의 등록상품ID 목록
+
+        Returns
+        -------
+        list[dict]
+            상품별 상세 정보 목록
+        """
         return (self.request_each(self.request_json_safe)
                 .partial(referer=kwargs.get("referer")) # for Transformer
                 .expand(vendor_inventory_id=vendor_inventory_id)
@@ -111,7 +165,16 @@ class ProductDetail(CoupangWing):
 
 
 class ProductDownload(ProductOption):
-    """쿠팡 상품 목록을 엑셀로 다운로드하는 클래스."""
+    """쿠팡 Wing 상품 목록을 엑셀로 다운로드하는 클래스.
+
+    - **Menu**: 상품관리 > 상품조회/수정 > 엑셀 대량 수정 > 엑셀 파일 다운로드
+    - **API**: https://wing.coupang.com/tenants/seller-web/excel/request/download/create/vendor-inventory/all
+    - **Referer**: https://wing.coupang.com/vendor-inventory/list
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+    """
 
     method = "POST"
     token_required = False
@@ -127,10 +190,33 @@ class ProductDownload(ProductOption):
             wait_interval: int = 1,
             **kwargs
         ) -> dict[str, bytes]:
-        """보고서 유형(`report_type`)에 대한 상품 목록을 다운로드하여 `{시트명: 엑셀_바이너리}` 형식으로 반환한다.
-        - `VENDOR_INVENTORY_ITEM`: 가격/재고/판매상태
-        - `EDITABLE_CATALOGUE`: 쿠팡상품정보
-        - `BULK_DELETE_INVENTORY`: 상품삭제"""
+        """조회조건(`request_type`)에 대한 상품 목록 다운로드를 요청하고,   
+        생성 완료된 엑셀 파일을 `{파일명: 엑셀 바이너리}` 형식으로 반환한다.
+
+        Parameters
+        ----------
+        request_type: str
+            상품 조회조건
+                - `"VENDOR_INVENTORY_ITEM"`: 가격/재고/판매상태
+                - `"EDITABLE_CATALOGUE"`: 쿠팡상품정보
+                - `"BULK_DELETE_INVENTORY"`: 상품삭제
+        fields: list[str]
+            엑셀 항목 코드 목록. 생략 시 기본 항목으로 조회한다.
+        is_deleted: bool
+            삭제된 상품 조회 여부. 기본값은 `False`
+        vendor_id: str | None
+            업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
+        wait_seconds: int
+            파일 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
+            시간 내 파일이 생성 완료되지 않으면 `ValueError`를 발생시킨다.
+        wait_interval: int
+            파일 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
+
+        Returns
+        -------
+        dict[str, bytes]
+            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과
+        """
         report = self.request_report(request_type, fields, is_deleted)
         report_id = report["responseParam"]
         self.wait_report(report_id, request_type, wait_seconds, wait_interval)
@@ -247,9 +333,25 @@ class ProductDownload(ProductOption):
 
 
 class RocketInventory(CoupangWing):
-    """쿠팡 로켓 재고 현황을 커서 기반으로 조회하는 클래스.
+    """쿠팡 로켓그로스 재고현황을 커서 기반으로 조회하는 클래스.
 
-    `CursorAll` Task를 사용하여 `searchAfterSortValues` 커서로 순차 조회한다."""
+    - **Menu**: 로켓그로스 > 재고현황
+    - **API**: https://wing.coupang.com/tenants/rfm-inventory/inventory-health-dashboard/search
+    - **Referer**: https://wing.coupang.com/tenants/rfm-inventory/management/list
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 키값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `CursorAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/tenants/rfm-inventory/inventory-health-dashboard/search"
@@ -266,7 +368,22 @@ class RocketInventory(CoupangWing):
             vendor_id: str | None = None,
             **kwargs
         ) -> JsonObject:
-        """로켓 재고 현황을 커서 기반으로 조회해 JSON 형식으로 반환한다."""
+        """로켓그로스 재고현황을 커서 기반으로 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        hidden_status: Literal["VISIBLE", "HIDDEN"]
+            상품 상태 필터. 생략 시 필터하지 않는다.
+                - `"VISIBLE"`: 노출 상품
+                - `"HIDDEN"`: 숨겨진 상품
+        vendor_id: str | None
+            업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
+
+        Returns
+        -------
+        list[dict]
+            로켓그로스 상품 목록
+        """
         return (self.cursor_all(self.request_json_safe, self.get_next_cursor)
                 .run(hidden_status=hidden_status, vendor_id=vendor_id, referer=kwargs.get("referer")))
 

@@ -10,9 +10,25 @@ if TYPE_CHECKING:
 
 
 class Campaign(CoupangAds):
-    """쿠팡 광고 캠페인 목록을 조회하는 클래스.
+    """쿠팡 광고센터 캠페인 목록을 조회하는 클래스.
 
-    `PaginateAll` Task를 사용하여 전체 캠페인을 조회한다."""
+    - **Menu**: 광고 관리 > 매출 성장 / 신규 구매 고객 확보 / 인지도 상승
+    - **API**: https://advertising.coupang.com/marketing/tetris-api/campaigns
+    - **Referer**: https://advertising.coupang.com/marketing/dashboard/sales
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/marketing/tetris-api/campaigns"
@@ -32,10 +48,25 @@ class Campaign(CoupangAds):
             vendor_id: str | None = None,
             **kwargs
         ) -> JsonObject:
-        """광고 목표(`goal_type`)에 대한 캠페인 목록을 조회해 JSON 형식으로 반환한다.
-        - `SALES`: 매출 성장
-        - `NCA`: 신규 구매 고객 확보
-        - `REACH`: 인지도 상승 목표"""
+        """광고 목표(`goal_type`)별 캠페인 목록을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        goal_type: Literal["SALES", "NCA", "REACH"]
+            조회할 광고 목표
+                - `"SALES"`: 매출 성장
+                - `"NCA"`: 신규 구매 고객 확보
+                - `"REACH"`: 인지도 상승
+        is_deleted: bool
+            삭제된 캠페인 조회 여부. 기본값은 `False`
+        vendor_id: str | None
+            업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
+
+        Returns
+        -------
+        list[dict]
+            전체 또는 삭제된 캠페인 목록
+        """
         return (self.paginate_all(self.request_json_with_timeout, self.count_total, self.max_page_size, self.page_start)
                 .run(goal_type=goal_type, is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
 
@@ -82,15 +113,27 @@ class Campaign(CoupangAds):
             "vendorItemId": None
         }
 
-    @property
-    def goal_type(self) -> dict[str, str]:
-        return {"SALES": "매출 성장", "NCA": "신규 구매 고객 확보", "REACH": "인지도 상승"}
-
 
 class Creative(CoupangAds):
-    """쿠팡 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 조회하는 클래스.
+    """쿠팡 광고센터 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 캠페인(`campaign_ids`)별 소재 목록을 조회한다."""
+    - **Menu**: 광고 관리 > 신규 구매 고객 확보 > 캠페인 > 광고
+    - **API**: https://advertising.coupang.com/marketing/tetris-api/nca/campaign/{campaign_id}
+    - **Referer**: https://advertising.coupang.com/marketing/dashboard/nca
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "GET"
     path = "/marketing/tetris-api/nca/campaign/{}"
@@ -104,7 +147,20 @@ class Creative(CoupangAds):
 
     @CoupangAds.with_session
     def extract(self, campaign_ids: Sequence[int | str], vendor_id: str | None = None, **kwargs) -> JsonObject:
-        """캠페인(`campaign_ids`)별 NCA 소재 목록을 조회해 JSON 형식으로 반환한다."""
+        """캠페인(`campaign_ids`)별 NCA 소재 목록을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        campaign_ids: Sequence[int | str]
+            조회할 캠페인 ID 목록
+        vendor_id: str | None
+            업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
+
+        Returns
+        -------
+        list[dict]
+            신규 구매 고객 확보 캠페인별 소재 정보 목록
+        """
         return (self.request_each(self.request_json_safe)
                 .partial(vendor_id=vendor_id)
                 .expand(campaign_id=campaign_ids)
@@ -121,9 +177,18 @@ class Creative(CoupangAds):
 
 
 class _AdReport(CoupangAds):
-    """쿠팡 광고 성과 보고서를 생성 및 다운로드하는 클래스.
+    """쿠팡 광고센터 광고 보고서를 생성 및 다운로드하는 공통 클래스.
 
-    GraphQL API로 보고서를 요청하고 엑셀 파일로 다운로드한다."""
+    - **Menu**: 광고보고서 > 광고 보고서 > 매출 성장 / 신규 구매 고객 확보 / 인지도 상승 / 디스플레이광고
+    - **API**: https://advertising.coupang.com/marketing-reporting/v2/graphql
+    - **Referer**: https://advertising.coupang.com/marketing-reporting/billboard/one-pager
+
+    GraphQL API로 보고서를 요청하고 엑셀 파일로 다운로드한다.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+    """
 
     method = "POST"
     path = "/marketing-reporting/v2/graphql"
@@ -144,9 +209,39 @@ class _AdReport(CoupangAds):
             wait_interval: int = 1,
             **kwargs
         ) -> dict[str, bytes]:
-        """보고서 유형(`report_type`)에 대한 광고 보고서를 다운로드하여 `{시트명: 엑셀_바이너리}` 형식으로 반환한다.
-        - `pa`: 쿠팡 PA(Product Ad) 광고 성과 보고서
-        - `nca`: 쿠팡 신규고객광고(NCA) 성과 보고서"""
+        """광고 보고서를 생성 및 다운로드하여 `{파일명: 엑셀 바이너리}` 형식으로 반환한다.
+
+        Parameters
+        ----------
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+        end_date: dt.date | str
+            조회 종료일. `":start_date:"` 전달 시 `start_date`와 동일한 날짜로 대체된다.
+            기본값은 `":start_date:"`
+        date_type: Literal["total", "daily"]
+            보고서 기간 구분
+                - `"total"`: 합계
+                - `"daily"`: 일별
+        report_level: Literal["campaign", "adGroup", "ad", "vendorItem", "keyword", "creative"]
+            보고서 구조. 보고서 유형(`report_type`)에 따라 지원하는 값이 다르다.
+                - 매출 성장(`pa`): `campaign`, `adGroup`, `vendorItem`, `keyword`
+                - 신규 구매 고객 확보(`nca`): `campaign`, `ad`, `keyword`, `creative`
+        campaign_ids: Sequence[int | str]
+            조회할 캠페인 ID 목록. 생략 시 기간 내 전체 캠페인을 조회하여 선택한다.
+        vendor_id: str | None
+            업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
+        wait_seconds: int
+            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`.   
+            시간 내 보고서가 생성 완료되지 않으면 `ValueError`를 발생시킨다.
+        wait_interval: int
+            보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
+
+        Returns
+        -------
+        dict[str, bytes]
+            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과.   
+            파일명은 `<vendor_id>_<report_type>_<date_type>_<report_level>_<start_date>_<end_date>.xlsx` 형식을 따른다.
+        """
         start_date = self.to_date(start_date)
         end_date = self.to_date(start_date if end_date == ":start_date:" else end_date)
 
@@ -385,12 +480,34 @@ class _AdReport(CoupangAds):
 
 
 class ProductAdReport(_AdReport):
-    """쿠팡 상품 광고(PA) 성과 보고서를 다운로드하는 클래스."""
+    """쿠팡 매출 성장 광고 보고서를 생성 및 다운로드하는 클래스.
+
+    - **Menu**: 광고보고서 > 광고 보고서 > 매출 성장 광고 보고서
+    - **API**: https://advertising.coupang.com/marketing-reporting/v2/graphql
+    - **Referer**: https://advertising.coupang.com/marketing-reporting/billboard/reports/pa
+
+    GraphQL API로 보고서를 요청하고 엑셀 파일로 다운로드한다.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+    """
 
     report_type = "pa"
 
 
 class NewCustomerAdReport(_AdReport):
-    """쿠팡 신규 구매 고객 확보(NCA) 성과 보고서를 다운로드하는 클래스."""
+    """쿠팡 신규 구매 고객 확보 광고 보고서를 생성 및 다운로드하는 클래스.
+
+    - **Menu**: 광고보고서 > 광고 보고서 > 신규 구매 고객 확보 광고 보고서
+    - **API**: https://advertising.coupang.com/marketing-reporting/v2/graphql
+    - **Referer**: https://advertising.coupang.com/marketing-reporting/billboard/reports/nca
+
+    GraphQL API로 보고서를 요청하고 엑셀 파일로 다운로드한다.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+    """
 
     report_type = "nca"

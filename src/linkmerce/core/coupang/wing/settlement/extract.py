@@ -16,7 +16,16 @@ def isoformat(date: dt.date | str) -> str:
 
 
 class Summary(CoupangWing):
-    """쿠팡 로켓 손익 현황 요약 데이터를 조회하는 클래스."""
+    """쿠팡 로켓그로스 정산현황의 매출 상세내역을 조회하는 클래스.
+
+    - **Menu**: 정산 > 로켓그로스 정산현황 > 정산현황 > 정산 리포트 목록 > 매출 상세내역
+    - **API**: https://wing.coupang.com/tenants/rfm/v2/settlements/profit-status/search
+    - **Referer**: https://wing.coupang.com/tenants/rfm/settlements/status-new
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 키값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
+    """
 
     method = "POST"
     path = "/tenants/rfm/v2/settlements/profit-status/search"
@@ -25,7 +34,20 @@ class Summary(CoupangWing):
 
     @CoupangWing.with_session
     def extract(self, start_from: str, end_to: str, **kwargs) -> JsonObject:
-        """로켓 손익 현황 요약 데이터를 조회해 JSON 형식으로 반환한다."""
+        """로켓그로스 정산현황의 기간 내 매출 상세내역을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        start_from: str
+            기준일 시작. UTC 시간대 날짜를 ISO 8601 형식의 문자열로 전달한다.
+        end_to: str
+            기준일 종료. UTC 시간대 날짜를 ISO 8601 형식의 문자열로 전달한다.
+
+        Returns
+        -------
+        list[dict]
+            기간 내 매출 상세내역 목록
+        """
         response = self.request_json(start_from=start_from, end_to=end_to)
         return self.parse(response)
 
@@ -34,7 +56,16 @@ class Summary(CoupangWing):
 
 
 class RocketSettlement(CoupangWing):
-    """쿠팡 로켓 정산 현황을 조회하는 클래스."""
+    """쿠팡 로켓그로스 정산현황의 정산 리포트 목록을 조회하는 클래스.
+
+    - **Menu**: 정산 > 로켓그로스 정산현황 > 정산현황 > 정산 리포트 목록
+    - **API**: https://wing.coupang.com/tenants/rfm/v2/settlements/status/api
+    - **Referer**: https://wing.coupang.com/tenants/rfm/settlements/status-new
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 키값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
+    """
 
     method = "POST"
     path = "/tenants/rfm/v2/settlements/status/api"
@@ -50,7 +81,27 @@ class RocketSettlement(CoupangWing):
             vendor_id: str | None = None,
             **kwargs
         ) -> JsonObject:
-        """로켓 정산 현황을 매출 인식일(`SALES`) 또는 정산일(`PAYMENT`) 기준으로 조회하고 JSON 형식으로 반환한다."""
+        """로켓그로스 정산현황을 매출 인식일 또는 정산일 기준으로 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        start_date: dt.date | str
+            기준일 시작. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            기준일 종료. `":start_date:"` 전달 시 `start_date`와 동일한 날짜로 대체된다.
+            기본값은 `":start_date:"`
+        date_type: Literal["PAYMENT", "SALES"]
+            기준일 유형.
+                - `"PAYMENT"`: 정산일
+                - `"SALES"`: 매출 인식일
+        vendor_id: str | None
+            업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
+
+        Returns
+        -------
+        list[dict]
+            기간 내 정산 리포트 목록
+        """
         end_date = (start_date if end_date == ":start_date:" else end_date)
         response = self.request_json(start_date=start_date, end_date=end_date, date_type=date_type)
         return self.parse(response, vendor_id=vendor_id)
@@ -86,7 +137,16 @@ class RocketSettlement(CoupangWing):
 
 
 class RocketSettlementDownload(RocketSettlement):
-    """쿠팡 로켓 정산 보고서를 엑셀로 다운로드하는 클래스."""
+    """쿠팡 로켓그로스 정산현황의 정산 리포트를 엑셀로 다운로드하는 클래스.
+
+    - **Menu**: 정산 > 로켓그로스 정산현황 > 정산현황 > 정산 리포트 목록 > 엑셀 다운로드
+    - **API**: https://wing.coupang.com/tenants/rfm/v2/settlements/request-download/api
+    - **Referer**: https://wing.coupang.com/tenants/rfm/settlements/status-new
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 키값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
+    """
 
     method = "POST"
     locale = "ko"
@@ -103,9 +163,37 @@ class RocketSettlementDownload(RocketSettlement):
             progress: bool = True,
             **kwargs
         ) -> dict[str, bytes]:
-        """두 가지 유형의 로켓 정산 보고서를 다운로드하여 `{시트명: 엑셀_바이너리}` 형식으로 반환한다.
-        - `CATEGORY_TR`: 판매 수수료 리포트
-        - `WAREHOUSING_SHIPPING`: 입출고비/배송비 리포트"""
+        """로켓그로스 정산현황의 정산 리포트를 생성 및 다운로드하여 `{파일명: 엑셀 바이너리}` 형식으로 반환한다.
+
+        Parameters
+        ----------
+        start_date: dt.date | str
+            기준일 시작. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            기준일 종료. `":start_date:"` 전달 시 `start_date`와 동일한 날짜로 대체된다.
+            기본값은 `":start_date:"`.
+        date_type: Literal["PAYMENT", "SALES"]
+            기준일 유형.
+            - `"PAYMENT"`: 정산일
+            - `"SALES"`: 매출 인식일
+        vendor_id: str | None
+            업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
+        wait_seconds: int
+            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`.   
+            시간 내 보고서가 생성 완료되지 않으면 `ValueError`를 발생시킨다.
+        wait_interval: int
+            보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
+        progress: bool
+            다운로드 진행도 출력 여부. 기본값은 `True`
+
+        Returns
+        -------
+        dict[str, bytes]
+            `{파일명: 엑셀 바이너리}` 형식의 2가지 리포트 유형(`settlementGroupKey`) 다운로드 결과.   
+            파일명은 `<vendor_id>-<report_type>-<locale>-<request_id>.xlsx` 형식을 따른다.
+                - `CATEGORY_TR`: 판매 수수료 리포트
+                - `WAREHOUSING_SHIPPING`: 입출고비/배송비 리포트
+        """
         from linkmerce.utils.progress import import_tqdm
         tqdm = import_tqdm()
 
