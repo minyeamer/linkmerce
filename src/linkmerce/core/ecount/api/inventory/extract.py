@@ -10,7 +10,24 @@ if TYPE_CHECKING:
 
 
 class Inventory(EcountApi):
-    """이카운트 창고별/품목별 재고 현황을 조회하는 클래스."""
+    """이카운트 재고현황을 조회하는 클래스.
+
+    - **Menu**: 재고 I > 출력물 > 재고현황
+    - **API**: https://oapi{ZONE}.ecount.com/OAPI/V2/InventoryBalance/GetListInventoryBalanceStatus
+    - **Docs**: https://sboapi.ecount.com/ECERP/OAPI/OAPIView?lan_type=ko-KR
+    - **Referer**: https://loginad.ecount.com/.../view/erp?ec_req_sid=...&
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    com_code: int | str
+        이카운트 회사코드
+    userid: str
+        이카운트 아이디
+    api_key: str
+        오픈 API 인증키
+    """
 
     method = "POST"
     path = "/InventoryBalance/GetListInventoryBalanceStatus"
@@ -29,7 +46,32 @@ class Inventory(EcountApi):
             safe_yn: bool = False,
             **kwargs
         ) -> JsonObject:
-        """재고 현황 조회해 JSON 형식으로 반환한다."""
+        """재고현황을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        base_date: dt.date | str | Literal[":today:"]
+            조회 기준일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+                - `":today:"` 전달 시 오늘 날짜로 대체된다.
+                - 기본값은 `":today:"`
+        warehouse_code: str | None
+            조회할 창고 코드. 생략 시 전체 창고를 조회한다. 기본값은 `None`
+        product_code: str | None
+            조회할 품목 코드. 생략 시 전체 품목을 조회한다. 기본값은 `None`
+        zero_yn: bool
+            재고 수량이 0인 품목 포함 여부. 기본값은 `False`
+        balanced_yn: bool
+            수량 관리 제외 품목 포함 여부. 기본값은 `False`
+        deleted_yn: bool
+            사용 중단 품목 포함 여부. 기본값은 `False`
+        safe_yn: bool
+            안전 재고 설정 미만 표시 여부. 기본값은 `False`
+
+        Returns
+        -------
+        dict
+            재고현황 조회 결과
+        """
         if base_date == ":today:":
             import datetime as dt
             base_date = dt.date.today()

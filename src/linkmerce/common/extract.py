@@ -831,8 +831,13 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         """HTTP 요청 중 사용할 설정을 반환한다."""
         return self.__configs
 
-    def set_configs(self, configs: Configs = dict()):
-        """HTTP 요청 중 사용할 설정을 적용한다."""
+    def set_configs(self, configs: Configs = dict(), fields: dict | list | None = None):
+        """HTTP 요청 중 사용할 설정을 적용한다.
+
+        `fields`가 제공될 경우 `configs`에서 지정된 경로의 값만 추출하고, 경로가 없다면 `KeyError`를 발생시킨다."""
+        if fields:
+            from linkmerce.utils.nested import select_values
+            configs = select_values(configs, fields, on_missing="raise")
         self.__configs = configs
 
     def concat_path(self, url: str, *args: str) -> str:

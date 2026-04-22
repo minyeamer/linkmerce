@@ -34,13 +34,8 @@ class CjEflexs(Extractor):
     menu: str
     path: str
 
-    def set_configs(self, configs: Configs = dict()):
-        from linkmerce.utils.nested import select_values
-        try:
-            required = ["userid", "passwd", {"mail_info": ["origin", "email", "passwd"]}]
-            super().set_configs(select_values(configs, required, on_missing="raise"))
-        except TypeError:
-            raise TypeError("CJ eFLEXs Login requires userid, passwd, and mail_info.")
+    def set_configs(self, configs: Configs = dict(), fields: dict | list | None = None):
+        super().set_configs(configs, fields=["userid", "passwd", {"mail_info": ["origin", "email", "passwd"]}])
 
     @property
     def userid(self) -> str:
