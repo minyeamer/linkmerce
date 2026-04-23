@@ -35,10 +35,7 @@ class ProductOption(CoupangWing):
     max_page_size = 500
     page_start = 1
     token_required = False
-
-    @property
-    def default_options(self) -> dict:
-        return {"PaginateAll": {"request_delay": 1}}
+    default_options = {"PaginateAll": {"request_delay": 1}}
 
     @CoupangWing.with_session
     def extract(self, is_deleted: bool = False, **kwargs) -> JsonObject:
@@ -125,10 +122,7 @@ class ProductDetail(CoupangWing):
     max_page_size = 500
     page_start = 1
     token_required = False
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 0.3}}
+    default_options = {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangWing.with_session
     def extract(self, vendor_inventory_id: Sequence[int | str], **kwargs) -> JsonObject:
@@ -356,10 +350,7 @@ class RocketInventory(CoupangWing):
     method = "POST"
     path = "/tenants/rfm-inventory/inventory-health-dashboard/search"
     token_required = True
-
-    @property
-    def default_options(self) -> dict:
-        return {"CursorAll": {"request_delay": 1}}
+    default_options = {"CursorAll": {"request_delay": 1}}
 
     @CoupangWing.with_session
     def extract(

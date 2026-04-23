@@ -48,15 +48,15 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
     def __init__(
             self,
             session: Literal["per_request"] | Session | ClientSession = "per_request",
-            cookies: str | None = None,
-            headers: Headers = dict(),
+            cookies: str | dict | None = None,
+            headers: Headers | None = None,
         ):
         """HTTP 세션 객체 및 요청 헤더를 초기화한다. `per_request`는 HTTP 요청마다 세션 객체를 생성한다."""
         self.set_session(session)
         self.set_cookies(cookies)
         self.set_request_params()
         self.set_request_body()
-        self.set_request_headers(**headers)
+        self.set_request_headers(**(headers or dict()))
 
     @abstractmethod
     def request(self, **kwargs):
@@ -436,9 +436,11 @@ class SessionClient(RequestSessionClient, AiohttpSessionClient):
 class TaskClient(Client):
     """Task 기반의 요청 실행을 관리하는 클라이언트 클래스."""
 
-    def __init__(self, options: TaskOptions = dict(), parser: Callable | None = None):
+    default_options: TaskOptions | None = None
+
+    def __init__(self, options: TaskOptions | None = None, parser: Callable | None = None):
         """Task 옵션과 파서 함수를 초기화한다."""
-        self.set_options(options or self.default_options)
+        self.set_options(options or self.default_options or dict())
         self.set_parser(parser)
 
     ########################### Task Options ##########################
@@ -447,7 +449,7 @@ class TaskClient(Client):
         """Task 옵션에서 특정 명칭의 Task에 대한 옵션을 반환한다."""
         return self.__options.get(name, dict())
 
-    def set_options(self, options: TaskOptions = dict()):
+    def set_options(self, options: TaskOptions):
         """전체 Task 옵션을 설정한다."""
         self.__options = options
 
@@ -455,10 +457,6 @@ class TaskClient(Client):
         """키워드 인자를 Task 옵션으로 반환한다. 키워드 인자가 없을 경우 기본값으로 특정 명칭의 Task에 대한 옵션을 반환한다."""
         options = {key: value for key, value in kwargs.items() if value is not None}
         return options or self.get_options(name)
-
-    @property
-    def default_options(self) -> TaskOptions:
-        return dict()
 
     ############################## Parser #############################
 
@@ -754,14 +752,16 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
     method: str | None = None
     url: str | None = None
     cookies: str | None = None
+    config_fields: dict | list | None = None
+    default_options: TaskOptions | None = None
 
     def __init__(
             self,
             session: Literal["per_request"] | Session | ClientSession = "per_request",
-            cookies: str | None = None,
-            headers: Headers = dict(),
-            options: TaskOptions = dict(),
-            configs: Configs = dict(),
+            cookies: str | dict | None = None,
+            headers: Headers | None = None,
+            options: TaskOptions | None = None,
+            configs: Configs | None = None,
             parser: Callable | None = None,
             **kwargs
         ):
@@ -831,14 +831,15 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         """HTTP 요청 중 사용할 설정을 반환한다."""
         return self.__configs
 
-    def set_configs(self, configs: Configs = dict(), fields: dict | list | None = None):
+    def set_configs(self, configs: Configs | None = None):
         """HTTP 요청 중 사용할 설정을 적용한다.
 
-        `fields`가 제공될 경우 `configs`에서 지정된 경로의 값만 추출하고, 경로가 없다면 `KeyError`를 발생시킨다."""
-        if fields:
+        `config_fields` 속성이 있을 경우 `configs`에서 지정된 경로의 값만 추출하고,
+        이때 경로가 없다면 `KeyError`를 발생시킨다."""
+        if self.config_fields:
             from linkmerce.utils.nested import select_values
-            configs = select_values(configs, fields, on_missing="raise")
-        self.__configs = configs
+            configs = select_values(configs, self.config_fields, on_missing="raise")
+        self.__configs = configs or dict()
 
     def concat_path(self, url: str, *args: str) -> str:
         """URL 경로 세그먼트를 순서대로 연결하여 완성된 URL을 반환한다."""

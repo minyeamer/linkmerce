@@ -35,10 +35,7 @@ class Campaign(CoupangAds):
     max_page_size = 20
     page_start = 0
     date_format = "%Y%m%d"
-
-    @property
-    def default_options(self) -> dict:
-        return {"PaginateAll": {"request_delay": 1}}
+    default_options = {"PaginateAll": {"request_delay": 1}}
 
     @CoupangAds.with_session
     def extract(
@@ -140,10 +137,7 @@ class Creative(CoupangAds):
     max_page_size = 20
     page_start = 0
     date_format = "%Y%m%d"
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 0.3}}
+    default_options = {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangAds.with_session
     def extract(self, campaign_ids: Sequence[int | str], vendor_id: str | None = None, **kwargs) -> JsonObject:

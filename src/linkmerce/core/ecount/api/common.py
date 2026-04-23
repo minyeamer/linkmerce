@@ -6,7 +6,7 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Configs, JsonObject
+    from linkmerce.common.extract import JsonObject
 
 
 class EcountApi(Extractor):
@@ -34,21 +34,7 @@ class EcountApi(Extractor):
     zone: str = str()
     session_id: str = str()
     locale: str = "ko-KR"
-
-    def set_configs(self, configs: Configs = dict(), fields: dict | list | None = None):
-        super().set_configs(configs, fields=["com_code", "userid", "api_key"])
-
-    @property
-    def com_code(self) -> int | str:
-        return self.get_config("com_code")
-
-    @property
-    def userid(self) -> str:
-        return self.get_config("userid")
-
-    @property
-    def api_key(self) -> str:
-        return self.get_config("api_key")
+    config_fields = ["com_code", "userid", "api_key"]
 
     @property
     def url(self) -> str:
@@ -58,8 +44,8 @@ class EcountApi(Extractor):
         """오픈 API 요청 전 세션 ID를 발급받는 데코레이터."""
         @functools.wraps(func)
         def wrapper(self: EcountApi, *args, **kwargs):
-            self.zone = self.oapi_zone(self.com_code)
-            self.session_id = self.oapi_login(self.com_code, self.userid, self.api_key)
+            self.zone = self.oapi_zone(self.get_config("com_code"))
+            self.session_id = self.oapi_login(**self.get_configs())
             return func(self, *args, **kwargs)
         return wrapper
 

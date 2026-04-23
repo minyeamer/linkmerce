@@ -3,11 +3,6 @@ from __future__ import annotations
 from linkmerce.common.extract import Extractor
 import functools
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from linkmerce.common.extract import Configs
-
 
 class CjEflexs(Extractor):
     """CJ eFLEXs 로그인 및 2단계 인증을 처리하는 공통 클래스.
@@ -33,21 +28,7 @@ class CjEflexs(Extractor):
     origin = "https://eflexs-x.cjlogistics.com"
     menu: str
     path: str
-
-    def set_configs(self, configs: Configs = dict(), fields: dict | list | None = None):
-        super().set_configs(configs, fields=["userid", "passwd", {"mail_info": ["origin", "email", "passwd"]}])
-
-    @property
-    def userid(self) -> str:
-        return self.get_config("userid")
-
-    @property
-    def passwd(self) -> str:
-        return self.get_config("passwd")
-
-    @property
-    def mail_info(self) -> dict[str, str]:
-        return self.get_config("mail_info")
+    config_fields = ["userid", "passwd", {"mail_info": ["origin", "email", "passwd"]}]
 
     @property
     def url(self) -> str:
@@ -57,7 +38,7 @@ class CjEflexs(Extractor):
         """데이터 수집 전에 로그인 및 2단계 인증을 처리하는 데코레이터."""
         @functools.wraps(func)
         def wrapper(self: CjEflexs, *args, **kwargs):
-            self.login(self.userid, self.passwd, self.mail_info)
+            self.login(**self.get_configs())
             return func(self, *args, **kwargs)
         return wrapper
 

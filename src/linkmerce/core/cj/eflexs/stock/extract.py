@@ -43,10 +43,7 @@ class Stock(CjEflexs):
     menu = "IMSI0002M"
     path = "/selectDtlStckSearch.do"
     date_format = "%Y%m%d"
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 1}}
+    default_options = {"RequestEach": {"request_delay": 1}}
 
     @CjEflexs.with_session
     @CjEflexs.with_auth_info
