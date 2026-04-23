@@ -11,25 +11,41 @@ if TYPE_CHECKING:
 
 class AdAccount(TypedDict):
     """메타 광고 계정 정보."""
-
     account_status: int
     id: str # act_{ACCOUNT_ID}
     name: str
 
 
 class MetaAds(MetaApi):
-    """메타 Marketing API로 광고 데이터를 조회하는 공통 클래스.
+    """메타 마케팅 API 요청을 처리하는 공통 클래스.
 
-    `RequestEach` Task를 사용하여 계정별 광고 데이터를 조회한다.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/v24.0"""
+    - **Docs**: https://developers.facebook.com/docs/marketing-api/reference/v24.0
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_token: str
+        메타 액세스 토큰
+    app_id: str | None
+        메타 앱 ID (토큰 자동 갱신 시 필요)
+    app_secret: str | None
+        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method: str = "GET"
     version: str = "v24.0"
     path: str | None = None
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 1}}
+    default_options = {"RequestEach": {"request_delay": 1}}
 
     def _extract_backend(self, account_ids: Sequence[str] = list(), **kwargs) -> JsonObject:
         """광고 계정(`account_ids`)별 광고 데이터를 조회하는 공통 로직."""
@@ -60,7 +76,12 @@ class MetaAds(MetaApi):
 
 
 class _AdObjects(MetaAds):
-    """캠페인, 광고 세트, 광고 등 광고 객체 목록을 조회하는 공통 클래스."""
+    """캠페인, 광고세트, 광고 등 광고 객체 목록을 조회하는 공통 클래스."""
+
+    @property
+    def fields(self) -> list[str]:
+        """조회할 필드 목록을 정의한다."""
+        return list()
 
     @MetaAds.with_session
     @MetaAds.auto_refresh_token
@@ -72,7 +93,24 @@ class _AdObjects(MetaAds):
             fields: Sequence[str] = list(),
             **kwargs
         ) -> JsonObject:
-        """광고 객체 목록을 조회해 JSON 형식으로 반환한다."""
+        """광고 객체 목록을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        start_date : dt.date | str | None
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다. 기본값은 `None`
+        end_date : dt.date | str | None
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다. 기본값은 `None`
+        account_ids : Sequence[str]
+            조회할 광고 계정 ID 목록. 생략 시 사용 가능한 모든 계정을 조회한다.
+        fields : Sequence[str]
+            조회할 필드 목록. 생략 시 클래스에 정의된 `fields` 속성을 사용한다.
+
+        Returns
+        -------
+        list[dict]
+            메타 광고 객체 목록
+        """
         return self._extract_backend(account_ids, start_date=start_date, end_date=end_date, fields=fields)
 
     def build_request_params(
@@ -88,14 +126,34 @@ class _AdObjects(MetaAds):
             **({"time_range": self.time_range(start_date, end_date)} if start_date and end_date else dict()),
         }
 
-    @property
-    def fields(self) -> list[str]:
-        return list()
-
 
 class Campaigns(_AdObjects):
-    """메타 광고 캠페인 목록을 조회하는 클래스.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/campaigns/v24.0"""
+    """메타 광고 캠페인 보고서를 조회하는 클래스.
+
+    - **API**: https://graph.facebook.com/v24.0/act_<AD_ACCOUNT_ID>/campaigns
+    - **Docs**: https://developers.facebook.com/docs/marketing-api/reference/ad-account/campaigns/v24.0
+    - **Referer**: https://adsmanager.facebook.com/adsmanager/manage/campaigns
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_token: str
+        메타 액세스 토큰
+    app_id: str | None
+        메타 앱 ID (토큰 자동 갱신 시 필요)
+    app_secret: str | None
+        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     path = "/campaigns"
 
@@ -107,8 +165,32 @@ class Campaigns(_AdObjects):
 
 
 class Adsets(_AdObjects):
-    """메타 광고세트 목록을 조회하는 클래스.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/adsets/v24.0"""
+    """메타 광고세트 보고서를 조회하는 클래스.
+
+    - **API**: https://graph.facebook.com/v24.0/act_<AD_ACCOUNT_ID>/adsets
+    - **Docs**: https://developers.facebook.com/docs/marketing-api/reference/ad-account/adsets/v24.0
+    - **Referer**: https://adsmanager.facebook.com/adsmanager/manage/adsets
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_token: str
+        메타 액세스 토큰
+    app_id: str | None
+        메타 앱 ID (토큰 자동 갱신 시 필요)
+    app_secret: str | None
+        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     path = "/adsets"
 
@@ -121,8 +203,32 @@ class Adsets(_AdObjects):
 
 
 class Ads(_AdObjects):
-    """메타 광고 목록을 조회하는 클래스.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/ads/v24.0"""
+    """메타 광고 보고서를 조회하는 클래스.
+
+    - **API**: https://graph.facebook.com/v24.0/act_<AD_ACCOUNT_ID>/ads
+    - **Docs**: https://developers.facebook.com/docs/marketing-api/reference/ad-account/ads/v24.0
+    - **Referer**: https://adsmanager.facebook.com/adsmanager/manage/ads
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_token: str
+        메타 액세스 토큰
+    app_id: str | None
+        메타 앱 ID (토큰 자동 갱신 시 필요)
+    app_secret: str | None
+        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     path = "/ads"
 
@@ -135,8 +241,31 @@ class Ads(_AdObjects):
 
 
 class Insights(MetaAds):
-    """메타 광고 성과 보고서를 조회하는 클래스.
-    - API 문서: https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/v24.0"""
+    """메타 광고 성과 보고서를 날짜별로 조회하는 클래스.
+
+    - **API**: https://graph.facebook.com/v24.0/act_<AD_ACCOUNT_ID>/insights
+    - **Docs**: https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/v24.0
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_token: str
+        메타 액세스 토큰
+    app_id: str | None
+        메타 앱 ID (토큰 자동 갱신 시 필요)
+    app_secret: str | None
+        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     path = "/insights"
 
@@ -154,7 +283,32 @@ class Insights(MetaAds):
         ) -> JsonObject:
         """메타 광고 성과 보고서를 조회해 JSON 형식으로 반환한다.
 
-        `ad_level`에 따라 캠페인(`campaign`), 광고세트(`adset`), 광고(`ad`) 단위로 성과 보고서를 조회한다."""
+        Parameters
+        ----------
+        ad_level : Literal["campaign", "adset", "ad"]
+            보고서 집계 기준
+                - `"campaign"`: 캠페인
+                - `"adset"`: 광고세트
+                - `"ad"`: 광고
+        start_date : dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+        end_date : dt.date | str | Literal[":start_date:"]
+            조회 종료일. `":start_date:"` 전달 시 `start_date`와 동일한 날짜로 대체된다.
+            기본값은 `":start_date:"`
+        date_type : Literal["daily", "total"]
+            보고서 기간 구분
+                - `"total"`: 합계
+                - `"daily"`: 일별
+        account_ids : Sequence[str]
+            조회할 광고 계정 ID 목록. 생략 시 사용 가능한 모든 계정을 조회한다.
+        fields : Sequence[str]
+            조회할 필드 목록. 생략 시 클래스에 정의된 `fields` 속성을 사용한다.
+
+        Returns
+        -------
+        list[dict]
+            메타 광고 성과 보고서
+        """
         dates = dict(start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date))
         return self._extract_backend(account_ids, ad_level=ad_level, **dates, date_type=date_type, fields=fields)
 

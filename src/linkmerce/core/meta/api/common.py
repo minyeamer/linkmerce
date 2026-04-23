@@ -6,7 +6,7 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Configs, JsonObject
+    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -16,39 +16,30 @@ class OAuthException(Exception):
 
 
 class MetaApi(Extractor):
-    """메타 Graph API를 처리하는 공통 클래스.
+    """메타 그래프 API 요청을 처리하는 공통 클래스.
 
-    `access_token`을 사용하며, 토큰 만료 시 `app_id`와 `app_secret`으로 자동 갱신한다."""
+    - **URL**: https://developers.facebook.com
+    - **Docs**: https://developers.facebook.com/docs/graph-api
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_token: str
+        메타 액세스 토큰
+    app_id: str | None
+        메타 앱 ID (토큰 자동 갱신 시 필요)
+    app_secret: str | None
+        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
+    """
 
     method: str = "GET"
     origin: str = "https://graph.facebook.com/"
-
-    def set_configs(self, configs: Configs = dict()):
-        try:
-            self.set_access_token(**configs)
-        except TypeError:
-            raise TypeError("Meta API requires access_token.")
-
-    def set_access_token(
-            self,
-            access_token: str,
-            app_id: str = str(),
-            app_secret: str = str(),
-            **configs,
-        ):
-        super().set_configs(dict(access_token=access_token, app_id=app_id, app_secret=app_secret, **configs))
+    config_fields = ["access_token", {"app_id": None}, {"app_secret": None}]
 
     @property
     def access_token(self) -> int | str:
         return self.get_config("access_token")
-
-    @property
-    def app_id(self) -> str:
-        return self.get_config("app_id")
-
-    @property
-    def app_secret(self) -> str:
-        return self.get_config("app_secret")
 
     def auto_refresh_token(func):
         """`access_token`이 만료되어 `OAuthException`이 발생하면 토큰 자동 갱신을 시도하는 데코레이터."""
@@ -57,16 +48,15 @@ class MetaApi(Extractor):
             try:
                 return func(self, *args, **kwargs)
             except OAuthException as exception:
-                if self.app_id and self.app_secret:
+                if self.get_config("app_id") and self.get_config("app_secret"):
                     self.refresh_long_lived_token()
                     return func(self, *args, **kwargs)
-                else:
-                    raise exception
+                raise exception
         return wrapper
 
     def refresh_long_lived_token(self):
         """장기 실행 토큰을 새로고침한다."""
-        manager = MetaTokenManager(self.app_id, self.app_secret)
+        manager = MetaTokenManager(self.get_config("app_id"), self.get_config("app_secret"))
         refresh_token = manager.refresh_long_lived_token(self.access_token)
         self.set_configs(dict(self.get_configs(), access_token=refresh_token))
 
@@ -77,14 +67,15 @@ class MetaApi(Extractor):
             message = response["error"].get("message") or "Undefined"
             if response["error"].get("type") == "OAuthException":
                 raise OAuthException(message)
-            else:
-                raise RuntimeError(message)
-        else:
-            return response
+            raise RuntimeError(message)
+        return response
 
 
 class MetaTokenManager:
-    """메타 OAuth 토큰의 만료 여부 확인 및 장기 실행 토큰 갱신을 관리하는 클래스."""
+    """메타 OAuth 토큰의 만료 여부 확인 및 장기 실행 토큰 갱신을 관리하는 클래스.
+
+    - **Docs**: https://developers.facebook.com/documentation/facebook-login/guides/access-tokens
+    """
 
     origin: str = "https://graph.facebook.com"
 
@@ -102,11 +93,10 @@ class MetaTokenManager:
             data = response.json()
             if "data" in data:
                 return dt.datetime.fromtimestamp(data["data"]["expires_at"])
-            else:
-                self.raise_oauth_error(data)
+            self.raise_oauth_error(data)
 
     def refresh_long_lived_token(self, access_token: str) -> str:
-        """장기 실행 토큰을 새로고침한다."""
+        """`access_token`의 유효 기간을 연장한다."""
         import requests
         url = self.origin + "/oauth/access_token"
         params = {
@@ -119,12 +109,10 @@ class MetaTokenManager:
             data = response.json()
             if "access_token" in data:
                 return data["access_token"]
-            else:
-                self.raise_oauth_error(data)
+            self.raise_oauth_error(data)
 
     def raise_oauth_error(self, data: JsonObject):
-        """토큰 새로고침 결과에서 `access_token`이 확인되지 않으면 `OAuthException`을 발생시킨다."""
+        """유효 기간 연장에 대한 요청 결과에서 `access_token`이 확인되지 않으면 `OAuthException`을 발생시킨다."""
         if isinstance(data, dict) and ("error" in data):
             raise OAuthException(data["error"]["message"])
-        else:
-            raise OAuthException("Invalid OAuth access token - Cannot parse access token")
+        raise OAuthException("Invalid OAuth access token - Cannot parse access token")

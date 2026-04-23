@@ -13,54 +13,38 @@ if TYPE_CHECKING:
 class GoogleApi(Extractor):
     """구글 API 요청을 처리하는 공통 클래스.
 
-    `service_account`와 `scope` 변수를 사용하여 JWT 기반 인증을 수행한다."""
+    - **URL**: https://developers.google.com
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    service_account: str | Path | dict[str, str]
+        구글 서비스 계정 키 파일 경로 또는 파일 내용을 파싱한 딕셔너리
+    scope: str
+        [OAuth 2.0 범위](https://developers.google.com/identity/protocols/oauth2/scopes)
+    """
 
     service: str
     method: str = "POST"
     access_token: str | None = None
+    config_fields = [{"service_account": ["client_email", "private_key"]}, "scope"]
 
     @property
     def origin(self) -> str:
         return f"https://{self.service}.googleapis.com/"
 
-    def set_configs(self, configs: Configs = dict()):
-        try:
-            self.set_service_account(**configs)
-        except TypeError:
-            raise TypeError("Google API requires configs for service_account and scope.")
-
-    def set_service_account(
-            self,
-            service_account: str | Path | dict[str, str],
-            scope: str,
-            **configs,
-        ):
-        """구글 서비스 계정 인증 정보를 설정한다."""
-        super().set_configs(dict(
-            service_account = self._read_service_account(service_account),
-            scope = scope,
-            **configs
-        ))
+    def set_configs(self, configs: Configs):
+        configs["service_account"] = self._read_service_account(configs["service_account"])
+        super().set_configs(configs)
 
     def _read_service_account(self, service_account: str | Path | dict[str, str]) -> dict[str, str]:
-        """구글 서비스 계정은 로컬 JSON 파일을 읽거나, 딕셔너리 객체를 전달받는다."""
+        """구글 서비스 계정 키 파일을 읽어서 JSON 파싱한다. 딕셔너리라면 그대로 반환한다."""
         if not isinstance(service_account, dict):
             import json
             with open(str(service_account), 'r', encoding="utf-8") as file:
                 service_account = json.loads(file.read())
-
-        if isinstance(service_account, dict) and ("client_email" in service_account) and ("private_key" in service_account):
-            return service_account
-        else:
-            raise ValueError("Service account is not valid.")
-
-    @property
-    def service_account(self) -> dict[str, str]:
-        return self.get_config("service_account")
-
-    @property
-    def scope(self) -> str:
-        return self.get_config("scope")
+        return service_account
 
     def with_token(func):
         """API 요청 전 액세스 토큰을 발급받는 데코레이터."""
@@ -72,12 +56,15 @@ class GoogleApi(Extractor):
 
     def set_access_token(self):
         """구글 서비스 계정 기반의 JWT 인증으로 발급받은 액세스 토큰을 설정한다."""
-        auth = GoogleAuth(self.service_account, self.scope)
+        auth = GoogleAuth(self.get_config("service_account"), self.get_config("scope"))
         self.access_token = auth.get_access_token()
 
 
 class GoogleAuth:
-    """구글 서비스 계정 기반의 JWT 인증을 수행하여 액세스 토큰을 발급하는 클래스."""
+    """구글 서비스 계정 기반의 JWT 인증을 수행하여 액세스 토큰을 발급하는 클래스.
+
+    - **Docs**: https://developers.google.com/identity/protocols/oauth2
+    """
 
     def __init__(self, service_account: dict[str, str], scope: str, ttl: int = 3600):
         self.service_account = service_account
