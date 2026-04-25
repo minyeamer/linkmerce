@@ -42,7 +42,7 @@ class ProductOption(CoupangWing):
         Parameters
         ----------
         is_deleted: bool
-            삭제된 상품 조회 여부. 기본값은 `False`
+            삭제된 상품만 조회할지 여부. 기본값은 `False`
 
         Returns
         -------
@@ -193,7 +193,7 @@ class ProductDownload(ProductOption):
         fields: list[str]
             엑셀 항목 코드 목록. 생략 시 기본 항목으로 조회한다.
         is_deleted: bool
-            삭제된 상품 조회 여부. 기본값은 `False`
+            삭제된 상품만 조회할지 여부. 기본값은 `False`
         vendor_id: str | None
             업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
         wait_seconds: int

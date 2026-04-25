@@ -7,14 +7,25 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import Configs
     import datetime as dt
 
 
 class SabangnetAdmin(Extractor):
     """사방넷 시스템에서 데이터를 조회하는 공통 클래스.
 
-    `userid`, `passwd`, `domain`를 사용하여 로그인 후 토큰 기반으로 요청한다."""
+    - **URL**: https://www.sabangnet.co.kr
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    userid: str
+        사방넷 아이디
+    passwd: str
+        사방넷 비밀번호
+    domain: int
+        사방넷 시스템 도메인 번호
+    """
 
     method: str | None = None
     main_url: str = "https://www.sabangnet.co.kr"
@@ -22,15 +33,7 @@ class SabangnetAdmin(Extractor):
     path: str | None = None
     access_token: str = str()
     refresh_token: str = str()
-
-    def set_configs(self, configs: Configs = dict()):
-        try:
-            self.set_account(**configs)
-        except TypeError:
-            raise TypeError("Sabangnet requires configs for userid, passwd, and domain to authenticate.")
-
-    def set_account(self, userid: str, passwd: str, domain: int, **configs):
-        super().set_configs(dict(userid=userid, passwd=passwd, domain=domain, **configs))
+    config_fields = ["userid", "passwd", "domain"]
 
     @property
     def origin(self) -> str:
@@ -51,7 +54,7 @@ class SabangnetAdmin(Extractor):
         return wrapper
 
     def login_begin(self) -> dict:
-        """`userid`, `passwd`, `domain`를 가지고 로그인 요청한다."""
+        """사방넷 로그인 요청한다."""
         from linkmerce.utils.headers import build_headers
         url = self.main_url + "/hp-prod/users/login"
         referer = self.main_url + "/login/login-main"
@@ -87,7 +90,21 @@ class SabangnetAdmin(Extractor):
 
 
 class SabangnetLogin(LoginHandler, SabangnetAdmin):
-    """사방넷 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스."""
+    """사방넷 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스.
+
+    - **URL**: https://www.sabangnet.co.kr/login/login-main
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    userid: str
+        사방넷 아이디
+    passwd: str
+        사방넷 비밀번호
+    """
+
+    config_fields = ["userid", "passwd"]
 
     @LoginHandler.with_session
     def login(self, **kwargs) -> dict[str, str]:
