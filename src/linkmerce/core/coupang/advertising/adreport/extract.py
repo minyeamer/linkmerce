@@ -23,9 +23,7 @@ class Campaign(CoupangAds):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간
-    max_concurrent: int | None
-        비동기 요청 시 최대 동시 실행 횟수
+        요청 간 대기 시간. 기본값은 `1`
     tqdm_options: dict | None
         진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
@@ -125,9 +123,7 @@ class Creative(CoupangAds):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간
-    max_concurrent: int | None
-        비동기 요청 시 최대 동시 실행 횟수
+        요청 간 대기 시간. 기본값은 `0.3`
     tqdm_options: dict | None
         진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
@@ -225,7 +221,7 @@ class _AdReport(CoupangAds):
         vendor_id: str | None
             업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
         wait_seconds: int
-            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`.   
+            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
             시간 내 보고서가 생성 완료되지 않으면 `ValueError`를 발생시킨다.
         wait_interval: int
             보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
