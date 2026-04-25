@@ -14,16 +14,25 @@ if TYPE_CHECKING:
 ###################################################################
 
 class Search(Extractor):
-    """네이버 통합검색 결과를 스크래핑하여 추출하는 클래스.
+    """네이버 통합검색 결과를 스크래핑하여 HTML 소스코드를 추출하는 클래스.
 
-    `RequestEach` Task를 사용하여 여러 개의 키워드를 검색한다."""
+    - **PC**: https://search.naver.com/search.naver
+    - **Mobile**: https://m.search.naver.com/search.naver
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1.01`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
+
     method = "GET"
     url = "https://{m}search.naver.com/search.naver"
     state = {"oquery": None, "tqi": None, "ackey": None}
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 1.01}}
+    default_options = {"RequestEach": {"request_delay": 1.01}}
 
     @Extractor.with_session
     def extract(
@@ -31,10 +40,23 @@ class Search(Extractor):
             query: str | Iterable[str],
             mobile: bool = True,
             parse_html: bool = True,
-        ) -> JsonObject | BeautifulSoup | str:
-        """네이버 통합검색 결과를 스크래핑한다.
+        ) -> JsonObject | list[BeautifulSoup] | list[str]:
+        """네이버 통합검색 결과를 스크래핑하여 HTML 텍스트 또는 `BeautifulSoup` 객체로 반환한다.
 
-        `parse_html`에 따라 `BeautifulSoup` 파싱하거나 HTML 텍스트를 그대로 반환한다."""
+        Parameters
+        ----------
+        query: str | Iterable[str]
+            검색어. 단일 또는 여러 개의 문자열을 전달한다.
+        mobile: bool
+            PC/모바일 검색. 기본값은 `True`
+        parse_html: bool
+            HTML 소스코드를 `BeautifulSoup` 객체로 파싱할지 여부. 기본값은 `True`
+
+        Returns
+        -------
+        list[BeautifulSoup] | list[str]
+            네이버 통합검색 결과 페이지 소스코드
+        """
         return (self.request_each(self.search)
                 .partial(mobile=mobile, parse_html=parse_html)
                 .expand(query=query)
@@ -92,25 +114,58 @@ class Search(Extractor):
 ###################################################################
 
 class SearchTab(Extractor):
-    """네이버 탭별 검색 결과를 추출하는 클래스.
+    """네이버 탭별 검색 결과를 스크래핑하여 HTML 소스코드를 추출하는 클래스.
 
-    `RequestEach` Task를 사용하여 이미지, 블로그, 카페, 뉴스 등 탭 유형별로 요청한다."""
+    - **PC**: https://search.naver.com/search.naver
+    - **Mobile**: https://m.search.naver.com/search.naver
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1.01`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
+
     method = "GET"
     url = "https://{m}search.naver.com/search.naver"
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 1.01}}
+    default_options = {"RequestEach": {"request_delay": 1.01}}
 
     @Extractor.with_session
     def extract(
             self,
             query: str | Iterable[str],
-            tab_type: Literal["image", "blog", "cafe", "kin", "influencer", "clip", "video", "news", "surf", "shortents"],
+            tab_type: Literal["image", "blog", "cafe", "kin", "influencer", "clip", "video", "news", "shortents"],
             mobile: bool = True,
             **kwargs
-        ) -> JsonObject | BeautifulSoup:
-        """탭별 검색 결과를 조회한다."""
+        ) -> JsonObject | list[BeautifulSoup] | BeautifulSoup:
+        """네이버 탭별 검색 결과를 스크래핑하여 `BeautifulSoup` 객체로 반환한다.
+
+        Parameters
+        ----------
+        query: str | Iterable[str]
+            검색어. 단일 또는 여러 개의 문자열을 전달한다.
+        tab_type: str
+            탭 구분
+                - `"image"`: 이미지
+                - `"blog"`: 블로그
+                - `"cafe"`: 카페
+                - `"kin"`: 지식iN
+                - `"influencer"`: 인플루언서
+                - `"clip"`: 클립
+                - `"video"`: 동영상
+                - `"news"`: 뉴스
+                - `"shortents"`: 숏텐츠
+        mobile: bool
+            PC/모바일 검색. 기본값은 `True`
+
+        Returns
+        -------
+        BeautifulSoup | list[BeautifulSoup]
+            네이버 탭별 검색 결과 페이지 소스코드
+        """
         url = self.url.format(m=("m." if mobile else str()))
         tab_type = self.tab_type[tab_type].format(m=("m_" if mobile else str()))
         return (self.request_each(self.request_html)
@@ -127,7 +182,7 @@ class SearchTab(Extractor):
 
     @property
     def tab_type(self) -> dict[str, str]:
-        """탭 유형별 `ssc` 파라미터 매핑을 반환한다."""
+        """탭별 `ssc` 파라미터 매핑을 반환한다."""
         return {
             "image": "tab.{m}image.all", # "이미지"
             "blog": "tab.{m}blog.all", # "블로그"
@@ -143,16 +198,25 @@ class SearchTab(Extractor):
 
 
 class CafeArticle(Extractor):
-    """네이버 카페 게시글 데이터를 추출하는 클래스.
+    """네이버 카페 게시글을 조회하는 클래스.
 
-    `RequestEach` Task를 사용하여 URL 목록에 대해 요청한다."""
+    - **API**: https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}
+    - **Referer**: https://cafe.naver.com/{cafe_url}/{article_id}
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1.01`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
+
     method = "GET"
     url = "https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}"
     referer = "https://{m_}cafe.naver.com/{cafe_url}/{article_id}"
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 1.01}}
+    default_options = {"RequestEach": {"request_delay": 1.01}}
 
     @Extractor.with_session
     def extract(
@@ -161,7 +225,23 @@ class CafeArticle(Extractor):
             domain: Literal["article", "cafe", "m"] = "article",
             **kwargs
         ) -> JsonObject:
-        """카페 게시글 URL에 대한 데이터를 조회해 JSON 형식으로 반환한다."""
+        """카페 게시글의 정보를 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        url: str | Iterable[str]
+            카페 URL. 다음 3가지 형식의 URL을 허용한다.
+                - https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}
+                - https://cafe.naver.com/{cafe_url}/{article_id}
+                - https://m.cafe.naver.com/{cafe_url}/{article_id}
+        domain: str
+            카페 URL의 도메인. `url` 파라미터로 전달되는 URL 값은 전부 동일한 도메인이어야 한다.
+
+        Returns
+        -------
+        dict | list[dict]
+            카페 게시글 정보 목록
+        """
         return (self.request_each(self.request_json_safe)
                 .partial(domain=domain)
                 .expand(url=url)
