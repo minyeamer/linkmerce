@@ -10,20 +10,29 @@ if TYPE_CHECKING:
 
 
 class _Sales(PartnerCenter):
-    """네이버 스토어의 일별 매출 데이터를 조회하는 공통 클래스.
+    """네이버 브랜드 스토어 브랜드 상품분석 매출 데이터를 조회하는 공통 클래스.
 
-    `RequestEach` Task를 사용하여 판매처번호(`mall_seq`)에 대한   
-    GraphQL API 요청로 스토어/카테고리/상품별 매출을 조회한다."""
+    - **Menu**: 브랜드 애널리틱스 > 브랜드 상품분석
+    - **API**: https://hcenter.shopping.naver.com/brand/content (GraphQL)
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/brand/content"
     date_format = "%Y-%m-%d"
     sales_type: Literal["store", "category", "product"]
     fields: list[dict]
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 1, "max_concurrent": 3}}
+    default_options = {"RequestEach": {"request_delay": 1, "max_concurrent": 3}}
 
     @PartnerCenter.with_session
     def extract(
