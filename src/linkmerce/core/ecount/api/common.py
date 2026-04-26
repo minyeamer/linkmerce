@@ -85,6 +85,17 @@ class EcountRequestApi(EcountApi):
 
     - **API**: https://oapi{ZONE}.ecount.com/OAPI/
     - **Docs**: https://sboapi.ecount.com/ECERP/OAPI/OAPIView?lan_type=ko-KR
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    com_code: int | str
+        이카운트 회사코드
+    userid: str
+        이카운트 아이디
+    api_key: str
+        오픈 API 인증키
     """
 
     @EcountApi.with_session
@@ -97,7 +108,13 @@ class EcountRequestApi(EcountApi):
         path: str
             오픈 API 경로
         body: dict | None
-            오픈 API 요청 본문"""
+            오픈 API 요청 본문
+
+        Returns
+        -------
+        dict
+            오픈 API 응답 결과
+        """
         self.path = path
         message = self.build_request_message(**kwargs)
         if isinstance(body, dict):
@@ -113,6 +130,17 @@ class EcountTestApi(EcountApi):
 
     - **API**: https://sboapi{ZONE}.ecount.com/OAPI/
     - **Docs**: https://sboapi.ecount.com/ECERP/OAPI/OAPIView?lan_type=ko-KR
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    com_code: int | str
+        이카운트 회사코드
+    userid: str
+        이카운트 아이디
+    api_key: str
+        테스트 API 인증키
     """
 
     origin: str = "https://sboapi{ZONE}.ecount.com/OAPI/"
@@ -127,7 +155,13 @@ class EcountTestApi(EcountApi):
         path: str
             테스트 API 경로
         body: dict | None
-            테스트 API 요청 본문"""
+            테스트 API 요청 본문
+
+        Returns
+        -------
+        dict
+            테스트 API 응답 결과
+        """
         self.path = path
         message = self.build_request_message(**kwargs)
         if isinstance(body, dict):

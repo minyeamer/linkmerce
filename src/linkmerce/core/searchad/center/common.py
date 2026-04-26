@@ -5,7 +5,6 @@ from linkmerce.common.extract import Extractor, LoginHandler
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Configs
     from requests import Session
 
 
@@ -31,21 +30,27 @@ def get_accounts(session: Session, page: int = 0, size: int = 10) -> list[dict]:
 
 
 class SearchAdCenter(Extractor):
-    """네이버 광고주센터 데이터를 조회하는 공통 클래스. 로그인 쿠키가 제공되어야 한다."""
+    """네이버 광고주센터 데이터를 조회하는 공통 클래스.
+
+    - **URL**: https://ads.naver.com
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        검색광고 계정 번호
+    customer_id: int | str
+        검색광고 고객 ID
+    """
 
     method: str | None = None
     origin = "https://ads.naver.com"
     api_url = "https://ads.naver.com/apis/sa/api"
     path: str | None = None
-
-    def set_configs(self, configs: Configs = dict()):
-        try:
-            self.set_account(**configs)
-        except TypeError:
-            raise TypeError("Naver SearchAd requires configs for account_no and customer_id.")
-
-    def set_account(self, account_no: int | str, customer_id: int | str, **configs):
-        super().set_configs(dict(account_no=account_no, customer_id=customer_id, **configs))
+    config_fields = ["account_no", "customer_id"]
 
     @property
     def url(self) -> str:
@@ -69,7 +74,11 @@ class SearchAdCenter(Extractor):
 
 
 class NaverAdLogin(LoginHandler):
-    """네이버 광고주센터 로그인을 수행하여 쿠키를 발급하는 클래스."""
+    """네이버 광고주센터 로그인을 수행하여 쿠키를 발급하는 클래스.
+
+    - **URL**: https://ads.naver.com
+    """
+
     origin = "https://ads.naver.com"
 
     @property
@@ -78,7 +87,21 @@ class NaverAdLogin(LoginHandler):
 
     @LoginHandler.with_session
     def login(self, account_no: str, cookies: str, **kwargs) -> str:
-        """네이버 쿠키를 가지고 네이버 광고주센터에 로그인해 `XSRF-TOKEN`을 발급받는다."""
+        """네이버 쿠키를 가지고 네이버 광고주센터에 로그인해 `XSRF-TOKEN`을 발급받는다.
+
+        Parameters
+        ----------
+        account_no: int | str
+            검색광고 계정 번호
+
+        cookies: str
+            네이버 로그인 쿠키
+
+        Returns
+        -------
+        str
+            네이버 광고주센터 로그인 쿠키
+        """
         self.validate_cookies(cookies)
         self.login_action(account_no)
         self.approach_to(account_no)
@@ -151,7 +174,8 @@ class NaverAdLogin(LoginHandler):
 # class SearchAdCenter(Extractor):
 #     """네이버 검색광고 시스템에서 데이터를 조회하는 공통 클래스.
 
-#     네이버 로그인 쿠키와 `customer_id`를 사용하여 `access_token`을 발급받고 토큰 기반으로 요청한다."""
+#     네이버 로그인 쿠키와 `customer_id`를 사용하여 `access_token`을 발급받고 토큰 기반으로 요청한다.
+#     """
 
 #     method: str | None = None
 #     origin: str = "https://searchad.naver.com"
@@ -161,15 +185,7 @@ class NaverAdLogin(LoginHandler):
 #     path: str | None = None
 #     access_token: str = str()
 #     refresh_token: str = str()
-
-#     def set_configs(self, configs: Configs = dict()):
-#         try:
-#             self.set_customer_id(**configs)
-#         except TypeError:
-#             raise TypeError("Naver SearchAd requires configs for customer_id to authenticate.")
-
-#     def set_customer_id(self, customer_id: int | str, **configs):
-#         super().set_configs(dict(customer_id=customer_id, **configs))
+#     config_fields = ["customer_id"]
 
 #     @property
 #     def url(self) -> str:

@@ -13,10 +13,23 @@ if TYPE_CHECKING:
 class _ReportsDownload(NaverSearchAdApi):
     """네이버 검색광고 API로 대용량 다운로드 보고서를 요청하는 공통 클래스.
 
-    1. POST 요청으로 보고서를 생성한다.
-    2. GET 요청으로 보고서가 "BUILT" 상태가 될 때까지 폴링한다.
-    3. 다운로드 URL로 TSV 데이터를 가져온다.
-    4. 처리 후 생성된 보고서를 삭제한다."""
+    - **Menu**: 보고서 > 대용량 다운로드 보고서
+    - **Docs**: https://naver.github.io/searchad-apidoc/
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/sa/reports-download
+
+    보고서 생성 → 상태 폴링 → 다운로드 → 삭제 순서로 워크플로우를 실행한다.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
 
     job_type: Literal["master-reports", "stat-reports"]
     report_type: str
@@ -40,11 +53,11 @@ class _ReportsDownload(NaverSearchAdApi):
             self.delete_report(report_job[id_column])
 
     def create_report(self, report_type: str, date: dt.date | str | None = None) -> dict:
-        """마스터 보고서와 대용량 보고서는 보고서 생성 방식이 다르다."""
+        """마스터 보고서와 대용량 보고서에 대한 각각의 보고서 생성 방식을 구현해야 한다."""
         raise NotImplementedError("The 'create_report' method must be implemented.")
 
     def get_report(self, report_job_id: str) -> str:
-        """보고서 상태를 폴링하고 다운로드 URL을 반환한다."""
+        """보고서가 생성 완료 상태가 될 때까지 대기한 후, 생성된 보고서의 다운로드 URL을 반환한다."""
         import time
         uri = f"/{self.job_type}/{report_job_id}"
         while True:
@@ -60,7 +73,7 @@ class _ReportsDownload(NaverSearchAdApi):
                 raise ValueError("The master report is invalid.")
 
     def download_report(self, download_url: str | None = None) -> str:
-        """보고서 데이터를 다운로드한다."""
+        """생성된 보고서의 다운로드 URL을 통해 보고서를 다운로드한다."""
         if download_url:
             return self.request(method="GET", uri="/report-download", url=download_url).text
 
@@ -83,10 +96,29 @@ class _ReportsDownload(NaverSearchAdApi):
 ###################################################################
 
 class _MasterReport(_ReportsDownload):
-    """네이버 검색광고 API로 광고 정보 마스터 보고서를 다운로드하는 공통 클래스.
+    """네이버 검색광고 API로 마스터 보고서를 다운로드하는 공통 클래스.
 
-    캠페인, 광고그룹, 광고, 상품 등 각 유형(`report_type`)별 마스터 보고서를 TSV 형식으로 조회한다.
-    - API 문서: https://naver.github.io/searchad-apidoc/#/tags/MasterReport"""
+    - **Menu**: 보고서 > 대용량 다운로드 보고서 > 광고 정보 일괄 다운로드
+    - **Docs**: https://naver.github.io/searchad-apidoc/#/tags/MasterReport
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/sa/reports-download
+
+    보고서 생성 → 상태 폴링 → 다운로드 → 삭제 순서로 워크플로우를 실행한다.
+    1. **create**: POST https://api.searchad.naver.com/master-reports
+    2. **list**: GET https://api.searchad.naver.com/master-reports
+    3. **get (by id)**: GET https://api.searchad.naver.com/master-reports/{id}
+    4. **delete (by id)**: DELETE https://api.searchad.naver.com/master-reports
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
 
     job_type = "master-reports"
 
@@ -102,7 +134,19 @@ class _MasterReport(_ReportsDownload):
 
     @NaverSearchAdApi.with_session
     def extract(self, from_date: dt.date | str | None = None) -> JsonObject | str:
-        """마스터 보고서를 생성하고 TSV 형식의 보고서를 다운로드 받는다. 다운로드 후 생성된 보고서를 삭제한다."""
+        """마스터 보고서를 생성하고 TSV 형식으로 다운로드 받는다. 다운로드 후 생성된 보고서를 삭제한다.
+
+        Parameters
+        ----------
+        from_date: dt.date | str | None
+            조회 기간. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.   
+            해당 날짜부터 현재까지 변경분을 포함한다. 생략 시 현재 시점 (기본값)
+
+        Returns
+        -------
+        str
+            TSV 형식의 마스터 보고서 다운로드 결과
+        """
         tsv_data = self._extract_backend(self.report_type, from_date=from_date)
         return self.parse(tsv_data)
 
@@ -113,7 +157,20 @@ class _MasterReport(_ReportsDownload):
 
 
 class Account(_MasterReport):
-    """네이버 검색광고 계정 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 계정 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Account"
     columns = [
         "Customer ID", "LOGIN ID", "COMPANY NAME", "Link Status", "Owner Type", "regTm"
@@ -121,7 +178,20 @@ class Account(_MasterReport):
 
 
 class Campaign(_MasterReport):
-    """네이버 검색광고 캠페인 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 캠페인 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Campaign"
     columns = [
         "Customer ID", "Campaign ID", "Campaign Name", "Campaign Type",
@@ -131,7 +201,20 @@ class Campaign(_MasterReport):
 
 
 class CampaignBudget(_MasterReport):
-    """네이버 검색광고 캠페인 예산 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 캠페인 예산 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "CampaignBudget"
     columns = [
         "Customer ID", "Campaign ID", "Using daily budget", "Daily Budget",
@@ -140,7 +223,20 @@ class CampaignBudget(_MasterReport):
 
 
 class BusinessChannel(_MasterReport):
-    """네이버 검색광고 비즈니스채널 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 비즈니스채널 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "BusinessChannel"
     columns = [
         "Customer ID", "Name", "Business Channel ID", "Business Channel Type",
@@ -150,7 +246,20 @@ class BusinessChannel(_MasterReport):
 
 
 class Adgroup(_MasterReport):
-    """네이버 검색광고 광고그룹 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 광고그룹 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Adgroup"
     columns = [
         "Customer ID", "Ad Group ID", "Campaign ID", "Ad Group Name",
@@ -163,7 +272,20 @@ class Adgroup(_MasterReport):
 
 
 class AdgroupBudget(_MasterReport):
-    """네이버 검색광고 광고그룹 예산 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 광고그룹 예산 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "AdgroupBudget"
     columns = [
         "Customer ID", "Ad Group ID", "Using Daily Budget", "Daily Budget",
@@ -172,7 +294,20 @@ class AdgroupBudget(_MasterReport):
 
 
 class Keyword(_MasterReport):
-    """네이버 검색광고 등록 키워드 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 등록 키워드 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Keyword"
     columns = [
         "Customer ID", "Ad Group ID", "Ad Keyword ID", "Ad Keyword",
@@ -183,7 +318,20 @@ class Keyword(_MasterReport):
 
 
 class Ad(_MasterReport):
-    """네이버 검색광고 파워링크 단일형 소재 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 파워링크 단일형 소재 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Ad"
     columns = [
         "Customer ID", "Ad Group ID", "Ad ID", "Ad Creative Inspect Status",
@@ -193,7 +341,20 @@ class Ad(_MasterReport):
 
 
 class AdExtension(_MasterReport):
-    """네이버 검색광고 확장소재 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 확장소재 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "AdExtension"
     columns = [
         "Customer ID", "Ad Extension ID", "Type", "Owner ID",
@@ -207,7 +368,20 @@ class AdExtension(_MasterReport):
 
 
 class Qi(_MasterReport):
-    """네이버 검색광고 품질지수 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 품질지수 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Qi"
     columns = [
         "Customer ID", "Ad Group ID", "Ad Keyword ID", "Ad Keyword", "Quality Index"
@@ -215,19 +389,58 @@ class Qi(_MasterReport):
 
 
 class Label(_MasterReport):
-    """네이버 검색광고 즐겨찾기 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 즐겨찾기 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Label"
     columns = ["Customer ID", "Label ID", "Label name", "regTm", "updateTm"]
 
 
 class LabelRef(_MasterReport):
-    """네이버 검색광고 즐겨찾기설정 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 즐겨찾기설정 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "LabelRef"
     columns = ["Customer ID", "Label ID", "Reference ID", "regTm", "updateTm"]
 
 
 class Media(_MasterReport):
-    """네이버 검색광고 광고매체 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 광고매체 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Media"
     columns = [
         "Type", "ID", "Media name", "URL", "NAVER Ad Networks", "Portal Site",
@@ -238,13 +451,39 @@ class Media(_MasterReport):
 
 
 class Biz(_MasterReport):
-    """네이버 검색광고 업종코드 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 업종코드 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Biz"
     columns = ["ID", "BusinessName", "SuperBusinessId", "Level"]
 
 
 class ShoppingProduct(_MasterReport):
-    """네이버 검색광고 쇼핑검색 쇼핑몰상품형 상품 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑몰상품형 상품 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "ShoppingProduct"
     columns = [
         "Customer ID", "Ad Group ID", "Ad ID", "Ad Creative Inspect Status",
@@ -262,7 +501,20 @@ class ShoppingProduct(_MasterReport):
 
 
 class ContentsAd(_MasterReport):
-    """네이버 검색광고 파워컨텐츠 소재 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 파워컨텐츠 소재 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "ContentsAd"
     columns = [
         "Customer ID", "Ad Group ID", "Ad ID", "Ad Creative Inspect Status",
@@ -273,7 +525,20 @@ class ContentsAd(_MasterReport):
 
 
 class CatalogAd(_MasterReport):
-    """네이버 검색광고 쇼핑검색 제품카탈로그형 상품 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 제품카탈로그형 상품 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "CatalogAd"
     columns = [
         "Customer ID", "Ad Group ID", "Ad ID", "Ad Creative Inspect Status",
@@ -290,7 +555,20 @@ class CatalogAd(_MasterReport):
 
 
 class ProductGroup(_MasterReport):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품그룹 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품그룹 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "ProductGroup"
     columns = [
         "Customer ID", "Product group ID", "Business channel ID", "Name",
@@ -300,7 +578,20 @@ class ProductGroup(_MasterReport):
 
 
 class ProductGroupRel(_MasterReport):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품그룹관계 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품그룹관계 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "ProductGroupRel"
     columns = [
         "Customer ID", "Product Group Relation ID", "Product Group ID",
@@ -309,7 +600,20 @@ class ProductGroupRel(_MasterReport):
 
 
 class BrandAd(_MasterReport):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 소재 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 소재 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "BrandAd"
     columns = [
         "Customer ID", "Ad Group ID", "Ad ID", "Ad Creative Inspect Status",
@@ -319,7 +623,20 @@ class BrandAd(_MasterReport):
 
 
 class BrandThumbnailAd(_MasterReport):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 썸네일소재 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 썸네일소재 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "BrandThumbnailAd"
     columns = [
         "Customer ID", "Ad Group ID", "Ad ID", "Ad Creative Inspect Status",
@@ -330,7 +647,20 @@ class BrandThumbnailAd(_MasterReport):
 
 
 class BrandBannerAd(_MasterReport):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 배너소재 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 배너소재 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "BrandBannerAd"
     columns = [
         "Customer ID", "Ad Group ID", "Ad ID", "Ad Creative Inspect Status",
@@ -340,7 +670,20 @@ class BrandBannerAd(_MasterReport):
 
 
 class MasterCriterion(_MasterReport):
-    """네이버 검색광고 타겟팅 대상 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 타겟팅 대상 마스터 데이터를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "Criterion"
     columns = [
         "Customer ID", "Dictionary code", "Type", "Owner ID", "Bid_weight",
@@ -349,12 +692,37 @@ class MasterCriterion(_MasterReport):
 
 
 class MasterAd(_MasterReport):
-    """모든 소재 유형의 네이버 검색광고 마스터 데이터를 일괄 다운로드하는 클래스."""
+    """모든 소재 유형의 네이버 검색광고 마스터 데이터를 일괄 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = None
 
     @NaverSearchAdApi.with_session
     def extract(self, from_date: dt.date | str | None = None) -> JsonObject | dict[str, str]:
-        """모든 소재 유형의 마스터 데이터를 일괄 다운로드하여 `{보고서_유형: 엑셀_바이너리}` 형식으로 반환한다.."""
+        """모든 소재 유형의 마스터 보고서를 생성하고 TSV 형식으로 다운로드 받는다.
+
+        Parameters
+        ----------
+        from_date: dt.date | str | None
+            조회 기간. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.   
+            해당 날짜부터 현재까지 변경분을 포함한다. 생략 시 현재 시점 (기본값)
+
+        Returns
+        -------
+        dict[str, str]
+            `{보고서 유형: TSV 텍스트}` 형식의 마스터 보고서 다운로드 결과
+        """
         tsv_data = dict()
         for report_type in [
                 "Ad", "ContentsAd", "ShoppingProduct", "ProductGroup", "ProductGroupRel",
@@ -371,12 +739,31 @@ class MasterAd(_MasterReport):
 class _StatReport(_ReportsDownload):
     """네이버 검색광고 API로 대용량 보고서를 다운로드하는 공통 클래스.
 
-    광고성과, 전환 등 각 유형(`report_type`)별 대용량 보고서를 TSV 형식으로 조회한다.
-    - API 문서: https://naver.github.io/searchad-apidoc/#/tags/StatReport
+    - **Menu**: 보고서 > 대용량 다운로드 보고서 > 대용량 보고서 다운로드
+    - **Docs**: https://naver.github.io/searchad-apidoc/#/tags/StatReport
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/sa/reports-download
+
+    보고서 생성 → 상태 폴링 → 다운로드 → 삭제 순서로 워크플로우를 실행한다.
+    1. **create**: POST https://api.searchad.naver.com/stat-reports
+    2. **list**: GET https://api.searchad.naver.com/stat-reports
+    3. **get**: GET https://api.searchad.naver.com/stat-reports/{reportJobId}
+    4. **delete**: DELETE https://api.searchad.naver.com/stat-reports
 
     주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
     - 공지사항 참고:
-    [[2026-02-11] STAT-REPORT 변경사항 안내 (COST 항목)(수정)](https://naver.github.io/searchad-apidoc/#/notice)"""
+    [[2026-02-11] STAT-REPORT 변경사항 안내 (COST 항목)(수정)](https://naver.github.io/searchad-apidoc/#/notice)
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
 
     job_type = "stat-reports"
 
@@ -392,7 +779,18 @@ class _StatReport(_ReportsDownload):
 
     @NaverSearchAdApi.with_session
     def extract(self, date: dt.date | str) -> JsonObject | str:
-        """마스터 보고서를 생성하고 TSV 형식의 보고서를 다운로드 받는다. 다운로드 후 생성된 보고서를 삭제한다."""
+        """대용량 보고서를 생성하고 TSV 형식으로 다운로드 받는다. 다운로드 후 생성된 보고서를 삭제한다.
+
+        Parameters
+        ----------
+        date: dt.date | str | None
+            조회 일자. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+
+        Returns
+        -------
+        str
+            TSV 형식의 대용량 보고서 다운로드 결과
+        """
         tsv_data = self._extract_backend(self.report_type, date=date)
         return self.parse(tsv_data)
 
@@ -403,7 +801,20 @@ class _StatReport(_ReportsDownload):
 
 
 class AdStat(_StatReport):
-    """네이버 검색광고 광고성과 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 광고성과 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "AD"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID",
@@ -415,7 +826,20 @@ class AdStat(_StatReport):
 
 
 class AdStatDetail(_StatReport):
-    """네이버 검색광고 광고성과 상세 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 광고성과 상세 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "AD_DETAIL"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID",
@@ -427,7 +851,20 @@ class AdStatDetail(_StatReport):
 
 
 class AdConversion(_StatReport):
-    """네이버 검색광고 전환 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 전환 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "AD_CONVERSION"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID",
@@ -438,7 +875,20 @@ class AdConversion(_StatReport):
 
 
 class AdConversionDetail(_StatReport):
-    """네이버 검색광고 전환 상세 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 전환 상세 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "AD_CONVERSION_DETAIL"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID",
@@ -450,7 +900,20 @@ class AdConversionDetail(_StatReport):
 
 
 class AdExtension(_StatReport):
-    """네이버 검색광고 확장소재광고 성과 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 확장소재광고 성과 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "ADEXTENSION"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID", "AD Keyword ID",
@@ -462,7 +925,20 @@ class AdExtension(_StatReport):
 
 
 class AdExtensionConversion(_StatReport):
-    """네이버 검색광고 확장소재 전환 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 확장소재 전환 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "ADEXTENSION_CONVERSION"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID", "AD Keyword ID",
@@ -474,7 +950,20 @@ class AdExtensionConversion(_StatReport):
 
 
 class ExpKeyword(_StatReport):
-    """네이버 검색광고 파워링크 검색어 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 파워링크 검색어 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "EXPKEYWORD"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID",
@@ -485,7 +974,20 @@ class ExpKeyword(_StatReport):
 
 
 class ShoppingKeywordDetail(_StatReport):
-    """네이버 검색광고 쇼핑검색 검색어 상세 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 검색어 상세 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "SHOPPINGKEYWORD_DETAIL"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID",
@@ -497,7 +999,20 @@ class ShoppingKeywordDetail(_StatReport):
 
 
 class ShoppingKeywordConversionDetail(_StatReport):
-    """네이버 검색광고 쇼핑검색 검색어 전환 상세 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 검색어 전환 상세 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "SHOPPINGKEYWORD_CONVERSION_DETAIL"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID",
@@ -509,7 +1024,20 @@ class ShoppingKeywordConversionDetail(_StatReport):
 
 
 class ShoppingBrandProduct(_StatReport):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품별 성과 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품별 성과 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "SHOPPINGBRANDPRODUCT"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID", "NV_MID",
@@ -520,7 +1048,20 @@ class ShoppingBrandProduct(_StatReport):
 
 
 class ShoppingBrandProductConversion(_StatReport):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품별 전환 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품별 전환 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "SHOPPINGBRANDPRODUCT_CONVERSION"
     columns = [
         "Date", "CUSTOMER ID", "Campaign ID", "AD Group ID", "NV_MID",
@@ -531,7 +1072,20 @@ class ShoppingBrandProductConversion(_StatReport):
 
 
 class Criterion(_StatReport):
-    """네이버 검색광고 타게팅 성과 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 타게팅 성과 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "CRITERION"
     columns = [
         "Date", "CUSTOMER ID", "Criterion ID", "PC Mobile Type",
@@ -541,7 +1095,20 @@ class Criterion(_StatReport):
 
 
 class CriterionConversion(_StatReport):
-    """네이버 검색광고 타게팅 전환 보고서를 다운로드하는 클래스."""
+    """네이버 검색광고 타게팅 전환 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+    """
+
     report_type = "CRITERION_CONVERSION"
     columns = [
         "Date", "CUSTOMER ID", "Criterion ID", "PC Mobile Type",
@@ -551,13 +1118,30 @@ class CriterionConversion(_StatReport):
 
 
 class AdvancedReport(_StatReport):
-    """다차원 보고서의 바탕이 되는 광고성과 및 전환 보고서를 다운로드하는 클래스."""
+    """다차원 보고서의 바탕이 되는 광고성과 및 전환 보고서를 다운로드하는 클래스.
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    api_key: str
+        SA API 엑세스라이선스
+    secret_key: str
+        SA API 비밀키
+    customer_id: int | str
+        광고계정의 CUSTOMER_ID
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
+
     report_type = None
     MAX_LOOKBACK_DAYS = 365
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 1}}
+    default_options = {"RequestEach": {"request_delay": 1}}
 
     @NaverSearchAdApi.with_session
     def extract(
@@ -565,7 +1149,21 @@ class AdvancedReport(_StatReport):
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         ) -> JsonObject | list[dict[str, str]]:
-        """광고성과 및 전환 보고서를 다운로드하여 `{보고서_유형: 엑셀_바이너리}` 형식으로 반환한다."""
+        """광고성과 및 전환 보고서를 일 단위로 생성하고 TSV 형식으로 다운로드 받는다.
+
+        Parameters
+        ----------
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+
+        Returns
+        -------
+        dict[str, str]
+            `{보고서 유형: TSV 텍스트}` 형식의 대용량 보고서 다운로드 결과
+        """
         return (self.request_each(self.request_daily_report)
                 .partial(customer_id=self.customer_id)
                 .expand(date=self.generate_date_range(start_date, end_date, freq='D'))

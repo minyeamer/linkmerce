@@ -75,6 +75,11 @@ class CoupangLogin(LoginHandler):
             로그인할 판매자 계정의 도메인
                 - `"wing"`: 쿠팡 Wing
                 - `"supplier"`: 쿠팡 서플라이어 허브
+
+        Returns
+        -------
+        str
+            쿠팡 Wing 또는 서플라이어 로그인 쿠키
         """
         self.origin = f"https://{domain}.coupang.com"
         self.vendor_login(userid, passwd)

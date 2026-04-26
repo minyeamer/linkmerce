@@ -133,6 +133,11 @@ def get_2fa_code(
         인증 메일 수신을 기다릴 시간(초). 기본값은 290(4분 50초)이고, 최대 유효시간은 5분이다.
     wait_interval: int
         인증 메일이 도착했는지 확인하기 위해 GET 요청을 보내는 간격(초). 기본값은 1(초)다.
+
+    Returns
+    -------
+    str
+        2단계 인증 코드
     """
     from linkmerce.utils.headers import build_headers
     import requests

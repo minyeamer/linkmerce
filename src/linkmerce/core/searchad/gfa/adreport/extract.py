@@ -12,19 +12,40 @@ if TYPE_CHECKING:
 class _MasterReport(SearchAdGfa):
     """네이버 성과형 디스플레이 광고 리포트를 조회하는 공통 클래스.
 
-    `RequestEachPages` Task를 사용하여 캠페인, 광고그룹, 소재 목록을 조회한다."""
+    - **URL**: https://ads.naver.com
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        페이지별 요청 간 대기 시간. 기본값은 `0.3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        매개변수별 요청 간 대기 시간. 기본값은 `0.3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     report_type: Literal["Campaign", "AdSet", "Creative"]
     method = "GET"
     max_page_size = 100
     page_start = 0
-
-    @property
-    def default_options(self) -> dict:
-        return {
-            "PaginateAll": {"request_delay": 0.3},
-            "RequestEachPages": {"request_delay": 0.3},
-        }
+    default_options = {
+        "PaginateAll": {"request_delay": 0.3},
+        "RequestEachPages": {"request_delay": 0.3},
+    }
 
     def count_total(self, response: JsonObject, **kwargs) -> int:
         """HTTP 응답에서 전체 항목 수를 추출한다."""
@@ -32,7 +53,35 @@ class _MasterReport(SearchAdGfa):
 
 
 class Campaign(_MasterReport):
-    """네이버 성과형 디스플레이 광고 캠페인 목록을 상태(`status`)별로 조회하는 클래스."""
+    """네이버 성과형 디스플레이 광고 캠페인 목록을 조회하는 클래스.
+
+    - **Menu**: 디스플레이 광고 > 광고 관리
+    - **API**: https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/campaigns
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/da/campaigns-by/{campaign_type}
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        페이지별 요청 간 대기 시간. 기본값은 `0.3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        매개변수별 요청 간 대기 시간. 기본값은 `0.3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     report_type = "Campaign"
     version = "v1.2"
@@ -44,7 +93,20 @@ class Campaign(_MasterReport):
             status: Sequence[Literal["RUNNABLE", "DELETED"]] = ["RUNNABLE", "DELETED"],
             **kwargs
         ) -> JsonObject:
-        """캠페인 목록을 상태(`status`)별로 조회해 JSON 형식으로 반환한다."""
+        """캠페인 목록을 상태별로 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        status: Sequence[str]
+            캠페인 상태 목록
+                - `"RUNNABLE"`: 운영가능
+                - `"DELETED"`: 삭제
+
+        Returns
+        -------
+        list[dict]
+            캠페인 목록
+        """
         return (self.request_each_pages(self.request_json_safe)
                 .expand(status=status)
                 .all_pages(self.count_total, self.max_page_size, self.page_start)
@@ -76,7 +138,35 @@ class Campaign(_MasterReport):
 
 
 class AdSet(_MasterReport):
-    """네이버 성과형 디스플레이 광고그룹 목록을 상태(`status`)별로 조회하는 클래스."""
+    """네이버 성과형 디스플레이 광고 그룹 목록을 조회하는 클래스.
+
+    - **Menu**: 디스플레이 광고 > 광고 관리 > 캠페인
+    - **API**: https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/adSets
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/da/dashboard/campaign/{campaign_id}
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        페이지별 요청 간 대기 시간. 기본값은 `0.3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        매개변수별 요청 간 대기 시간. 기본값은 `0.3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     report_type = "AdSet"
     version = "v1.2"
@@ -88,7 +178,23 @@ class AdSet(_MasterReport):
             status: Sequence[Literal["ALL", "RUNNABLE", "BEFORE_STARTING", "TERMINATED", "DELETED"]] = ["ALL", "DELETED"],
             **kwargs
         ) -> JsonObject:
-        """광고그룹 목록을 상태(`status`)별로 조회해 JSON 형식으로 반환한다."""
+        """광고 그룹 목록을 상태별로 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        status: Sequence[str]
+            광고 그룹 상태 목록
+                - `"ALL"`: 모든 상태
+                - `"RUNNABLE"`: 운영가능
+                - `"BEFORE_STARTING"`: 광고집행전
+                - `"TERMINATED"`: 광고집행종료
+                - `"DELETED"`: 삭제
+
+        Returns
+        -------
+        list[dict]
+            광고 그룹 목록
+        """
         return (self.request_each_pages(self.request_json_safe)
                 .partial(account_no=self.account_no)
                 .expand(status=status)
@@ -114,7 +220,7 @@ class AdSet(_MasterReport):
 
     @property
     def status(self) -> dict[str, str]:
-        """광고그룹 상태 매핑을 반환한다."""
+        """광고 그룹 상태 매핑을 반환한다."""
         return {"RUNNABLE": "운영가능", "BEFORE_STARTING": "광고집행전", "TERMINATED": "광고집행종료"}
 
     @property
@@ -142,7 +248,35 @@ class AdSet(_MasterReport):
 
 
 class Creative(_MasterReport):
-    """네이버 성과형 디스플레이 광고 소재 목록을 상태(`status`)별로 조회하는 클래스."""
+    """네이버 성과형 디스플레이 광고 소재 목록을 조회하는 클래스.
+
+    - **Menu**: 디스플레이 광고 > 광고 관리 > 캠페인 > 광고 그룹
+    - **API**: https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/creatives/draft/searchByKeyword
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/da/dashboard/campaign/{campaign_id}/assetGroup/{adset_id}
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        페이지별 요청 간 대기 시간. 기본값은 `0.3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        매개변수별 요청 간 대기 시간. 기본값은 `0.3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     report_type = "Creative"
     version = "v1"
@@ -154,7 +288,25 @@ class Creative(_MasterReport):
             status: Sequence[Literal["ALL", "PENDING", "REJECT", "ACCEPT", "PENDING_IN_OPERATION", "REJECT_IN_OPERATION", "DELETED"]] = ["ALL", "DELETED"],
             **kwargs
         ) -> JsonObject:
-        """소재 목록을 상태(`status`)별로 조회해 JSON 형식으로 반환한다."""
+        """소재 목록을 검수 상태별로 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        status: Sequence[str]
+            소재 검수 상태 목록
+                - `"ALL"`: 모든 상태
+                - `"PENDING"`: 검수중
+                - `"REJECT"`: 반려
+                - `"ACCEPT"`: 승인
+                - `"PENDING_IN_OPERATION"`: 승인 (수정사항 검수중)
+                - `"REJECT_IN_OPERATION"`: 승인 (수정사항 반려)
+                - `"DELETED"`: 삭제
+
+        Returns
+        -------
+        list[dict]
+            소재 목록
+        """
         return (self.request_each_pages(self.request_json_safe)
                 .partial(account_no=self.account_no)
                 .expand(status=status)
@@ -194,9 +346,21 @@ class Creative(_MasterReport):
 
 
 class PerformanceReport(SearchAdGfa):
-    """네이버 성과형 디스플레이 광고 성과 리포트를 다운로드하는 클래스.
+    """네이버 성과형 디스플레이 광고 성과 보고서를 다운로드하는 클래스.
 
-    날짜 범위를 최대 62일 단위로 분할하여 엑셀 리포트를 요청하고 다운로드한다."""
+    - **Menu**: 디스플레이 광고 > 보고서 > 성과 보고서 > 성과 보고서 > 다운로드 요청
+    - **API**: https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/report/downloads
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/da/report/performance
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+    """
 
     date_format = "%Y-%m-%d"
     version = "v1"
@@ -215,7 +379,48 @@ class PerformanceReport(SearchAdGfa):
             progress: bool = True,
             **kwargs
         ) -> dict[str, bytes]:
-        """성과 리포트를 생성하고 엑셀 파일로 다운로드한다."""
+        """성과 보고서를 생성하고 엑셀 파일로 다운로드한다.
+
+        날짜 범위를 최대 60일 단위로 분할하여 보고서를 요청하고, 다운로드한 보고서는 삭제한다.
+
+        Parameters
+        ----------
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        date_type: Literal[str]
+            기간 단위
+                - `"TOTAL"`: 전체
+                - `"DAY"`: 일 (기본값)
+                - `"WEEK"`: 주
+                - `"MONTH"`: 월
+                - `"HOUR"`: 시간
+        columns: list[str] | Literal[":default:"]
+            열 맞춤 설정
+                - `":default:"`: `db_columns` 속성 (기본값)
+        ad_unit: Literal[str]
+            분석 단위
+                - `"AD_ACCOUNT"`: 광고 계정
+                - `"CAMPAIGN"`: 캠페인
+                - `"AD_SET"`: 광고 그룹
+                - `"ASSET_GROUP"`: 애셋 그룹
+                - `"CREATIVE"`: 광고 소재
+        wait_seconds: int
+            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
+            시간 내 보고서가 생성 완료되지 않으면 `RequestError`를 발생시킨다.
+        wait_interval: int
+            보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
+        progress: bool
+            다운로드 진행도 출력 여부. 기본값은 `True`
+
+        Returns
+        -------
+        dict[str, str]
+            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과.   
+            파일명은 `ReportDownload_aa_{account_no}_PERFORMANCE_{start_date}_{end_date}.csv` 형식을 따른다.
+        """
         columns = self.db_columns if columns == ":default:" else columns
         dates = self.generate_date_range(start_date, end_date=end_date)
         return self.download(columns, dates, date_type, ad_unit, wait_seconds, wait_interval, progress)
@@ -263,7 +468,7 @@ class PerformanceReport(SearchAdGfa):
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         ) -> list[tuple[dt.date, dt.date]]:
-        """분석 기간 단위가 '일'인 경우, 요청 당 조회 기간은 최대 62일로 제한한다."""
+        """분석 기간 단위가 '일'인 경우, 요청 당 조회 기간은 최대 60일로 제한한다."""
         from linkmerce.utils.date import date_split
         end_date = start_date if end_date == ":start_date:" else end_date
         return date_split(start_date, end_date, delta={"days": 60}, format=self.date_format)
@@ -374,7 +579,21 @@ class PerformanceReport(SearchAdGfa):
 
 
 class CampaignReport(PerformanceReport):
-    """네이버 성과형 디스플레이 광고 캠페인 성과 리포트를 다운로드하는 클래스."""
+    """네이버 성과형 디스플레이 광고 캠페인 성과 보고서를 다운로드하는 클래스.
+
+    - **Menu**: 디스플레이 광고 > 보고서 > 성과 보고서 > 성과 보고서 > 캠페인 > 다운로드 요청
+    - **API**: https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/report/downloads
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/da/report/performance
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+    """
 
     def extract(
             self,
@@ -387,7 +606,40 @@ class CampaignReport(PerformanceReport):
             progress: bool = True,
             **kwargs
         ) -> dict[str, bytes]:
-        """캠페인 성과 리포트를 다운로드한다."""
+        """캠페인 성과 보고서를 생성하고 엑셀 파일로 다운로드한다.
+
+        날짜 범위를 최대 60일 단위로 분할하여 보고서를 요청하고, 다운로드한 보고서는 삭제한다.
+
+        Parameters
+        ----------
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        date_type: Literal[str]
+            기간 단위
+                - `"TOTAL"`: 전체
+                - `"DAY"`: 일 (기본값)
+                - `"WEEK"`: 주
+                - `"MONTH"`: 월
+                - `"HOUR"`: 시간
+        columns: list[str] | Literal[":default:"]
+            열 맞춤 설정
+                - `":default:"`: 총비용, 노출수, 클릭수, 총 전환수, 총 전환매출액
+        wait_seconds: int
+            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
+            시간 내 보고서가 생성 완료되지 않으면 `RequestError`를 발생시킨다.
+        wait_interval: int
+            보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
+        progress: bool
+            다운로드 진행도 출력 여부. 기본값은 `True`
+
+        Returns
+        -------
+        dict[str, bytes]
+            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과
+        """
         return super().extract(
             start_date, end_date, date_type, columns, "CAMPAIGN", wait_seconds, wait_interval, progress, **kwargs)
 
@@ -398,7 +650,21 @@ class CampaignReport(PerformanceReport):
 
 
 class CreativeReport(PerformanceReport):
-    """네이버 성과형 디스플레이 광고 소재 성과 리포트를 다운로드하는 클래스."""
+    """네이버 성과형 디스플레이 광고 소재 성과 보고서를 다운로드하는 클래스.
+
+    - **Menu**: 디스플레이 광고 > 보고서 > 성과 보고서 > 성과 보고서 > 광고 소재 > 다운로드 요청
+    - **API**: https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/report/downloads
+    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/da/report/performance
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+    """
 
     def extract(
             self,
@@ -411,7 +677,40 @@ class CreativeReport(PerformanceReport):
             progress: bool = True,
             **kwargs
         ) -> dict[str, bytes]:
-        """소재 성과 리포트를 다운로드한다."""
+        """광고 소재 성과 보고서를 생성하고 엑셀 파일로 다운로드한다.
+
+        날짜 범위를 최대 60일 단위로 분할하여 보고서를 요청하고, 다운로드한 보고서는 삭제한다.
+
+        Parameters
+        ----------
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        date_type: Literal[str]
+            기간 단위
+                - `"TOTAL"`: 전체
+                - `"DAY"`: 일 (기본값)
+                - `"WEEK"`: 주
+                - `"MONTH"`: 월
+                - `"HOUR"`: 시간
+        columns: list[str] | Literal[":default:"]
+            열 맞춤 설정
+                - `":default:"`: 총비용, 노출수, 클릭수, 총 전환수, 총 전환매출액
+        wait_seconds: int
+            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
+            시간 내 보고서가 생성 완료되지 않으면 `RequestError`를 발생시킨다.
+        wait_interval: int
+            보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
+        progress: bool
+            다운로드 진행도 출력 여부. 기본값은 `True`
+
+        Returns
+        -------
+        dict[str, bytes]
+            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과
+        """
         return super().extract(
             start_date, end_date, date_type, columns, "CREATIVE", wait_seconds, wait_interval, progress, **kwargs)
 
