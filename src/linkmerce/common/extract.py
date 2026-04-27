@@ -51,7 +51,19 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
             cookies: str | dict | None = None,
             headers: Headers | None = None,
         ):
-        """HTTP 세션 객체 및 요청 헤더를 초기화한다. `per_request`는 HTTP 요청마다 세션 객체를 생성한다."""
+        """HTTP 세션 객체 및 요청 헤더를 초기화한다.
+
+        Parameters
+        ----------
+        session: Literal["per_request"] | Session | ClientSession
+            - `"per_request"`: HTTP 요청마다 세션 객체를 생성한다. (기본값)
+            - `requests.Session()`: 동기 세션 객체
+            - `aiohttp.ClientSession()`: 비동기 세션 객체
+        cookies: str | dict | None
+            세션에 저장할 쿠키를 `"키=값"` 형태의 문자열 또는 `{키: 값}` 형태의 딕셔너리로 입력할 수 있다.
+        headers: Headers | None
+            HTTP 요청 헤더를 입력할 수 있다.
+        """
         self.set_session(session)
         self.set_cookies(cookies)
         self.set_request_params()
@@ -439,7 +451,16 @@ class TaskClient(Client):
     default_options: TaskOptions | None = None
 
     def __init__(self, options: TaskOptions | None = None, parser: Callable | None = None):
-        """Task 옵션과 파서 함수를 초기화한다."""
+        """Task 옵션과 파서 함수를 초기화한다.
+
+        Parameters
+        ----------
+        options: TaskOptions | None
+            각각의 Task에 대한 옵션을 `{Task: 옵션}` 형태로 입력할 수 있다.   
+            옵션 생략 시 `default_options` 속성으로 대체한다.
+        parser: Callable | None
+            Task에서 호출할 파서 함수를 입력할 수 있다.
+        """
         self.set_options(options or self.default_options or dict())
         self.set_parser(parser)
 
@@ -767,13 +788,28 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         ):
         """HTTP 요청 및 응답 데이터 파싱을 위한 속성을 초기화한다.
 
-        Args:
-            `session`: HTTP 세션 객체, 또는 `per_request` 설정 시 `extract` 메서드 실행마다 세션을 동적으로 생성.
-            `cookies`: HTTP 세션 객체에 추가할 쿠키. (또는 헤더에 넣어 전달할 수 있다.)
-            `headers`: 기본 HTTP 요청 헤더.
-            `options`: Task 생성 시 적용할 속성.
-            `configs`: HTTP 요청 중 사용할 설정.
-            `parser`: 페이지 별 요청 결과에 적용할 파서 함수."""
+        **NOTE** HTTP 요청을 위해 `configs`, `cookies`, `options`에   
+        필수 또는 선택적으로 입력할 수 있는 항목은 각각의 클래스 docstring을 참고한다.
+
+        Parameters
+        ----------
+        session: Literal["per_request"] | Session | ClientSession
+            - `"per_request"`: HTTP 요청마다 세션 객체를 생성한다. (기본값)
+            - `requests.Session()`: 동기 세션 객체
+            - `aiohttp.ClientSession()`: 비동기 세션 객체
+        cookies: str | dict | None
+            세션에 저장할 쿠키를 `"키=값"` 형태의 문자열 또는 `{키: 값}` 형태의 딕셔너리로 입력할 수 있다.
+        headers: Headers | None
+            HTTP 요청 헤더를 입력할 수 있다.
+        options: TaskOptions | None
+            각각의 Task에 대한 옵션을 `{Task: 옵션}` 형태로 입력할 수 있다.   
+            옵션 생략 시 `default_options` 속성으로 대체한다.
+        configs: Configs | None
+            사용자 정의 설정을 딕셔너리 형태로 입력할 수 있다.   
+            `config_fields` 속성에 필수 설정 항목을 지정할 수 있고, 해당 설정이 없으면 `KeyError`가 발생한다.
+        parser: Callable | None
+            Task에서 호출할 파서 함수를 입력할 수 있다.
+        """
         self.pre_init(**kwargs)
         self.set_configs(configs)
         SessionClient.__init__(self, session, cookies, headers)
