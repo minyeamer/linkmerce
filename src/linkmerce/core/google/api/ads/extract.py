@@ -73,10 +73,10 @@ class GoogleAds(GoogleApi):
         Parameters
         ----------
         start_date: dt.date | str | None
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.   
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
             시작일을 지정하면 `date_range`는 무시된다. 기본값은 `None`
         end_date: dt.date | str | None
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.   
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
             종료일을 지정하면 `date_range`는 무시된다. 기본값은 `None`
         date_range: str | None
             GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 전달되면 무시된다.   
@@ -345,10 +345,10 @@ class Insight(GoogleAds):
         Parameters
         ----------
         start_date: dt.date | str | None
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.   
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
             시작일을 지정하면 `date_range`는 무시된다. 기본값은 `None`
         end_date: dt.date | str | None
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.   
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
             종료일을 지정하면 `date_range`는 무시된다. 기본값은 `None`
         date_freq: Literal['D', 'W', 'M']
             조회 범위 및 데이터 집계 기간. 기본값은 `'D'`(일별)

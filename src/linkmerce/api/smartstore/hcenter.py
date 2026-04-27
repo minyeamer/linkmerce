@@ -31,7 +31,7 @@ def login(
 def brand_catalog(
         cookies: str,
         brand_ids: str | Iterable[str],
-        sort_type: Literal["popular", "recent", "price"] = "recent",
+        sort_type: Literal["popular", "recent", "count", "price"] = "recent",
         is_brand_catalog: bool | None = None,
         page: int | list[int] | None = 0,
         page_size: int = 100,

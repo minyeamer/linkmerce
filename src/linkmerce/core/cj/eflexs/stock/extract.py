@@ -57,16 +57,14 @@ class Stock(CjEflexs):
         Parameters
         ----------
         customer_id: int | str | Iterable
-            조회할 고객 ID. 여러 고객을 조회하려면 리스트로 전달한다.
-        start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
-                - `":last_week:"` 전달 시 오늘 기준 7일 전 날짜로 대체된다.
-                - 기본값은 `":last_week:"`
-        end_date: dt.date | str
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
-                - `":start_date:"` 전달 시 `start_date`와 동일한 날짜 값으로 대체된다.
-                - `":today:"` 전달 시 오늘 날짜로 대체된다.
-                - 기본값은 `":today:"`
+            조회할 고객 ID. 여러 고객을 조회하려면 리스트로 입력한다.
+        start_date: dt.date | str | Literal[":last_week:"]
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":last_week:"`: 오늘 기준 7일 전 날짜 (기본값)
+        end_date: dt.date | str | Literal[":start_date:", ":today:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜
+                - `":today:"`: 오늘 날짜 (기본값)
 
         Returns
         -------

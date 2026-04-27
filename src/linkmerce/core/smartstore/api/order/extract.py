@@ -10,18 +10,35 @@ if TYPE_CHECKING:
 
 
 class Order(SmartstoreApi):
-    """네이버 커머스 API로 조건형 상품 주문 상세 내역 조회 결과를 수집하는 클래스.
+    """네이버 커머스 API로 상품 주문 내역 조회 결과를 수집하는 클래스.
 
-    `RequestEachCursor` Task를 사용하여 일별 주문 데이터를 조회한다."""
+    - **Menu**: 판매관리 > 주문통합검색 (조건형 상품 주문 상세 내역 조회)
+    - **API**: https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders
+    - **Docs**: https://apicenter.commerce.naver.com/ko/basic/commerce-api
+    - **Referer**: https://sell.smartstore.naver.com/#/naverpay/manage/order
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    client_id: str
+        커머스 API 애플리케이션 ID
+    client_secret: str
+        커머스 API 애플리케이션 시크릿
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `CursorAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "GET"
     version = "v1"
     path = "/pay-order/seller/product-orders"
     date_format = "%Y-%m-%d"
-
-    @property
-    def default_options(self) -> dict:
-        return {"CursorAll": {"request_delay": 1}}
+    default_options = {"CursorAll": {"request_delay": 1}}
 
     @SmartstoreApi.with_session
     @SmartstoreApi.with_token
@@ -32,17 +49,47 @@ class Order(SmartstoreApi):
             range_type: str = "PAYED_DATETIME",
             product_order_status: Iterable[str] = list(),
             claim_status: Iterable[str] = list(),
-            place_order_status: str = list(),
+            place_order_status: str | None = None,
             page_start: int = 1,
             max_retries: int = 5,
             **kwargs
         ) -> JsonObject:
-        """일별 조건형 상품 주문 상세 내역 조회 결과를 수집해 JSON 형식으로 반환한다."""
-        partial = {"range_type": range_type, "product_order_status": product_order_status, "claim_status": claim_status, "place_order_status": place_order_status, "max_retries": max_retries}
+        """상품 주문 내역을 일별로 조회해 JSON 형식으로 반환한다.
 
+        Parameters
+        ----------
+        start_date: dt.date | str
+            조회 기준의 시작 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 기준의 종료 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        range_type: str
+            조회 기준 유형. `range_type` 속성의 키를 전달할 수 있다. 기본값은 결제 일시
+        product_order_status: Iterable[str]
+            상품 주문 상태 목록. `product_order_status` 속성의 키를 하나 이상 전달할 수 있다.
+        claim_status: Iterable[str]
+            클레임 상태 목록. `claim_status` 속성의 키를 하나 이상 전달할 수 있다.
+        place_order_status: str | None
+            발주 상태. `place_order_status` 속성의 키를 전달할 수 있다.
+        page_start: int
+            페이지 번호. 기본값은 `1`
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+
+        Returns
+        -------
+        dict
+            상품 주문 내역
+        """
         return (self.request_each_cursor(self.request_json_until_success)
-                .partial(**partial, channel_seq=kwargs.get("channel_seq"))
-                .expand(date=self.generate_date_range(start_date, end_date, freq='D'))
+                .partial(
+                    range_type = range_type,
+                    product_order_status = product_order_status,
+                    claim_status = claim_status,
+                    place_order_status = place_order_status,
+                    max_retries = max_retries,
+                    channel_seq = kwargs.get("channel_seq"),
+                ).expand(date=self.generate_date_range(start_date, end_date, freq='D'))
                 .all_cursor(self.get_next_cursor, next_cursor=page_start)
                 .run())
 
@@ -58,7 +105,7 @@ class Order(SmartstoreApi):
             range_type: str = "PAYED_DATETIME",
             product_order_status: Iterable[str] = list(),
             claim_status: Iterable[str] = list(),
-            place_order_status: str = list(),
+            place_order_status: str | None = None,
             next_cursor: int = 1,
             page_size: int = 300,
             **kwargs
@@ -69,14 +116,14 @@ class Order(SmartstoreApi):
             "rangeType": range_type,
             "productOrderStatuses": ','.join(product_order_status),
             "claimStatuses": ','.join(claim_status),
-            "placeOrderStatusType": place_order_status,
+            "placeOrderStatusType": (place_order_status or list()),
             "page": next_cursor,
             "pageSize": page_size,
         }
 
     @property
     def range_type(self) -> dict[str, str]:
-        """주문 조회 기간 유형 매핑을 반환한다."""
+        """조회 기준 유형 매핑을 반환한다."""
         return {
             "PAYED_DATETIME": "결제 일시", "ORDERED_DATETIME": "주문 일시", "DISPATCHED_DATETIME": "발송 처리 일시",
             "PURCHASE_DECIDED_DATETIME": "구매 확정 일시", "CLAIM_REQUESTED_DATETIME": "클레임 요청 일시",
@@ -86,7 +133,7 @@ class Order(SmartstoreApi):
 
     @property
     def product_order_status(self) -> dict[str, str]:
-        """상품주문 상태 코드별 한글 명칭 매핑을 반환한다."""
+        """상품 주문 상태 매핑을 반환한다."""
         return {
             "PAYMENT_WAITING": "결제 대기", "PAYED": "결제 완료", "DELIVERING": "배송 중", "DELIVERED": "배송 완료",
             "PURCHASE_DECIDED": "구매 확정", "EXCHANGED": "교환", "CANCELED": "취소", "RETURNED": "반품",
@@ -95,7 +142,7 @@ class Order(SmartstoreApi):
 
     @property
     def claim_status(self) -> dict[str, str]:
-        """클레임 상태 코드별 한글 명칭 매핑을 반환한다."""
+        """클레임 상태 매핑을 반환한다."""
         return {
             "CANCEL_REQUEST": "취소 요청", "CANCELING": "취소 처리 중", "CANCEL_DONE": "취소 처리 완료", "CANCEL_REJECT": "취소 철회",
             "RETURN_REQUEST": "반품 요청", "EXCHANGE_REQUEST": "교환 요청", "COLLECTING": "수거 처리 중", "COLLECT_DONE": "수거 완료",
@@ -107,23 +154,40 @@ class Order(SmartstoreApi):
 
     @property
     def place_order_status(self) -> dict[str, str]:
-        """발주 상태 코드별 한글 명칭 매핑을 반환한다."""
+        """발주 상태 매핑을 반환한다."""
         return {"NOT_YET": "발주 미확인", "OK": "발주 확인", "CANCEL": "발주 확인 해제"}
 
 
 class OrderStatus(SmartstoreApi):
     """네이버 커머스 API로 변경 상품 주문 내역 조회 결과를 수집하는 클래스.
 
-    `RequestEachCursor` Task를 사용하여 일별 주문 변경 데이터를 조회한다."""
+    - **Menu**: 판매관리 > 주문통합검색 (변경 상품 주문 내역 조회)
+    - **API**: https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/last-changed-statuses
+    - **Docs**: https://apicenter.commerce.naver.com/docs/commerce-api/current/seller-get-last-changed-status-pay-order-seller
+    - **Referer**: https://sell.smartstore.naver.com/#/naverpay/manage/order
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    client_id: str
+        커머스 API 애플리케이션 ID
+    client_secret: str
+        커머스 API 애플리케이션 시크릿
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `CursorAll` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "GET"
     version = "v1"
     path = "/pay-order/seller/product-orders/last-changed-statuses"
     datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
-
-    @property
-    def default_options(self) -> dict:
-        return {"CursorAll": {"request_delay": 1}}
+    default_options = {"CursorAll": {"request_delay": 1}}
 
     @SmartstoreApi.with_session
     @SmartstoreApi.with_token
@@ -136,7 +200,27 @@ class OrderStatus(SmartstoreApi):
             max_retries: int = 5,
             **kwargs
         ) -> JsonObject:
-        """일별 변경 상품 주문 내역 조회 결과를 수집해 JSON 형식으로 반환한다."""
+        """변경 상품 주문 내역을 일별로 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        start_date: dt.date | str
+            조회 기준의 시작 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 기준의 종료 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        last_changed_type: str | None
+            최종 변경 구분. `last_changed_type` 속성의 키를 전달할 수 있다.
+        channel_seq: int | str | None
+            채널 번호. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+
+        Returns
+        -------
+        dict
+            변경 상품 주문 내역
+        """
         return (self.request_each_cursor(self.request_json_until_success)
                 .partial(last_changed_type=last_changed_type, channel_seq=channel_seq, max_retries=max_retries)
                 .expand(date=self.generate_date_range(start_date, end_date, freq='D'))
@@ -168,7 +252,7 @@ class OrderStatus(SmartstoreApi):
 
     @property
     def last_changed_type(self) -> dict[str, str]:
-        """상태 변경 유형별 한글 명칭 매핑을 반환한다."""
+        """최종 변경 구분 매핑을 반환한다."""
         return {
             "PAY_WAITING": "결제대기", "PAYED": "결제완료", "EXCHANGE_OPTION": "옵션변경", "DELIVERY_ADDRESS_CHANGED": "배송지변경",
             "GIFT_RECEIVED": "선물수락", "CLAIM_REJECTED": "클레임철회", "DISPATCHED": "발송처리", "CLAIM_REQUESTED": "클레임요청",

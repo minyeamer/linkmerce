@@ -51,7 +51,7 @@ class Inventory(EcountApi):
         Parameters
         ----------
         base_date: dt.date | str | Literal[":today:"]
-            조회 기준일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+            조회 기준일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":today:"` 전달 시 오늘 날짜로 대체된다.
                 - 기본값은 `":today:"`
         warehouse_code: str | None

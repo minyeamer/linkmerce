@@ -96,9 +96,9 @@ class _AdObjects(MetaAds):
         Parameters
         ----------
         start_date : dt.date | str | None
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다. 기본값은 `None`
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
         end_date : dt.date | str | None
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다. 기본값은 `None`
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
         account_ids : Sequence[str]
             조회할 광고 계정 ID 목록. 생략 시 사용 가능한 모든 계정을 조회한다.
         fields : Sequence[str]
@@ -281,10 +281,10 @@ class Insights(MetaAds):
                 - `"adset"`: 광고세트
                 - `"ad"`: 광고
         start_date : dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
         end_date : dt.date | str | Literal[":start_date:"]
-            조회 종료일. `":start_date:"` 전달 시 `start_date`와 동일한 날짜로 대체된다.
-            기본값은 `":start_date:"`
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type : Literal["daily", "total"]
             보고서 기간 구분
                 - `"total"`: 합계

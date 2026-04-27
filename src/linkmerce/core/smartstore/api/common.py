@@ -6,45 +6,39 @@ import functools
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import Configs, JsonObject
+    from linkmerce.common.extract import JsonObject
 
 
 class SmartstoreApi(Extractor):
     """네이버 커머스 API 요청을 처리하는 공통 클래스.
 
-    API 요청을 위해 `client_id`와 `client_secret`이 필요하다."""
+    - **Docs**: https://apicenter.commerce.naver.com/docs/commerce-api/current
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    client_id: str
+        커머스 API 애플리케이션 ID
+    client_secret: str
+        커머스 API 애플리케이션 시크릿
+    """
 
     method: str | None = None
     origin: str = "https://api.commerce.naver.com/external"
     version: str = "v1"
     path: str | None = None
-
-    def set_configs(self, configs: Configs = dict()):
-        try:
-            self.set_api_key(**configs)
-        except TypeError:
-            raise TypeError("Naver Commerce API requires configs for client_id and client_secret.")
-
-    def set_api_key(self, client_id: str, client_secret: str, **configs):
-        super().set_configs(dict(client_id=client_id, client_secret=client_secret, **configs))
+    config_fields = ["client_id", "client_secret"]
 
     @property
     def url(self) -> str:
         return self.concat_path(self.origin, self.version, self.path)
 
-    @property
-    def client_id(self) -> str:
-        return self.get_config("client_id")
-
-    @property
-    def client_secret(self) -> str:
-        return self.get_config("client_secret")
-
     def with_token(func):
         """API 요청 전 `client_id`와 `client_secret`를 사용해 OAuth 토큰을 발급받는 데코레이터."""
         @functools.wraps(func)
         def wrapper(self: SmartstoreApi, *args, **kwargs):
-            authorization = self.authorize(self.client_id, self.client_secret)
+            authorization = self.authorize(self.get_config("client_id"), self.get_config("client_secret"))
             self.set_request_headers(headers={"Authorization": f"Bearer {authorization}"})
             return func(self, *args, **kwargs)
         return wrapper
@@ -102,7 +96,19 @@ class SmartstoreApi(Extractor):
 
 
 class SmartstoreTestAPI(SmartstoreApi):
-    """지정된 커머스 API 경로에 대한 요청을 처리하는 클래스."""
+    """커머스 API 경로에 대한 요청을 처리하는 테스트 클래스.
+
+    - **Docs**: https://apicenter.commerce.naver.com/docs/commerce-api/current
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    client_id: str
+        커머스 API 애플리케이션 ID
+    client_secret: str
+        커머스 API 애플리케이션 시크릿
+    """
 
     @SmartstoreApi.with_session
     @SmartstoreApi.with_token
@@ -117,7 +123,30 @@ class SmartstoreTestAPI(SmartstoreApi):
             headers: dict[str, str] = None,
             **kwargs
         ) -> JsonObject:
-        """커머스 API 경로와 메시지를 전달하면 응답 결과를 JSON 형식으로 반환한다."""
+        """커머스 API 경로와 메시지를 전달하면 응답 결과를 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        method: str
+            HTTP 메서드
+        path: str
+            커머스 API 경로
+        version: str | None
+            커머스 API 버전
+        params: dict | list[tuple] | bytes | None
+            커머스 API 요청 파라미터
+        data: dict | list[tuple] | bytes | None
+            커머스 API 요청 본문
+        json: JsonObject | None
+            커머스 API 요청 본문 (JSON)
+        headers: dict[str, str]
+            커머스 API 요청 헤더
+
+        Returns
+        -------
+        dict
+            커머스 API 응답 결과
+        """
         url = self.concat_path(self.origin, version, path)
         message = self.build_request_message(method=method, url=url, **kwargs)
         if params is not None: message["params"] = params

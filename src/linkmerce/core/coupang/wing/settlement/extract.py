@@ -39,9 +39,9 @@ class Summary(CoupangWing):
         Parameters
         ----------
         start_from: str
-            기준일 시작. UTC 시간대 날짜를 ISO 8601 형식의 문자열로 전달한다.
+            기준일 시작. UTC 시간대 날짜를 ISO 8601 형식의 문자열로 입력한다.
         end_to: str
-            기준일 종료. UTC 시간대 날짜를 ISO 8601 형식의 문자열로 전달한다.
+            기준일 종료. UTC 시간대 날짜를 ISO 8601 형식의 문자열로 입력한다.
 
         Returns
         -------
@@ -86,10 +86,10 @@ class RocketSettlement(CoupangWing):
         Parameters
         ----------
         start_date: dt.date | str
-            기준일 시작. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+            기준일 시작. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
         end_date: dt.date | str | Literal[":start_date:"]
-            기준일 종료. `":start_date:"` 전달 시 `start_date`와 동일한 날짜로 대체된다.
-            기본값은 `":start_date:"`
+            기준일 종료. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type: Literal["PAYMENT", "SALES"]
             기준일 유형.
                 - `"PAYMENT"`: 정산일
@@ -168,10 +168,10 @@ class RocketSettlementDownload(RocketSettlement):
         Parameters
         ----------
         start_date: dt.date | str
-            기준일 시작. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
+            기준일 시작. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
         end_date: dt.date | str | Literal[":start_date:"]
-            기준일 종료. `":start_date:"` 전달 시 `start_date`와 동일한 날짜로 대체된다.
-            기본값은 `":start_date:"`.
+            기준일 종료. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type: Literal["PAYMENT", "SALES"]
             기준일 유형.
             - `"PAYMENT"`: 정산일

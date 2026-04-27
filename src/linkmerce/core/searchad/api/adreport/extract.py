@@ -139,7 +139,7 @@ class _MasterReport(_ReportsDownload):
         Parameters
         ----------
         from_date: dt.date | str | None
-            조회 기간. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.   
+            조회 기간. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
             해당 날짜부터 현재까지 변경분을 포함한다. 생략 시 현재 시점 (기본값)
 
         Returns
@@ -715,7 +715,7 @@ class MasterAd(_MasterReport):
         Parameters
         ----------
         from_date: dt.date | str | None
-            조회 기간. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.   
+            조회 기간. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
             해당 날짜부터 현재까지 변경분을 포함한다. 생략 시 현재 시점 (기본값)
 
         Returns
@@ -784,7 +784,7 @@ class _StatReport(_ReportsDownload):
         Parameters
         ----------
         date: dt.date | str | None
-            조회 일자. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 일자. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
 
         Returns
         -------
@@ -1154,9 +1154,9 @@ class AdvancedReport(_StatReport):
         Parameters
         ----------
         start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
         end_date: dt.date | str | Literal[":start_date:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
 
         Returns

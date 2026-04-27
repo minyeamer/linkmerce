@@ -66,7 +66,7 @@ class AdGroup(DuckDBTransformer):
     parser_config = _common_config(
         fields = {
             "campaign": ["id"],
-            "adGroup": ["id", "name", "type", "status", "targetCpaMicros"],
+            "adGroup": ["id", "name", {"type": None}, "status", "targetCpaMicros"],
             "metrics": ["impressions", "clicks", "costMicros"]
         },
     )

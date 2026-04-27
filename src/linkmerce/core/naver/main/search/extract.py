@@ -46,7 +46,7 @@ class Search(Extractor):
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어. 단일 또는 여러 개의 문자열을 전달한다.
+            검색어. 단일 또는 여러 개의 문자열 목록을 입력한다.
         mobile: bool
             PC/모바일 검색. 기본값은 `True`
         parse_html: bool
@@ -146,7 +146,7 @@ class SearchTab(Extractor):
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어. 단일 또는 여러 개의 문자열을 전달한다.
+            검색어. 단일 또는 여러 개의 문자열 목록을 입력한다.
         tab_type: str
             탭 구분
                 - `"image"`: 이미지

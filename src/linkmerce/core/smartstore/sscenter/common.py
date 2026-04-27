@@ -34,7 +34,11 @@ def has_cookies(session: Session) -> bool:
 ###################################################################
 
 class SmartstoreCenterLogin(LoginHandler):
-    """스마트스토어센터 로그인을 수행하여 쿠키를 발급하는 클래스."""
+    """네이버 스마트스토어센터 로그인을 수행하여 쿠키를 발급하는 클래스.
+
+    - **URL**: https://accounts.commerce.naver.com/login?url=https%3A%2F%2Fsell.smartstore.naver.com%2F%23%2Flogin-callback
+    """
+
     main_url = "https://sell.smartstore.naver.com"
     login_url = "https://accounts.commerce.naver.com"
 
@@ -47,7 +51,24 @@ class SmartstoreCenterLogin(LoginHandler):
             cookies: str | None = None,
             **kwargs
         ) -> dict:
-        """`userid`, `passwd`가 있다면 판매자 로그인을, `cookies`가 있다면 네이버 로그인을 진행한다."""
+        """스마트스토어센터 로그인 수행 후 2단계 인증을 처리한다.
+
+        Parameters
+        ----------
+        userid: str | None
+            스마트스토어센터 판매자 아이디/이메일
+        passwd: str | None
+            스마트스토어센터 판매자 비밀번호
+        channel_seq: int | str | None
+            채널 번호. 로그인 후 접속된 채널이 다르면 채널 번호에 맞는 채널로 전환한다.
+        cookies: str | None
+            네이버 로그인 쿠키. 판매자 아이디 로그인을 대체하여 네이버 아이디로 로그인한다.
+
+        Returns
+        -------
+        str
+            접속된 스토어(채널) 정보
+        """
         if userid and passwd:
             self.seller_login(userid, passwd)
         else:
@@ -217,7 +238,7 @@ class SmartstoreCenterLogin(LoginHandler):
     ########################## Switch Channel #########################
 
     def switch_channel(self, channel_seq: int | str) -> dict:
-        """현재 활성화된 채널을 조회하고, 주어진 `channel_seq`와 다르다면 교체한다."""
+        """현재 활성화된 채널을 조회하고, 주어진 채널 번호(`channel_seq`)와 다르다면 전환한다."""
         channel_info = self.select_channel(channel_seq)
         login_info = self.set_channel(**channel_info)
         url = login_info["redirectUrl"]
@@ -226,7 +247,7 @@ class SmartstoreCenterLogin(LoginHandler):
         return login_info
 
     def select_channel(self, channel_seq: int | str) -> dict:
-        """권한이 있는 채널 목록에서 `channel_seq`에 해당하는 채널 정보를 반환한다."""
+        """권한이 있는 채널 목록에서 채널 번호(`channel_seq`)에 해당하는 채널 정보를 반환한다."""
         for channel in self.fetch_channels():
             if channel["channelNo"] == int(channel_seq):
                 return channel
@@ -238,7 +259,7 @@ class SmartstoreCenterLogin(LoginHandler):
             return response.json()
 
     def set_channel(self, channelNo: int, roleNo: int, **kwargs) -> dict:
-        """주어진 채널 정보에 해당하는 채널로 교체한다."""
+        """주어진 채널 정보에 해당하는 채널로 전환한다."""
         from urllib.parse import quote_plus
         url = self.main_url + "/api/login/change-channel"
         body = {"channelNo": channelNo, "roleNo": roleNo, "url": url}

@@ -221,7 +221,7 @@ def order(
         range_type: str = "PAYED_DATETIME",
         product_order_status: Iterable[str] = list(),
         claim_status: Iterable[str] = list(),
-        place_order_status: str = list(),
+        place_order_status: str | None = None,
         page_start: int = 1,
         max_retries: int = 5,
         *,

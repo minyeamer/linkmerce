@@ -10,23 +10,45 @@ if TYPE_CHECKING:
 
 
 class _PageView(PartnerCenter):
-    """네이버 브랜드 스토어의 일별 페이지뷰 데이터를 조회하는 공통 클래스.
+    """네이버 브랜드 스토어의 방문 통계 데이터를 조회하는 공통 클래스.
 
-    `RequestEachLoop` Task를 사용하여 판매처번호(`mall_seq`)에 대한 GraphQL API 요청으로   
-    기기별/URL별 페이지뷰를 조회한다. 조회 기간은 최대 90일로 제한된다."""
+    **NOTE** 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
+    [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782) 참고 (~ v0.6.8)
+
+    - **Menu**: 브랜드 애널리틱스 > 스토어 트래픽 > 스토어 방문
+    - **API**: https://hcenter.shopping.naver.com/brand/content
+    - **Referer**: https://center.shopping.naver.com/brand-analytics/store
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestLoop` Task 옵션을 전달할 수 있다.
+
+    max_retries: int | None
+        최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
+    request_delay: Literal["incremental"] | float | int | tuple[int, int]
+        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/brand/content"
     date_format = "%Y-%m-%d"
     days_limit = 90
     aggregate_by: Literal["Device", "Url"]
-
-    @property
-    def default_options(self) -> dict:
-        return {
-            "RequestLoop": {"max_retries": 5, "ignored_errors": Exception},
-            "RequestEachLoop": {"request_delay": 1, "max_concurrent": 3},
-        }
+    default_options = {
+        "RequestLoop": {"max_retries": 5, "ignored_errors": Exception},
+        "RequestEachLoop": {"request_delay": 1, "max_concurrent": 3},
+    }
 
     def is_valid_response(self, response: JsonObject) -> bool:
         return isinstance(response, dict)
@@ -97,7 +119,35 @@ class _PageView(PartnerCenter):
 
 
 class PageViewByDevice(_PageView):
-    """네이버 브랜드 스토어의 일별/기기별 페이지뷰 데이터를 조회하는 클래스."""
+    """네이버 브랜드 스토어의 일별/기기별 방문 통계 데이터를 조회하는 클래스.
+
+    **NOTE** 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
+    [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782) 참고 (~ v0.6.8)
+
+    - **Menu**: 브랜드 애널리틱스 > 스토어 트래픽 > 스토어 방문
+    - **API**: https://hcenter.shopping.naver.com/brand/content
+    - **Referer**: https://center.shopping.naver.com/brand-analytics/store
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestLoop` Task 옵션을 전달할 수 있다.
+
+    max_retries: int | None
+        최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
+    request_delay: Literal["incremental"] | float | int | tuple[int, int]
+        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     aggregate_by = "Device"
 
@@ -109,7 +159,25 @@ class PageViewByDevice(_PageView):
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             **kwargs
         ) -> JsonObject:
-        """네이버 브랜드 스토어의 일별/기기별 페이지뷰 데이터를 동기 방식으로 순차 조회해 JSON 형식으로 반환한다."""
+        """네이버 브랜드 스토어(`mall_seq`)의 일별/기기별 방문 통계 데이터를 동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
+
+        **NOTE** 조회 기간은 최대 90일로 제한되고, 최대 2년 전까지의 데이터만 조회할 수 있다.
+
+        Parameters
+        ----------
+        mall_seq: str | Iterable[str]
+            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다. (브랜드 스토어만 허용)
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+
+        Returns
+        -------
+        dict | list[dict]
+            브랜드 스토어의 일별/기기별 방문 통계 데이터
+        """
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
         return (self.request_each_loop(self.request_json, context=context)
                 .expand(mall_seq=mall_seq)
@@ -124,7 +192,25 @@ class PageViewByDevice(_PageView):
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             **kwargs
         ) -> JsonObject:
-        """네이버 브랜드 스토어의 일별/기기별 페이지뷰 데이터를 비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다."""
+        """네이버 브랜드 스토어(`mall_seq`)의 일별/기기별 방문 통계 데이터를 비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다.
+
+        **NOTE** 조회 기간은 최대 90일로 제한되고, 최대 2년 전까지의 데이터만 조회할 수 있다.
+
+        Parameters
+        ----------
+        mall_seq: str | Iterable[str]
+            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다. (브랜드 스토어만 허용)
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+
+        Returns
+        -------
+        dict | list[dict]
+            브랜드 스토어의 일별/기기별 방문 통계 데이터
+        """
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
         return await (self.request_each_loop(self.request_async_json, context=context)
                 .expand(mall_seq=mall_seq)
@@ -133,7 +219,35 @@ class PageViewByDevice(_PageView):
 
 
 class PageViewByUrl(_PageView):
-    """네이버 브랜드 스토어의 일별/URL별 페이지뷰 데이터를 조회하는 클래스."""
+    """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 조회하는 클래스.
+
+    **NOTE** 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
+    [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782) 참고 (~ v0.6.8)
+
+    - **Menu**: 브랜드 애널리틱스 > 스토어 트래픽 > 스토어 방문
+    - **API**: https://hcenter.shopping.naver.com/brand/content
+    - **Referer**: https://center.shopping.naver.com/brand-analytics/store
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestLoop` Task 옵션을 전달할 수 있다.
+
+    max_retries: int | None
+        최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
+    request_delay: Literal["incremental"] | float | int | tuple[int, int]
+        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     aggregate_by = "Url"
     page_size = 10000
@@ -147,7 +261,25 @@ class PageViewByUrl(_PageView):
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             **kwargs
         ) -> JsonObject:
-        """네이버 브랜드 스토어의 일별/URL별 페이지뷰 데이터를 동기 방식으로 순차 조회해 JSON 형식으로 반환한다."""
+        """네이버 브랜드 스토어(`mall_seq`)의 일별/URL별 방문 통계 데이터를 동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
+
+        **NOTE** 조회 기간은 최대 90일로 제한되고, 최대 2년 전까지의 데이터만 조회할 수 있다.
+
+        Parameters
+        ----------
+        mall_seq: str | Iterable[str]
+            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다. (브랜드 스토어만 허용)
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+
+        Returns
+        -------
+        dict | list[dict]
+            브랜드 스토어의 일별/URL별 방문 통계 데이터
+        """
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
         return (self.request_each_loop(self.request_json, context=context)
                 .expand(mall_seq=mall_seq)
@@ -162,7 +294,25 @@ class PageViewByUrl(_PageView):
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             **kwargs
         ) -> JsonObject:
-        """네이버 브랜드 스토어의 일별/URL별 페이지뷰 데이터를 비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다."""
+        """네이버 브랜드 스토어(`mall_seq`)의 일별/URL별 방문 통계 데이터를 비동기 방식으로 벙렬 조회해 JSON 형식으로 반환한다.
+
+        **NOTE** 조회 기간은 최대 90일로 제한되고, 최대 2년 전까지의 데이터만 조회할 수 있다.
+
+        Parameters
+        ----------
+        mall_seq: str | Iterable[str]
+            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다. (브랜드 스토어만 허용)
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+
+        Returns
+        -------
+        dict | list[dict]
+            브랜드 스토어의 일별/URL별 방문 통계 데이터
+        """
         context = self.split_date_context(start_date, end_date, delta=self.days_limit, format=self.date_format)
         return await (self.request_each_loop(self.request_async_json, context=context)
                 .expand(mall_seq=mall_seq)

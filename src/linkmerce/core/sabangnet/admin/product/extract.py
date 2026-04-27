@@ -60,24 +60,24 @@ class Product(SabangnetAdmin):
         Parameters
         ----------
         start_date: dt.date | str | Literal[":base_date:", ":today:"]
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":base_date:"`: 사방넷 설립일, "1986-01-09" (기본값)
                 - `":today:"`: 오늘 날짜
         end_date: dt.date | str | Literal[":start_date:", ":today:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
         date_type: str
-            일자 유형. `date_type` 속성의 키 중 하나를 전달할 수 있다. 기본값은 상품등록일
+            일자 유형. `date_type` 속성의 키를 전달할 수 있다. 기본값은 상품등록일
         sort_type: str
-            정렬순서 코드. `sort_type` 속성의 키 중 하나를 전달할 수 있다. 기본값은 등록일
+            정렬순서 코드. `sort_type` 속성의 키를 전달할 수 있다. 기본값은 등록일
         sort_asc: bool
             정렬순서 방식. `True`면 오름차순, `False`면 내림차순으로 조회한다. 기본값은 오름차순
         is_deleted: bool
             삭제된 상품만 조회할지 여부. `True`면 상품상태 조건 대신 삭제 상태만 조회한다.
             기본값은 `False`
         product_status: str | None
-            상품상태 코드. `product_status` 속성의 키 중 하나를 전달할 수 있다.
+            상품상태 코드. `product_status` 속성의 키를 전달할 수 있다.
 
         Returns
         -------
@@ -268,24 +268,24 @@ class OptionDownload(SabangnetAdmin):
         Parameters
         ----------
         start_date: dt.date | str | Literal[":base_date:", ":today:"]
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":base_date:"`: 사방넷 설립일, "1986-01-09" (기본값)
                 - `":today:"`: 오늘 날짜
         end_date: dt.date | str | Literal[":start_date:", ":today:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
         date_type: str
-            일자 유형. `date_type` 속성의 키 중 하나를 전달할 수 있다. 기본값은 상품등록일
+            일자 유형. `date_type` 속성의 키를 전달할 수 있다. 기본값은 상품등록일
         sort_type: str
-            정렬순서 코드. `sort_type` 속성의 키 중 하나를 전달할 수 있다. 기본값은 품번코드
+            정렬순서 코드. `sort_type` 속성의 키를 전달할 수 있다. 기본값은 품번코드
         sort_asc: bool
             정렬순서 방식. `True`면 오름차순, `False`면 내림차순으로 조회한다. 기본값은 오름차순
         is_deleted: bool
             삭제된 상품만 조회할지 여부. `True`면 상품상태 조건 대신 삭제 상태만 조회한다.
             기본값은 `False`
         product_status: list[str]
-            상품상태 코드. `product_status` 속성의 키 중 하나를 전달할 수 있다.
+            상품상태 코드. `product_status` 속성의 키를 전달할 수 있다.
 
         Returns
         -------
@@ -410,11 +410,11 @@ class AddProductGroup(SabangnetAdmin):
         Parameters
         ----------
         start_date: dt.date | str | Literal[":base_date:", ":today:"]
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":base_date:"`: 사방넷 설립일, "1986-01-09" (기본값)
                 - `":today:"`: 오늘 날짜
         end_date: dt.date | str | Literal[":start_date:", ":today:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
         shop_id: str

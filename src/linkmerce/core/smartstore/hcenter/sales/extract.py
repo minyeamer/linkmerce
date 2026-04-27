@@ -10,20 +10,35 @@ if TYPE_CHECKING:
 
 
 class _Sales(PartnerCenter):
-    """네이버 스토어의 일별 매출 데이터를 조회하는 공통 클래스.
+    """네이버 스토어의 매출 데이터를 조회하는 공통 클래스.
 
-    `RequestEach` Task를 사용하여 판매처번호(`mall_seq`)에 대한   
-    GraphQL API 요청로 스토어/카테고리/상품별 매출을 조회한다."""
+    **NOTE** 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
+    [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782) 참고 (~ v0.6.8)
+
+    - **Menu**: 브랜드 애널리틱스 > 스토어 트래픽 > 스토어 매출
+    - **API**: https://hcenter.shopping.naver.com/brand/content
+    - **Referer**: https://center.shopping.naver.com/brand-analytics/store
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     method = "POST"
     path = "/brand/content"
     date_format = "%Y-%m-%d"
     sales_type: Literal["store", "category", "product"]
     fields: list[dict]
-
-    @property
-    def default_options(self) -> dict:
-        return {"RequestEach": {"request_delay": 1, "max_concurrent": 3}}
+    default_options = {"RequestEach": {"request_delay": 1, "max_concurrent": 3}}
 
     @PartnerCenter.with_session
     def extract(
@@ -36,7 +51,34 @@ class _Sales(PartnerCenter):
             page_size: int = 1000,
             **kwargs
         ) -> JsonObject:
-        """네이버 스토어의 일별 매출 데이터를 동기 방식으로 순차 조회해 JSON 형식으로 반환한다."""
+        """네이버 스토어(`mall_seq`)의 기간별 매출 데이터를 동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
+
+        **NOTE** 최대 2년 전까지의 데이터만 조회할 수 있다.
+
+        Parameters
+        ----------
+        mall_seq: int | str | Iterable[int | str]
+            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다.
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        date_type: str
+            기간
+                - `"daily"`: 일간
+                - `"weekly"`: 주간
+                - `"monthly"`: 월간
+        page: int | Iterable[int]
+            페이지 번호. 단일 또는 여러 개의 목록을 입력한다.
+        page_size: int
+            한 번에 표시할 목록 수
+
+        Returns
+        -------
+        dict | list[dict]
+            네이버 스토어의 기간별 매출 데이터
+        """
         context = self.generate_date_context(start_date, end_date, freq=date_type[0].upper(), format=self.date_format)
         return (self.request_each(self.request_json_safe, context=context)
                 .partial(date_type=date_type, page_size=page_size)
@@ -54,7 +96,34 @@ class _Sales(PartnerCenter):
             page_size: int = 1000,
             **kwargs
         ) -> JsonObject:
-        """네이버 스토어의 일별 매출 데이터를 비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다."""
+        """네이버 스토어(`mall_seq`)의 기간별 매출 데이터를 비동기 방식으로 벙렬 조회해 JSON 형식으로 반환한다.
+
+        **NOTE** 최대 2년 전까지의 데이터만 조회할 수 있다.
+
+        Parameters
+        ----------
+        mall_seq: int | str | Iterable[int | str]
+            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다.
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        date_type: str
+            기간
+                - `"daily"`: 일간
+                - `"weekly"`: 주간
+                - `"monthly"`: 월간
+        page: int | Iterable[int]
+            페이지 번호. 단일 또는 여러 개의 목록을 입력한다.
+        page_size: int
+            한 번에 표시할 목록 수
+
+        Returns
+        -------
+        dict | list[dict]
+            네이버 스토어의 기간별 매출 데이터
+        """
         context = self.generate_date_context(start_date, end_date, freq=date_type[0].upper(), format=self.date_format)
         return await (self.request_each(self.request_async_json_safe, context=context)
                 .partial(date_type=date_type, page_size=page_size)
@@ -107,7 +176,28 @@ class _Sales(PartnerCenter):
 
 
 class StoreSales(_Sales):
-    """네이버 스토어 일별 매출 데이터를 조회하는 클래스."""
+    """네이버 스토어의 매출 데이터를 조회하는 공통 클래스.
+
+    **NOTE** 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
+    [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782) 참고 (~ v0.6.8)
+
+    - **Menu**: 브랜드 애널리틱스 > 스토어 트래픽 > 스토어 매출
+    - **API**: https://hcenter.shopping.naver.com/brand/content
+    - **Referer**: https://center.shopping.naver.com/brand-analytics/store
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     sales_type = "store"
 
@@ -123,7 +213,28 @@ class StoreSales(_Sales):
 
 
 class CategorySales(_Sales):
-    """"네이버 스토어 일별/카테고리별 매출 데이터를 조회하는 클래스."""
+    """네이버 스토어의 카테고리별 매출 데이터를 조회하는 공통 클래스.
+
+    **NOTE** 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
+    [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782) 참고 (~ v0.6.8)
+
+    - **Menu**: 브랜드 애널리틱스 > 스토어 트래픽 > 스토어 상품별 매출 > 카테고리별
+    - **API**: https://hcenter.shopping.naver.com/brand/content
+    - **Referer**: https://center.shopping.naver.com/brand-analytics/store
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     sales_type = "category"
 
@@ -139,7 +250,28 @@ class CategorySales(_Sales):
 
 
 class ProductSales(_Sales):
-    """네이버 스토어 일별/상품별 매출 데이터를 조회하는 클래스."""
+    """네이버 스토어의 상품별 매출 데이터를 조회하는 공통 클래스.
+
+    **NOTE** 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가   
+    [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782) 참고 (~ v0.6.8)
+
+    - **Menu**: 브랜드 애널리틱스 > 스토어 트래픽 > 스토어 상품별 매출 > 상품별
+    - **API**: https://hcenter.shopping.naver.com/brand/content
+    - **Referer**: https://center.shopping.naver.com/brand-analytics/store
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간. 기본값은 `1`
+    max_concurrent: int | None
+        비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
+    tqdm_options: dict | None
+        진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
 
     sales_type = "product"
 

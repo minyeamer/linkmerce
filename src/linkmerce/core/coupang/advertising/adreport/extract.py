@@ -204,10 +204,10 @@ class _AdReport(CoupangAds):
         Parameters
         ----------
         start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 전달한다.
-        end_date: dt.date | str
-            조회 종료일. `":start_date:"` 전달 시 `start_date`와 동일한 날짜로 대체된다.
-            기본값은 `":start_date:"`
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str | Literal[":start_date:"]
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type: Literal["total", "daily"]
             보고서 기간 구분
                 - `"total"`: 합계

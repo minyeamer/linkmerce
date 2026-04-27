@@ -386,9 +386,9 @@ class PerformanceReport(SearchAdGfa):
         Parameters
         ----------
         start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
         end_date: dt.date | str | Literal[":start_date:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type: Literal[str]
             기간 단위
@@ -613,9 +613,9 @@ class CampaignReport(PerformanceReport):
         Parameters
         ----------
         start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
         end_date: dt.date | str | Literal[":start_date:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type: Literal[str]
             기간 단위
@@ -684,9 +684,9 @@ class CreativeReport(PerformanceReport):
         Parameters
         ----------
         start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
         end_date: dt.date | str | Literal[":start_date:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type: Literal[str]
             기간 단위

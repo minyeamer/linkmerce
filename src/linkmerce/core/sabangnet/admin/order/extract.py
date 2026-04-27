@@ -60,16 +60,16 @@ class Order(SabangnetAdmin):
         Parameters
         ----------
         start_date: dt.datetime | dt.date | str | Literal[":today:"]
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":today:"`: 오늘 날짜 (기본값)
         end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
                 - `":now:"`: 현재 시각
         date_type: str
-            일자 유형. `date_type` 속성의 키 중 하나를 전달한다. 기본값은 수집일
+            일자 유형. `date_type` 속성의 키를 입력한다. 기본값은 수집일
         order_status_div: str
-            주문구분 코드. `order_status_div` 속성의 키 중 하나를 전달할 수 있다.
+            주문구분 코드. `order_status_div` 속성의 키를 전달할 수 있다.
         order_status: Sequence[str]
             주문상태 코드 목록. `order_status` 속성의 키를 하나 이상 전달할 수 있다.
         shop_id: str
@@ -219,18 +219,18 @@ class OrderDownload(Order):
         download_no: int
             주문서 출력 양식 번호
         start_date: dt.datetime | dt.date | str | Literal[":today:"]
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":today:"`: 오늘 날짜 (기본값)
         end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
                 - `":now:"`: 현재 시각
         date_type: str
-            일자 유형. `date_type` 속성의 키 중 하나를 전달한다. 기본값은 수집일
+            일자 유형. `date_type` 속성의 키를 입력한다. 기본값은 수집일
         order_seq: list[int]
             사방넷 주문 번호를 목록으로 선택할 수 있다.
         order_status_div: str
-            주문구분 코드. `order_status_div` 속성의 키 중 하나를 전달할 수 있다.
+            주문구분 코드. `order_status_div` 속성의 키를 전달할 수 있다.
         order_status: Sequence[str]
             주문상태 코드 목록. `order_status` 속성의 키를 하나 이상 전달할 수 있다.
         shop_id: str
@@ -338,19 +338,19 @@ class OrderStatus(OrderDownload):
         download_no: int
             주문서 출력 양식 번호
         start_date: dt.datetime | dt.date | str | Literal[":today:"]
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":today:"`: 오늘 날짜 (기본값)
         end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
                 - `":now:"`: 현재 시각
         date_type: list[str]
-            일자 유형 목록. `date_type` 속성의 키를 하나 이상 전달한다.   
+            일자 유형 목록. `date_type` 속성의 키를 하나 이상 입력한다.   
             기본값은 "출고완료일", "취소완료일", "반품완료일", "교환완료일"에 해당하는 코드 목록이다.
         order_seq: list[int]
             사방넷 주문 번호를 목록으로 선택할 수 있다.
         order_status_div: str
-            주문구분 코드. `order_status_div` 속성의 키 중 하나를 전달할 수 있다.
+            주문구분 코드. `order_status_div` 속성의 키를 전달할 수 있다.
         order_status: Sequence[str]
             주문상태 코드 목록. `order_status` 속성의 키를 하나 이상 전달할 수 있다.
         shop_id: str
@@ -429,11 +429,11 @@ class ProductMapping(SabangnetAdmin):
         Parameters
         ----------
         start_date: dt.date | str | Literal[":base_date:", ":today:"]
-            생성일자 조건의 조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            생성일자 조건의 조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":base_date:"`: 사방넷 설립일, "1986-01-09" (기본값)
                 - `":today:"`: 오늘 날짜
         end_date: dt.date | str | Literal[":start_date:", ":today:"]
-            생성일자 조건의 조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식 문자열을 전달한다.
+            생성일자 조건의 조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
         shop_id: str

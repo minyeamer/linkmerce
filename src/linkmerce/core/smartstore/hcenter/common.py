@@ -8,7 +8,14 @@ import base64
 
 
 class PartnerCenter(Extractor):
-    """네이버 쇼핑파트너센터에서 데이터를 조회하는 공통 클래스. 헤더에 로그인 쿠키가 제공되어야 한다."""
+    """네이버 쇼핑파트너센터에서 데이터를 조회하는 공통 클래스.
+
+    - **URL**: https://center.shopping.naver.com/main
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
+    """
 
     method: str | None = None
     origin: str = "https://hcenter.shopping.naver.com"
@@ -27,7 +34,12 @@ class PartnerCenter(Extractor):
 ###################################################################
 
 class PartnerCenterLogin(SmartstoreCenterLogin):
-    """네이버 쇼핑파트너센터 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스."""
+    """네이버 쇼핑파트너센터 로그인을 수행하여 쿠키와 토큰을 발급하는 클래스.
+
+    - **URL**: https://center.shopping.naver.com/login?target_uri=https%3A%2F%2Fcenter.shopping.naver.com%2Fmain
+
+    스마트스토어센터 로그인(`super().login`) → 쇼핑파트너센터 전환(`celogin`) → 토큰 발급(`embrace_token`) 순서로 진행한다.
+    """
 
     center_url = "https://center.shopping.naver.com"
 
@@ -40,9 +52,24 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
             cookies: str | None = None,
             **kwargs
         ) -> dict:
-        """`userid`와 `passwd`로 스마트스토어센터 로그인을 수행한 후 쇼핑파트너센터에서 쿠키와 토큰을 발급받는다.
+        """스마트스토어센터 로그인 수행 후 대시보드로 이동해 토큰을 발급받는다.
 
-        채널번호(`channel_seq`)가 주어진다면 로그인 후 해당 채널로 전환한다."""
+        Parameters
+        ----------
+        userid: str | None
+            스마트스토어센터 판매자 아이디/이메일
+        passwd: str | None
+            스마트스토어센터 판매자 비밀번호
+        channel_seq: int | str | None
+            채널 번호. 로그인 후 접속된 채널이 다르면 채널 번호에 맞는 채널로 전환한다.
+        cookies: str | None
+            네이버 로그인 쿠키. 판매자 아이디 로그인을 대체하여 네이버 아이디로 로그인한다.
+
+        Returns
+        -------
+        dict
+            접속된 스토어(채널) 정보
+        """
         from linkmerce.utils.regex import regexp_extract
         login_info = super().login(userid, passwd, channel_seq, cookies)
         self.login_init(login_info["redirectUrl"])
