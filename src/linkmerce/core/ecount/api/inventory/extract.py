@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -45,19 +44,18 @@ class Inventory(EcountApi):
             deleted_yn: bool = False,
             safe_yn: bool = False,
             **kwargs
-        ) -> JsonObject:
+        ) -> dict:
         """재고현황을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
-        base_date: dt.date | str | Literal[":today:"]
+        base_date: dt.date | str
             조회 기준일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-                - `":today:"` 전달 시 오늘 날짜로 대체된다.
-                - 기본값은 `":today:"`
+                - `":today:"`: 오늘 날짜 (기본값)
         warehouse_code: str | None
-            조회할 창고 코드. 생략 시 전체 창고를 조회한다. 기본값은 `None`
+            조회할 창고 코드. 생략 시 전체 창고를 조회한다.
         product_code: str | None
-            조회할 품목 코드. 생략 시 전체 품목을 조회한다. 기본값은 `None`
+            조회할 품목 코드. 생략 시 모든 품목을 조회한다.
         zero_yn: bool
             재고 수량이 0인 품목 포함 여부. 기본값은 `False`
         balanced_yn: bool

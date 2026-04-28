@@ -4,7 +4,16 @@ from linkmerce.common.transform import DuckDBTransformer
 
 
 class Inventory(DuckDBTransformer):
-    """이카운트 재고 현황 API 응답 데이터를 `ecount_inventory` 테이블에 적재하는 클래스."""
+    """이카운트 재고현황을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Inventory`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: ecount_inventory`
+    """
 
     extractor = "Inventory"
     tables = {"table": "ecount_inventory"}
