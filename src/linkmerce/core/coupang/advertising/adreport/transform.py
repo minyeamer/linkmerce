@@ -4,7 +4,7 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 
 class CampaignParser(JsonTransformer):
-    """쿠팡 광고 캠페인 목록을 추출하는 파서 클래스."""
+    """쿠팡 광고센터 캠페인 목록을 파싱하는 클래스."""
 
     dtype = dict
     scope = "campaigns"
@@ -16,7 +16,7 @@ class CampaignParser(JsonTransformer):
 
 
 class AdgroupParser(JsonTransformer):
-    """쿠팡 광고그룹 목록을 추출하는 파서 클래스."""
+    """쿠팡 광고센터 캠페인 목록에서 광고그룹 목록을 파싱하는 클래스."""
 
     dtype = dict
     scope = "campaigns"
@@ -41,11 +41,25 @@ class AdgroupParser(JsonTransformer):
 
 
 class Campaign(DuckDBTransformer):
-    """쿠팡 광고 캠페인 및 광고그룹 목록을 각각의 테이블에 변환 및 적재하는 클래스.
+    """쿠팡 광고센터 캠페인 목록을 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `campaign` | `coupang_campaign` | 쿠팡 광고 캠페인 목록
-    - `adgroup` | `coupang_adgroup` | 쿠팡 광고그룹 목록"""
+    - **Extractor**: `Campaign`
+
+    - **Parsers** ( *parser_class: input_type -> output_type* ):
+        1. `CampaignParser: dict -> list[dict]`
+        2. `AdgroupParser: dict -> list[dict]`
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `campaign: coupang_campaign` (캠페인 목록)
+        2. `adgroup: coupang_adgroup` (광고그룹 목록)
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    """
 
     extractor = "Campaign"
     tables = {"campaign": "coupang_campaign", "adgroup": "coupang_adgroup"}
@@ -54,7 +68,23 @@ class Campaign(DuckDBTransformer):
 
 
 class Creative(DuckDBTransformer):
-    """쿠팡 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 `coupang_creative` 테이블에 적재하는 클래스."""
+    """쿠팡 광고센터 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Creative`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_creative`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    """
 
     extractor = "Creative"
     tables = {"table": "coupang_creative"}
@@ -68,7 +98,23 @@ class Creative(DuckDBTransformer):
 
 
 class ProductAdReport(DuckDBTransformer):
-    """쿠팡 PA(Product Ad) 광고 성과 보고서(Excel) 데이터를 `coupang_adreport_pa` 테이블에 적재하는 클래스."""
+    """쿠팡 광고센터 매출 성장 광고 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `ProductAdReport`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `ExcelTransformer: bytes -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_adreport_pa`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    """
 
     extractor = "ProductAdReport"
     tables = {"table": "coupang_adreport_pa"}
@@ -84,7 +130,23 @@ class ProductAdReport(DuckDBTransformer):
 
 
 class NewCustomerAdReport(DuckDBTransformer):
-    """쿠팡 신규고객광고(NCA) 성과 보고서(Excel) 데이터를 `coupang_adreport_nca` 테이블에 적재하는 클래스."""
+    """쿠팡 광고센터 신규 구매 고객 확보 광고 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `NewCustomerAdReport`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `ExcelTransformer: bytes -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_adreport_nca`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    """
 
     extractor = "NewCustomerAdReport"
     tables = {"table": "coupang_adreport_nca"}

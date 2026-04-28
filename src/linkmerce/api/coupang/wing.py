@@ -96,7 +96,7 @@ def product_option(
 @with_duckdb_connection(table="coupang_product_detail")
 def product_detail(
         cookies: str,
-        vendor_inventory_id: Sequence[int | str],
+        vendor_inventory_id: int | str | Sequence[int | str],
         domain: Literal["wing", "supplier"] = "wing",
         *,
         connection: DuckDBConnection | None = None,

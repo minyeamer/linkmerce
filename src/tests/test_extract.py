@@ -83,9 +83,9 @@ class TestCoupangAds:
         _configs = configs("coupang.advertising.creative")
         Creative(
             cookies = self.cookies(credentials),
-            parser = dump_extract(Creative, format="json", map_index="$campaign_ids"),
+            parser = dump_extract(Creative, format="json", map_index="$campaign_id"),
         ).extract(
-            campaign_ids = _configs["campaign_ids"],
+            campaign_id = _configs["campaign_id"],
         )
 
     @pytest.mark.coupang_ads

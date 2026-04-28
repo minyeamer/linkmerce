@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Sequence
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -42,18 +41,20 @@ class Campaign(CoupangAds):
             is_deleted: bool = False,
             vendor_id: str | None = None,
             **kwargs
-        ) -> JsonObject:
-        """광고 목표(`goal_type`)별 캠페인 목록을 조회해 JSON 형식으로 반환한다.
+        ) -> list[dict]:
+        """광고 목표별 캠페인 목록을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
-        goal_type: Literal["SALES", "NCA", "REACH"]
+        goal_type: str
             조회할 광고 목표
-                - `"SALES"`: 매출 성장
+                - `"SALES"`: 매출 성장 (기본값)
                 - `"NCA"`: 신규 구매 고객 확보
                 - `"REACH"`: 인지도 상승
         is_deleted: bool
-            삭제된 캠페인 조회 여부. 기본값은 `False`
+            삭제된 캠페인 조회 여부
+                - `True`: 삭제된 캠페인만 조회
+                - `False`: 삭제되지 않은 전체 캠페인 조회 (기본값)
         vendor_id: str | None
             업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
 
@@ -65,12 +66,12 @@ class Campaign(CoupangAds):
         return (self.paginate_all(self.request_json_with_timeout, self.count_total, self.max_page_size, self.page_start)
                 .run(goal_type=goal_type, is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 캠페인 수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, ["pageInfo", "totalCount"])
 
-    def request_json_with_timeout(self, max_retries: int = 5, **kwargs) -> JsonObject:
+    def request_json_with_timeout(self, max_retries: int = 5, **kwargs) -> dict:
         """요청 후 타임아웃(Timeout)이 발생하면 `max_retries` 횟수만큼 성공할 때까지 재시도한다."""
         from requests.exceptions import Timeout
         import random
@@ -136,24 +137,31 @@ class Creative(CoupangAds):
     default_options = {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangAds.with_session
-    def extract(self, campaign_ids: Sequence[int | str], vendor_id: str | None = None, **kwargs) -> JsonObject:
-        """캠페인(`campaign_ids`)별 NCA 소재 목록을 조회해 JSON 형식으로 반환한다.
+    def extract(
+            self,
+            campaign_id: int | str | Sequence[int | str],
+            vendor_id: str | None = None,
+            **kwargs
+        ) -> dict | list[dict]:
+        """신규 구매 고객 확보 캠페인별 소재 목록을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
-        campaign_ids: Sequence[int | str]
-            조회할 캠페인 ID 목록
+        campaign_id: int | str | Sequence[int | str]
+            조회할 캠페인 ID. 정수 또는 정수의 배열을 입력한다.
         vendor_id: str | None
             업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
 
         Returns
         -------
-        list[dict]
-            신규 구매 고객 확보 캠페인별 소재 정보 목록
+        dict | list[dict]
+            신규 구매 고객 확보 캠페인별 소재 정보 목록. `campaign_id` 타입에 따라 반환 타입이 다르다.
+                - `campaign_id`가 `int | str` 타입일 때 -> `dict`
+                - `campaign_id`가 `Sequence[int | str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_safe)
                 .partial(vendor_id=vendor_id)
-                .expand(campaign_id=campaign_ids)
+                .expand(campaign_id=campaign_id)
                 .run())
 
     def build_request_message(self, campaign_id: int | str, **kwargs) -> dict:
@@ -199,23 +207,31 @@ class _AdReport(CoupangAds):
             wait_interval: int = 1,
             **kwargs
         ) -> dict[str, bytes]:
-        """광고 보고서를 생성 및 다운로드하여 `{파일명: 엑셀 바이너리}` 형식으로 반환한다.
+        """광고 보고서를 생성하고 엑셀 파일로 다운로드한다.
 
         Parameters
         ----------
         start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
-        date_type: Literal["total", "daily"]
+        date_type: str
             보고서 기간 구분
                 - `"total"`: 합계
-                - `"daily"`: 일별
-        report_level: Literal["campaign", "adGroup", "ad", "vendorItem", "keyword", "creative"]
+                - `"daily"`: 일별 (기본값)
+        report_level: str
             보고서 구조. 보고서 유형(`report_type`)에 따라 지원하는 값이 다르다.
-                - 매출 성장(`pa`): `campaign`, `adGroup`, `vendorItem`, `keyword`
-                - 신규 구매 고객 확보(`nca`): `campaign`, `ad`, `keyword`, `creative`
+                - 매출 성장(`pa`):
+                    1. `campaign`: 캠페인
+                    2. `adGroup`: 캠페인 > 광고그룹
+                    3. `vendorItem`: 캠페인 > 광고그룹 > 상품 (기본값)
+                    4. `keyword`: 캠페인 > 광고그룹 > 상품 > 키워드
+                - 신규 구매 고객 확보(`nca`):
+                    1. `campaign`: 캠페인
+                    2. `ad`: 캠페인 > 광고
+                    3. `keyword`: 캠페인 > 광고 > 키워드
+                    4. `creative`: 캠페인 > 광고 > 키워드 > 소재
         campaign_ids: Sequence[int | str]
             조회할 캠페인 ID 목록. 생략 시 기간 내 전체 캠페인을 조회하여 선택한다.
         vendor_id: str | None
@@ -229,8 +245,9 @@ class _AdReport(CoupangAds):
         Returns
         -------
         dict[str, bytes]
-            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과.   
-            파일명은 `<vendor_id>_<report_type>_<date_type>_<report_level>_<start_date>_<end_date>.xlsx` 형식을 따른다.
+            `{파일명: 엑셀 바이너리}` 구조의 광고 보고서 다운로드 결과
+            - 파일명은 `{vendor_id}_{report_type}_{date_type}_{report_level}_{start_date}_{end_date}.xlsx`   
+                명명 규칙에 따라 생성된다.
         """
         start_date = self.to_date(start_date)
         end_date = self.to_date(start_date if end_date == ":start_date:" else end_date)
@@ -342,7 +359,7 @@ class _AdReport(CoupangAds):
             selection = GraphQLSelection(
                 name = "requestReport",
                 variables = dict(data=list(variables.keys())),
-                fields = GraphQLFragment("ReportRequest", "ReportRequest", fields=self.report_fields),
+                fields = GraphQLFragment("ReportRequest", "ReportRequest", fields=self.report_request_fields),
             ),
         ).generate_body(query_options = {
             "command": "mutation",
@@ -420,32 +437,7 @@ class _AdReport(CoupangAds):
         return int(str(date).replace('-', ''))
 
     @property
-    def report_type(self) -> dict[str, str]:
-        return {"pa": "매출 성장 광고 보고서", "nca": "신규 구매 고객 확보 광고 보고서"}
-
-    @property
-    def date_type(self) -> dict[str, str]:
-        return {"total": "합계", "daily": "일별"}
-
-    @property
-    def report_level(self) -> dict[str, dict[str, str]]:
-        return {
-            "pa": {
-                "campaign": "캠페인",
-                "adGroup": "캠페인 > 광고그룹",
-                "vendorItem": "캠페인 > 광고그룹 > 상품",
-                "keyword": "캠페인 > 광고그룹 > 상품 > 키워드",
-            },
-            "nca": {
-                "campaign": "캠페인",
-                "ad": "캠페인 > 광고",
-                "keyword": "캠페인 > 광고 > 키워드",
-                "creative": "캠페인 > 광고 > 키워드 > 소재",
-            },
-        }
-
-    @property
-    def report_fields(self) -> list[str]:
+    def report_request_fields(self) -> list:
         return [
             "id",
             "requestDate",
@@ -463,9 +455,9 @@ class _AdReport(CoupangAds):
         ]
 
     @property
-    def report_list_fields(self) -> str:
+    def report_list_fields(self) -> list:
         schedule = ["title", "scheduleType", "createDay", "requestDate", "expireAt"]
-        reports = self.report_fields[:-1] + [{"schedule": schedule}]
+        reports = self.report_request_fields[:-1] + [{"schedule": schedule}]
         return ["page", "pageSize", "total", "duration", "onlyScheduledReport", {"reports": reports}]
 
 

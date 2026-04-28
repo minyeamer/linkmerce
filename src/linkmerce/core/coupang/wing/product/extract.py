@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Sequence
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -36,13 +35,15 @@ class ProductOption(CoupangWing):
     default_options = {"PaginateAll": {"request_delay": 1}}
 
     @CoupangWing.with_session
-    def extract(self, is_deleted: bool = False, **kwargs) -> JsonObject:
+    def extract(self, is_deleted: bool = False, **kwargs) -> list[dict]:
         """상품 목록을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         is_deleted: bool
-            삭제된 상품만 조회할지 여부. 기본값은 `False`
+            삭제된 상품 조회 여부
+                - `True`: 삭제된 상품만 조회
+                - `False`: 삭제되지 않은 전체 상품 조회 (기본값)
 
         Returns
         -------
@@ -52,7 +53,7 @@ class ProductOption(CoupangWing):
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(is_deleted=is_deleted))
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 상품 수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "data.pagination.totalCount")
@@ -121,18 +122,24 @@ class ProductDetail(CoupangWing):
     default_options = {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangWing.with_session
-    def extract(self, vendor_inventory_id: Sequence[int | str], **kwargs) -> JsonObject:
-        """등록상품ID(`vendor_inventory_id`)에 대한 상세 정보를 조회해 JSON 형식으로 반환한다.
+    def extract(
+            self,
+            vendor_inventory_id: int | str | Sequence[int | str],
+            **kwargs
+        ) -> dict | list[dict]:
+        """상품별 상세 정보를 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
-        vendor_inventory_id: Sequence[int | str]
-            조회할 상품의 등록상품ID 목록
+        vendor_inventory_id: int | str | Sequence[int | str]
+            조회할 상품의 등록상품ID. 정수 또는 정수의 배열을 입력한다.
 
         Returns
         -------
-        list[dict]
-            상품별 상세 정보 목록
+        dict | list[dict]
+            상품별 상세 정보. `vendor_inventory_id` 타입에 따라 반환 타입이 다르다.
+                - `vendor_inventory_id`가 `int | str` 타입일 때 -> `dict`
+                - `vendor_inventory_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_safe)
                 .partial(referer=kwargs.get("referer")) # for Transformer
@@ -180,14 +187,13 @@ class ProductDownload(ProductOption):
             wait_interval: int = 1,
             **kwargs
         ) -> dict[str, bytes]:
-        """조회조건(`request_type`)에 대한 상품 목록 다운로드를 요청하고,   
-        생성 완료된 엑셀 파일을 `{파일명: 엑셀 바이너리}` 형식으로 반환한다.
+        """상품 조회조건에 대한 상품 목록을 다운로드 요청하고 엑셀 파일로 다운로드한다.
 
         Parameters
         ----------
         request_type: str
             상품 조회조건
-                - `"VENDOR_INVENTORY_ITEM"`: 가격/재고/판매상태
+                - `"VENDOR_INVENTORY_ITEM"`: 가격/재고/판매상태 (기본값)
                 - `"EDITABLE_CATALOGUE"`: 쿠팡상품정보
                 - `"BULK_DELETE_INVENTORY"`: 상품삭제
         fields: list[str]
@@ -205,7 +211,8 @@ class ProductDownload(ProductOption):
         Returns
         -------
         dict[str, bytes]
-            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과
+            `{파일명: 엑셀 바이너리}` 구조의 상품 목록 다운로드 결과
+            - 파일명은 `{description[request_type]}_{today}.xlsx` 명명 규칙에 따라 생성된다.
         """
         report = self.request_report(request_type, fields, is_deleted)
         report_id = report["responseParam"]
@@ -220,7 +227,7 @@ class ProductDownload(ProductOption):
             is_deleted: bool = False,
             **kwargs
         ) -> dict:
-        """엑셀 다운로드 보고서 생성을 요청한다."""
+        """엑셀 파일 생성을 요청한다."""
         url = self.origin + "/tenants/seller-web/excel/request/download/create/vendor-inventory/all"
         body = self.build_request_json(request_type, fields, is_deleted)
         with self.request("POST", url, json=body, headers=self.build_request_headers()) as response:
@@ -233,7 +240,7 @@ class ProductDownload(ProductOption):
             wait_seconds: int = 60,
             wait_interval: int = 1,
         ) -> bool:
-        """보고서 생성 요청 후 완료 여부를 주기적으로 확인하면서 대기한다."""
+        """엑셀 파일 생성 요청 후 완료 여부를 주기적으로 확인하면서 대기한다."""
         import time
         for _ in range(0, max(wait_seconds, 1), max(wait_interval, 1)):
             time.sleep(wait_interval)
@@ -244,7 +251,7 @@ class ProductDownload(ProductOption):
         raise ValueError(f"Failed to create the {self.description[request_type]} report.")
 
     def list_report(self, request_type = "VENDOR_INVENTORY_ITEM", page: int = 1, page_size: int = 10) -> list[dict]:
-        """생성된 보고서 목록을 조회한다."""
+        """생성된 엑셀 파일을 조회한다."""
         url = self.origin + "/tenants/seller-web/excel/request/download/list"
         params = {"requestType": request_type, "page": page, "countPerPage": page_size}
         with self.request("GET", url, params=params, headers=self.build_request_headers()) as response:
@@ -257,7 +264,7 @@ class ProductDownload(ProductOption):
             is_deleted: bool = False,
             vendor_id: str | None = None
         ) -> bytes:
-        """생성된 보고서 엑셀 파일을 다운로드한다."""
+        """생성된 엑셀 파일을 다운로드한다."""
         url = self.origin + f"/tenants/seller-web/excel/request/download/file"
         params = {"requestType": request_type, "sellerRequestDownloadExcelId": report_id}
         with self.request("GET", url, params=params, headers=self.build_request_headers()) as response:
@@ -274,7 +281,7 @@ class ProductDownload(ProductOption):
         return {
             "requestType": request_type,
             "selectedTypes": fields,
-            "comment": f"{self.request_type[request_type].replace('/', '_')} 변경({self.today})",
+            "comment": f"{self.comment[request_type].replace('/', '_')} 변경({self.today})",
             "fileDescription": f"{self.description[request_type]}_{self.today}",
             "productSearchV2Condition": dict(
                 super().build_request_json(is_deleted),
@@ -284,13 +291,13 @@ class ProductDownload(ProductOption):
 
     @property
     def today(self) -> dt.date:
-        """오늘 날짜를 `YYMMDD` 형식 문자열로 반환한다."""
+        """오늘 날짜를 `YYMMDD` 형식의 문자열로 반환한다."""
         import datetime as dt
         return dt.datetime.today().strftime("%y%m%d")
 
     @property
-    def request_type(self) -> dict[str, str]:
-        """보고서 유형별 한글 명칭 매핑을 반환한다."""
+    def comment(self) -> dict[str, str]:
+        """`{상품 조회조건: 한글 명칭}` 매핑을 반환한다."""
         return {
             "VENDOR_INVENTORY_ITEM": "가격/재고/판매상태",
             "EDITABLE_CATALOGUE": "쿠팡상품정보",
@@ -299,7 +306,7 @@ class ProductDownload(ProductOption):
 
     @property
     def description(self) -> dict[str, str]:
-        """보고서 유형별 파일명 접두사 매핑을 반환한다."""
+        """`{상품 조회조건: 파일명 접두사}` 매핑을 반환한다."""
         return {
             "VENDOR_INVENTORY_ITEM": "price_inventory",
             "EDITABLE_CATALOGUE": "Coupang_detailinfo",
@@ -308,7 +315,7 @@ class ProductDownload(ProductOption):
 
     @property
     def fields(self) -> dict[str, str]:
-        """선택 가능한 엑셀 필드 항목 매핑을 반환한다."""
+        """선택 가능한 엑셀 항목에 대한 `{코드: 한글 명칭}` 매핑을 반환한다."""
         return {
             "DISPLAY_PRODUCT_NAME": "노출상품명",
             "MANUFACTURE" : "제조사",
@@ -323,7 +330,7 @@ class ProductDownload(ProductOption):
 
 
 class RocketInventory(CoupangWing):
-    """쿠팡 로켓그로스 재고현황을 커서 기반으로 조회하는 클래스.
+    """쿠팡 로켓그로스 재고현황을 조회하는 클래스.
 
     - **Menu**: 로켓그로스 > 재고현황
     - **API**: https://wing.coupang.com/tenants/rfm-inventory/inventory-health-dashboard/search
@@ -352,15 +359,16 @@ class RocketInventory(CoupangWing):
             hidden_status: Literal["VISIBLE", "HIDDEN"] | None = None, 
             vendor_id: str | None = None,
             **kwargs
-        ) -> JsonObject:
-        """로켓그로스 재고현황을 커서 기반으로 조회해 JSON 형식으로 반환한다.
+        ) -> list[dict]:
+        """로켓그로스 재고현황을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
-        hidden_status: Literal["VISIBLE", "HIDDEN"]
-            상품 상태 필터. 생략 시 필터하지 않는다.
+        hidden_status: str
+            상품 상태 필터
                 - `"VISIBLE"`: 노출 상품
                 - `"HIDDEN"`: 숨겨진 상품
+                - `None`: 전체 상품 (기본값)
         vendor_id: str | None
             업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
 
@@ -372,8 +380,8 @@ class RocketInventory(CoupangWing):
         return (self.cursor_all(self.request_json_safe, self.get_next_cursor)
                 .run(hidden_status=hidden_status, vendor_id=vendor_id, referer=kwargs.get("referer")))
 
-    def get_next_cursor(self, response: JsonObject, **context) -> dict:
-        """다음 페이지 `searchAfterSortValues` 커서를 추출한다."""
+    def get_next_cursor(self, response: dict, **context) -> dict:
+        """다음 페이지를 가리키는 `searchAfterSortValues` 커서를 추출한다."""
         from linkmerce.utils.nested import hier_get
         pagination = hier_get(response, "paginationResponse") or dict()
         if pagination.get("searchAfterSortValues"):
@@ -384,7 +392,7 @@ class RocketInventory(CoupangWing):
         else:
             return None
 
-    # def count_total(self, response: JsonObject, **kwargs) -> int:
+    # def count_total(self, response: dict, **kwargs) -> int:
     #     """HTTP 응답에서 전체 쿠팡 재고 개수를 추출한다."""
     #     from linkmerce.utils.nested import hier_get
     #     return hier_get(response, "paginationResponse.totalNumberOfElements")

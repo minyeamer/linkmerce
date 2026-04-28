@@ -62,7 +62,7 @@ def campaign(
 @with_duckdb_connection(table="coupang_creative")
 def creative(
         cookies: str,
-        campaign_ids: Sequence[int | str],
+        campaign_id: int | str | Sequence[int | str],
         vendor_id: str | None = None,
         *,
         connection: DuckDBConnection | None = None,
@@ -84,7 +84,7 @@ def creative(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(campaign_ids, vendor_id)
+    )).extract(campaign_id, vendor_id)
 
 
 def adreport(

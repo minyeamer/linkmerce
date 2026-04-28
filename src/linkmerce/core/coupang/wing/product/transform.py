@@ -9,9 +9,7 @@ if TYPE_CHECKING:
 
 
 class ProductOptionParser(JsonTransformer):
-    """쿠팡 상품 목록을 추출하는 파서 클래스.
-
-    `product_type = "option"` 설정 시 상품에 중첩된 옵션을 평탄화해 반환한다."""
+    """쿠팡 Wing 상품 목록을 파싱하는 클래스."""
 
     dtype = dict
     scope = "data.productList"
@@ -38,7 +36,23 @@ class ProductOptionParser(JsonTransformer):
 
 
 class ProductOption(DuckDBTransformer):
-    """쿠팡 상품 옵션 목록을 `coupang_product` 테이블에 적재하는 클래스."""
+    """쿠팡 Wing 상품 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `ProductOption`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `ProductOptionParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_product`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    is_deleted: bool
+        삭제 상품 여부
+    """
 
     extractor = "ProductOption"
     tables = {"table": "coupang_product"}
@@ -47,7 +61,16 @@ class ProductOption(DuckDBTransformer):
 
 
 class ProductDetail(DuckDBTransformer):
-    """쿠팡 상품 상세 정보를 `coupang_product_detail` 테이블에 적재하는 클래스."""
+    """쿠팡 Wing 상품의 상세 정보를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `ProductDetail`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_product_detail`
+    """
 
     extractor = "ProductDetail"
     queries = ["create", "bulk_insert", "bulk_insert_vendor", "bulk_insert_rfm"]
@@ -77,7 +100,7 @@ class ProductDetail(DuckDBTransformer):
 
 
 class VendorInventoryItemParser(ExcelTransformer):
-    """쿠팡 상품의 가격/재고/판매상태 다운로드 결과를 파싱하는 클래스."""
+    """쿠팡 Wing 상품 목록의 '가격/재고/판매상태' 다운로드 결과를 파싱하는 클래스."""
 
     header = 3
     fields = [
@@ -87,7 +110,7 @@ class VendorInventoryItemParser(ExcelTransformer):
 
 
 class EditableCatalogueParser(ExcelTransformer):
-    """쿠팡 상품 목록 다운로드 결과를 파싱하는 클래스."""
+    """쿠팡 Wing 상품 목록의 '쿠팡상품정보' 다운로드 결과를 파싱하는 클래스."""
 
     sheet_name = "Template"
     header = 4
@@ -105,9 +128,25 @@ class EditableCatalogueParser(ExcelTransformer):
 
 
 class ProductDownload(DuckDBTransformer):
-    """쿠팡 상품 다운로드 결과를 `coupang_product_download` 테이블에 적재하는 클래스.
+    """쿠팡 Wing 상품 목록을 변환 및 적재하는 클래스.
 
-    `request_type`에 따라 적절한 파서를 선택한다. `VENDOR_INVENTORY_ITEM`만 지원한다."""
+    - **Extractor**: `ProductDownload`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `VendorInventoryItemParser: bytes -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_product_download`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    is_deleted: bool
+        삭제 상품 여부
+    """
 
     extractor = "ProductDownload"
     tables = {"table": "coupang_product_download"}
@@ -123,7 +162,23 @@ class ProductDownload(DuckDBTransformer):
 
 
 class RocketInventory(DuckDBTransformer):
-    """쿠팡 로켓 재고 현황을 `coupang_rocket_inventory` 테이블에 적재하는 클래스."""
+    """쿠팡 로켓그로스 재고현황을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `RocketInventory`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_rocket_inventory`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    """
 
     extractor = "RocketInventory"
     tables = {"table": "coupang_rocket_inventory"}
@@ -145,7 +200,25 @@ class RocketInventory(DuckDBTransformer):
 
 
 class RocketOption(DuckDBTransformer):
-    """쿠팡 로켓 옵션 목록을 `coupang_rocket_option` 테이블에 적재하는 클래스."""
+    """쿠팡 로켓그로스 재고현황을 변환 및 적재하는 클래스.
+
+    **NOTE** 쿠팡 Wing 상품 목록을 다루는 `ProductOption` 클래스와 동일한 구성의 테이블을 가진다.
+
+    - **Extractor**: `RocketInventory`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_rocket_option`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    """
 
     extractor = "RocketInventory"
     tables = {"table": "coupang_rocket_option"}

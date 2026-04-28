@@ -71,9 +71,9 @@ class CoupangLogin(LoginHandler):
             쿠팡 Wing 또는 서플라이어 허브 로그인 아이디
         passwd: str
             쿠팡 Wing 또는 서플라이어 허브 로그인 비밀번호
-        domain: Literal["wing", "supplier"]
+        domain: str
             로그인할 판매자 계정의 도메인
-                - `"wing"`: 쿠팡 Wing
+                - `"wing"`: 쿠팡 Wing (기본값)
                 - `"supplier"`: 쿠팡 서플라이어 허브
 
         Returns

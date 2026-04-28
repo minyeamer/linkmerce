@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Iterable, Literal
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -47,29 +46,31 @@ class Stock(CjEflexs):
     @CjEflexs.with_auth_info
     def extract(
             self,
-            customer_id: int | str | Iterable,
+            customer_id: int | str | Iterable[int | str],
             start_date: dt.date | str | Literal[":last_week:"] = ":last_week:",
             end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             **kwargs
-        ) -> JsonObject:
-        """고객(`customer_id`)별 상세 재고 현황을 조회해 JSON 형식으로 반환한다.
+        ) -> dict | list[dict]:
+        """고객별 상세 재고 현황을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
-        customer_id: int | str | Iterable
-            조회할 고객 ID. 여러 고객을 조회하려면 리스트로 입력한다.
-        start_date: dt.date | str | Literal[":last_week:"]
+        customer_id: int | str | Iterable[int | str]
+            조회할 고객 ID. 정수 또는 정수의 배열을 입력한다.
+        start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":last_week:"`: 오늘 기준 7일 전 날짜 (기본값)
-        end_date: dt.date | str | Literal[":start_date:", ":today:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
 
         Returns
         -------
-        list[dict]
-            고객별 상세 재고 현황
+        dict | list[dict]
+            상세 재고 현황. `customer_id` 타입에 따라 반환 타입이 다르다.
+                - `customer_id`가 `int | str` 타입일 때 -> `dict`
+                - `customer_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json)
                 .partial(**self.set_date(start_date, end_date))

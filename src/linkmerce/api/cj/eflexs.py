@@ -16,7 +16,7 @@ def stock(
         userid: str,
         passwd: str,
         mail_info: dict,
-        customer_id: int | str | Iterable,
+        customer_id: int | str | Iterable[int | str],
         start_date: dt.date | str | Literal[":last_week:"] = ":last_week:",
         end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
         *,

@@ -9,7 +9,23 @@ if TYPE_CHECKING:
 
 
 class RocketSettlement(DuckDBTransformer):
-    """쿠팡 로켓 정산 현황을 `coupang_rocket_settlement` 테이블에 적재하는 클래스."""
+    """쿠팡 로켓그로스 정산현황의 정산 리포트 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `RocketSettlement`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_rocket_settlement`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    """
 
     extractor = "RocketSettlement"
     tables = {"table": "coupang_rocket_settlement"}
@@ -39,7 +55,7 @@ class RocketSettlement(DuckDBTransformer):
 
 
 class RocketSalesParser(ExcelTransformer):
-    """쿠팡 로켓 정산 현황의 판매 수수료 Excel 보고서를 파싱하는 클래스."""
+    """쿠팡 로켓그로스 정산현황의 '판매 수수료 리포트'를 파싱하는 클래스."""
 
     header = 2
     fields = [
@@ -51,7 +67,7 @@ class RocketSalesParser(ExcelTransformer):
 
 
 class RocketShippingParser(ExcelTransformer):
-    """쿠팡 로켓 정산 현황의 입출고비/배송비 Excel 보고서를 파싱하는 클래스."""
+    """쿠팡 로켓그로스 정산현황의 '입출고비/배송비 리포트'를 파싱하는 클래스."""
 
     header = None
     fields = [
@@ -81,11 +97,32 @@ class RocketShippingParser(ExcelTransformer):
 
 
 class RocketSettlementDownload(DuckDBTransformer):
-    """쿠팡 로켓 정산 현황 다운로드 결과를 `report_type`에 따라 각각의 테이블에 적재하는 클래스.
+    """쿠팡 로켓그로스 정산현황의 정산 리포트를 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `sales` | `coupang_rocket_sales` | 쿠팡 판매 수수료 리포트
-    - `shipping` | `coupang_rocket_shipping` | 쿠팡 입출고비/배송비 리포트"""
+    - **Extractor**: `RocketSettlementDownload`
+
+    - **Parsers** ( *parser_class: input_type -> output_type* ):
+        1. `RocketSalesParser: bytes -> list[dict]`
+        2. `RocketShippingParser: bytes -> list[dict]`
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `sales: coupang_rocket_sales` (판매 수수료 리포트)
+        2. `shipping: coupang_rocket_shipping` (입출고비/배송비 리포트)
+
+    Parameters
+    ----------
+    **NOTE** 입력 데이터 유형을 특정하기 위한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    report_type: str
+        정산 리포트 유형
+            - `CATEGORY_TR`: 판매 수수료 리포트
+            - `WAREHOUSING_SHIPPING`: 입출고비/배송비 리포트
+
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    vendor_id: str
+        업체 코드
+    """
 
     extractor = "RocketSettlementDownload"
     queries = ["create", "bulk_insert_sales", "bulk_insert_shipping"]
@@ -93,7 +130,7 @@ class RocketSettlementDownload(DuckDBTransformer):
     params = {"vendor_id": "$vendor_id"}
 
     def parse(self, obj: bytes, report_type: Literal["CATEGORY_TR", "WAREHOUSING_SHIPPING"], **kwargs) -> list[dict]:
-        """`report_type`에 따라 `CATEGORY_TR` 또는 `WAREHOUSING_SHIPPING` 파서를 선택해 실행한다."""
+        """`report_type`에 따라 파서를 선택해 초기화 및 실행한다."""
         config = self.parser_config or dict()
         if report_type == "CATEGORY_TR":
             return RocketSalesParser(**config).transform(obj, **kwargs)
