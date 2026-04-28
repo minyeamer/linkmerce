@@ -90,8 +90,8 @@ class _AdObjects(MetaAds):
             account_ids: Sequence[str] = list(),
             fields: Sequence[str] = list(),
             **kwargs
-        ) -> JsonObject:
-        """광고 객체 목록을 조회해 JSON 형식으로 반환한다.
+        ) -> dict:
+        """메타 광고 객체 목록을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
@@ -100,14 +100,14 @@ class _AdObjects(MetaAds):
         end_date : dt.date | str | None
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
         account_ids : Sequence[str]
-            조회할 광고 계정 ID 목록. 생략 시 사용 가능한 모든 계정을 조회한다.
+            조회할 메타 광고 계정 ID 목록. 생략 시 사용 가능한 모든 계정을 조회한다.
         fields : Sequence[str]
             조회할 필드 목록. 생략 시 클래스에 정의된 `fields` 속성을 사용한다.
 
         Returns
         -------
-        list[dict]
-            메타 광고 객체 목록
+        dict
+            메타 광고 보고서
         """
         return self._extract_backend(account_ids, start_date=start_date, end_date=end_date, fields=fields)
 
@@ -270,33 +270,33 @@ class Insights(MetaAds):
             account_ids: Sequence[str] = list(),
             fields: Sequence[str] = list(),
             **kwargs
-        ) -> JsonObject:
+        ) -> dict:
         """메타 광고 성과 보고서를 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
-        ad_level : Literal["campaign", "adset", "ad"]
+        ad_level : str
             보고서 집계 기준
                 - `"campaign"`: 캠페인
                 - `"adset"`: 광고세트
                 - `"ad"`: 광고
         start_date : dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date : dt.date | str | Literal[":start_date:"]
+        end_date : dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
-        date_type : Literal["daily", "total"]
+        date_type : str
             보고서 기간 구분
                 - `"total"`: 합계
-                - `"daily"`: 일별
+                - `"daily"`: 일별 (기본값)
         account_ids : Sequence[str]
-            조회할 광고 계정 ID 목록. 생략 시 사용 가능한 모든 계정을 조회한다.
+            조회할 메타 광고 계정 ID 목록. 생략 시 사용 가능한 모든 계정을 조회한다.
         fields : Sequence[str]
             조회할 필드 목록. 생략 시 클래스에 정의된 `fields` 속성을 사용한다.
 
         Returns
         -------
-        list[dict]
+        dict
             메타 광고 성과 보고서
         """
         dates = dict(start_date=start_date, end_date=(start_date if end_date == ":start_date:" else end_date))

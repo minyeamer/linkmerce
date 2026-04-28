@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Sequence
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -67,20 +66,17 @@ class GoogleAds(GoogleApi):
                 "LAST_WEEK_SUN_SAT", "LAST_WEEK_MON_SUN"] | None = "LAST_30_DAYS",
             fields: Sequence[str] = list(),
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """GAQL 쿼리로 구글 광고 데이터를 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         start_date: dt.date | str | None
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
-            시작일을 지정하면 `date_range`는 무시된다. 기본값은 `None`
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
         end_date: dt.date | str | None
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
-            종료일을 지정하면 `date_range`는 무시된다. 기본값은 `None`
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
         date_range: str | None
-            GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 전달되면 무시된다.   
-            기본값은 `"LAST_30_DAYS"`
+            GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 전달되면 무시된다.
         fields: Sequence[str]
             조회할 GAQL 필드 목록. 생략 시 클래스에 정의된 `fields` 속성을 사용한다.
 
@@ -339,22 +335,22 @@ class Insight(GoogleAds):
                 "LAST_WEEK_SUN_SAT", "LAST_WEEK_MON_SUN"] | None = "YESTERDAY",
             fields: Sequence[str] = list(),
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """소재별 성과 데이터를 기간별로 구분해 조회하여 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         start_date: dt.date | str | None
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
-            시작일을 지정하면 `date_range`는 무시된다. 기본값은 `None`
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
         end_date: dt.date | str | None
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
-            종료일을 지정하면 `date_range`는 무시된다. 기본값은 `None`
-        date_freq: Literal['D', 'W', 'M']
-            조회 범위 및 데이터 집계 기간. 기본값은 `'D'`(일별)
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
+        date_freq: str
+            조회 범위 및 데이터 집계 기간
+                - `'D'`: 일 단위로 기간을 분할한다. (기본값)
+                - `'W'`: 월요일 기준 주 단위로 기간을 분할한다.
+                - `'M'`: 매월 1일 기준 월 단위로 기간을 분할한다.
         date_range: str | None
-            GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 전달되면 무시된다.   
-            기본값은 `"YESTERDAY"`
+            GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 전달되면 무시된다.
         fields: Sequence[str]
             조회할 GAQL 필드 목록. 생략 시 클래스에 정의된 `fields` 속성을 사용한다.
 
@@ -419,7 +415,7 @@ class Asset(GoogleAds):
 
     @GoogleApi.with_session
     @GoogleApi.with_token
-    def extract(self, fields: Sequence[str] = list(), **kwargs) -> JsonObject:
+    def extract(self, fields: Sequence[str] = list(), **kwargs) -> list[dict]:
         """애셋 보고서를 조회하여 JSON 형식으로 반환한다.
 
         Parameters

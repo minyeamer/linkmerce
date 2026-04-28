@@ -4,7 +4,7 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 
 def _common_config(fields: dict) -> dict:
-    """구글 Ads API 응답 데이터에 대한 공통적인 파서 설정."""
+    """구글 광고 API 응답 데이터에 대한 공통적인 파서 설정."""
     return dict(
         dtype = list,
         scope = "0.results",
@@ -13,9 +13,10 @@ def _common_config(fields: dict) -> dict:
 
 
 class _CommonParser(JsonTransformer):
-    """구글 Ads API 응답 데이터에 대해 공통적인 파싱 로직을 구현한 공통 클래스.
+    """구글 광고 API 응답 데이터에 대해 공통적인 파싱 로직을 구현한 공통 클래스.
 
-    `identifier` 필드가 존재하는 항목만 선별하며, `parse_result` 후크를 통해 개별 항목을 추가 가공할 수 있다.
+    `identifier` 필드가 존재하는 항목만 선별하며,
+    `parse_result` 후크를 통해 개별 항목을 추가 가공할 수 있다.
     """
 
     dtype = list
@@ -42,7 +43,23 @@ class _CommonParser(JsonTransformer):
 
 
 class Campaign(DuckDBTransformer):
-    """구글 광고 캠페인 목록을 `google_campaign` 테이블에 적재하는 클래스."""
+    """구글 광고 캠페인 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Campaign`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: list -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: google_campaign`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int | str
+        구글 광고 고객 ID
+    """
 
     extractor = "Campaign"
     tables = {"table": "google_campaign"}
@@ -58,7 +75,23 @@ class Campaign(DuckDBTransformer):
 
 
 class AdGroup(DuckDBTransformer):
-    """구글 광고그룹 목록을 `google_adgroup` 테이블에 적재하는 클래스."""
+    """구글 광고그룹 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `AdGroup`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: list -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: google_adgroup`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int | str
+        구글 광고 고객 ID
+    """
 
     extractor = "AdGroup"
     tables = {"table": "google_adgroup"}
@@ -74,7 +107,7 @@ class AdGroup(DuckDBTransformer):
 
 
 class AdParser(_CommonParser):
-    """구글 광고 소재 목록을 추출하는 파서 클래스."""
+    """구글 광고 소재 보고서를 파싱하는 클래스."""
 
     fields = {
         "campaign": ["id"],
@@ -105,7 +138,23 @@ class AdParser(_CommonParser):
 
 
 class Ad(DuckDBTransformer):
-    """구글 광고 소재 목록을 `google_ad` 테이블에 적재하는 클래스."""
+    """구글 광고 소재 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Ad`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `AdParser: list -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: google_ad`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int | str
+        구글 광고 고객 ID
+    """
 
     extractor = "Ad"
     tables = {"table": "google_ad"}
@@ -114,7 +163,23 @@ class Ad(DuckDBTransformer):
 
 
 class Insight(DuckDBTransformer):
-    """구글 광고 소재의 성과 데이터를 날짜/기기별로 구분하여 `google_insight` 테이블에 적재하는 클래스."""
+    """구글 광고 소재 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Insight`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: list -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: google_insight`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int | str
+        구글 광고 고객 ID
+    """
 
     extractor = "Insight"
     tables = {"table": "google_insight"}
@@ -132,7 +197,7 @@ class Insight(DuckDBTransformer):
 
 
 class AssetParser(_CommonParser):
-    """구글 광고 애셋 목록을 추출하는 파서 클래스."""
+    """구글 광고 애셋 보고서를 파싱하는 클래스."""
 
     fields = {"asset": ["id", "type", "name", "url"]}
     identifier = "asset.type"
@@ -160,7 +225,23 @@ class AssetParser(_CommonParser):
 
 
 class Asset(DuckDBTransformer):
-    """구글 광고 애셋 데이터를 `google_asset` 테이블에 적재하는 클래스."""
+    """구글 광고 애셋 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Asset`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `AssetParser: list -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: google_asset`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int | str
+        구글 광고 고객 ID
+    """
 
     extractor = "Asset"
     tables = {"table": "google_asset"}
@@ -198,7 +279,23 @@ class AssetViewParser(_CommonParser):
 
 
 class AssetView(DuckDBTransformer):
-    """구글 광고 소재-애셋 관계를 `google_asset_view` 테이블에 적재하는 클래스."""
+    """구글 광고 소재-애셋 관계를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `AssetView`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `AssetViewParser: list -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: google_asset_view`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int | str
+        구글 광고 고객 ID
+    """
 
     extractor = "AssetView"
     tables = {"table": "google_asset_view"}

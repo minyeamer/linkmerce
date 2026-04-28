@@ -12,7 +12,23 @@ def _common_config(fields: list) -> dict:
 
 
 class Campaigns(DuckDBTransformer):
-    """메타 광고 캠페인 목록을 `meta_campaigns` 테이블에 적재하는 클래스."""
+    """메타 광고 캠페인 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Campaigns`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: meta_campaigns`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    account_id: str
+        메타 광고 계정 ID
+    """
 
     extractor = "Campaigns"
     tables = {"table": "meta_campaigns"}
@@ -24,7 +40,23 @@ class Campaigns(DuckDBTransformer):
 
 
 class Adsets(DuckDBTransformer):
-    """메타 광고세트 목록을 `meta_adsets` 테이블에 적재하는 클래스."""
+    """메타 광고세트 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Adsets`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: meta_adsets`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    account_id: str
+        메타 광고 계정 ID
+    """
 
     extractor = "Adsets"
     tables = {"table": "meta_adsets"}
@@ -36,7 +68,23 @@ class Adsets(DuckDBTransformer):
 
 
 class Ads(DuckDBTransformer):
-    """메타 광고 목록을 `meta_ads` 테이블에 적재하는 클래스."""
+    """메타 광고 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Ads`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: meta_ads`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    account_id: str
+        메타 광고 계정 ID
+    """
 
     extractor = "Ads"
     tables = {"table": "meta_ads"}
@@ -48,13 +96,26 @@ class Ads(DuckDBTransformer):
 
 
 class Insights(DuckDBTransformer):
-    """메타 광고 성과 보고서와 캠페인, 광고세트, 소재 목록을 각각의 테이블에 변환 및 적재하는 클래스.
+    """메타 광고 성과 보고서를 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `campaigns` | `meta_campaigns` | 메타 광고 캠페인 목록
-    - `adsets` | `meta_adsets` | 메타 광고세트 목록
-    - `ads` | `meta_ads` | 메타 광고 목록
-    - `insights` | `meta_insights` | 메타 광고 성과 보고서"""
+    - **Extractor**: `Insights`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `campaigns: meta_campaigns` (캠페인 보고서)
+        2. `adsets: meta_adsets` (광고세트 보고서)
+        3. `ads: meta_ads` (광고 보고서)
+        4. `insights: meta_insights` (성과 보고서)
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    account_id: str
+        메타 광고 계정 ID
+    """
 
     extractor = "Insights"
     tables = {"campaigns": "meta_campaigns", "adsets": "meta_adsets", "ads": "meta_ads", "insights": "meta_insights"}
