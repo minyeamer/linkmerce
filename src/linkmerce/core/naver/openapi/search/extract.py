@@ -51,7 +51,6 @@ class _SearchExtractor(NaverOpenApi):
 
     @property
     def url(self) -> str:
-        """검색 API URL을 조합해 반환한다."""
         return f"{self.origin}/{self.version}/search/{self.content_type}.{self.response_type}"
 
     @NaverOpenApi.with_session
@@ -61,18 +60,18 @@ class _SearchExtractor(NaverOpenApi):
             start: int | Iterable[int] = 1,
             display: int = 100,
             sort: Literal["sim", "date"] = "sim",
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """검색 결과를 동기 방식으로 순차 조회한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어 또는 검색어 목록
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         start: int | Iterable[int]
-            검색 시작 위치 (기본값: 1, 최댓값: 1000)
+            검색 시작 위치. 정수 또는 정수의 배열을 입력한다. (기본값: 1, 최댓값: 1000)
         display: int
             한 번에 표시할 검색 결과 개수 (기본값: 10, 최댓값: 100)
-        sort: Literal["sim", "date"]
+        sort: str
             검색 결과 정렬 방법
                 - `"sim"`: 정확도순으로 내림차순 정렬 (기본값)
                 - `"date"`: 날짜순으로 내림차순 정렬
@@ -80,7 +79,9 @@ class _SearchExtractor(NaverOpenApi):
         Returns
         -------
         dict | list[dict]
-            검색 결과 또는 목록
+            검색 결과
+                - `query`와 `start`가 각각 `str`, `int` 타입일 때 -> `dict`
+                - `query` 또는 `start`가 `Iterable` 타입일 때 -> `list[dict]`
         """
         return self._extract_backend(query, start, display=display, sort=sort)
 
@@ -91,15 +92,15 @@ class _SearchExtractor(NaverOpenApi):
             start: int | Iterable[int] = 1,
             display: int = 100,
             sort: Literal["sim", "date"] = "sim",
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """검색 결과를 비동기 방식으로 병렬 조회한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어 또는 검색어 목록
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         start: int | Iterable[int]
-            검색 시작 위치 (기본값: 1, 최댓값: 1000)
+            검색 시작 위치. 정수 또는 정수의 배열을 입력한다. (기본값: 1, 최댓값: 1000)
         display: int
             한 번에 표시할 검색 결과 개수 (기본값: 10, 최댓값: 100)
         sort: Literal["sim", "date"]
@@ -110,7 +111,9 @@ class _SearchExtractor(NaverOpenApi):
         Returns
         -------
         dict | list[dict]
-            검색 결과 또는 목록
+            검색 결과
+                - `query`와 `start`가 각각 `str`, `int` 타입일 때 -> `dict`
+                - `query` 또는 `start`가 `Iterable` 타입일 때 -> `list[dict]`
         """
         return await self._extract_async_backend(query, start, display=display, sort=sort)
 
@@ -119,8 +122,8 @@ class _SearchExtractor(NaverOpenApi):
             query: str | Iterable[str],
             start: int | Iterable[int] = 1,
             **kwargs
-        ) -> JsonObject:
-        """키워드(`query`)별 검색 결과를 동기 방식으로 순차 조회하는 공통 메서드."""
+        ) -> dict | list[dict]:
+        """검색어 및 시작 위치에 대한 검색 결과를 동기 방식으로 순차 조회하는 공통 메서드."""
         return (self.request_each_loop(self.request_json_safe)
                 .partial(**kwargs)
                 .expand(query=query, start=start)
@@ -132,8 +135,8 @@ class _SearchExtractor(NaverOpenApi):
             query: str | Iterable[str],
             start: int | Iterable[int] = 1,
             **kwargs
-        ) -> JsonObject:
-        """키워드(`query`)별 검색 결과를 비동기 방식으로 병렬 조회하는 공통 메서드."""
+        ) -> dict | list[dict]:
+        """검색어 및 시작 위치에 대한 검색 결과를 비동기 방식으로 병렬 조회하는 공통 메서드."""
         return await (self.request_each_loop(self.request_async_json_safe)
                 .partial(**kwargs)
                 .expand(query=query, start=start)
@@ -330,18 +333,18 @@ class KiNSearch(_SearchExtractor):
             display: int = 100,
             sort: Literal["sim", "date", "point"] = "sim",
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """검색 결과를 동기 방식으로 순차 조회한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어 또는 검색어 목록
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         start: int | Iterable[int]
-            검색 시작 위치 (기본값: 1, 최댓값: 1000)
+            검색 시작 위치. 정수 또는 정수의 배열을 입력한다. (기본값: 1, 최댓값: 1000)
         display: int
             한 번에 표시할 검색 결과 개수 (기본값: 10, 최댓값: 100)
-        sort: Literal["sim", "date", "point"]
+        sort: str
             검색 결과 정렬 방법
                 - `"sim"`: 정확도순으로 내림차순 정렬 (기본값)
                 - `"date"`: 날짜순으로 내림차순 정렬
@@ -350,7 +353,9 @@ class KiNSearch(_SearchExtractor):
         Returns
         -------
         dict | list[dict]
-            검색 결과 또는 목록
+            검색 결과
+                - `query`와 `start`가 각각 `str`, `int` 타입일 때 -> `dict`
+                - `query` 또는 `start`가 `Iterable` 타입일 때 -> `list[dict]`
         """
         return self._extract_backend(query, start, display=display, sort=sort, **kwargs)
 
@@ -362,18 +367,18 @@ class KiNSearch(_SearchExtractor):
             display: int = 100,
             sort: Literal["sim", "date", "point"] = "sim",
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """검색 결과를 비동기 방식으로 병렬 조회한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어 또는 검색어 목록
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         start: int | Iterable[int]
-            검색 시작 위치 (기본값: 1, 최댓값: 1000)
+            검색 시작 위치. 정수 또는 정수의 배열을 입력한다. (기본값: 1, 최댓값: 1000)
         display: int
             한 번에 표시할 검색 결과 개수 (기본값: 10, 최댓값: 100)
-        sort: Literal["sim", "date", "point"]
+        sort: str
             검색 결과 정렬 방법
                 - `"sim"`: 정확도순으로 내림차순 정렬 (기본값)
                 - `"date"`: 날짜순으로 내림차순 정렬
@@ -382,7 +387,9 @@ class KiNSearch(_SearchExtractor):
         Returns
         -------
         dict | list[dict]
-            검색 결과 또는 목록
+            검색 결과
+                - `query`와 `start`가 각각 `str`, `int` 타입일 때 -> `dict`
+                - `query` 또는 `start`가 `Iterable` 타입일 때 -> `list[dict]`
         """
         return await self._extract_async_backend(query, start, display=display, sort=sort, **kwargs)
 
@@ -430,24 +437,24 @@ class ImageSearch(_SearchExtractor):
             sort: Literal["sim", "date"] = "sim",
             filter: Literal["all", "large", "medium", "small"] = "all",
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """검색 결과를 동기 방식으로 순차 조회한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어 또는 검색어 목록
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         start: int | Iterable[int]
-            검색 시작 위치 (기본값: 1, 최댓값: 1000)
+            검색 시작 위치. 정수 또는 정수의 배열을 입력한다. (기본값: 1, 최댓값: 1000)
         display: int
             한 번에 표시할 검색 결과 개수 (기본값: 10, 최댓값: 100)
-        sort: Literal["sim", "date", "point"]
+        sort: str
             검색 결과 정렬 방법
                 - `"sim"`: 정확도순으로 내림차순 정렬 (기본값)
                 - `"date"`: 날짜순으로 내림차순 정렬
-        filter: Literal["all", "large", "medium", "small"]
+        filter: str
             크기별 검색 결과 필터
-                - `"all"`: 모든 이미지(기본값)
+                - `"all"`: 모든 이미지 (기본값)
                 - `"large"`: 큰 이미지
                 - `"medium"`: 중간 크기 이미지
                 - `"small"`: 작은 크기 이미지
@@ -455,7 +462,9 @@ class ImageSearch(_SearchExtractor):
         Returns
         -------
         dict | list[dict]
-            검색 결과 또는 목록
+            검색 결과
+                - `query`와 `start`가 각각 `str`, `int` 타입일 때 -> `dict`
+                - `query` 또는 `start`가 `Iterable` 타입일 때 -> `list[dict]`
         """
         return self._extract_backend(query, start, display=display, sort=sort, filter=filter, **kwargs)
 
@@ -468,24 +477,24 @@ class ImageSearch(_SearchExtractor):
             sort: Literal["sim", "date"] = "sim",
             filter: Literal["all", "large", "medium", "small"] = "all",
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """검색 결과를 비동기 방식으로 병렬 조회한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어 또는 검색어 목록
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         start: int | Iterable[int]
-            검색 시작 위치 (기본값: 1, 최댓값: 1000)
+            검색 시작 위치. 정수 또는 정수의 배열을 입력한다. (기본값: 1, 최댓값: 1000)
         display: int
             한 번에 표시할 검색 결과 개수 (기본값: 10, 최댓값: 100)
-        sort: Literal["sim", "date", "point"]
+        sort: str
             검색 결과 정렬 방법
                 - `"sim"`: 정확도순으로 내림차순 정렬 (기본값)
                 - `"date"`: 날짜순으로 내림차순 정렬
-        filter: Literal["all", "large", "medium", "small"]
+        filter: str
             크기별 검색 결과 필터
-                - `"all"`: 모든 이미지(기본값)
+                - `"all"`: 모든 이미지 (기본값)
                 - `"large"`: 큰 이미지
                 - `"medium"`: 중간 크기 이미지
                 - `"small"`: 작은 크기 이미지
@@ -493,7 +502,9 @@ class ImageSearch(_SearchExtractor):
         Returns
         -------
         dict | list[dict]
-            검색 결과 또는 목록
+            검색 결과
+                - `query`와 `start`가 각각 `str`, `int` 타입일 때 -> `dict`
+                - `query` 또는 `start`가 `Iterable` 타입일 때 -> `list[dict]`
         """
         return await self._extract_async_backend(query, start, display=display, sort=sort, filter=filter, **kwargs)
 
@@ -540,18 +551,18 @@ class ShopSearch(_SearchExtractor):
             display: int = 100,
             sort: Literal["sim", "date", "asc", "dsc"] = "sim",
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """검색 결과를 동기 방식으로 순차 조회한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어 또는 검색어 목록
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         start: int | Iterable[int]
-            검색 시작 위치 (기본값: 1, 최댓값: 1000)
+            검색 시작 위치. 정수 또는 정수의 배열을 입력한다. (기본값: 1, 최댓값: 1000)
         display: int
             한 번에 표시할 검색 결과 개수 (기본값: 10, 최댓값: 100)
-        sort: Literal["sim", "date", "point"]
+        sort: str
             검색 결과 정렬 방법
                 - `"sim"`: 정확도순으로 내림차순 정렬 (기본값)
                 - `"date"`: 날짜순으로 내림차순 정렬
@@ -561,7 +572,9 @@ class ShopSearch(_SearchExtractor):
         Returns
         -------
         dict | list[dict]
-            검색 결과 또는 목록
+            검색 결과
+                - `query`와 `start`가 각각 `str`, `int` 타입일 때 -> `dict`
+                - `query` 또는 `start`가 `Iterable` 타입일 때 -> `list[dict]`
         """
         return self._extract_backend(query, start, display=display, sort=sort, **kwargs)
 
@@ -573,18 +586,18 @@ class ShopSearch(_SearchExtractor):
             display: int = 100,
             sort: Literal["sim", "date", "asc", "dsc"] = "sim",
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """검색 결과를 비동기 방식으로 병렬 조회한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어 또는 검색어 목록
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         start: int | Iterable[int]
-            검색 시작 위치 (기본값: 1, 최댓값: 1000)
+            검색 시작 위치. 정수 또는 정수의 배열을 입력한다. (기본값: 1, 최댓값: 1000)
         display: int
             한 번에 표시할 검색 결과 개수 (기본값: 10, 최댓값: 100)
-        sort: Literal["sim", "date", "point"]
+        sort: str
             검색 결과 정렬 방법
                 - `"sim"`: 정확도순으로 내림차순 정렬 (기본값)
                 - `"date"`: 날짜순으로 내림차순 정렬
@@ -594,6 +607,8 @@ class ShopSearch(_SearchExtractor):
         Returns
         -------
         dict | list[dict]
-            검색 결과 또는 목록
+            검색 결과
+                - `query`와 `start`가 각각 `str`, `int` 타입일 때 -> `dict`
+                - `query` 또는 `start`가 `Iterable` 타입일 때 -> `list[dict]`
         """
         return await self._extract_async_backend(query, start, display=display, sort=sort, **kwargs)

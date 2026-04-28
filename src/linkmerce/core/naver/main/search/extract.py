@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, Literal
     from bs4 import BeautifulSoup
-    from linkmerce.common.extract import JsonObject
 
 
 ###################################################################
@@ -40,29 +39,33 @@ class Search(Extractor):
             query: str | Iterable[str],
             mobile: bool = True,
             parse_html: bool = True,
-        ) -> JsonObject | list[BeautifulSoup] | list[str]:
-        """네이버 통합검색 결과를 스크래핑하여 HTML 텍스트 또는 `BeautifulSoup` 객체로 반환한다.
+        ) -> str | list[str] | BeautifulSoup | list[BeautifulSoup]:
+        """네이버 통합검색 결과 페이지로부터 HTML 소스코드를 추출한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어. 단일 또는 여러 개의 문자열 목록을 입력한다.
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         mobile: bool
-            PC/모바일 검색. 기본값은 `True`
+            - `True`: 모바일 검색 (기본값)
+            - `False`: PC 검색
         parse_html: bool
-            HTML 소스코드를 `BeautifulSoup` 객체로 파싱할지 여부. 기본값은 `True`
+            - `True`: HTML 소스코드를 `BeautifulSoup` 객체로 파싱 (기본값)
+            - `False`: HTML 소스코드를 텍스트로 반환
 
         Returns
         -------
-        list[BeautifulSoup] | list[str]
-            네이버 통합검색 결과 페이지 소스코드
+        BeautifulSoup | str | list[BeautifulSoup] | list[str]
+            네이버 통합검색 결과 페이지 소스코드. `query` 타입과 `parse_html` 값에 따라 반환 타입이 다르다.
+                - `query`가 `str` 타입일 때 -> `parse_html ? BeautifulSoup : str`
+                - `query`가 `Iterable[str]` 타입일 때 -> `parse_html ? list[BeautifulSoup] : list[str]`
         """
         return (self.request_each(self.search)
                 .partial(mobile=mobile, parse_html=parse_html)
                 .expand(query=query)
                 .run())
 
-    def search(self, mobile: bool = True, parse_html: bool = True, **kwargs) -> BeautifulSoup | str:
+    def search(self, mobile: bool = True, parse_html: bool = True, **kwargs) -> str | BeautifulSoup:
         """네이버 통합검색 요청을 실행하고 HTML 텍스트를 파싱한다."""
         kwargs["url"] = self.url.format(m=("m." if mobile else str()))
         response = self.request_text(mobile=mobile, **kwargs)
@@ -140,13 +143,13 @@ class SearchTab(Extractor):
             tab_type: Literal["image", "blog", "cafe", "kin", "influencer", "clip", "video", "news", "shortents"],
             mobile: bool = True,
             **kwargs
-        ) -> JsonObject | list[BeautifulSoup] | BeautifulSoup:
-        """네이버 탭별 검색 결과를 스크래핑하여 `BeautifulSoup` 객체로 반환한다.
+        ) -> BeautifulSoup | list[BeautifulSoup]:
+        """네이버 탭별 검색 결과 페이지로부터 HTML 소스코드를 추출한다.
 
         Parameters
         ----------
         query: str | Iterable[str]
-            검색어. 단일 또는 여러 개의 문자열 목록을 입력한다.
+            검색어. 문자열 또는 문자열의 배열을 입력한다.
         tab_type: str
             탭 구분
                 - `"image"`: 이미지
@@ -159,12 +162,15 @@ class SearchTab(Extractor):
                 - `"news"`: 뉴스
                 - `"shortents"`: 숏텐츠
         mobile: bool
-            PC/모바일 검색. 기본값은 `True`
+            - `True`: 모바일 검색 (기본값)
+            - `False`: PC 검색
 
         Returns
         -------
         BeautifulSoup | list[BeautifulSoup]
-            네이버 탭별 검색 결과 페이지 소스코드
+            네이버 탭별 검색 결과 페이지 소스코드. `query` 타입에 따라 반환 타입이 다르다.
+                - `query`가 `str` 타입일 때 -> `BeautifulSoup`
+                - `query`가 `Iterable[str]` 타입일 때 -> `list[BeautifulSoup]`
         """
         url = self.url.format(m=("m." if mobile else str()))
         tab_type = self.tab_type[tab_type].format(m=("m_" if mobile else str()))
@@ -224,13 +230,13 @@ class CafeArticle(Extractor):
             url: str | Iterable[str],
             domain: Literal["article", "cafe", "m"] = "article",
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """카페 게시글의 정보를 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         url: str | Iterable[str]
-            카페 URL. 다음 3가지 형식의 URL을 허용한다.
+            카페 URL. 문자열 또는 문자열의 배열을 입력한다. 다음 3가지 형식의 URL을 허용한다.
                 - https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}
                 - https://cafe.naver.com/{cafe_url}/{article_id}
                 - https://m.cafe.naver.com/{cafe_url}/{article_id}
@@ -240,7 +246,9 @@ class CafeArticle(Extractor):
         Returns
         -------
         dict | list[dict]
-            카페 게시글 정보 목록
+            카페 게시글 정보. `url` 타입에 따라 반환 타입이 다르다.
+                - `url`이 `str` 타입일 때 -> `dict`
+                - `url`이 `Iterable[str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_safe)
                 .partial(domain=domain)

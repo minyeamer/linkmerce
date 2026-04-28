@@ -4,7 +4,7 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 
 class SearchParser(JsonTransformer):
-    """네이버 검색 OpenAPI 응답 데이터를 변환하는 파서 클래스."""
+    """네이버 검색 API 응답 데이터를 파싱하는 클래스."""
 
     dtype = dict
     scope = "items"
@@ -17,7 +17,25 @@ class SearchParser(JsonTransformer):
 
 
 class BlogSearch(DuckDBTransformer):
-    """네이버 블로그 검색 결과를 `naver_blog` 테이블에 적재하는 클래스."""
+    """네이버 블로그 검색 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `BlogSearch`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_blog`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    start: int
+        검색 시작 위치
+    """
 
     extractor = "BlogSearch"
     tables = {"table": "naver_blog"}
@@ -29,7 +47,25 @@ class BlogSearch(DuckDBTransformer):
 
 
 class NewsSearch(DuckDBTransformer):
-    """네이버 뉴스 검색 결과를 `naver_news` 테이블에 적재하는 클래스."""
+    """네이버 뉴스 검색 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `NewsSearch`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_news`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    start: int
+        검색 시작 위치
+    """
 
     extractor = "NewsSearch"
     tables = {"table": "naver_news"}
@@ -41,7 +77,25 @@ class NewsSearch(DuckDBTransformer):
 
 
 class BookSearch(DuckDBTransformer):
-    """네이버 책 검색 결과를 `naver_book` 테이블에 적재하는 클래스."""
+    """네이버 책 검색 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `BookSearch`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_book`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    start: int
+        검색 시작 위치
+    """
 
     extractor = "BookSearch"
     tables = {"table": "naver_book"}
@@ -53,7 +107,25 @@ class BookSearch(DuckDBTransformer):
 
 
 class CafeSearch(DuckDBTransformer):
-    """네이버 카페 검색 결과를 `naver_cafe` 테이블에 적재하는 클래스."""
+    """네이버 카페글 검색 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `CafeSearch`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_cafe`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    start: int
+        검색 시작 위치
+    """
 
     extractor = "CafeSearch"
     tables = {"table": "naver_cafe"}
@@ -65,7 +137,25 @@ class CafeSearch(DuckDBTransformer):
 
 
 class KiNSearch(DuckDBTransformer):
-    """네이버 지식iN 검색 결과를 `naver_kin` 테이블에 적재하는 클래스."""
+    """네이버 지식iN 검색 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `KiNSearch`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_kin`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    start: int
+        검색 시작 위치
+    """
 
     extractor = "KiNSearch"
     tables = {"table": "naver_kin"}
@@ -77,7 +167,25 @@ class KiNSearch(DuckDBTransformer):
 
 
 class ImageSearch(DuckDBTransformer):
-    """네이버 이미지 검색 결과를 `naver_image` 테이블에 적재하는 클래스."""
+    """네이버 이미지 검색 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `ImageSearch`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_image`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    start: int
+        검색 시작 위치
+    """
 
     extractor = "ImageSearch"
     tables = {"table": "naver_image"}
@@ -89,7 +197,25 @@ class ImageSearch(DuckDBTransformer):
 
 
 class ShopSearch(DuckDBTransformer):
-    """네이버 쇼핑 검색 결과를 `naver_shop` 테이블에 적재하는 클래스."""
+    """네이버 쇼핑 검색 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `ShopSearch`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_shop`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    start: int
+        검색 시작 위치
+    """
 
     extractor = "ShopSearch"
     tables = {"table": "naver_shop"}
@@ -104,11 +230,28 @@ class ShopSearch(DuckDBTransformer):
 
 
 class ShopRank(ShopSearch):
-    """네이버 쇼핑 검색 결과로부터 순위 및 상품 목록을 각각의 테이블에 변환 및 적재하는 클래스.
+    """네이버 쇼핑 검색 결과를 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `rank` | `naver_shop_rank` | 네이버 쇼핑 상품 순위
-    - `product` | `naver_shop_product` | 네이버 쇼핑 상품 목록"""
+    **NOTE** 쇼핑 검색 결과로부터 상품 순위와 상품 정보를 각각의 테이블로 분리한다.
+
+    - **Extractor**: `ShopSearch`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchParser`: `dict` -> `list[dict]`
+
+    - **Table** ( *table_key: table_name (description)* ):
+        1. `rank`: `naver_shop_rank` (상품 순위)
+        2. `product`: `naver_shop_product` (상품 정보)
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    start: int
+        검색 시작 위치
+    """
 
     extractor = "ShopSearch"
     tables = {"rank": "naver_shop_rank", "product": "naver_shop_product"}

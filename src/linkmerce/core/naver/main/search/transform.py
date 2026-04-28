@@ -12,28 +12,12 @@ if TYPE_CHECKING:
 Props = TypeVar("Props", bound=dict)
 
 
-
 ###################################################################
 ########################### Naver Search ##########################
 ###################################################################
 
 class SearchSectionParser(HtmlTransformer):
-    """네이버 메인 검색 결과의 각 섹션을 파싱하여 하위 요소를 `list[dict]`로 정리하고
-    각 섹션을 `list`로 묶어서 반환하는 클래스.
-
-    다음 섹션을 파싱한다:
-    - 파워링크
-    - 연관검색어
-    - 네이버 가격비교
-    - 네이버플러스 스토어
-    - 스마트 블록 (브랜드 콘텐츠 등)
-    - 웹문서 (블로그, 카페, 뉴스, 지식iN, 리뷰 등)
-    - 이미지
-    - 동영상/클립
-    - AI 추천
-    - AI 브리핑
-    - 신제품소개
-    """
+    """네이버 통합검색 결과를 각각의 섹션 별로 파싱하는 클래스."""
 
     def transform(self, obj: str, mobile: bool = True, sep: str = '\n', **kwargs) -> list[list[dict]]:
         from linkmerce.utils.parse import select
@@ -609,11 +593,32 @@ class AiBriefing(_PropsTransformer):
 
 
 class Search(DuckDBTransformer):
-    """네이버 통합검색 결과의 각 섹션별 하위 블럭을 직렬화 또는 요약하여 각각의 테이블에 적재하는 클래스.
+    """네이버 통합검색 결과를 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `sections` | `naver_search_sections` | 네이버 통합검색 결과의 각 섹션 목록
-    - `summary` | `naver_search_summary` | 네이버 통합검색 결과 요약"""
+    - **Extractor**: `Search`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `SearchSectionParser: str -> list[list[dict]]`
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `sections: naver_search_sections` (JSON 섹션 목록)
+        2. `summary: naver_search_summary` (검색 결과 요약)
+
+    Parameters
+    ----------
+    **NOTE** HTML 소스코드 파싱 방식을 결정하기 위한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    mobile: bool
+        - `True`: 모바일 검색 (기본값)
+        - `False`: PC 검색
+    sep: str
+        문자열 리스트 항목에 대해 `.join()` 함수를 적용하기 위한 구분자 (기본값은 `\\n`)
+
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    """
 
     extractor = "Search"
     tables = {"sections": "naver_search_sections", "summary": "naver_search_summary"}
@@ -664,7 +669,7 @@ class Search(DuckDBTransformer):
 ###################################################################
 
 class CafeParser(HtmlTransformer):
-    """네이버 모바일 카페 탭 검색 결과 HTML 소스코드를 파싱하는 클래스."""
+    """네이버 탭별 검색 결과의 모바일 카페 탭 HTML 소스코드를 파싱하는 클래스."""
 
     scope = "div.view_wrap:all"
     fields = {
@@ -739,7 +744,23 @@ class CafeParser(HtmlTransformer):
 
 
 class CafeTab(DuckDBTransformer):
-    """네이버 모바일 카페 탭 검색 결과를 `naver_cafe_search` 테이블에 적재하는 클래스."""
+    """네이버 탭별 검색 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `SearchTab`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `CafeParser: BeautifulSoup -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_cafe_search`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: str
+        검색어
+    """
 
     extractor = "SearchTab"
     tables = {"table": "naver_cafe_search"}
@@ -748,7 +769,7 @@ class CafeTab(DuckDBTransformer):
 
 
 class CafeArticleParser(JsonTransformer):
-    """네이버 카페 게시글 API 응답 데이터를 파싱하는 클래스."""
+    """네이버 카페 게시글을 파싱하는 클래스."""
     dtype = dict
     scope = "result"
     fields = {
@@ -788,7 +809,16 @@ class CafeArticleParser(JsonTransformer):
 
 
 class CafeArticle(DuckDBTransformer):
-    """네이버 카페 게시글 데이터를 `naver_cafe_article` 테이블에 적재하는 클래스."""
+    """네이버 카페 게시글의 정보를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `CafeArticle`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `CafeArticleParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_cafe_article`
+    """
 
     extractor = "CafeArticle"
     tables = {"table": "naver_cafe_article"}
