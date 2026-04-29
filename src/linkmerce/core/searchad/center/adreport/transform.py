@@ -27,12 +27,19 @@ def _cast(type: ColumnType) -> Callable[[str], str | float | int | dt.date]:
 
 
 class AdvancedReport(ExcelTransformer):
-    """네이버 검색광고 다차원 보고서 (CSV 형식) 데이터를 파싱하는 클래스.
+    """네이버 검색광고 시스템의 다차원 보고서 다운로드 결과를 파싱하는 클래스.
 
-    주요 설정 변수:
-    - `header` - Excel 헤더 행 번호 (1부터 시작)
-    - `columns` - 한국어 칼럼명 (기본값 `['*']` -> 원본 칼럼명 추출)
-    - `convert_dtypes` - 데이터 타입 변환 여부 (기본값 `True`)"""
+    **NOTE** `ExcelTransformer`의 5단계 파이프라인을 따른다.
+
+    Attributes
+    ----------
+    header: int | None
+        헤더 행 번호
+    columns: list[str]
+        보고서의 한글 열이름 리스트. `'*'`이 포함되면 모든 열을 파싱한다. 기본값은 `['*']`
+    convert_dtypes: bool
+        데이터형 변환 여부. 기본값은 `True`
+    """
 
     columns: list[ColumnKr] = ['*']
     convert_dtypes: bool = True
@@ -51,14 +58,14 @@ class AdvancedReport(ExcelTransformer):
             self.convert_dtypes = convert_dtypes
 
     def set_columns(self, columns: list[tuple] | None = None):
-        """칼럼 목록을 설정한다. 칼럼 목록에 `*`이 없으면 특정 칼럼만 선택하도록 `fields`를 추가로 설정한다."""
+        """열 목록을 설정한다. 열 목록에 `'*'`이 없으면 특정 열만 선택하도록 `fields`를 추가로 설정한다."""
         if columns is not None:
             self.columns = columns
         if '*' not in self.columns:
             self.fields = list(self.get_columns(self.columns)[0])
 
     def parse(self, obj: str, **kwargs) -> list[dict]:
-        """CSV 문자열을 읽어 헤더를 영어 칼럼명으로 매핑하고, `convert_dtypes` 여부에 따라 형변환한다."""
+        """CSV 문자열을 읽어 헤더를 영어 열이름으로 매핑하고, `convert_dtypes` 여부에 따라 형변환한다."""
         from io import StringIO
         import csv
         data = list()
@@ -73,7 +80,7 @@ class AdvancedReport(ExcelTransformer):
         return data
 
     def get_columns(self, *headers: list[ColumnKr]) -> tuple[list[ColumnEn], list[ColumnType]]:
-        """마지막 헤더 행을 기준으로 영어 칼럼명 및 데이터 타입 매핑을 반환한다."""
+        """마지막 헤더 행을 기준으로 영어 열이름 및 데이터형 매핑을 반환한다."""
         total = list()
         for name in ["ad_info", "targeting", "ad_performance", "conv_performance", "time"]:
             attr: dict[ColumnKr, tuple[ColumnEn, ColumnType]] = getattr(self, name)
@@ -83,7 +90,7 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def ad_info(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        """광고 정보 - 칼럼 명칭 및 타입"""
+        """광고 정보 - 열이름 및 데이터형"""
         return {
             "캠페인": ("nccCampaignName", "STRING"),
             "캠페인 유형": ("nccCampaignTp", "STRING"),
@@ -101,7 +108,7 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def targeting(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        """타겟팅 구분 - 칼럼 명칭 및 타입"""
+        """타겟팅 구분 - 열이름 및 데이터형"""
         return {
             "매체이름": ("mediaNm", "STRING"),
             "PC/모바일 매체": ("pcMblTp", "STRING"),
@@ -114,7 +121,7 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def ad_performance(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        """광고 성과 - 칼럼 명칭 및 타입"""
+        """광고 성과 - 열이름 및 데이터형"""
         return {
             "노출수": ("impCnt", "INTEGER"),
             "클릭수": ("clkCnt", "INTEGER"),
@@ -128,7 +135,7 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def conv_performance(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        """전환 성과 - 칼럼 명칭 및 타입"""
+        """전환 성과 - 열이름 및 데이터형"""
         return {
             "총 전환수": ("ccnt", "INTEGER"),
             "직접전환수": ("drtCcnt", "INTEGER"),
@@ -150,7 +157,7 @@ class AdvancedReport(ExcelTransformer):
 
     @property
     def time(self) -> dict[ColumnKr, tuple[ColumnEn, ColumnType]]:
-        """시간구분 - 칼럼 명칭 및 타입"""
+        """시간 구분 - 열이름 및 데이터형"""
         return {
             "일별": ("ymd", "DATE"),
             "주별": ("ww", "STRING"),
@@ -162,7 +169,23 @@ class AdvancedReport(ExcelTransformer):
 
 
 class DailyReport(DuckDBTransformer):
-    """네이버 검색광고 다차원 보고서를 일별로 구분하여 `searchad_report` 테이블에 적재하는 클래스."""
+    """네이버 검색광고 시스템에서 다차원 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `DailyReport`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `AdvancedReport: str -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_report`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int | str
+        검색광고 고객 ID
+    """
 
     extractor = "DailyReport"
     tables = {"table": "searchad_report"}

@@ -104,6 +104,7 @@ def exposure_status(
         is_own: bool | None = None,
         *,
         connection: DuckDBConnection | None = None,
+        max_retries: int = 5,
         request_delay: float | int = 1.01,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
@@ -118,10 +119,13 @@ def exposure_status(
         configs = {"account_no": account_no, "customer_id": customer_id},
         cookies = cookies,
         options = {
-            "RequestEach": {
+            "RequestLoop": {
+                "max_retries": max_retries
+            },
+            "RequestEachLoop": {
                 "request_delay": request_delay,
                 "tqdm_options": {"disable": (not progress)}
-            }
+            },
         },
     )).extract(keyword, domain, mobile, is_own)
 
@@ -137,6 +141,7 @@ def exposure_rank(
         is_own: bool | None = None,
         *,
         connection: DuckDBConnection | None = None,
+        max_retries: int = 5,
         request_delay: float | int = 1.01,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
@@ -155,9 +160,12 @@ def exposure_rank(
         configs = {"account_no": account_no, "customer_id": customer_id},
         cookies = cookies,
         options = {
-            "RequestEach": {
+            "RequestLoop": {
+                "max_retries": max_retries
+            },
+            "RequestEachLoop": {
                 "request_delay": request_delay,
                 "tqdm_options": {"disable": (not progress)}
-            }
+            },
         },
     )).extract(keyword, domain, mobile, is_own)

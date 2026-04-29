@@ -17,6 +17,9 @@ class _ReportsDownload(NaverSearchAdApi):
     - **Docs**: https://naver.github.io/searchad-apidoc/
     - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/sa/reports-download
 
+    TSV 형식의 보고서에 대한 열이름과 설명은 대용량 다운로드 보고서 데이터 정의서 PDF를 참고한다.
+    - https://searchad.naver.com/File/downloadfilen/?type=10&filename=masterreport808.pdf
+
     보고서 생성 → 상태 폴링 → 다운로드 → 삭제 순서로 워크플로우를 실행한다.
 
     Attributes
@@ -102,6 +105,9 @@ class _MasterReport(_ReportsDownload):
     - **Docs**: https://naver.github.io/searchad-apidoc/#/tags/MasterReport
     - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/sa/reports-download
 
+    TSV 형식의 보고서에 대한 열이름과 설명은 대용량 다운로드 보고서 데이터 정의서 PDF를 참고한다.
+    - https://searchad.naver.com/File/downloadfilen/?type=10&filename=masterreport808.pdf
+
     보고서 생성 → 상태 폴링 → 다운로드 → 삭제 순서로 워크플로우를 실행한다.
     1. **create**: POST https://api.searchad.naver.com/master-reports
     2. **list**: GET https://api.searchad.naver.com/master-reports
@@ -145,7 +151,7 @@ class _MasterReport(_ReportsDownload):
         Returns
         -------
         str
-            TSV 형식의 마스터 보고서 다운로드 결과
+            TSV 텍스트 형식의 마스터 보고서 다운로드 결과
         """
         tsv_data = self._extract_backend(self.report_type, from_date=from_date)
         return self.parse(tsv_data)
@@ -721,7 +727,7 @@ class MasterAd(_MasterReport):
         Returns
         -------
         dict[str, str]
-            `{보고서 유형: TSV 텍스트}` 형식의 마스터 보고서 다운로드 결과
+            `{보고서 유형: TSV 텍스트}` 구조의 마스터 보고서 다운로드 결과
         """
         tsv_data = dict()
         for report_type in [
@@ -742,6 +748,9 @@ class _StatReport(_ReportsDownload):
     - **Menu**: 보고서 > 대용량 다운로드 보고서 > 대용량 보고서 다운로드
     - **Docs**: https://naver.github.io/searchad-apidoc/#/tags/StatReport
     - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/sa/reports-download
+
+    TSV 형식의 보고서에 대한 열이름과 설명은 대용량 다운로드 보고서 데이터 정의서 PDF를 참고한다.
+    - https://searchad.naver.com/File/downloadfilen/?type=10&filename=masterreport808.pdf
 
     보고서 생성 → 상태 폴링 → 다운로드 → 삭제 순서로 워크플로우를 실행한다.
     1. **create**: POST https://api.searchad.naver.com/stat-reports
@@ -783,13 +792,13 @@ class _StatReport(_ReportsDownload):
 
         Parameters
         ----------
-        date: dt.date | str | None
+        date: dt.date | str
             조회 일자. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
 
         Returns
         -------
         str
-            TSV 형식의 대용량 보고서 다운로드 결과
+            TSV 텍스트 형식의 대용량 보고서 다운로드 결과
         """
         tsv_data = self._extract_backend(self.report_type, date=date)
         return self.parse(tsv_data)
@@ -1155,14 +1164,14 @@ class AdvancedReport(_StatReport):
         ----------
         start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
 
         Returns
         -------
         dict[str, str]
-            `{보고서 유형: TSV 텍스트}` 형식의 대용량 보고서 다운로드 결과
+            `{보고서 유형: TSV 텍스트}` 구조의 대용량 보고서 다운로드 결과
         """
         return (self.request_each(self.request_daily_report)
                 .partial(customer_id=self.customer_id)
@@ -1170,7 +1179,7 @@ class AdvancedReport(_StatReport):
                 .run())
 
     def request_daily_report(self, date: dt.date, **kwargs) -> dict[str, str]:
-        """일별 보고서를 다운로드한다. """
+        """일별 보고서를 다운로드한다."""
         tsv_data = dict()
         for report_type in ["AD", "AD_CONVERSION"]:
             tsv_data[report_type] = self._extract_backend(report_type, date=date)

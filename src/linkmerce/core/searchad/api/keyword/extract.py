@@ -1,10 +1,7 @@
 from __future__ import annotations
 from linkmerce.core.searchad.api import NaverSearchAdApi
 
-from typing import Iterable, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from linkmerce.common.extract import JsonObject
+from typing import Iterable
 
 
 class Keyword(NaverSearchAdApi):
@@ -36,30 +33,32 @@ class Keyword(NaverSearchAdApi):
             max_rank: int | None = None,
             show_detail: bool = True,
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """키워드 도구의 연관키워드 조회 결과를 수집해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         keywords: str | Iterable[str]
-            키워드 또는 키워드 목록
+            키워드. 문자열 또는 문자열의 배열을 입력한다. 키워드는 5개씩 묶어서 조회한다.
         max_rank: int | None
             최대 순위. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
         show_detail: bool
-            - `True`: 관련 키워드별 상세 통계 정보(검색 횟수, 클릭 수, CTR, 경쟁력 지수, 검색 깊이)를 조회한다.
-            - `False`: 관련 키워드와 월별 검색 횟수 정보만 조회한다.
+            - `True`: 연관키워드의 상세 통계 정보를 조회한다. (기본값)
+            - `False`: 연관키워드의 월간검색수만 조회한다.
 
         Returns
         -------
         dict | list[dict]
-            연관키워드 조회 결과
+            연관키워드 조회 결과. `keywords` 타입에 따라 반환 타입이 다르다.
+                - `keywords`가 `str` 타입일 때 -> `dict`
+                - `keywords`가 `Iterable[str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_safe)
                 .partial(max_rank=max_rank, show_detail=show_detail)
                 .expand(keywords=self.chunk_keywords(keywords))
                 .run())
 
-    def chunk_keywords(self, keywords: str | Iterable[str], n: int = 5) -> list[list[str]] | str:
+    def chunk_keywords(self, keywords: str | Iterable[str], n: int = 5) -> str | list[list[str]]:
         """키워드 목록을 n개씩 청크 단위로 분할한다."""
         if isinstance(keywords, str):
             return keywords

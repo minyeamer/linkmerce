@@ -122,13 +122,13 @@ def campaign_report(
         transform_options: dict | None = None,
     ) -> JsonObject:
     """네이버 성과형 디스플레이 광고 캠페인 성과 리포트를 다운로드하여 `searchad_campaign_report` 테이블에 적재한다."""
-    from linkmerce.core.searchad.gfa.adreport.extract import CampaignReport
+    from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
     from linkmerce.core.searchad.gfa.adreport.transform import CampaignReport as T
-    return CampaignReport(**prepare_duckdb_extract(
+    return PerformanceReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
         cookies = cookies,
-    )).extract(start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress)
+    )).extract("CAMPAIGN", start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress)
 
 
 @with_duckdb_connection(table="searchad_creative_report")
@@ -149,10 +149,10 @@ def creative_report(
         transform_options: dict | None = None,
     ) -> JsonObject:
     """네이버 성과형 디스플레이 광고 소재 성과 리포트를 다운로드하여 `searchad_creative_report` 테이블에 적재한다."""
-    from linkmerce.core.searchad.gfa.adreport.extract import CreativeReport
+    from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
     from linkmerce.core.searchad.gfa.adreport.transform import CreativeReport as T
-    return CreativeReport(**prepare_duckdb_extract(
+    return PerformanceReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
         cookies = cookies,
-    )).extract(start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress)
+    )).extract("CREATIVE", start_date, end_date, date_type, columns, wait_seconds, wait_interval, progress)

@@ -972,8 +972,7 @@ class TestSearchAdGfa:
     - searchad.gfa.adreport.Campaign
     - searchad.gfa.adreport.AdSet
     - searchad.gfa.adreport.Creative
-    - searchad.gfa.adreport.CampaignReport
-    - searchad.gfa.adreport.CreativeReport"""
+    - searchad.gfa.adreport.PerformanceReport"""
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("searchad.gfa.0")
@@ -1017,12 +1016,13 @@ class TestSearchAdGfa:
 
     @pytest.mark.searchad_gfa
     def test_campaign_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
-        from linkmerce.core.searchad.gfa.adreport.extract import CampaignReport
+        from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
         _configs = options("searchad.gfa.campaign_report")
-        CampaignReport(
+        PerformanceReport(
             **self.credentials(credentials),
-            parser = dump_extract(CampaignReport, format="zip"),
+            parser = dump_extract(PerformanceReport, format="zip", map_index="campaign"),
         ).extract(
+            ad_unit = "CAMPAIGN",
             start_date = _configs.get("start_date", yesterday),
             end_date = _configs.get("end_date", ":start_date:"),
             date_type = _configs.get("date_type", "DAY"),
@@ -1034,12 +1034,13 @@ class TestSearchAdGfa:
 
     @pytest.mark.searchad_gfa
     def test_creative_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
-        from linkmerce.core.searchad.gfa.adreport.extract import CreativeReport
+        from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
         _configs = options("searchad.gfa.creative_report")
-        CreativeReport(
+        PerformanceReport(
             **self.credentials(credentials),
-            parser = dump_extract(CreativeReport, format="zip"),
+            parser = dump_extract(PerformanceReport, format="zip", map_index="creative"),
         ).extract(
+            ad_unit = "CREATIVE",
             start_date = _configs.get("start_date", yesterday),
             end_date = _configs.get("end_date", ":start_date:"),
             date_type = _configs.get("date_type", "DAY"),

@@ -4,7 +4,16 @@ from linkmerce.common.transform import ExcelTransformer, DuckDBTransformer
 
 
 class Campaign(DuckDBTransformer):
-    """네이버 성과형 디스플레이 광고 캠페인 목록을 `searchad_campaign_gfa` 테이블에 적재하는 클래스."""
+    """네이버 성과형 디스플레이 광고 캠페인 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Campaign`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_campaign_gfa`
+    """
 
     extractor = "Campaign"
     tables = {"table": "searchad_campaign_gfa"}
@@ -17,7 +26,23 @@ class Campaign(DuckDBTransformer):
 
 
 class AdSet(DuckDBTransformer):
-    """네이버 성과형 디스플레이 광고그룹 목록을 `searchad_adset_gfa` 테이블에 적재하는 클래스."""
+    """네이버 성과형 디스플레이 광고 그룹 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `AdSet`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_adset_gfa`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+    """
 
     extractor = "AdSet"
     tables = {"table": "searchad_adset_gfa"}
@@ -31,7 +56,23 @@ class AdSet(DuckDBTransformer):
 
 
 class Creative(DuckDBTransformer):
-    """네이버 성과형 디스플레이 광고 소재 목록을 `searchad_creative_gfa` 테이블에 적재하는 클래스."""
+    """네이버 성과형 디스플레이 광고 소재 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Creative`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_creative_gfa`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+    """
 
     extractor = "Creative"
     tables = {"table": "searchad_creative_gfa"}
@@ -48,7 +89,7 @@ class Creative(DuckDBTransformer):
 
 
 class CsvTransformer(ExcelTransformer):
-    """압축(ZIP) 파일 내 CSV 보고서 데이터를 추출하는 파서 클래스."""
+    """네이버 성과형 디스플레이 광고 성과 보고서 다운로드 결과를 파싱하는 클래스."""
 
     header = 1
 
@@ -69,7 +110,23 @@ class CsvTransformer(ExcelTransformer):
 
 
 class CampaignReport(DuckDBTransformer):
-    """네이버 성과형 디스플레이 광고 캠페인 성과 리포트를 `searchad_campaign_report` 테이블에 적재하는 클래스."""
+    """네이버 성과형 디스플레이 광고 캠페인 성과 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `CampaignReport`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `CsvTransformer: bytes -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_campaign_report`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+    """
 
     extractor = "CampaignReport"
     tables = {"table": "searchad_campaign_report"}
@@ -81,7 +138,23 @@ class CampaignReport(DuckDBTransformer):
 
 
 class CreativeReport(DuckDBTransformer):
-    """네이버 성과형 디스플레이 광고 소재 성과 리포트를 `searchad_creative_report` 테이블에 적재하는 클래스."""
+    """네이버 성과형 디스플레이 광고 소재 성과 보고서를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `CreativeReport`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `CsvTransformer: bytes -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_creative_report`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    account_no: int | str
+        성과형 디스플레이 광고 계정 번호
+    """
 
     extractor = "CreativeReport"
     tables = {"table": "searchad_creative_report"}

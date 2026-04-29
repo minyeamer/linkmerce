@@ -1,11 +1,6 @@
 from __future__ import annotations
 from linkmerce.core.searchad.api import NaverSearchAdApi
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from linkmerce.common.extract import JsonObject
-
 
 class TimeContract(NaverSearchAdApi):
     """네이버 검색광고 API로 브랜드검색 광고 계약기간 데이터를 조회하는 클래스.
@@ -31,7 +26,7 @@ class TimeContract(NaverSearchAdApi):
     uri = "/ncc/time-contracts"
 
     @NaverSearchAdApi.with_session
-    def extract(self) -> JsonObject:
+    def extract(self) -> list[dict]:
         """브랜드검색 광고 계약기간 데이터를 조회해 JSON 형식으로 반환한다.
 
         Returns
@@ -67,7 +62,7 @@ class BrandNewContract(NaverSearchAdApi):
     uri = "/ncc/brand-new/contracts"
 
     @NaverSearchAdApi.with_session
-    def extract(self) -> JsonObject:
+    def extract(self) -> list[dict]:
         """신제품검색 광고 계약기간 데이터를 조회해 JSON 형식으로 반환한다.
 
         Returns

@@ -32,15 +32,23 @@ def _cast(type: ColumnType) -> Callable[[str], str | float | int | dt.date | dt.
 
 
 class TsvTransformer(ResponseTransformer):
-    """네이버 검색광고 대용량 다운로드 보고서 (TSV 형식) 데이터를 JSON 형식으로 파싱하는 클래스.
+    """네이버 검색광고 대용량 다운로드 보고서를 파싱하는 클래스.
 
-    주요 설정 변수:
-    - `columns` - `(칼럼명, 타입)` 리스트
-    - `convert_dtypes` - 데이터 타입 변환 여부 (기본값 `True`)
-    
-    보고서 유형별 칼럼 구성은
-    [대용량 다운로드 보고서 데이터 정의서](https://searchad.naver.com/File/downloadfilen/?type=10&filename=masterreport808.pdf)를
-    참고한다."""
+    **NOTE** `ResponseTransformer`의 5단계 파이프라인을 따른다.
+
+    TSV 형식의 보고서에 대한 열이름과 설명은 대용량 다운로드 보고서 데이터 정의서 PDF를 참고한다.
+    - https://searchad.naver.com/File/downloadfilen/?type=10&filename=masterreport808.pdf
+
+    Attributes
+    ----------
+    columns: list[tuple[str, str]]
+        보고서에서 각각의 열과 순서대로 대응되는 튜플의 리스트. 튜플은 아래 항목으로 구성된다.
+            1. **열이름**: 보고서에는 헤더가 없다. PDF를 참고하여 열이름을 옮겨 적는다.
+            2. **데이터형**: 보고서의 값은 기본적으로 문자열로 인식된다.   
+                다른 타입으로 인식되어야 한다면 `_cast` 함수에서 정의된 `type` 상수를 입력한다.
+    convert_dtypes: bool
+        데이터형 변환 여부. 기본값은 `True`
+    """
 
     columns: list[tuple[Column, ColumnType]] = list()
     convert_dtypes: bool = True
@@ -51,7 +59,7 @@ class TsvTransformer(ResponseTransformer):
             self.convert_dtypes = convert_dtypes
 
     def set_columns(self, columns: list[tuple] | None = None):
-        """칼럼 목록을 설정하고, 칼럼 목록이 없으면 `ParseError`를 발생시킨다."""
+        """열 목록을 설정하고, 열 목록이 없으면 `ParseError`를 발생시킨다."""
         if columns is not None:
             self.columns = columns
         if not self.columns:
@@ -70,7 +78,7 @@ class TsvTransformer(ResponseTransformer):
         return data
 
     def select_fields(self, data: list[dict], **kwargs) -> list[dict]:
-        """TSV 파싱 결과를 그대로 반환한다. (칼럼 선택은 `columns` 속성으로 이미 처리됨)"""
+        """TSV 파싱 결과를 그대로 반환한다. (열 선택은 `columns` 속성으로 이미 처리됨)"""
         return data
 
 
@@ -79,7 +87,16 @@ class TsvTransformer(ResponseTransformer):
 ###################################################################
 
 class Campaign(DuckDBTransformer):
-    """네이버 검색광고 캠페인 마스터 데이터를 `searchad_campaign` 테이블에 적재하는 클래스."""
+    """네이버 검색광고 캠페인 마스터 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Campaign`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `TsvTransformer: str -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_campaign`
+    """
 
     extractor = "Campaign"
     tables = {"table": "searchad_campaign"}
@@ -102,7 +119,16 @@ class Campaign(DuckDBTransformer):
 
 
 class Adgroup(DuckDBTransformer):
-    """네이버 검색광고 광고그룹 마스터 데이터를 `searchad_adgroup` 테이블에 적재하는 클래스."""
+    """네이버 검색광고 광고그룹 마스터 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Adgroup`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `TsvTransformer: str -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_adgroup`
+    """
 
     extractor = "Adgroup"
     tables = {"table": "searchad_adgroup"}
@@ -130,7 +156,7 @@ class Adgroup(DuckDBTransformer):
 
 
 class Ad(TsvTransformer):
-    """네이버 검색광고 파워링크 단일형 소재 마스터 데이터를 JSON 형식으로 파싱하는 클래스."""
+    """네이버 검색광고 소재 마스터 데이터를 파싱하는 클래스."""
 
     columns = [
         ("Customer ID", "INTEGER"),
@@ -148,7 +174,7 @@ class Ad(TsvTransformer):
 
 
 class ContentsAd(TsvTransformer):
-    """네이버 검색광고 파워컨텐츠 소재 마스터 데이터를 JSON 형식으로 파싱하는 클래스."""
+    """네이버 검색광고 파워컨텐츠 소재 마스터 데이터를 파싱하는 클래스."""
 
     columns = [
         ("Customer ID", "INTEGER"),
@@ -170,7 +196,7 @@ class ContentsAd(TsvTransformer):
 
 
 class ShoppingProduct(TsvTransformer):
-    """네이버 검색광고 쇼핑검색 쇼핑몰상품형 상품 마스터 데이터를 JSON 형식으로 파싱하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑몰상품형 상품 마스터 데이터를 파싱하는 클래스."""
 
     columns = [
         ("Customer ID", "INTEGER"),
@@ -206,7 +232,7 @@ class ShoppingProduct(TsvTransformer):
 
 
 class ProductGroup(TsvTransformer):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품그룹 마스터 데이터를 JSON 형식으로 파싱하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품그룹 마스터 데이터를 파싱하는 클래스."""
 
     columns = [
         ("Customer ID", "INTEGER"),
@@ -222,7 +248,7 @@ class ProductGroup(TsvTransformer):
 
 
 class ProductGroupRel(TsvTransformer):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품그룹관계 마스터 데이터를 JSON 형식으로 파싱하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 상품그룹관계 마스터 데이터를 파싱하는 클래스."""
 
     columns = [
         ("Customer ID", "INTEGER"),
@@ -235,7 +261,7 @@ class ProductGroupRel(TsvTransformer):
 
 
 class BrandAd(TsvTransformer):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 소재 마스터 데이터를 JSON 형식으로 파싱하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 소재 마스터 데이터를 파싱하는 클래스."""
 
     columns = [
         ("Customer ID", "INTEGER"),
@@ -254,7 +280,7 @@ class BrandAd(TsvTransformer):
 
 
 class BrandThumbnailAd(TsvTransformer):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 썸네일소재 마스터 데이터를 JSON 형식으로 파싱하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 썸네일소재 마스터 데이터를 파싱하는 클래스."""
 
     columns = [
         ("Customer ID", "INTEGER"),
@@ -274,7 +300,7 @@ class BrandThumbnailAd(TsvTransformer):
 
 
 class BrandBannerAd(TsvTransformer):
-    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 배너소재 마스터 데이터를 JSON 형식으로 파싱하는 클래스."""
+    """네이버 검색광고 쇼핑검색 쇼핑브랜드형 배너소재 마스터 데이터를 파싱하는 클래스."""
 
     columns = [
         ("Customer ID", "INTEGER"),
@@ -306,19 +332,38 @@ AD_TABLE_KEYS: list[TableKey] = [
 ]
 
 class MasterAd(DuckDBTransformer):
-    """모든 소재 유형의 네이버 검색광고 마스터 데이터를 파싱하고,
-    통합된 소재 목록을 `searchad_ad` 테이블에 적재하는 클래스.
+    """모든 소재 유형의 네이버 검색광고 마스터 데이터를 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `table` | `searchad_ad` | 모든 유형의 소재 목록
-    - `link_ad` | `link_ad` | 파워링크 소재 목록
-    - `contents_ad` | `contents_ad` | 파워컨텐츠 소재 목록
-    - `shopping_product` | `shopping_product` | 쇼핑상품 소재 목록
-    - `brand_ad` | `brand_ad` | 모든 유형의 쇼핑브랜드 소재 목록
-    - `product_group` | `product_group` | 쇼핑브랜드 상품 그룹
-    - `product_group_rel` | `product_group_rel` | 쇼핑브랜드 상품그룹-광고그룹 관계
-    - `brand_thumbnail_ad` | `brand_thumbnail_ad` | 쇼핑브랜드 썸네일 이미지형 소재 목록
-    - `brand_banner_ad` | `brand_banner_ad` | 쇼핑브랜드 배너 이미지형 소재 목록"""
+    - **Extractor**: `MasterAd`
+
+    - **Parsers** ( *parser_class: input_type -> output_type* ):
+        1. `Ad: str -> list[dict]`
+        2. `ContentsAd: str -> list[dict]`
+        3. `ShoppingProduct: str -> list[dict]`
+        4. `ProductGroup: str -> list[dict]`
+        5. `ProductGroupRel: str -> list[dict]`
+        6. `BrandAd: str -> list[dict]`
+        7. `BrandThumbnailAd: str -> list[dict]`
+        8. `BrandBannerAd: str -> list[dict]`
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `table: searchad_ad` (전체 소재 목록)
+        2. `link_ad: link_ad` (파워링크 소재 목록)
+        3. `contents_ad: contents_ad` (파워컨텐츠 소재 목록)
+        4. `shopping_product: shopping_product` (쇼핑상품 소재 목록)
+        5. `brand_ad: brand_ad` (쇼핑브랜드 소재 목록)
+        6. `product_group: product_group` (상품그룹)
+        7. `product_group_rel: product_group_rel` (상품그룹-광고그룹 관계)
+        8. `brand_thumbnail_ad: brand_thumbnail_ad` (썸네일 이미지형 소재 목록)
+        9. `brand_banner_ad: brand_banner_ad` (배너 이미지형 소재 목록)
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int
+        광고계정의 CUSTOMER_ID
+    """
 
     extractor = "MasterAd"
     queries = (
@@ -330,9 +375,15 @@ class MasterAd(DuckDBTransformer):
     # params = {"customer_id": "$customer_id"}
 
     def transform(self, obj: dict[str, str], customer_id: int, **kwargs) -> dict:
-        """`{report_type: tsv_string}` 인자로부터
-        각각의 `report_type`에 맞는 파서로 TSV 형식의 마스터 데이터를 변환하고,   
-        개별 테이블 및 `searchad_ad` 테이블에 적재한다."""
+        """모든 소재 유형의 마스터 보고서를 파싱하여 하나의 테이블로 병합한다.
+
+        Parameters
+        ----------
+        obj: dict[str, str]
+            `{보고서 유형: TSV 텍스트}` 구조의 보고서 다운로드 결과
+        customer_id: int
+            광고계정의 CUSTOMER_ID
+        """
         result_set = dict()
         table_parser = self.table_parser
 
@@ -377,7 +428,16 @@ class MasterAd(DuckDBTransformer):
 
 
 class Media(DuckDBTransformer):
-    """네이버 검색광고 광고매체 마스터 데이터를 다운로드하는 클래스."""
+    """네이버 검색광고 광고매체 마스터 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Media`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `TsvTransformer: str -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_media`
+    """
 
     extractor = "Media"
     tables = {"table": "searchad_media"}
@@ -407,7 +467,7 @@ class Media(DuckDBTransformer):
 ###################################################################
 
 class AdStat(TsvTransformer):
-    """네이버 검색광고 광고성과 보고서로부터 일별 소재 광고 성과를 추출하는 파서 클래스."""
+    """네이버 검색광고 광고성과 보고서를 파싱하는 클래스."""
 
     columns = [
         ("Date", "DATE"),
@@ -428,7 +488,7 @@ class AdStat(TsvTransformer):
 
 
 class AdConversion(TsvTransformer):
-    """네이버 검색광고 전환 보고서로부터 일별 소재 전환 성과를 추출하는 파서 클래스."""
+    """네이버 검색광고 전환 보고서를 파싱하는 클래스."""
 
     columns = [
         ("Date", "DATE"),
@@ -448,17 +508,28 @@ class AdConversion(TsvTransformer):
 
 
 class AdvancedReport(DuckDBTransformer):
-    """일별 광고성과 및 전환 보고서를 파싱하고,
-    통합된 다차원 보고서를 `searchad_report` 테이블에 적재하는 클래스.
+    """다차원 보고서의 바탕이 되는 광고성과 및 전환 보고서를 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `table` | `searchad_report` | 일별 다차원 보고서
-    - `ad_stat` | `ad_stat_report` | 일별 소재 광고 성과
-    - `ad_conv` | `ad_conv_report` | 일별 소재 전환 성과
+    - **Extractor**: `AdvancedReport`
 
-    주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
-    - 공지사항 참고:
-    [[2026-02-11] STAT-REPORT 변경사항 안내 (COST 항목)(수정)](https://naver.github.io/searchad-apidoc/#/notice)"""
+    - **Parsers** ( *parser_class: input_type -> output_type* ):
+        1. `AdStat: str -> list[dict]`
+        2. `AdConversion: str -> list[dict]`
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `table: searchad_report` (다차원 보고서)
+        2. `ad_stat: ad_stat_report` (광고성과 보고서)
+        3. `ad_conv: ad_conv_report` (전환 보고서)
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    customer_id: int
+        광고계정의 CUSTOMER_ID
+    date: dt.date
+        조회 일자
+    """
 
     extractor = "AdvancedReport"
     queries = ["create", "bulk_insert_ad_stat", "bulk_insert_ad_conv", "merge_insert"]
@@ -466,9 +537,17 @@ class AdvancedReport(DuckDBTransformer):
     # params = {"customer_id": "$customer_id", "report_date": "$date"}
 
     def transform(self, obj: dict[str, str], customer_id: int, date: dt.date, **kwargs) -> dict:
-        """`{report_type: tsv_string}` 인자로부터
-        각각의 `report_type`에 맞는 파서로 TSV 형식의 마스터 데이터를 변환하고,   
-        개별 테이블 및 `searchad_report` 테이블에 적재한다."""
+        """광고성과 및 전환 보고서를 파싱하여 하나의 테이블로 병합한다.
+
+        Parameters
+        ----------
+        obj: dict[str, str]
+            `{보고서 유형: TSV 텍스트}` 구조의 보고서 다운로드 결과
+        customer_id: int
+            광고계정의 CUSTOMER_ID
+        date: dt.date
+            조회 일자
+        """
         result_set = dict()
         table_parser = self.table_parser
 

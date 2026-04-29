@@ -707,6 +707,7 @@ class TestSearchAdGfa:
         from linkmerce.core.searchad.gfa.adreport.transform import CampaignReport
         transformer_harness(CampaignReport).transform(
             account_no = self.account_no(credentials),
+            map_index = "campaign",
         )
 
     @pytest.mark.searchad_gfa
@@ -714,6 +715,7 @@ class TestSearchAdGfa:
         from linkmerce.core.searchad.gfa.adreport.transform import CreativeReport
         transformer_harness(CreativeReport).transform(
             account_no = self.account_no(credentials),
+            map_index = "creative",
         )
 
 

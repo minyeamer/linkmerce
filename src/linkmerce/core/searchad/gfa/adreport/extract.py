@@ -92,13 +92,13 @@ class Campaign(_MasterReport):
             self,
             status: Sequence[Literal["RUNNABLE", "DELETED"]] = ["RUNNABLE", "DELETED"],
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """캠페인 목록을 상태별로 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         status: Sequence[str]
-            캠페인 상태 목록
+            캠페인 상태 목록. 기본값은 `["RUNNABLE", "DELETED"]`
                 - `"RUNNABLE"`: 운영가능
                 - `"DELETED"`: 삭제
 
@@ -129,7 +129,7 @@ class Campaign(_MasterReport):
 
     @property
     def campaign_objective(self) -> dict[str, str]:
-        """캠페인 목표 유형 매핑을 반환한다."""
+        """캠페인 목표 유형 코드와 한글명 매핑을 반환한다."""
         return {
             "CONVERSION": "웹사이트 전환", "WEB_SITE_TRAFFIC": "인지도 및 트래픽", "INSTALL_APP": "앱 전환",
             "WATCH_VIDEO": "동영상 조회", "CATALOG": "카탈로그 판매", "SHOPPING": "쇼핑 프로모션",
@@ -220,17 +220,17 @@ class AdSet(_MasterReport):
 
     @property
     def status(self) -> dict[str, str]:
-        """광고 그룹 상태 매핑을 반환한다."""
+        """광고 그룹 상태 코드와 한글명 매핑을 반환한다."""
         return {"RUNNABLE": "운영가능", "BEFORE_STARTING": "광고집행전", "TERMINATED": "광고집행종료"}
 
     @property
     def budget_type(self) -> dict[str, str]:
-        """예산 유형 목록을 반환한다."""
+        """예산 유형 목록 코드와 한글명 매핑을 반환한다."""
         return {"DAILY": "일예산", "TOTAL": "총예산"}
 
     @property
     def bid_type(self) -> dict[str, str]:
-        """입찰 유형 목록을 반환한다."""
+        """입찰 유형 코드와 한글명 매핑을 반환한다."""
         return {
             "COST_CAP": "비용 한도", "BID_CAP": "입찰가 한도", "NO_CAP": "입찰가 한도 없음",
             "CPC": "수동 CPC", "CPM": "수동 CPM", "CPV": "수동 CPV"
@@ -287,13 +287,13 @@ class Creative(_MasterReport):
             self,
             status: Sequence[Literal["ALL", "PENDING", "REJECT", "ACCEPT", "PENDING_IN_OPERATION", "REJECT_IN_OPERATION", "DELETED"]] = ["ALL", "DELETED"],
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """소재 목록을 검수 상태별로 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         status: Sequence[str]
-            소재 검수 상태 목록
+            소재 검수 상태 목록. 기본값은 `["ALL", "DELETED"]`
                 - `"ALL"`: 모든 상태
                 - `"PENDING"`: 검수중
                 - `"REJECT"`: 반려
@@ -330,7 +330,7 @@ class Creative(_MasterReport):
 
     @property
     def status(self) -> dict[str, str]:
-        """소재 검수 상태 매핑을 반환한다."""
+        """소재 검수 상태 코드와 한글명 매핑을 반환한다."""
         return {
             "PENDING": "검수중", "REJECT": "반려", "ACCEPT": "승인",
             "PENDING_IN_OPERATION": "승인 (수정사항 검수중)", "REJECT_IN_OPERATION": "승인 (수정사항 반려)"
@@ -338,7 +338,7 @@ class Creative(_MasterReport):
 
     @property
     def creative_type(self) -> dict[str, str]:
-        """소재 유형 매핑을 반환한다."""
+        """소재 유형 코드와 한글명 매핑을 반환한다."""
         return {
             "SINGLE_IMAGE": "네이티브 이미지", "MULTIPLE_IMAGE": "컬렉션", "SINGLE_VIDEO": "동영상",
             "IMAGE_BANNER": "이미지 배너", "CATALOG": "카탈로그", "COMPOSITION": "ADVoost 소재"
@@ -369,11 +369,11 @@ class PerformanceReport(SearchAdGfa):
     @SearchAdGfa.with_session
     def extract(
             self,
+            ad_unit: Literal["AD_ACCOUNT", "CAMPAIGN", "AD_SET", "ASSET_GROUP", "CREATIVE"],
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             date_type: Literal["TOTAL", "DAY", "WEEK", "MONTH", "HOUR"] = "DAY",
             columns: list[str] | Literal[":default:"] = ":default:",
-            ad_unit: Literal["AD_ACCOUNT", "CAMPAIGN", "AD_SET", "ASSET_GROUP", "CREATIVE"] = "CREATIVE",
             wait_seconds: int = 60,
             wait_interval: int = 1,
             progress: bool = True,
@@ -385,21 +385,6 @@ class PerformanceReport(SearchAdGfa):
 
         Parameters
         ----------
-        start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
-        date_type: Literal[str]
-            기간 단위
-                - `"TOTAL"`: 전체
-                - `"DAY"`: 일 (기본값)
-                - `"WEEK"`: 주
-                - `"MONTH"`: 월
-                - `"HOUR"`: 시간
-        columns: list[str] | Literal[":default:"]
-            열 맞춤 설정
-                - `":default:"`: `db_columns` 속성 (기본값)
         ad_unit: Literal[str]
             분석 단위
                 - `"AD_ACCOUNT"`: 광고 계정
@@ -407,30 +392,47 @@ class PerformanceReport(SearchAdGfa):
                 - `"AD_SET"`: 광고 그룹
                 - `"ASSET_GROUP"`: 애셋 그룹
                 - `"CREATIVE"`: 광고 소재
+        start_date: dt.date | str
+            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+        end_date: dt.date | str
+            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        date_type: str
+            기간 단위
+                - `"TOTAL"`: 전체
+                - `"DAY"`: 일 (기본값)
+                - `"WEEK"`: 주
+                - `"MONTH"`: 월
+                - `"HOUR"`: 시간
+        columns: list[str]
+            열 맞춤 설정
+                - `":default:"`: 총비용, 노출수, 클릭수, 총 전환수, 총 전환매출액
         wait_seconds: int
             보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
             시간 내 보고서가 생성 완료되지 않으면 `RequestError`를 발생시킨다.
         wait_interval: int
             보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
         progress: bool
-            다운로드 진행도 출력 여부. 기본값은 `True`
+            - `True`: 리포트 생성 요청 및 다운로드 시 진행도를 출력한다. (기본값)
+            - `False`: 진행도를 출력하지 않는다.
 
         Returns
         -------
         dict[str, str]
-            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과.   
-            파일명은 `ReportDownload_aa_{account_no}_PERFORMANCE_{start_date}_{end_date}.csv` 형식을 따른다.
+            `{파일명: 엑셀 바이너리}` 구조의 성과 보고서 다운로드 결과
+            - 파일명은 `ReportDownload_aa_{account_no}_PERFORMANCE_{start_date}_{end_date}.csv`
+                명명 규칙에 따라 생성된다.
         """
         columns = self.db_columns if columns == ":default:" else columns
         dates = self.generate_date_range(start_date, end_date=end_date)
-        return self.download(columns, dates, date_type, ad_unit, wait_seconds, wait_interval, progress)
+        return self.download(ad_unit, columns, dates, date_type, wait_seconds, wait_interval, progress)
 
     def download(
             self,
+            ad_unit: Literal["AD_ACCOUNT", "CAMPAIGN", "AD_SET", "ASSET_GROUP", "CREATIVE"],
             columns: list[str],
             dates: list[tuple[dt.date, dt.date]],
             date_type: Literal["TOTAL", "DAY", "WEEK", "MONTH", "HOUR"] = "DAY",
-            ad_unit: Literal["AD_ACCOUNT", "CAMPAIGN", "AD_SET", "ASSET_GROUP", "CREATIVE"] = "CREATIVE",
             wait_seconds: int = 60,
             wait_interval: int = 1,
             progress: bool = True,
@@ -442,7 +444,7 @@ class PerformanceReport(SearchAdGfa):
 
         status = [False] * len(dates)
         for index, (start_date, end_date) in enumerate(tqdm(dates, desc="Requesting performance reports", disable=(not progress))):
-            kwargs = {"start_date": start_date, "end_date": end_date, "date_type": date_type, "ad_unit": ad_unit, "columns": columns}
+            kwargs = {"ad_unit": ad_unit, "columns": columns, "start_date": start_date, "end_date": end_date, "date_type": date_type}
             status[index] = self.request_report(**kwargs)
             time.sleep(wait_interval)
 
@@ -519,11 +521,11 @@ class PerformanceReport(SearchAdGfa):
 
     def build_download_json(
             self,
+            ad_unit: Literal["AD_ACCOUNT", "CAMPAIGN", "AD_SET", "ASSET_GROUP", "CREATIVE"],
             columns: list[str],
             start_date: dt.date,
             end_date: dt.date,
             date_type: Literal["TOTAL", "DAY", "WEEK", "MONTH", "HOUR"] = "DAY",
-            ad_unit: Literal["AD_ACCOUNT", "CAMPAIGN", "AD_SET", "ASSET_GROUP", "CREATIVE"] = "CREATIVE",
             **kwargs
         ) -> dict:
         return {
@@ -564,157 +566,15 @@ class PerformanceReport(SearchAdGfa):
     @property
     def db_columns(self) -> list[str]:
         """성과 리포트 측정값 칼럼 목록을 반환한다."""
-        return list()
+        return ["sales", "impCount", "clickCount", "convCount", "convSales"]
 
     @property
     def ad_unit(self) -> dict[str, str]:
-        """광고 단위 목록을 반환한다."""
+        """분석 단위 코드와 한글명 매핑을 반환한다."""
         return {
-            "광고 계정": "AD_ACCOUNT",
-            "캠페인": "CAMPAIGN",
-            "광고 그룹": "AD_SET",
-            "애셋 그룹": "ASSET_GROUP",
-            "광고 소재": "CREATIVE",
+            "AD_ACCOUNT": "광고 계정",
+            "CAMPAIGN": "캠페인",
+            "AD_SET": "광고 그룹",
+            "ASSET_GROUP": "애셋 그룹",
+            "CREATIVE": "광고 소재",
         }
-
-
-class CampaignReport(PerformanceReport):
-    """네이버 성과형 디스플레이 광고 캠페인 성과 보고서를 다운로드하는 클래스.
-
-    - **Menu**: 디스플레이 광고 > 보고서 > 성과 보고서 > 성과 보고서 > 캠페인 > 다운로드 요청
-    - **API**: https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/report/downloads
-    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/da/report/performance
-
-    Attributes
-    ----------
-    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
-
-    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
-
-    account_no: int | str
-        성과형 디스플레이 광고 계정 번호
-    """
-
-    def extract(
-            self,
-            start_date: dt.date | str,
-            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-            date_type: Literal["TOTAL", "DAY", "WEEK", "MONTH", "HOUR"] = "DAY",
-            columns: list[str] | Literal[":default:"] = ":default:",
-            wait_seconds: int = 60,
-            wait_interval: int = 1,
-            progress: bool = True,
-            **kwargs
-        ) -> dict[str, bytes]:
-        """캠페인 성과 보고서를 생성하고 엑셀 파일로 다운로드한다.
-
-        날짜 범위를 최대 60일 단위로 분할하여 보고서를 요청하고, 다운로드한 보고서는 삭제한다.
-
-        Parameters
-        ----------
-        start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
-        date_type: Literal[str]
-            기간 단위
-                - `"TOTAL"`: 전체
-                - `"DAY"`: 일 (기본값)
-                - `"WEEK"`: 주
-                - `"MONTH"`: 월
-                - `"HOUR"`: 시간
-        columns: list[str] | Literal[":default:"]
-            열 맞춤 설정
-                - `":default:"`: 총비용, 노출수, 클릭수, 총 전환수, 총 전환매출액
-        wait_seconds: int
-            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
-            시간 내 보고서가 생성 완료되지 않으면 `RequestError`를 발생시킨다.
-        wait_interval: int
-            보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
-        progress: bool
-            다운로드 진행도 출력 여부. 기본값은 `True`
-
-        Returns
-        -------
-        dict[str, bytes]
-            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과
-        """
-        return super().extract(
-            start_date, end_date, date_type, columns, "CAMPAIGN", wait_seconds, wait_interval, progress, **kwargs)
-
-    @property
-    def db_columns(self) -> list[str]:
-        """캠페인 성과 리포트 측정값 칼럼 목록을 반환한다."""
-        return ["sales", "impCount", "clickCount", "convCount", "convSales"]
-
-
-class CreativeReport(PerformanceReport):
-    """네이버 성과형 디스플레이 광고 소재 성과 보고서를 다운로드하는 클래스.
-
-    - **Menu**: 디스플레이 광고 > 보고서 > 성과 보고서 > 성과 보고서 > 광고 소재 > 다운로드 요청
-    - **API**: https://ads.naver.com/apis/gfa/v1/adAccounts/{account_no}/report/downloads
-    - **Referer**: https://ads.naver.com/manage/ad-accounts/{account_no}/da/report/performance
-
-    Attributes
-    ----------
-    **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
-
-    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
-
-    account_no: int | str
-        성과형 디스플레이 광고 계정 번호
-    """
-
-    def extract(
-            self,
-            start_date: dt.date | str,
-            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-            date_type: Literal["TOTAL", "DAY", "WEEK", "MONTH", "HOUR"] = "DAY",
-            columns: list[str] | Literal[":default:"] = ":default:",
-            wait_seconds: int = 60,
-            wait_interval: int = 1,
-            progress: bool = True,
-            **kwargs
-        ) -> dict[str, bytes]:
-        """광고 소재 성과 보고서를 생성하고 엑셀 파일로 다운로드한다.
-
-        날짜 범위를 최대 60일 단위로 분할하여 보고서를 요청하고, 다운로드한 보고서는 삭제한다.
-
-        Parameters
-        ----------
-        start_date: dt.date | str
-            조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
-            조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
-        date_type: Literal[str]
-            기간 단위
-                - `"TOTAL"`: 전체
-                - `"DAY"`: 일 (기본값)
-                - `"WEEK"`: 주
-                - `"MONTH"`: 월
-                - `"HOUR"`: 시간
-        columns: list[str] | Literal[":default:"]
-            열 맞춤 설정
-                - `":default:"`: 총비용, 노출수, 클릭수, 총 전환수, 총 전환매출액
-        wait_seconds: int
-            보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
-            시간 내 보고서가 생성 완료되지 않으면 `RequestError`를 발생시킨다.
-        wait_interval: int
-            보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
-        progress: bool
-            다운로드 진행도 출력 여부. 기본값은 `True`
-
-        Returns
-        -------
-        dict[str, bytes]
-            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과
-        """
-        return super().extract(
-            start_date, end_date, date_type, columns, "CREATIVE", wait_seconds, wait_interval, progress, **kwargs)
-
-    @property
-    def db_columns(self) -> list[str]:
-        """소재 성과 리포트 측정값 칼럼 목록을 반환한다."""
-        return ["sales", "impCount", "clickCount", "convCount", "convSales"]

@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Iterable, Literal
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
 class AdvancedReport(SearchAdCenter):
-    """네이버 검색광고 시스템에서 다차원 보고서를 다운로드하는 클래스.
+    """네이버 광고주센터에서 다차원 보고서를 다운로드하는 클래스.
 
     - **Menu**: 검색 광고 > 보고서 > 다차원 보고서 > 보고서 형식 저장
     - **API**: https://ads.naver.com/apis/sa/api/advanced-report/downloads
@@ -44,8 +43,8 @@ class AdvancedReport(SearchAdCenter):
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             **kwargs
-        ) -> JsonObject | str:
-        """다차원 보고서를 CSV 문자열 형식으로 다운로드 받는다.
+        ) -> str:
+        """다차원 보고서를 CSV 텍스트 형식으로 다운로드 받는다.
 
         Parameters
         ----------
@@ -63,14 +62,14 @@ class AdvancedReport(SearchAdCenter):
             - 예: 노출수, 클릭수, 총비용, 총 전환수, 평균노출순위 등
         start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
 
         Returns
         -------
         str
-            CSV 형식의 다차원 보고서 다운로드 결과
+            CSV 텍스트 형식의 다차원 보고서 다운로드 결과
         """
         response = self.request_text(
             report_id = report_id,
@@ -114,7 +113,7 @@ class AdvancedReport(SearchAdCenter):
 
 
 class DailyReport(AdvancedReport):
-    """네이버 검색광고 시스템에서 고정된 항목의 다차원 보고서를 다운로드하는 클래스.
+    """네이버 광고주센터에서 고정된 항목의 다차원 보고서를 다운로드하는 클래스.
 
     - **Menu**: 검색 광고 > 보고서 > 다차원 보고서 > 보고서 형식 저장
     - **API**: https://ads.naver.com/apis/sa/api/advanced-report/downloads
@@ -144,8 +143,8 @@ class DailyReport(AdvancedReport):
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             **kwargs
-        ) -> JsonObject | str:
-        """다차원 보고서를 CSV 문자열 형식으로 다운로드한다.
+        ) -> str:
+        """다차원 보고서를 CSV 텍스트 형식으로 다운로드한다.
 
         Parameters
         ----------
@@ -157,14 +156,14 @@ class DailyReport(AdvancedReport):
             네이버 아이디
         start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
 
         Returns
         -------
         str
-            CSV 형식의 다차원 보고서 다운로드 결과
+            CSV 텍스트 형식의 다차원 보고서 다운로드 결과
         """
         return super().extract(report_id, report_name, userid, self.attributes, self.fields, start_date, end_date)
 

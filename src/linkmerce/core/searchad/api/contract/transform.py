@@ -4,7 +4,16 @@ from linkmerce.common.transform import DuckDBTransformer
 
 
 class TimeContract(DuckDBTransformer):
-    """네이버 검색광고의 브랜드검색 광고 계약기간 API 응답 데이터를 `searchad_contract` 테이블에 적재하는 클래스."""
+    """브랜드검색 광고 계약기간 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `TimeContract`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: list -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_contract`
+    """
 
     extractor = "TimeContract"
     tables = {"table": "searchad_contract"}
@@ -21,7 +30,16 @@ class TimeContract(DuckDBTransformer):
 
 
 class BrandNewContract(DuckDBTransformer):
-    """네이버 검색광고의 신제품검색 광고 계약기간 API 응답 데이터를 `searchad_contract_new` 테이블에 적재하는 클래스."""
+    """신제품검색 광고 계약기간 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `BrandNewContract`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: list -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: searchad_contract_new`
+    """
 
     extractor = "BrandNewContract"
     tables = {"table": "searchad_contract_new"}

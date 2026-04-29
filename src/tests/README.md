@@ -282,9 +282,8 @@ searchad/
 │   │           └── AdvancedReport(ExcelTransformer)::transform
 │   └── exposure/
 │       └── ExposureDiagnosis(SearchAdCenter)::extract
-│           └── ExposureDiagnosis(DuckDBTransformer)::transform
-│               ├── ExposureParser(JsonTransformer)::transform
-│               └── ExposureRank(ExposureDiagnosis)::transform
+│           ├── ExposureDiagnosis(DuckDBTransformer)::transform >> json
+│           └── ExposureRank(ExposureDiagnosis)::transform >> json
 └── gfa/
     ├── SearchAdGfa(Extractor)::common
     └── adreport/
@@ -295,11 +294,9 @@ searchad/
         │   └── AdSet(DuckDBTransformer)::transform >> json
         ├── Creative(_MasterReport)::extract
         │   └── Creative(DuckDBTransformer)::transform >> json
-        ├─x PerformanceReport(SearchAdGfa)::extract
-        ├── CampaignReport(PerformanceReport)::extract
-        │   └── CampaignReport(DuckDBTransformer)::transform
-        │       └── CsvTransformer(ExcelTransformer)::transform
-        └── CreativeReport(PerformanceReport)::extract
+        └── PerformanceReport(SearchAdGfa)::extract
+            ├── CampaignReport(DuckDBTransformer)::transform
+            │   └── CsvTransformer(ExcelTransformer)::transform
             └── CreativeReport(DuckDBTransformer)::transform
                 └── CsvTransformer(ExcelTransformer)::transform
 ```
