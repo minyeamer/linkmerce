@@ -5,7 +5,7 @@ from linkmerce.api.common import prepare_duckdb_extract, with_duckdb_connection
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal, Sequence
+    from typing import Iterable, Literal
     from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
     import datetime as dt
@@ -32,7 +32,7 @@ def order(
         end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"] = ":start_date:",
         date_type: str = "reg_dm",
         order_status_div: str = str(),
-        order_status: Sequence[str] = list(),
+        order_status: list[str] = list(),
         shop_id: str = str(),
         sort_type: str = "ord_no_asc",
         *,
@@ -75,7 +75,7 @@ def order_download(
         date_type: str = "reg_dm",
         order_seq: list[int] = list(),
         order_status_div: str = str(),
-        order_status: Sequence[str] = list(),
+        order_status: list[str] = list(),
         shop_id: str = str(),
         sort_type: str = "ord_no_asc",
         *,
@@ -112,7 +112,7 @@ def order_status(
         date_type: list[str] = ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"],
         order_seq: list[int] = list(),
         order_status_div: str = str(),
-        order_status: Sequence[str] = list(),
+        order_status: list[str] = list(),
         shop_id: str = str(),
         sort_type: str = "ord_no_asc",
         *,
@@ -175,7 +175,7 @@ def sku_mapping(
         userid: str,
         passwd: str,
         domain: int,
-        query: Sequence[dict],
+        query: dict | Iterable[dict],
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int = 0.3,
@@ -282,7 +282,7 @@ def option(
         userid: str,
         passwd: str,
         domain: int,
-        product_id: Sequence[str],
+        product_id: str | Iterable[str],
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int = 0.3,
@@ -338,7 +338,7 @@ def add_product(
         userid: str,
         passwd: str,
         domain: int,
-        group_id: Sequence[str] = list(),
+        group_id: str | Iterable[str] = list(),
         start_date: dt.date | str | Literal[":base_date:", ":today:"] = ":base_date:",
         end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
         shop_id: str = str(),

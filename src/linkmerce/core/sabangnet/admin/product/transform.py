@@ -10,7 +10,16 @@ if TYPE_CHECKING:
 
 
 class Product(DuckDBTransformer):
-    """사방넷 상품 조회 결과를 `sabangnet_product` 테이블에 적재하는 클래스."""
+    """사방넷상품조회수정 메뉴의 상품 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Product`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_product`
+    """
 
     extractor = "Product"
     tables = {"table": "sabangnet_product"}
@@ -27,7 +36,16 @@ class Product(DuckDBTransformer):
 
 
 class Option(DuckDBTransformer):
-    """사방넷 단품 옵션 조회 결과를 `sabangnet_option` 테이블에 적재하는 클래스."""
+    """사방넷상품조회수정 메뉴의 옵션 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Option`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_option`
+    """
 
     extractor = "Option"
     tables = {"table": "sabangnet_option"}
@@ -43,7 +61,7 @@ class Option(DuckDBTransformer):
 
 
 class OptionParser(ExcelTransformer):
-    """사방넷 옵션 다운로드 결과로부터 옵션 목록을 추출하는 파서 클래스."""
+    """사방넷단품대량수정 메뉴의 옵션 목록 다운로드 결과를 파싱하는 클래스."""
 
     header = 2
     fields = [
@@ -60,7 +78,16 @@ class OptionParser(ExcelTransformer):
 
 
 class OptionDownload(DuckDBTransformer):
-    """사방넷 단품 대량 수정 메뉴의 다운로드 결과를 `sabangnet_option_download` 테이블에 적재하는 클래스."""
+    """사방넷단품대량수정 메뉴의 옵션 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `OptionDownload`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `OptionParser: bytes -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_option_download`
+    """
 
     extractor = "OptionDownload"
     tables = {"table": "sabangnet_option_download"}
@@ -68,7 +95,16 @@ class OptionDownload(DuckDBTransformer):
 
 
 class AddProductGroup(DuckDBTransformer):
-    """사방넷 추가상품 그룹을 `sabangnet_add_product_group` 테이블에 적재하는 클래스."""
+    """사방넷추가상품관리 메뉴의 추가상품 그룹 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `AddProductGroup`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_add_product_group`
+    """
 
     extractor = "AddProductGroup"
     tables = {"table": "sabangnet_add_product_group"}
@@ -81,7 +117,16 @@ class AddProductGroup(DuckDBTransformer):
 
 
 class AddProduct(DuckDBTransformer):
-    """사방넷 추가상품 목록을 `sabangnet_add_product` 테이블에 적재하는 클래스."""
+    """사방넷추가상품관리 메뉴의 추가상품 목록을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `AddProduct`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_add_product`
+    """
 
     extractor = "AddProduct"
     tables = {"table": "sabangnet_add_product"}

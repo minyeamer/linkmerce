@@ -4,8 +4,7 @@ from linkmerce.core.sabangnet.admin import SabangnetAdmin
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal, Sequence
-    from linkmerce.common.extract import JsonObject
+    from typing import Iterable, Literal
     import datetime as dt
 
 
@@ -54,28 +53,30 @@ class Product(SabangnetAdmin):
             is_deleted: bool = False,
             product_status: str | None = None,
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """사방넷상품조회수정 화면에서 검색 조건에 대한 상품 목록을 페이지 단위로 조회한다.
 
         Parameters
         ----------
-        start_date: dt.date | str | Literal[":base_date:", ":today:"]
+        start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":base_date:"`: 사방넷 설립일, "1986-01-09" (기본값)
                 - `":today:"`: 오늘 날짜
-        end_date: dt.date | str | Literal[":start_date:", ":today:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
         date_type: str
-            일자 유형. `date_type` 속성의 키를 전달할 수 있다. 기본값은 상품등록일
+            일자 유형. `date_type` 속성의 키를 전달할 수 있다. 기본값은 상품등록일(`"001"`)
         sort_type: str
-            정렬순서 코드. `sort_type` 속성의 키를 전달할 수 있다. 기본값은 등록일
+            정렬순서 코드. `sort_type` 속성의 키를 전달할 수 있다. 기본값은 등록일(`"001"`)
         sort_asc: bool
-            정렬순서 방식. `True`면 오름차순, `False`면 내림차순으로 조회한다. 기본값은 오름차순
+            - `True`: 정렬순서 오름차순 (기본값)
+            - `False`: 정렬순서 내림차순
         is_deleted: bool
-            삭제된 상품만 조회할지 여부. `True`면 상품상태 조건 대신 삭제 상태만 조회한다.
-            기본값은 `False`
+            삭제된 상품 조회 여부
+                - `True`: 삭제된 상품만 조회 (`product_status = "006"`)
+                - `False`: `product_status` 조건에 맞는 상품 조회 (기본값)
         product_status: str | None
             상품상태 코드. `product_status` 속성의 키를 전달할 수 있다.
 
@@ -101,7 +102,7 @@ class Product(SabangnetAdmin):
                     product_status = product_status,
                 ))
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 상품 건수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "data.metaData.total")
@@ -202,18 +203,20 @@ class Option(SabangnetAdmin):
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
-    def extract(self, product_id: Sequence[str], **kwargs) -> JsonObject:
+    def extract(self, product_id: str | Iterable[str], **kwargs) -> dict | list[dict]:
         """사방넷상품조회수정 화면의 옵션관리 팝업에서 상품별 옵션 목록을 조회한다.
 
         Parameters
         ----------
-        product_id: Sequence[str]
-            조회할 품번코드 목록. 각 품번코드에 대해 옵션 목록을 각각 조회한다.
+        product_id: str | Iterable[str]
+            조회할 품번코드. 문자열 또는 문자열의 배열을 입력한다.
 
         Returns
         -------
         list[dict]
-            사방넷 옵션 목록
+            사방넷 옵션 목록. `product_id` 타입에 따라 반환 타입이 다르다.
+                - `product_id`가 `str` 타입일 때 -> `dict`
+                - `product_id`가 `Iterable[str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_safe)
                 .expand(product_id=product_id)
@@ -267,30 +270,33 @@ class OptionDownload(SabangnetAdmin):
 
         Parameters
         ----------
-        start_date: dt.date | str | Literal[":base_date:", ":today:"]
+        start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":base_date:"`: 사방넷 설립일, "1986-01-09" (기본값)
                 - `":today:"`: 오늘 날짜
-        end_date: dt.date | str | Literal[":start_date:", ":today:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
         date_type: str
-            일자 유형. `date_type` 속성의 키를 전달할 수 있다. 기본값은 상품등록일
+            일자 유형. `date_type` 속성의 키를 전달할 수 있다. 기본값은 상품등록일(`"prdFstRegsDt"`)
         sort_type: str
-            정렬순서 코드. `sort_type` 속성의 키를 전달할 수 있다. 기본값은 품번코드
+            정렬순서 코드. `sort_type` 속성의 키를 전달할 수 있다. 기본값은 품번코드(`"prdNo"`)
         sort_asc: bool
-            정렬순서 방식. `True`면 오름차순, `False`면 내림차순으로 조회한다. 기본값은 오름차순
+            - `True`: 정렬순서 오름차순 (기본값)
+            - `False`: 정렬순서 내림차순
         is_deleted: bool
-            삭제된 상품만 조회할지 여부. `True`면 상품상태 조건 대신 삭제 상태만 조회한다.
-            기본값은 `False`
+            삭제된 상품 조회 여부
+                - `True`: 삭제된 상품만 조회 (`product_status = "006"`)
+                - `False`: `product_status` 조건에 맞는 상품 조회 (기본값)
         product_status: list[str]
             상품상태 코드. `product_status` 속성의 키를 전달할 수 있다.
 
         Returns
         -------
         dict[str, bytes]
-            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과
+            `{파일명: 엑셀 바이너리}` 구조의 옵션 목록 다운로드 결과
+                - 파일명은 "사방넷단품대량수정_수정파일.xlsx"로 고정한다.
         """
         from linkmerce.core.sabangnet.admin import get_product_date_pair
         dates = get_product_date_pair(start_date, end_date)
@@ -404,16 +410,16 @@ class AddProductGroup(SabangnetAdmin):
             end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             shop_id: str = str(),
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """사방넷추가상품관리 화면의 검색 조건에 대한 추가상품 그룹 목록을 페이지 단위로 조회한다.
 
         Parameters
         ----------
-        start_date: dt.date | str | Literal[":base_date:", ":today:"]
+        start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":base_date:"`: 사방넷 설립일, "1986-01-09" (기본값)
                 - `":today:"`: 오늘 날짜
-        end_date: dt.date | str | Literal[":start_date:", ":today:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
@@ -430,7 +436,7 @@ class AddProductGroup(SabangnetAdmin):
         return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
                 .run(start_date=start_date, end_date=end_date, shop_id=shop_id))
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 추가상품 그룹 건수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "data.0.total")
@@ -490,18 +496,20 @@ class AddProduct(SabangnetAdmin):
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
-    def extract(self, group_id: Sequence[str], **kwargs) -> JsonObject:
+    def extract(self, group_id: str | Iterable[str], **kwargs) -> dict | list[dict]:
         """사방넷추가상품관리 화면의 추가상품그룹관리 팝업에서 선택한 그룹별 추가상품 목록을 조회한다.
 
         Parameters
         ----------
         group_id: Sequence[str]
-            조회할 추가상품 그룹코드 목록
+            조회할 추가상품 그룹코드. 문자열 또는 문자열의 배열을 입력한다.
 
         Returns
         -------
-        list[dict]
-            사방넷 추가상품 목록
+        dict | list[dict]:
+            사방넷 추가상품 목록. `group_id` 타입에 따라 반환 타입이 다르다.
+                - `group_id`가 `str` 타입일 때 -> `dict`
+                - `group_id`가 `Iterable[str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_safe)
                 .expand(group_id=group_id)

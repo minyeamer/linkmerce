@@ -189,7 +189,7 @@ class RocketSettlementDownload(RocketSettlement):
         -------
         dict[str, bytes]
             `{파일명: 엑셀 바이너리}` 구조의 정산 리포트 다운로드 결과
-            - 파일명은 `{vendor_id}-{report_type}-{locale}-{request_id}.xlsx` 명명 규칙에 따라 생성된다.
+                - 파일명은 `{vendor_id}-{report_type}-{locale}-{request_id}.xlsx` 명명 규칙에 따라 생성된다.
         """
         from linkmerce.utils.progress import import_tqdm
         tqdm = import_tqdm()

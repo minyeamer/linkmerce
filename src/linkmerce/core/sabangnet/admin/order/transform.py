@@ -10,7 +10,16 @@ if TYPE_CHECKING:
 
 
 class Order(DuckDBTransformer):
-    """사방넷 주문서 확인 처리 조회 결과를 `sabangnet_order_detail` 테이블에 적재하는 클래스."""
+    """사방넷 주문서확인처리 메뉴의 주문 내역을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Order`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_order_detail`
+    """
 
     extractor = "Order"
     tables = {"table": "sabangnet_order_detail"}
@@ -31,13 +40,26 @@ class Order(DuckDBTransformer):
 ORDER_TABLE_KEYS: list[TableKey] = ["order", "option", "invoice", "dispatch"]
 
 class OrderDownload(DuckDBTransformer):
-    """사방넷 주문서 확인 처리 다운로드 결과를 `download_type`에 따라 정해진 테이블에 변환 및 적재하는 클래스.
+    """사방넷 주문서확인처리 메뉴의 주문 내역을 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `order` | `sabangnet_order` | 사방넷 주문 내역
-    - `option` | `sabangnet_option` | 사방넷 주문 옵션 목록
-    - `invoice` | `sabangnet_invoice` | 사방넷 발주 내역
-    - `dispatch` | `sabangnet_dispatch` | 사방넷 발송 내역"""
+    - **Extractor**: `OrderDownload`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `ExcelTransformer: bytes -> list[dict]`
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `order: sabangnet_order` (주문 내역)
+        2. `option: sabangnet_option` (주문 옵션 목록)
+        3. `invoice: sabangnet_invoice` (발주 내역)
+        4. `dispatch: sabangnet_dispatch` (발송 내역)
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `bulk_insert` 삽입 쿼리를 선택하기 위한 설정값을 반드시 전달해야 한다.
+
+    download_type: Literal["order", "option", "invoice", "dispatch"]
+        테이블 키와 대응되는 다운로드 유형
+    """
 
     extractor = "OrderDownload"
     queries = ["create", *[f"bulk_insert_{key}" for key in ORDER_TABLE_KEYS]]
@@ -86,8 +108,24 @@ class OrderDownload(DuckDBTransformer):
 
 
 class OrderStatus(DuckDBTransformer):
-    """사방넷 주문서 확인 처리 다운로드 결과로부터 주문 상태에 따른 변경 날짜를 파싱해
-    `sabangnet_order_status` 테이블에 적재하는 클래스."""
+    """사방넷 주문서확인처리 메뉴의 주문 내역에서 주문 상태에 따른 변경 날짜를 파싱해 변환 및 적재하는 클래스.
+
+    - **Extractor**: `OrderStatus`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `ExcelTransformer: bytes -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_order_status`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 렌더링에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    date_type: str
+        한글 날짜 칼럼 명칭을 완성하기 위한 일자 유형.   
+        `OrderStatus` Extractor가 가진 `date_type` 속성의 키를 입력한다.
+    """
 
     extractor = "OrderStatus"
     tables = {"table": "sabangnet_order_status"}
@@ -126,7 +164,16 @@ class OrderStatus(DuckDBTransformer):
 
 
 class ProductMapping(DuckDBTransformer):
-    """사방넷 품번코드 매핑 내역을 `sabangnet_product_mapping` 테이블에 적재하는 클래스."""
+    """사방넷 품번코드매핑관리 메뉴의 매핑 내역을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `ProductMapping`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_product_mapping`
+    """
 
     extractor = "ProductMapping"
     tables = {"table": "sabangnet_product_mapping"}
@@ -142,7 +189,23 @@ class ProductMapping(DuckDBTransformer):
 
 
 class SkuMapping(DuckDBTransformer):
-    """사방넷 단품코드 매핑 내역을 `sabangnet_sku_mapping` 테이블에 적재하는 클래스."""
+    """사방넷 단품코드매핑관리 메뉴의 매핑문자열을 변환 및 적재하는 클래스.
+
+    - **Extractor**: `SkuMapping`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: sabangnet_sku_mapping`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    query: dict[str, str]
+        상품 식별 정보. `shop_id` 키를 포함해야 한다.
+    """
 
     extractor = "SkuMapping"
     tables = {"table": "sabangnet_sku_mapping"}

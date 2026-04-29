@@ -212,7 +212,7 @@ class ProductDownload(ProductOption):
         -------
         dict[str, bytes]
             `{파일명: 엑셀 바이너리}` 구조의 상품 목록 다운로드 결과
-            - 파일명은 `{description[request_type]}_{today}.xlsx` 명명 규칙에 따라 생성된다.
+                - 파일명은 `{description[request_type]}_{today}.xlsx` 명명 규칙에 따라 생성된다.
         """
         report = self.request_report(request_type, fields, is_deleted)
         report_id = report["responseParam"]

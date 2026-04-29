@@ -4,8 +4,7 @@ from linkmerce.core.sabangnet.admin import SabangnetAdmin
 from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal, Sequence
-    from linkmerce.common.extract import JsonObject
+    from typing import Iterable, Literal
     import datetime as dt
 
 
@@ -50,33 +49,33 @@ class Order(SabangnetAdmin):
             end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"] = ":start_date:",
             date_type: str = "reg_dm",
             order_status_div: str = str(),
-            order_status: Sequence[str] = list(),
+            order_status: list[str] = list(),
             shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """주문서확인처리 화면에서 검색 조건에 대한 주문 내역을 페이지 단위로 조회한다.
 
         Parameters
         ----------
-        start_date: dt.datetime | dt.date | str | Literal[":today:"]
+        start_date: dt.datetime | dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":today:"`: 오늘 날짜 (기본값)
-        end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"]
+        end_date: dt.datetime | dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
                 - `":now:"`: 현재 시각
         date_type: str
-            일자 유형. `date_type` 속성의 키를 입력한다. 기본값은 수집일
+            일자 유형. `date_type` 속성의 키를 입력한다. 기본값은 수집일(`"reg_dm"`)
         order_status_div: str
             주문구분 코드. `order_status_div` 속성의 키를 전달할 수 있다.
-        order_status: Sequence[str]
+        order_status: list[str]
             주문상태 코드 목록. `order_status` 속성의 키를 하나 이상 전달할 수 있다.
         shop_id: str
             쇼핑몰ID 검색 조건을 선택적으로 전달할 수 있다.
         sort_type: str
             정렬순서 코드. `sort_type` 속성의 키를 하나 이상 전달할 수 있다.   
-            `"<정렬기준>_<asc|desc>"` 형식이며, 기본값은 `"ord_no_asc"`
+            `"<정렬기준>_<asc|desc>"` 형식이며, 기본값은 사방넷주문번호 오름차순(`"ord_no_asc"`)
 
         Returns
         -------
@@ -100,7 +99,7 @@ class Order(SabangnetAdmin):
                     sort_type = sort_type,
                 ))
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 주문 건수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "data.totAmtSummary.totCnt")
@@ -111,7 +110,7 @@ class Order(SabangnetAdmin):
             end_date: str,
             date_type: str = "reg_dm",
             order_status_div: str = str(),
-            order_status: Sequence[str] = list(),
+            order_status: list[str] = list(),
             shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             page: int = 1,
@@ -207,7 +206,7 @@ class OrderDownload(Order):
             date_type: str = "reg_dm",
             order_seq: list[int] = list(),
             order_status_div: str = str(),
-            order_status: Sequence[str] = list(),
+            order_status: list[str] = list(),
             shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             **kwargs
@@ -218,10 +217,10 @@ class OrderDownload(Order):
         ----------
         download_no: int
             주문서 출력 양식 번호
-        start_date: dt.datetime | dt.date | str | Literal[":today:"]
+        start_date: dt.datetime | dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":today:"`: 오늘 날짜 (기본값)
-        end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"]
+        end_date: dt.datetime | dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
                 - `":now:"`: 현재 시각
@@ -231,7 +230,7 @@ class OrderDownload(Order):
             사방넷 주문 번호를 목록으로 선택할 수 있다.
         order_status_div: str
             주문구분 코드. `order_status_div` 속성의 키를 전달할 수 있다.
-        order_status: Sequence[str]
+        order_status: list[str]
             주문상태 코드 목록. `order_status` 속성의 키를 하나 이상 전달할 수 있다.
         shop_id: str
             쇼핑몰ID 검색 조건을 선택적으로 전달할 수 있다.
@@ -242,7 +241,8 @@ class OrderDownload(Order):
         Returns
         -------
         dict[str, bytes]
-            `{파일명: 엑셀 바이너리}` 형식의 다운로드 결과
+            `{파일명: 엑셀 바이너리}` 구조의 주문 내역 다운로드 결과
+                - 파일명은 응답 헤더의 `Content-Disposition` 속성에서 추출한다.
         """
         from linkmerce.core.sabangnet.admin import get_order_date_pair
         dates = get_order_date_pair(start_date, end_date)
@@ -269,7 +269,7 @@ class OrderDownload(Order):
             date_type: str = "reg_dm",
             order_seq: list[int] = list(),
             order_status_div: str = str(),
-            order_status: Sequence[str] = list(),
+            order_status: list[str] = list(),
             shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             page: int = 1,
@@ -326,7 +326,7 @@ class OrderStatus(OrderDownload):
             date_type: list[str] = ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"],
             order_seq: list[int] = list(),
             order_status_div: str = str(),
-            order_status: Sequence[str] = list(),
+            order_status: list[str] = list(),
             shop_id: str = str(),
             sort_type: str = "ord_no_asc",
             **kwargs
@@ -337,10 +337,10 @@ class OrderStatus(OrderDownload):
         ----------
         download_no: int
             주문서 출력 양식 번호
-        start_date: dt.datetime | dt.date | str | Literal[":today:"]
+        start_date: dt.datetime | dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":today:"`: 오늘 날짜 (기본값)
-        end_date: dt.datetime | dt.date | str | Literal[":start_date:", ":now:"]
+        end_date: dt.datetime | dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
                 - `":now:"`: 현재 시각
@@ -351,7 +351,7 @@ class OrderStatus(OrderDownload):
             사방넷 주문 번호를 목록으로 선택할 수 있다.
         order_status_div: str
             주문구분 코드. `order_status_div` 속성의 키를 전달할 수 있다.
-        order_status: Sequence[str]
+        order_status: list[str]
             주문상태 코드 목록. `order_status` 속성의 키를 하나 이상 전달할 수 있다.
         shop_id: str
             쇼핑몰ID 검색 조건을 선택적으로 전달할 수 있다.
@@ -362,7 +362,7 @@ class OrderStatus(OrderDownload):
         Returns
         -------
         dict[str, bytes]
-            `{일자 유형: 엑셀 바이너리}` 형식의 다운로드 결과
+            `{일자 유형: 엑셀 바이너리}` 구조의 주문 내역 다운로드 결과
         """
         from linkmerce.core.sabangnet.admin import get_order_date_pair
         start_date, end_date = get_order_date_pair(start_date, end_date)
@@ -423,16 +423,16 @@ class ProductMapping(SabangnetAdmin):
             end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             shop_id: str = str(),
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """품번코드매핑관리 화면의 매핑 내역을 페이지 단위로 조회한다.
 
         Parameters
         ----------
-        start_date: dt.date | str | Literal[":base_date:", ":today:"]
+        start_date: dt.date | str
             생성일자 조건의 조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":base_date:"`: 사방넷 설립일, "1986-01-09" (기본값)
                 - `":today:"`: 오늘 날짜
-        end_date: dt.date | str | Literal[":start_date:", ":today:"]
+        end_date: dt.date | str
             생성일자 조건의 조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜
                 - `":today:"`: 오늘 날짜 (기본값)
@@ -457,7 +457,7 @@ class ProductMapping(SabangnetAdmin):
                     shop_id = shop_id,
                 ))
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 매핑 건수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "data.metaData.total")
@@ -526,12 +526,12 @@ class SkuMapping(SabangnetAdmin):
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
-    def extract(self, query: Sequence[SkuQuery], **kwargs) -> JsonObject:
+    def extract(self, query: SkuQuery | Iterable[SkuQuery], **kwargs) -> dict | list[dict]:
         """단품코드매핑관리 화면의 매핑문자열 보기 팝업에서 상품별 매핑문자열을 조회한다.
 
         Parameters
         ----------
-        query: Sequence[SkuQuery]
+        query: SkuQuery | Iterable[SkuQuery]
             조회할 상품 식별 정보 목록. 각 항목은 아래 키를 포함해야 한다.
                 - `product_id_shop`: 쇼핑몰상품코드
                 - `shop_id`: 쇼핑몰ID
@@ -539,8 +539,10 @@ class SkuMapping(SabangnetAdmin):
 
         Returns
         -------
-        list[dict]
-            사방넷 단품코드 매핑문자열 목록
+        dict | list[dict]
+            사방넷 단품코드 매핑문자열 목록. `query` 타입에 따라 반환 타입이 다르다.
+                - `query`가 `SkuQuery` 타입일 때 -> `dict`
+                - `query`가 `Iterable[SkuQuery]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_safe)
                 .expand(query=query)

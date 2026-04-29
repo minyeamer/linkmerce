@@ -246,8 +246,8 @@ class _AdReport(CoupangAds):
         -------
         dict[str, bytes]
             `{파일명: 엑셀 바이너리}` 구조의 광고 보고서 다운로드 결과
-            - 파일명은 `{vendor_id}_{report_type}_{date_type}_{report_level}_{start_date}_{end_date}.xlsx`   
-                명명 규칙에 따라 생성된다.
+                - 파일명은 `{vendor_id}_{report_type}_{date_type}_{report_level}_{start_date}_{end_date}.xlsx`   
+                    명명 규칙에 따라 생성된다.
         """
         start_date = self.to_date(start_date)
         end_date = self.to_date(start_date if end_date == ":start_date:" else end_date)
