@@ -211,7 +211,7 @@ class RequestLoop(RunLoop, Request):
         max_retries: int | None
             최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 1이다.
         request_delay: Literal["incremental"] | float | int | tuple[int, int]
-            재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+            재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
         raise_errors: type | Sequence[type] | None
             즉시 예외를 발생시킬 에러 타입
         ignored_errors: type | Sequence[type] | None
@@ -265,7 +265,7 @@ class ForEach(Task):
         max_concurrent: int | None
             비동기 실행 시 최대 동시 실행 횟수
         tqdm_options: dict | None
-            진행도를 출력하는 `tqdm`에 전달할 매개변수
+            반복 요청 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
         """
         self.func = func
         self.array = array
@@ -341,11 +341,11 @@ class RequestEach(ForEach, Request):
         parser: Callable | None
             실행 결과를 전달받아 변환하는 파서 함수
         request_delay: float | int | tuple[int, int]
-            요청 간 대기 시간(초)
+            매개변수별 요청 간 대기 시간(초)
         max_concurrent: int | None
             비동기 요청 시 최대 동시 실행 횟수
         tqdm_options: dict | None
-            진행도를 출력하는 `tqdm`에 전달할 매개변수
+            반복 요청 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
         """
         self.func = func
         self.context = context
@@ -464,11 +464,11 @@ class RequestEachLoop(RequestEach):
         parser: Callable | None
             실행 결과를 전달받아 변환하는 파서 함수
         request_delay: float | int | tuple[int, int]
-            요청 간 대기 시간(초)
+            매개변수별 요청 간 대기 시간(초)
         max_concurrent: int | None
             비동기 요청 시 최대 동시 실행 횟수
         tqdm_options: dict | None
-            진행도를 출력하는 `tqdm`에 전달할 매개변수
+            반복 요청 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
         loop_options: dict
             `RequestLoop` Task에 전달할 속성
         """
@@ -552,11 +552,11 @@ class PaginateAll(ForEach, Request):
         parser: Callable | None
             페이지별 요청 결과에 적용할 파서 함수
         request_delay: float | int | tuple[int, int]
-            요청 간 대기 시간(초)
+            페이지 요청 간 대기 시간(초)
         max_concurrent: int | None
             비동기 요청 시 최대 동시 실행 횟수
         tqdm_options: dict | None
-            진행도를 출력하는 `tqdm`에 전달할 매개변수
+            페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
         """
         self.func = func
         self.max_retrieser = counter
@@ -653,11 +653,11 @@ class RequestEachPages(RequestEach):
         parser: Callable | None
             페이지별 요청 결과에 적용할 파서 함수
         request_delay: float | int | tuple[int, int]
-            요청 간 대기 시간(초)
+            매개변수별 요청 간 대기 시간(초)
         max_concurrent: int | None
             비동기 요청 시 최대 동시 실행 횟수
         tqdm_options: dict | None
-            진행도를 출력하는 `tqdm`에 전달할 매개변수
+            반복 요청 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
         page_options: dict
             `PaginateAll` Task에 전달할 속성. 기본값은 `tqdm` 진행도 출력을 비활성화하는 옵션이다.
         """
@@ -753,7 +753,7 @@ class CursorAll(RunLoop, ForEach, Request):
         parser: Callable | None
             실행 결과에 적용할 파서 함수
         request_delay: float | int | tuple[int, int]
-            요청 간 대기 시간(초)
+            커서 요청 간 대기 시간(초)
         """
         self.func = func
         self.get_next_cursor = get_next_cursor
@@ -813,9 +813,9 @@ class RequestEachCursor(RequestEach):
         parser: Callable | None
             실행 결과에 적용할 파서 함수
         request_delay: float | int | tuple[int, int]
-            요청 간 대기 시간(초)
+            매개변수별 요청 간 대기 시간(초)
         tqdm_options: dict | None
-            진행도를 출력하는 `tqdm`에 전달할 매개변수
+            반복 요청 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
         cursor_options: dict
             `CursorAll` Task에 전달할 속성. 기본값은 `tqdm` 진행도 출력을 비활성화하는 옵션이다.
         """

@@ -29,16 +29,16 @@ class _SearchExtractor(NaverOpenApi):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `0.3`
+        검색어별 요청 간 대기 시간(초). 기본값은 `0.3`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     method = "GET"
@@ -171,16 +171,16 @@ class BlogSearch(_SearchExtractor):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `0.3`
+        검색어별 요청 간 대기 시간(초). 기본값은 `0.3`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     content_type = "blog"
@@ -206,16 +206,16 @@ class NewsSearch(_SearchExtractor):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `0.3`
+        검색어별 요청 간 대기 시간(초). 기본값은 `0.3`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     content_type = "news"
@@ -241,16 +241,16 @@ class BookSearch(_SearchExtractor):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `0.3`
+        검색어별 요청 간 대기 시간(초). 기본값은 `0.3`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     content_type = "book"
@@ -276,16 +276,16 @@ class CafeSearch(_SearchExtractor):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `0.3`
+        검색어별 요청 간 대기 시간(초). 기본값은 `0.3`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     content_type = "cafearticle"
@@ -311,16 +311,16 @@ class KiNSearch(_SearchExtractor):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `0.3`
+        검색어별 요청 간 대기 시간(초). 기본값은 `0.3`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     content_type = "kin"
@@ -414,16 +414,16 @@ class ImageSearch(_SearchExtractor):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `0.3`
+        검색어별 요청 간 대기 시간(초). 기본값은 `0.3`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     content_type = "image"
@@ -529,16 +529,16 @@ class ShopSearch(_SearchExtractor):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `0.3`
+        검색어별 요청 간 대기 시간(초). 기본값은 `0.3`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     content_type = "shop"

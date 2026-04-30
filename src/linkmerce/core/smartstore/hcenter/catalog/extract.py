@@ -20,11 +20,11 @@ class _CatalogProduct(PartnerCenter):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        페이지별 요청 간 대기 시간(초). 기본값은 `1`
+        페이지 요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
 
@@ -33,7 +33,7 @@ class _CatalogProduct(PartnerCenter):
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     method = "POST"
@@ -118,20 +118,20 @@ class BrandCatalog(_CatalogProduct):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        페이지별 요청 간 대기 시간(초). 기본값은 `1`
+        페이지 요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        매개변수별 요청 간 대기 시간(초). 기본값은 `1`
+        브랜드별 요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     path = "/api/catalogs"
@@ -271,20 +271,20 @@ class BrandProduct(_CatalogProduct):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        페이지별 요청 간 대기 시간(초). 기본값은 `1`
+        페이지 요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        매개변수별 요청 간 대기 시간(초). 기본값은 `1`
+        브랜드 및 쇼핑몰별 요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     path = "/api/offers"

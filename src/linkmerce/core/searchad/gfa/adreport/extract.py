@@ -26,16 +26,16 @@ class _MasterReport(SearchAdGfa):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        페이지별 요청 간 대기 시간(초). 기본값은 `0.3`
+        페이지 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
         매개변수별 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     report_type: Literal["Campaign", "AdSet", "Creative"]
@@ -71,16 +71,16 @@ class Campaign(_MasterReport):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        페이지별 요청 간 대기 시간(초). 기본값은 `0.3`
+        페이지 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        매개변수별 요청 간 대기 시간(초). 기본값은 `0.3`
+        캠페인 상태별 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     report_type = "Campaign"
@@ -156,16 +156,16 @@ class AdSet(_MasterReport):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        페이지별 요청 간 대기 시간(초). 기본값은 `0.3`
+        페이지 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        매개변수별 요청 간 대기 시간(초). 기본값은 `0.3`
+        광고 그룹 상태별 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     report_type = "AdSet"
@@ -266,16 +266,16 @@ class Creative(_MasterReport):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        페이지별 요청 간 대기 시간(초). 기본값은 `0.3`
+        페이지 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        매개변수별 요청 간 대기 시간(초). 기본값은 `0.3`
+        소재 검수 상태별 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
-        진행도를 출력하는 `tqdm`에 전달할 매개변수
+        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     report_type = "Creative"
