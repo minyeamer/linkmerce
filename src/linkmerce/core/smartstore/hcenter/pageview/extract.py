@@ -27,12 +27,12 @@ class _PageView(PartnerCenter):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간. 기본값은 `1`
+        요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
@@ -148,12 +148,12 @@ class PageViewByDevice(_PageView):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간. 기본값은 `1`
+        요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
@@ -254,12 +254,12 @@ class PageViewByUrl(_PageView):
     max_retries: int | None
         최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
     request_delay: Literal["incremental"] | float | int | tuple[int, int]
-        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+        재시도 간 대기 시간(초). `"incremental"`이면 대기 시간(초)이 1초씩 점진적으로 증가한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간. 기본값은 `1`
+        요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None

@@ -22,7 +22,7 @@ class Campaign(CoupangAds):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간. 기본값은 `1`
+        요청 간 대기 시간(초). 기본값은 `1`
     tqdm_options: dict | None
         진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
@@ -124,7 +124,7 @@ class Creative(CoupangAds):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간. 기본값은 `0.3`
+        요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
         진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
