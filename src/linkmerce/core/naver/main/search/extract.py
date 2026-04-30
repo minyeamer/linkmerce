@@ -56,7 +56,8 @@ class Search(Extractor):
         Returns
         -------
         BeautifulSoup | str | list[BeautifulSoup] | list[str]
-            네이버 통합검색 결과 페이지 소스코드. `query` 타입과 `parse_html` 값에 따라 반환 타입이 다르다.
+            네이버 통합검색 결과 페이지 소스코드.
+            `query` 타입과 `parse_html` 값에 따라 반환 타입이 다르다. (JS 삼항 연산 표현)
                 - `query`가 `str` 타입일 때 -> `parse_html ? BeautifulSoup : str`
                 - `query`가 `Iterable[str]` 타입일 때 -> `parse_html ? list[BeautifulSoup] : list[str]`
         """

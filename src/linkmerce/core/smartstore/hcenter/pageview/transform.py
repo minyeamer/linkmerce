@@ -4,24 +4,13 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 
 class PageViewParser(JsonTransformer):
-    """네이버 브랜드 스토어의 일별 페이지뷰 데이터를 추출하는 파서 클래스."""
+    """네이버 브랜드 스토어의 방문 통계 데이터를 파싱하는 클래스."""
 
     dtype = dict
     scope = "data.storePageView.items"
 
-    def assert_valid_response(self, obj: dict, **kwargs):
-        """`error` 필드가 있으면 `UnauthorizedError` 또는 `RequestError`를 발생시킨다."""
-        super().assert_valid_response(obj)
-        if "error" in obj:
-            from linkmerce.utils.nested import hier_get
-            msg = hier_get(obj, "error.error") or "null"
-            if msg == "Unauthorized":
-                from linkmerce.common.exceptions import UnauthorizedError
-                raise UnauthorizedError("Unauthorized request")
-            super().raise_request_error(f"An error occurred during the request: {msg}")
-
     def parse(self, obj: list[dict], **kwargs) -> list[dict]:
-        """일자(period.date)를 각 항목에 추가해 평탄화된 페이지뷰 목록을 반환한다."""
+        """일자(`period.date`)를 각 항목에 추가하면서 평탄화한 페이지뷰 목록을 반환한다."""
         items = list()
         for daily in obj:
             date = daily["period"]["date"]
@@ -31,7 +20,23 @@ class PageViewParser(JsonTransformer):
 
 
 class PageViewByDevice(DuckDBTransformer):
-    """네이버 브랜드 스토어의 일별/기기별 페이지뷰 데이터를 `naver_pv_by_device` 테이블에 적재하는 클래스."""
+    """네이버 브랜드 스토어의 일별/기기별 방문 통계 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `PageViewByDevice`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `PageViewParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_pv_by_device`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    mall_seq: int | str
+        쇼핑몰 순번
+    """
 
     extractor = "PageViewByDevice"
     tables = {"table": "naver_pv_by_device"}
@@ -43,7 +48,23 @@ class PageViewByDevice(DuckDBTransformer):
 
 
 class PageViewByUrl(DuckDBTransformer):
-    """네이버 브랜드 스토어의 일별/URL별 페이지뷰 데이터를 `naver_pv_by_url` 테이블에 적재하는 클래스."""
+    """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `PageViewByUrl`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `PageViewParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_pv_by_url`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    mall_seq: int | str
+        쇼핑몰 순번
+    """
 
     extractor = "PageViewByUrl"
     tables = {"table": "naver_pv_by_url"}
@@ -55,7 +76,23 @@ class PageViewByUrl(DuckDBTransformer):
 
 
 class PageViewByProduct(PageViewByUrl):
-    """네이버 브랜드 스토어의 일별/상품별 페이지뷰 데이터를 `naver_pv_by_product` 테이블에 적재하는 클래스."""
+    """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 일별/상품별 데이터로 변환 및 적재하는 클래스.
+
+    - **Extractor**: `PageViewByUrl`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `PageViewParser`: `dict` -> `list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table`: `naver_pv_by_product`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    mall_seq: int | str
+        쇼핑몰 순번
+    """
 
     extractor = "PageViewByUrl"
     tables = {"table": "naver_pv_by_product"}

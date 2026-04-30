@@ -4,13 +4,19 @@ from linkmerce.common.transform import DuckDBTransformer
 
 
 class Order(DuckDBTransformer):
-    """스마트스토어 조건형 상품 주문 상세 내역 조회 API 응답 데이터를 각각의 테이블에 변환 및 적재하는 클래스.
+    """스마트스토어 상품 주문 내역 조회 결과를 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `order` | `smartstore_order` | 주문 정보
-    - `product_order` | `smartstore_product_order` | 상품 주문 정보
-    - `delivery` | `smartstore_delivery` | 주문 배송 정보
-    - `option` | `smartstore_option` | 주문 옵션 정보"""
+    - **Extractor**: `Order`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `order: smartstore_order` (주문 정보)
+        2. `product_order: smartstore_product_order` (상품 주문 정보)
+        3. `delivery: smartstore_delivery` (주문 배송 정보)
+        4. `option: smartstore_option` (주문 옵션 정보)
+    """
 
     extractor = "Order"
     tables = {table: f"smartstore_{table}" for table in ["order", "product_order", "delivery", "option"]}
@@ -40,8 +46,25 @@ class Order(DuckDBTransformer):
 
 
 class OrderTime(Order):
-    """스마트스토어 조건형 상품 주문 상세 내역 조회 API 응답 데이터로부터   
-    주문 상태에 따른 변경 날짜를 파싱해 `smartstore_order_time` 테이블에 적재하는 클래스."""
+    """스마트스토어 상품 주문 내역 조회 결과를 변환 및 적재하는 클래스.
+
+    **NOTE** 변경 상품 주문 내역을 다루는 `OrderStatus` 클래스와 동일한 구성의 테이블을 가진다.
+
+    - **Extractor**: `Order`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table`: `smartstore_order_time`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    channel_seq: int | str
+        채널 번호
+    """
 
     extractor = "Order"
     tables = {"table": "smartstore_order_time"}
@@ -63,7 +86,23 @@ class OrderTime(Order):
 
 
 class OrderStatus(DuckDBTransformer):
-    """스마트스토어 변경 상품 주문 내역 조회 API 응답 데이터를 `smartstore_order_time` 테이블에 적재하는 클래스."""
+    """스마트스토어 변경 상품 주문 내역 조회 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `OrderStatus`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: smartstore_order_time`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    channel_seq: int | str
+        채널 번호
+    """
 
     extractor = "OrderStatus"
     tables = {"table": "smartstore_order_time"}

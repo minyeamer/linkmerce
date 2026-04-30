@@ -79,7 +79,7 @@ def product(
 def option(
         client_id: str,
         client_secret: str,
-        product_id: Sequence[int | str],
+        product_id: int | str | Sequence[int | str],
         channel_seq: int | str | None = None,
         max_retries: int = 5,
         *,

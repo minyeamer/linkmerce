@@ -22,7 +22,7 @@ class ProductOptionParser(JsonTransformer):
     product_type: Literal["product", "option"] = "option"
 
     def parse(self, obj: list[dict], **kwargs) -> list[dict]:
-        """`product_type = "option"` 시 상품마다 `vendorInventoryItems`를 평탄화해 옵션 목록을 반환한다."""
+        """`product_type = "option"`일 때 상품마다 `vendorInventoryItems`를 평탄화한 옵션 목록을 반환한다."""
         if self.product_type == "option":
             options = list()
             for product in obj:

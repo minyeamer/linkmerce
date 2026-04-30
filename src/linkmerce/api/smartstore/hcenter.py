@@ -257,6 +257,7 @@ def store_sales(
         *,
         connection: DuckDBConnection | None = None,
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
+        max_retries: int = 5,
         max_concurrent: int = 3,
         request_delay: float | int = 1,
         progress: bool = True,
@@ -289,11 +290,14 @@ def store_sales(
             T, connection, extract_options, transform_options, return_type,
             cookies = cookies,
             options = {
-                "RequestEach": {
+                "RequestLoop": {
+                    "max_retries": max_retries
+                },
+                "RequestEachLoop": {
                     "request_delay": request_delay,
                     "max_concurrent": max_concurrent,
-                    "tqdm_options": {"disable": (not progress)},
-                }
+                    "tqdm_options": {"disable": (not progress)}
+                },
             },
         )).run(mall_seq, start_date, end_date, date_type, page, page_size, how_to_run=how_to_run)
     return _main(connection=connection, return_type=return_type)
@@ -311,6 +315,7 @@ def aggregated_sales(
         *,
         connection: DuckDBConnection | None = None,
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
+        max_retries: int = 5,
         max_concurrent: int = 3,
         request_delay: float | int = 1,
         progress: bool = True,
@@ -329,10 +334,13 @@ def aggregated_sales(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,
         options = {
-            "RequestEach": {
+            "RequestLoop": {
+                "max_retries": max_retries
+            },
+            "RequestEachLoop": {
                 "request_delay": request_delay,
                 "max_concurrent": max_concurrent,
-                "tqdm_options": {"disable": (not progress)},
-            }
+                "tqdm_options": {"disable": (not progress)}
+            },
         },
     )).run(mall_seq, start_date, end_date, date_type, page, page_size, how_to_run=how_to_run)

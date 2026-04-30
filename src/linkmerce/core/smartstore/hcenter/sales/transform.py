@@ -1,32 +1,34 @@
 from __future__ import annotations
 
-from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
-
-
-class SalesParser(JsonTransformer):
-    """네이버 스토어 일별 매출 데이터를 추출하는 파서 클래스."""
-
-    dtype = dict
-
-    def assert_valid_response(self, obj: dict, **kwargs):
-        """`error` 필드가 있으면 `UnauthorizedError` 또는 `RequestError`를 발생시킨다."""
-        super().assert_valid_response(obj)
-        if "error" in obj:
-            from linkmerce.utils.nested import hier_get
-            msg = hier_get(obj, "error.error") or "null"
-            if msg == "Unauthorized":
-                from linkmerce.common.exceptions import UnauthorizedError
-                raise UnauthorizedError("Unauthorized request")
-            super().raise_request_error(f"An error occurred during the request: {msg}")
+from linkmerce.common.transform import DuckDBTransformer
 
 
 class StoreSales(DuckDBTransformer):
-    """네이버 스토어 일별 매출 데이터를 `naver_store_sales` 테이블에 적재하는 클래스."""
+    """네이버 스토어의 일간 매출 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `StoreSales`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_store_sales`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    mall_seq: int | str
+        쇼핑몰 순번
+    end_date: dt.date | str
+        조회 종료일
+    """
 
     extractor = "StoreSales"
     tables = {"table": "naver_store_sales"}
-    parser = SalesParser
+    parser = "json"
     parser_config = dict(
+        dtype = dict,
         scope = "data.storeSales",
         fields = {"sales": ["paymentCount", "paymentAmount", "refundAmount"]},
     )
@@ -34,12 +36,31 @@ class StoreSales(DuckDBTransformer):
 
 
 class CategorySales(DuckDBTransformer):
-    """네이버 스토어 일별/카테고리별 매출 데이터를 `naver_category_sales` 테이블에 적재하는 클래스."""
+    """네이버 스토어의 일간/카테고리별 매출 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `CategorySales`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_category_sales`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    mall_seq: int | str
+        쇼핑몰 순번
+    end_date: dt.date | str
+        조회 종료일
+    """
 
     extractor = "CategorySales"
     tables = {"table": "naver_category_sales"}
-    parser = SalesParser
+    parser = "json"
     parser_config = dict(
+        dtype = dict,
         scope = "data.categorySales",
         fields = {
             "product.category": ["identifier", "fullName"],
@@ -51,12 +72,31 @@ class CategorySales(DuckDBTransformer):
 
 
 class ProductSales(DuckDBTransformer):
-    """네이버 스토어 일별/상품별 매출 데이터를 `naver_product_sales` 테이블에 적재하는 클래스."""
+    """네이버 스토어의 일간/상품별 매출 데이터를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `ProductSales`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: naver_product_sales`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    mall_seq: int | str
+        쇼핑몰 순번
+    end_date: dt.date | str
+        조회 종료일
+    """
 
     extractor = "ProductSales"
     tables = {"table": "naver_product_sales"}
-    parser = SalesParser
+    parser = "json"
     parser_config = dict(
+        dtype = dict,
         scope = "data.productSales",
         fields = {
             "product": ["identifier", "name"],
@@ -69,11 +109,30 @@ class ProductSales(DuckDBTransformer):
 
 
 class AggregatedSales(ProductSales):
-    """네이버 스토어 일별/상품별 매출 데이터로부터 상품별 매출 및 상품 목록을 각각의 테이블에 변환 및 적재하는 클래스.
+    """네이버 스토어의 일간/상품별 매출 데이터를 변환 및 적재하는 클래스.
 
-    테이블 키 | 테이블명 | 설명
-    - `sales` | `naver_sales` | 네이버 스토어 상품별 매출
-    - `product` | `naver_product` | 네이버 스토어 상품 목록"""
+    **NOTE** 매출 데이터로부터 상품 매출과 상품 정보를 각각의 테이블로 분리한다.
+
+    - **Extractor**: `ProductSales`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer`: `dict` -> `list[dict]`
+
+    - **Table** ( *table_key: table_name (description)* ):
+        1. `sales`: `naver_sales` (상품 매출)
+        2. `product`: `naver_product` (상품 정보)
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    mall_seq: int | str
+        쇼핑몰 순번
+    start_date: dt.date | str
+        조회 시작일
+    end_date: dt.date | str
+        조회 종료일
+    """
 
     extractor = "ProductSales"
     tables = {"sales": "naver_sales", "product": "naver_product"}

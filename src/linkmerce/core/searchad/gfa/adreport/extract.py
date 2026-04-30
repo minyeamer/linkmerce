@@ -381,7 +381,7 @@ class PerformanceReport(SearchAdGfa):
         ) -> dict[str, bytes]:
         """성과 보고서를 생성하고 엑셀 파일로 다운로드한다.
 
-        날짜 범위를 최대 60일 단위로 분할하여 보고서를 요청하고, 다운로드한 보고서는 삭제한다.
+        조회 기간을 최대 60일 단위로 분할하여 보고서를 요청하고, 다운로드한 보고서는 삭제한다.
 
         Parameters
         ----------
@@ -470,7 +470,7 @@ class PerformanceReport(SearchAdGfa):
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         ) -> list[tuple[dt.date, dt.date]]:
-        """분석 기간 단위가 '일'인 경우, 요청 당 조회 기간은 최대 60일로 제한한다."""
+        """분석 기간 단위가 '일'인 경우, 요청 당 조회 기간을 최대 60일 단위로 분할한다."""
         from linkmerce.utils.date import date_split
         end_date = start_date if end_date == ":start_date:" else end_date
         return date_split(start_date, end_date, delta={"days": 60}, format=self.date_format)

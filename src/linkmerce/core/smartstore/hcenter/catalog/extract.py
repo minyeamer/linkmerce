@@ -5,7 +5,6 @@ from typing import Iterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Literal
-    from linkmerce.common.extract import JsonObject
 
 
 class _CatalogProduct(PartnerCenter):
@@ -46,7 +45,27 @@ class _CatalogProduct(PartnerCenter):
         "RequestEachPages": {"request_delay": 1, "max_concurrent": 3},
     }
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def request_json_verified(self, **kwargs) -> dict:
+        """HTTP 요청을 수행하고 JSON 파싱한 응답 본문에 오류 필드가 있을 경우 `RequestError`를 발생시킨다."""
+        response = super().request_json_safe(**kwargs)
+        self._verify_json_response(response)
+        return response
+
+    async def request_async_json_verified(self, **kwargs) -> dict:
+        """비동기 HTTP 요청을 수행하고 JSON 파싱한 응답 본문에 오류 필드가 있을 경우 `RequestError`를 발생시킨다."""
+        response = await super().request_async_json_safe(**kwargs)
+        self._verify_json_response(response)
+        return response
+
+    def _verify_json_response(self, response: dict):
+        """JSON 파싱한 응답 본문에 오류 필드가 있을 경우 `RequestError`를 발생시키는 공통 로직."""
+        if isinstance(response, dict) and response.get("errors"):
+            from linkmerce.common.exceptions import RequestError
+            from linkmerce.utils.nested import hier_get
+            msg = hier_get(response, "errors.0.message") or "null"
+            raise RequestError(f"An error occurred during the request: {msg}")
+
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 항목 수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "totalCount")
@@ -126,33 +145,38 @@ class BrandCatalog(_CatalogProduct):
             page: int | list[int] | None = 0,
             page_size: int = 100,
             **kwargs
-        ) -> JsonObject:
-        """브랜드 ID(`brand_ids`)의 권한이 있는 카탈로그 목록을 동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
+        ) -> dict | list[dict]:
+        """브랜드별 권한이 있는 카탈로그 목록을 동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         brand_ids: str | Iterable[str]
-            브랜드 ID. 단일 또는 여러 개의 문자열 목록을 입력한다.
+            브랜드 ID. 문자열 또는 문자열의 배열을 입력한다.
         sort_type: str
             정렬 기준
                 - `"popular"`: 카탈로그 인기순
-                - `"recent"`: 등록일 최신순
+                - `"recent"`: 등록일 최신순 (기본값)
                 - `"count"`: 판매처 많은순
                 - `"price"`: 최저가 낮은순
         is_brand_catalog: bool | None
-            브랜드공식 등록 여부
+            - `True`: 브랜드 카탈로그만 보기
+            - `False`: 일반 카탈로그만 보기
+            - `None`: 전체 카탈로그 보기 (기본값)
         page: int | list[int] | None
-            조회할 페이지 번호 (0부터 시작)
+            조회할 페이지 번호. 정수 또는 정수의 배열을 입력할 수 있다. (0부터 시작)
         page_size: int
             한 번에 표시할 목록 수
 
         Returns
         -------
-        list[dict] | dict
-            카탈로그 목록
+        dict | list[dict]
+            브랜드 또는 일반 카탈로그 목록.
+            아래 조건을 모두 만족하면 `dict` 타입을, 그렇지 않으면 `list[dict]` 타입을 반환한다.
+                1. `brand_ids`가 `str` 타입으로 입력된 경우
+                2. `page`가 `int` 타입으로 입력된 경우
         """
         partial, expand = self.split_map_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
-        return (self.request_each_pages(self.request_json_safe)
+        return (self.request_each_pages(self.request_json_verified)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
@@ -167,34 +191,38 @@ class BrandCatalog(_CatalogProduct):
             page: int | list[int] | None = 0,
             page_size: int = 100,
             **kwargs
-        ) -> JsonObject:
-        """브랜드(`brand_ids`) 권한이 있는 카탈로그 목록을 비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다.
+        ) -> dict | list[dict]:
+        """브랜드별 권한이 있는 카탈로그 목록을 비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         brand_ids: str | Iterable[str]
-            브랜드 ID. 단일 또는 여러 개의 문자열 목록을 입력한다.   
-            브랜드 ID를 쉼표(,)로 묶어서 OR 조건으로 동시에 조회할 수 있다.
+            브랜드 ID. 문자열 또는 문자열의 배열을 입력한다.
         sort_type: str
             정렬 기준
                 - `"popular"`: 카탈로그 인기순
-                - `"recent"`: 등록일 최신순
+                - `"recent"`: 등록일 최신순 (기본값)
                 - `"count"`: 판매처 많은순
                 - `"price"`: 최저가 낮은순
         is_brand_catalog: bool | None
-            브랜드공식 등록 여부
+            - `True`: 브랜드 카탈로그만 보기
+            - `False`: 일반 카탈로그만 보기
+            - `None`: 전체 카탈로그 보기 (기본값)
         page: int | list[int] | None
-            조회할 페이지 번호 (0부터 시작)
+            조회할 페이지 번호. 정수 또는 정수의 배열을 입력할 수 있다. (0부터 시작)
         page_size: int
             한 번에 표시할 목록 수
 
         Returns
         -------
-        list[dict] | dict
-            카탈로그 목록
+        dict | list[dict]
+            브랜드 또는 일반 카탈로그 목록.
+            아래 조건을 모두 만족하면 `dict` 타입을, 그렇지 않으면 `list[dict]` 타입을 반환한다.
+                1. `brand_ids`가 `str` 타입으로 입력된 경우
+                2. `page`가 `int` 타입으로 입력된 경우
         """
         partial, expand = self.split_map_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
-        return await (self.request_each_pages(self.request_async_json_safe)
+        return await (self.request_each_pages(self.request_async_json_verified)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
@@ -271,34 +299,39 @@ class BrandProduct(_CatalogProduct):
             page: int | None = 0,
             page_size: int = 100,
             **kwargs
-        ) -> JsonObject:
-        """브랜드(`brand_ids`) 권한이 있고 특정 쇼핑몰(`mall_seq`)에 해당하는 브랜드 상품 목록을   
-        동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
+        ) -> dict | list[dict]:
+        """쇼핑몰별 브랜드 상품 목록을 동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
 
-        **NOTE** 권한 보유 브랜드가 정확히 등록되어 있는 상품만 조회된다.
+        **NOTE** 브랜드가 정확히 등록되어 있는 상품만 조회된다.
 
         Parameters
         ----------
         brand_ids: str | Iterable[str]
-            브랜드 ID. 단일 또는 여러 개의 문자열 목록을 입력한다.   
+            브랜드 ID. 문자열 또는 문자열의 배열을 입력한다.   
             브랜드 ID를 쉼표(,)로 묶어서 OR 조건으로 동시에 조회할 수 있다.
         mall_seq: int | str | Iterable[int | str] | None
-            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다.   
+            쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력할 수 있다.   
             목록으로 입력할 시 브랜드 ID 목록에서 인덱스가 동일한 항목과 AND 조건으로 조회된다.
         is_brand_catalog: bool | None
-            브랜드공식 등록 여부
-        page: int | list[int] | None
+            - `True`: 브랜드 카탈로그만 보기
+            - `False`: 일반 카탈로그만 보기
+            - `None`: 전체 카탈로그 보기 (기본값)
+        page: int | None
             조회할 페이지 번호 (0부터 시작)
         page_size: int
             한 번에 표시할 목록 수
 
         Returns
         -------
-        list[dict] | dict
-            브랜드 상품 목록
+        dict | list[dict]
+            브랜드 상품 목록.
+            아래 조건을 모두 만족하면 `dict` 타입을, 그렇지 않으면 `list[dict]` 타입을 반환한다.
+                1. `brand_ids`가 `str` 타입으로 입력된 경우
+                2. `mall_seq`가 `int | str | None` 타입으로 입력된 경우
+                3. `page`가 `int` 타입으로 입력된 경우
         """
         context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
-        return (self.request_each_pages(self.request_json_safe, context)
+        return (self.request_each_pages(self.request_json_verified, context)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)
@@ -314,34 +347,39 @@ class BrandProduct(_CatalogProduct):
             page: int | None = 0,
             page_size: int = 100,
             **kwargs
-        ) -> JsonObject:
-        """브랜드(`brand_ids`) 권한이 있고 특정 쇼핑몰(`mall_seq`)에 해당하는 브랜드 상품 목록을   
-        비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다.
+        ) -> dict | list[dict]:
+        """쇼핑몰별 브랜드 상품 목록을 비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다.
 
-        **NOTE** 권한 보유 브랜드가 정확히 등록되어 있는 상품만 조회된다.
+        **NOTE** 브랜드가 정확히 등록되어 있는 상품만 조회된다.
 
         Parameters
         ----------
         brand_ids: str | Iterable[str]
-            브랜드 ID. 단일 또는 여러 개의 문자열 목록을 입력한다.   
+            브랜드 ID. 문자열 또는 문자열의 배열을 입력한다.   
             브랜드 ID를 쉼표(,)로 묶어서 OR 조건으로 동시에 조회할 수 있다.
         mall_seq: int | str | Iterable[int | str] | None
-            쇼핑몰 순번. 단일 또는 여러 개의 문자열 목록을 입력한다.   
+            쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력할 수 있다.   
             목록으로 입력할 시 브랜드 ID 목록에서 인덱스가 동일한 항목과 AND 조건으로 조회된다.
         is_brand_catalog: bool | None
-            브랜드공식 등록 여부
-        page: int | list[int] | None
+            - `True`: 브랜드 카탈로그만 보기
+            - `False`: 일반 카탈로그만 보기
+            - `None`: 전체 카탈로그 보기 (기본값)
+        page: int | None
             조회할 페이지 번호 (0부터 시작)
         page_size: int
             한 번에 표시할 목록 수
 
         Returns
         -------
-        list[dict] | dict
-            브랜드 상품 목록
+        dict | list[dict]
+            브랜드 상품 목록.
+            아래 조건을 모두 만족하면 `dict` 타입을, 그렇지 않으면 `list[dict]` 타입을 반환한다.
+                1. `brand_ids`가 `str` 타입으로 입력된 경우
+                2. `mall_seq`가 `int | str | None` 타입으로 입력된 경우
+                3. `page`가 `int` 타입으로 입력된 경우
         """
         context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
-        return await (self.request_each_pages(self.request_async_json_safe, context)
+        return await (self.request_each_pages(self.request_async_json_verified, context)
                 .partial(**partial)
                 .expand(**expand)
                 .all_pages(self.count_total, self.max_page_size, self.page_start, page)

@@ -4,7 +4,7 @@ from linkmerce.common.transform import DuckDBTransformer
 
 
 class Keyword(DuckDBTransformer):
-    """키워드 도구의 연관키워드 조회 결과를 변환 및 적재하는 클래스.
+    """네이버 검색광고 키워드 도구의 연관키워드 조회 결과를 변환 및 적재하는 클래스.
 
     - **Extractor**: `Keyword`
 

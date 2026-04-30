@@ -332,15 +332,11 @@ smartstore/
 │   ├── catalog/
 │   │   ├─x _CatalogProduct(PartnerCenter)::extract
 │   │   ├── BrandCatalog(_CatalogProduct)::extract
-│   │   │   └── BrandCatalog(DuckDBTransformer)::transform
-│   │   │       └── CatalogItems(JsonTransformer)::transform
+│   │   │   └── BrandCatalog(DuckDBTransformer)::transform >> json
 │   │   └── BrandProduct(_CatalogProduct)::extract
-│   │       ├── BrandProduct(DuckDBTransformer)::transform
-│   │       │   └── CatalogItems(JsonTransformer)::transform
-│   │       ├── BrandPrice(BrandProduct)::transform
-│   │       │   └── CatalogItems(JsonTransformer)::transform
-│   │       └── ProductCatalog(BrandProduct)::transform
-│   │           └── CatalogItems(JsonTransformer)::transform
+│   │       ├── BrandProduct(DuckDBTransformer)::transform >> json
+│   │       ├── BrandPrice(BrandProduct)::transform >> json
+│   │       └── ProductCatalog(BrandProduct)::transform >> json
 │   ├── pageview/
 │   │   ├─x _PageView(PartnerCenter)::extract
 │   │   ├── PageViewByDevice(_PageView)::extract
@@ -354,16 +350,12 @@ smartstore/
 │   └── sales/
 │       ├─x _Sales(PartnerCenter)::extract
 │       ├── StoreSales(_Sales)::extract
-│       │   └── StoreSales(DuckDBTransformer)::transform
-│       │       └── SalesParser(JsonTransformer)::transform
+│       │   └── StoreSales(DuckDBTransformer)::transform >> json
 │       ├── CategorySales(_Sales)::extract
-│       │   └── CategorySales(DuckDBTransformer)::transform
-│       │       └── SalesParser(JsonTransformer)::transform
+│       │   └── CategorySales(DuckDBTransformer)::transform >> json
 │       └── ProductSales(_Sales)::extract
-│           ├── ProductSales(DuckDBTransformer)::transform
-│           │   └── SalesParser(JsonTransformer)::transform
-│           └── AggregatedSales(ProductSales)::transform
-│               └── SalesParser(JsonTransformer)::transform
+│           ├── ProductSales(DuckDBTransformer)::transform >> json
+│           └── AggregatedSales(ProductSales)::transform >> json
 └─x sscenter/
     └─x SmartstoreCenterLogin(LoginHandler)::common
 ```

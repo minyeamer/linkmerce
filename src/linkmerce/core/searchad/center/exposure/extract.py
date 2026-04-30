@@ -89,7 +89,7 @@ class ExposureDiagnosis(SearchAdCenter):
                 .run())
 
     def request_json_verified(self, **kwargs) -> dict:
-        """HTTP 요청 후 응답 본문에 오류 코드가 있을 경우 `RequestError`를 발생시킨다."""
+        """HTTP 요청을 수행하고 JSON 파싱한 응답 본문에 오류 코드가 있을 경우 `RequestError`를 발생시킨다."""
         response = super().request_json_safe(self, **kwargs)
         if isinstance(response, dict) and response.get("code"):
             from linkmerce.common.exceptions import RequestError

@@ -4,7 +4,7 @@ from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 
 class ProductParser(JsonTransformer):
-    """스마트스토어 상품 목록 조회 API 응답 데이터로부터 상품 목록을 추출하는 파서 클래스."""
+    """스마트스토어 상품 목록 조회 결과를 파싱하는 클래스."""
 
     scope = "contents"
     fields = [
@@ -18,7 +18,7 @@ class ProductParser(JsonTransformer):
     ]
 
     def parse(self, contents: list[dict], **kwargs) -> list[dict]:
-        """콘텐츠 목록에서 `channelProducts`를 평탄화해 상품 목록을 반환한다."""
+        """콘텐츠 목록에서 `channelProducts`를 평탄화한 상품 목록을 반환한다."""
         products = list()
         for content in contents:
             for product in content["channelProducts"]:
@@ -28,7 +28,23 @@ class ProductParser(JsonTransformer):
 
 
 class Product(DuckDBTransformer):
-    """스마트스토어 상품 목록 조회 API 응답 데이터를 `smartstore_product` 테이블에 적재하는 클래스."""
+    """스마트스토어 상품 목록 조회 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Product`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `ProductParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: smartstore_product`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    channel_seq: int | str
+        채널 번호
+    """
 
     extractor = "Product"
     tables = {"table": "smartstore_product"}
@@ -37,14 +53,14 @@ class Product(DuckDBTransformer):
 
 
 class OptionSimpleParser(JsonTransformer):
-    """스마트스토어 채널 상품 조회 API 응답 데이터로부터 단독형 옵션 목록을 추출하는 파서 클래스."""
+    """스마트스토어 채널 상품 조회 결과의 단독형 옵션 목록을 파싱하는 클래스."""
 
     scope = "originProduct.detailAttribute.optionInfo.optionSimple"
     fields = ["id", "groupName", "name", "usable", {"price": None}, {"stockQuantity": None}]
 
 
 class OptionCombParser(JsonTransformer):
-    """스마트스토어 채널 상품 조회 API 응답 데이터로부터 조합형 옵션 목록을 추출하는 파서 클래스."""
+    """스마트스토어 채널 상품 조회 결과의 조합형 옵션 목록을 파싱하는 클래스."""
 
     scope = "originProduct.detailAttribute.optionInfo"
     fields = [
@@ -69,7 +85,7 @@ class OptionCombParser(JsonTransformer):
 
 
 class SupplementParser(JsonTransformer):
-    """스마트스토어 채널 상품 조회 API 응답 데이터로부터 추가 상품 목록을 추출하는 파서 클래스."""
+    """스마트스토어 채널 상품 조회 결과의 추가 상품 목록을 파싱하는 클래스."""
 
     scope = "originProduct.detailAttribute.supplementProductInfo.supplementProducts"
     fields = [
@@ -83,12 +99,26 @@ class SupplementParser(JsonTransformer):
 
 
 class Option(DuckDBTransformer):
-    """스마트스토어 채널 상품 조회 API 응답 데이터를 `smartstore_option` 테이블에 적재하는 클래스.
-    
-    API 응답 데이터로부터 아래 3가지 옵션 상품을 추출한다:
-    - 단독형 옵션 상품 (`product_type = 0`)
-    - 조합형 옵션 상품 (`product_type = 1`)
-    - 추가 상품 (`product_type = 2`)
+    """스마트스토어 채널 상품 조회 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Option`
+
+    - **Parsers** ( *parser_class: input_type -> output_type* ):
+        1. `OptionSimpleParser: dict -> list[dict]`
+        2. `OptionCombParser: dict -> list[dict]`
+        3. `SupplementParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: smartstore_option`
+
+    Parameters
+    ----------
+    **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
+
+    product_id: int | str
+        상품코드 목록
+    channel_seq: int | str
+        채널 번호
     """
 
     extractor = "Option"

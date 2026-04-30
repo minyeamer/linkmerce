@@ -149,9 +149,15 @@ class SmartstoreTestAPI(SmartstoreApi):
         """
         url = self.concat_path(self.origin, version, path)
         message = self.build_request_message(method=method, url=url, **kwargs)
+
         if params is not None: message["params"] = params
         if data is not None: message["data"] = data
         if json is not None: message["json"] = json
-        if isinstance(headers, dict): message["headers"].update(headers)
+        if isinstance(headers, dict):
+            if isinstance(message["headers"], dict):
+                message["headers"].update(headers)
+            else:
+                message["headers"] = headers
+
         with self.get_session().request(**message) as response:
             return response.json()

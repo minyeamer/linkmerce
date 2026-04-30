@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Sequence
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -53,7 +52,7 @@ class Product(SmartstoreApi):
             channel_seq: int | str | None = None,
             max_retries: int = 5,
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """상품 목록을 조회해 JSON 형식으로 반환한다.
 
         Parameters
@@ -93,14 +92,26 @@ class Product(SmartstoreApi):
 
         Returns
         -------
-        dict
+        list[dict]
             상품 목록
         """
-        return (self.paginate_all(self.request_json_until_success, counter=self.count_total, max_page_size=500, page_start=1)
-                .run(search_keyword=search_keyword, keyword_type=keyword_type, status_type=status_type, period_type=period_type,
-                    from_date=from_date, to_date=to_date, channel_seq=channel_seq, max_retries=max_retries))
+        return self.paginate_all(
+                    self.request_json_until_success,
+                    counter = self.count_total,
+                    max_page_size = 500,
+                    page_start = 1
+                ).run(
+                    search_keyword = search_keyword,
+                    keyword_type = keyword_type,
+                    status_type = status_type,
+                    period_type = period_type,
+                    from_date = from_date,
+                    to_date = to_date,
+                    channel_seq = channel_seq,
+                    max_retries = max_retries,
+                )
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 상품 수를 추출한다."""
         return response.get("totalElements") if isinstance(response, dict) else None
 
@@ -143,14 +154,14 @@ class Product(SmartstoreApi):
 
     @property
     def status_type(self) -> dict[str, str]:
-        """상품 판매 상태 코드별 한글 명칭 매핑을 반환한다."""
+        """상품 판매 상태 코드와 한글명 매핑을 반환한다."""
         return {
             "WAIT": "판매 대기", "SALE": "판매 중", "OUTOFSTOCK": "품절", "UNADMISSION": "승인 대기", "REJECTION": "승인 거부",
             "SUSPENSION": "판매 중지", "CLOSE": "판매 종료", "PROHIBITION": "판매 금지"}
 
     @property
     def order_type(self) -> dict[str, str]:
-        """상품 정렬 기준별 한글 명칭 매핑을 반환한다."""
+        """상품 정렬 기준 코드와 한글명 매핑을 반환한다."""
         return {
             "NO": "상품번호순", "REG_DATE": "등록일순", "MOD_DATE": "수정일순", "NAME": "상품명순", "SELLER_CODE": "판매자 상품코드순",
             "LOW_PRICE": "판매가 낮은 순", "HIGH_PRICE": "판매가 높은 순", "POPULARITY": "인기도순", "ACCUMULATE_SALE": "누적 판매 건수순",
@@ -158,7 +169,7 @@ class Product(SmartstoreApi):
 
     @property
     def period_type(self) -> dict[str, str]:
-        """상품 기간 검색 유형별 한글 명칭 매핑을 반환한다."""
+        """상품 기간 검색 유형 코드와 한글명 매핑을 반환한다."""
         return {
             "PROD_REG_DAY": "상품 등록일", "SALE_START_DAY": "판매 시작일",
             "SALE_END_DAY": "판매 종료일", "PROD_MOD_DAY": "최종 수정일",
@@ -199,16 +210,16 @@ class Option(SmartstoreApi):
     @SmartstoreApi.with_token
     def extract(
             self,
-            product_id: Sequence[int | str],
+            product_id: int | str | Sequence[int | str],
             channel_seq: int | str | None = None,
             max_retries: int = 5,
             **kwargs
-        ) -> JsonObject:
-        """상품코드(`product_id`)에 대한 채널 상품 조회 결과를 JSON 형식으로 반환한다.
+        ) -> dict | list[dict]:
+        """상품별 채널 상품 조회 결과를 JSON 형식으로 반환한다.
 
         Parameters
         ----------
-        product_id: Sequence[int | str]
+        product_id: int | str | Sequence[int | str]
             상품코드 목록
         channel_seq: int | str | None
             채널 번호. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
@@ -217,8 +228,10 @@ class Option(SmartstoreApi):
 
         Returns
         -------
-        list[dict]
-            채널 상품 조회 결과
+        dict | list[dict]
+            채널 상품 조회 결과. `product_id` 타입에 따라 반환 타입이 다르다.
+                - `product_id`가 `int | str` 타입일 때 -> `dict`
+                - `product_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_until_success)
                 .partial(channel_seq=channel_seq, max_retries=max_retries)

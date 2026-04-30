@@ -38,7 +38,10 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
 
     - **URL**: https://center.shopping.naver.com/login?target_uri=https%3A%2F%2Fcenter.shopping.naver.com%2Fmain
 
-    스마트스토어센터 로그인(`super().login`) → 쇼핑파트너센터 전환(`celogin`) → 토큰 발급(`embrace_token`) 순서로 진행한다.
+    스마트스토어센터 로그인 → 쇼핑파트너센터 전환 → 토큰 발급 순서로 워크플로우를 실행한다.
+    1. `super().login`: `SmartstoreCenterLogin` 클래스에 정의된 스마트스토어 로그인을 수행하고 채널을 전환한다.
+    2. `celogin`: 스마트스토어 로그인 세션을 가지고 `/v1/slogin2/login` API에 로그인 요청한다.
+    3. `embrace_token`: 쇼핑파트너센터 내에서 권한이 필요한 메뉴로 이동하여 토큰을 발급받는다.
     """
 
     center_url = "https://center.shopping.naver.com"

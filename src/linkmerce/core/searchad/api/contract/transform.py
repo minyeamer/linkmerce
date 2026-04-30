@@ -4,7 +4,7 @@ from linkmerce.common.transform import DuckDBTransformer
 
 
 class TimeContract(DuckDBTransformer):
-    """브랜드검색 광고 계약기간 데이터를 변환 및 적재하는 클래스.
+    """네이버 브랜드검색 광고 계약기간 데이터를 변환 및 적재하는 클래스.
 
     - **Extractor**: `TimeContract`
 
@@ -30,7 +30,7 @@ class TimeContract(DuckDBTransformer):
 
 
 class BrandNewContract(DuckDBTransformer):
-    """신제품검색 광고 계약기간 데이터를 변환 및 적재하는 클래스.
+    """네이버 신제품검색 광고 계약기간 데이터를 변환 및 적재하는 클래스.
 
     - **Extractor**: `BrandNewContract`
 

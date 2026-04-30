@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -49,7 +48,7 @@ class MarketingChannel(SmartstoreApi):
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
             max_retries: int = 5,
             **kwargs
-        ) -> JsonObject:
+        ) -> dict | list[dict]:
         """사용자가 별도로 정의한 마케팅 채널별 유입 및 결제 성과를 일별로 조회해 JSON 형식으로 반환한다.
 
         Parameters
@@ -58,7 +57,7 @@ class MarketingChannel(SmartstoreApi):
             조회 채널 번호
         start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         max_retries: int = 5
@@ -66,8 +65,10 @@ class MarketingChannel(SmartstoreApi):
 
         Returns
         -------
-        dict
-            사용자 정의 채널 상세 데이터
+        dict | list[dict]
+            사용자 정의 채널 상세 데이터. 조회 기간에 따라 반환 타입이 다르다.
+                - `start_date`와 `end_date`가 동일할 때 -> `dict`
+                - `start_date`와 `end_date`가 다를 때 -> `list[dict]`
         """
         url = self.url.replace(":channelNo", str(channel_seq))
         return (self.request_each(self.request_json_until_success)

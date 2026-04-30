@@ -50,7 +50,7 @@ class ExposureRank(ExposureDiagnosis):
 
     - **Table** ( *table_key: table_name (description)* ):
         1. `rank`: `searchad_rank` (노출 상품 순위)
-        2. `product`: `searchad_product` (노출 상품 목록)
+        2. `product`: `searchad_product` (노출 상품 정보)
 
     Parameters
     ----------

@@ -27,7 +27,7 @@ def _cast(type: ColumnType) -> Callable[[str], str | float | int | dt.date]:
 
 
 class AdvancedReport(ExcelTransformer):
-    """네이버 검색광고 시스템의 다차원 보고서 다운로드 결과를 파싱하는 클래스.
+    """네이버 광고주센터의 다차원 보고서 다운로드 결과를 파싱하는 클래스.
 
     **NOTE** `ExcelTransformer`의 5단계 파이프라인을 따른다.
 
@@ -169,7 +169,7 @@ class AdvancedReport(ExcelTransformer):
 
 
 class DailyReport(DuckDBTransformer):
-    """네이버 검색광고 시스템에서 다차원 보고서를 변환 및 적재하는 클래스.
+    """네이버 광고주센터에서 다차원 보고서를 변환 및 적재하는 클래스.
 
     - **Extractor**: `DailyReport`
 

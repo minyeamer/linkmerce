@@ -26,7 +26,7 @@ class AdgroupParser(JsonTransformer):
     ]
 
     def parse(self, obj: list, **kwargs) -> list[dict]:
-        """캠페인 목록에서 `groupList`를 평탄화해 광고그룹 목록을 반환한다."""
+        """캠페인 목록에서 `groupList`를 평탄화한 광고그룹 목록을 반환한다."""
         adgroups, goal_type = list(), kwargs.get("goal_type")
         for campaign in obj:
             if not isinstance(campaign, dict):

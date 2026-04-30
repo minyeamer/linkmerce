@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Iterable, Literal
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -23,7 +22,14 @@ class _Sales(PartnerCenter):
     ----------
     **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
 
-    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestLoop` Task 옵션을 전달할 수 있다.
+
+    max_retries: int | None
+        최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
+    request_delay: Literal["incremental"] | float | int | tuple[int, int]
+        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
         요청 간 대기 시간. 기본값은 `1`
@@ -38,7 +44,10 @@ class _Sales(PartnerCenter):
     date_format = "%Y-%m-%d"
     sales_type: Literal["store", "category", "product"]
     fields: list[dict]
-    default_options = {"RequestEach": {"request_delay": 1, "max_concurrent": 3}}
+    default_options = {
+        "RequestLoop": {"max_retries": 5, "ignored_errors": Exception},
+        "RequestEachLoop": {"request_delay": 1, "max_concurrent": 3},
+    }
 
     @PartnerCenter.with_session
     def extract(
@@ -50,39 +59,44 @@ class _Sales(PartnerCenter):
             page: int | Iterable[int] = 1,
             page_size: int = 1000,
             **kwargs
-        ) -> JsonObject:
-        """네이버 스토어(`mall_seq`)의 기간별 매출 데이터를 동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
+        ) -> dict | list[dict]:
+        """네이버 스토어의 기간별 매출 데이터를 동기 방식으로 순차 조회해 JSON 형식으로 반환한다.
 
-        **NOTE** 최대 2년 전까지의 데이터만 조회할 수 있다.
+        **NOTE** 2년 전 데이터까지 제공된다.
 
         Parameters
         ----------
         mall_seq: int | str | Iterable[int | str]
-            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다.
+            쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력한다.
         start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type: str
             기간
-                - `"daily"`: 일간
+                - `"daily"`: 일간 (기본값)
                 - `"weekly"`: 주간
                 - `"monthly"`: 월간
         page: int | Iterable[int]
-            페이지 번호. 단일 또는 여러 개의 목록을 입력한다.
+            페이지 번호. 정수 또는 정수의 배열을 입력한다.
         page_size: int
             한 번에 표시할 목록 수
 
         Returns
         -------
         dict | list[dict]
-            네이버 스토어의 기간별 매출 데이터
+            네이버 스토어의 기간별 매출 데이터.
+            아래 조건을 모두 만족하면 `dict` 타입을, 그렇지 않으면 `list[dict]` 타입을 반환한다.
+                1. `mall_seq`가 `int | str` 타입으로 입력된 경우
+                2. `start_date`와 `end_date`이 동일한 경우
+                3. `page`가 `int` 타입으로 입력된 경우
         """
         context = self.generate_date_context(start_date, end_date, freq=date_type[0].upper(), format=self.date_format)
-        return (self.request_each(self.request_json_safe, context=context)
+        return (self.request_each_loop(self.request_json_safe, context=context)
                 .partial(date_type=date_type, page_size=page_size)
                 .expand(mall_seq=mall_seq, page=page)
+                .loop(self.is_valid_response)
                 .run())
 
     @PartnerCenter.async_with_session
@@ -95,40 +109,60 @@ class _Sales(PartnerCenter):
             page: int = 1,
             page_size: int = 1000,
             **kwargs
-        ) -> JsonObject:
-        """네이버 스토어(`mall_seq`)의 기간별 매출 데이터를 비동기 방식으로 벙렬 조회해 JSON 형식으로 반환한다.
+        ) -> dict | list[dict]:
+        """네이버 스토어의 기간별 매출 데이터를 비동기 방식으로 병렬 조회해 JSON 형식으로 반환한다.
 
-        **NOTE** 최대 2년 전까지의 데이터만 조회할 수 있다.
+        **NOTE** 2년 전 데이터까지 제공된다.
 
         Parameters
         ----------
         mall_seq: int | str | Iterable[int | str]
-            쇼핑몰 순번. 단일 또는 여러 개의 목록을 입력한다.
+            쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력한다.
         start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         date_type: str
             기간
-                - `"daily"`: 일간
+                - `"daily"`: 일간 (기본값)
                 - `"weekly"`: 주간
                 - `"monthly"`: 월간
         page: int | Iterable[int]
-            페이지 번호. 단일 또는 여러 개의 목록을 입력한다.
+            페이지 번호. 정수 또는 정수의 배열을 입력한다.
         page_size: int
             한 번에 표시할 목록 수
 
         Returns
         -------
         dict | list[dict]
-            네이버 스토어의 기간별 매출 데이터
+            네이버 스토어의 기간별 매출 데이터.
+            아래 조건을 모두 만족하면 `dict` 타입을, 그렇지 않으면 `list[dict]` 타입을 반환한다.
+                1. `mall_seq`가 `int | str` 타입으로 입력된 경우
+                2. `start_date`와 `end_date`이 동일한 경우
+                3. `page`가 `int` 타입으로 입력된 경우
         """
         context = self.generate_date_context(start_date, end_date, freq=date_type[0].upper(), format=self.date_format)
-        return await (self.request_each(self.request_async_json_safe, context=context)
+        return await (self.request_each_loop(self.request_async_json_safe, context=context)
                 .partial(date_type=date_type, page_size=page_size)
                 .expand(mall_seq=mall_seq, page=page)
+                .loop(self.is_valid_response)
                 .run_async())
+
+    def is_valid_response(self, response: dict) -> bool:
+        """JSON 파싱한 응답 본문에 `error` 필드가 있으면 `UnauthorizedError` 또는 `RequestError`를 발생시킨다."""
+        if isinstance(response, dict):
+            if "error" in response:
+                from linkmerce.utils.nested import hier_get
+                msg = hier_get(response, "error.error") or "null"
+                if msg == "Unauthorized":
+                    from linkmerce.common.exceptions import UnauthorizedError
+                    raise UnauthorizedError("Unauthorized request")
+                else:
+                    from linkmerce.common.exceptions import RequestError
+                    raise RequestError(f"An error occurred during the request: {msg}")
+            return True
+        return False
 
     def build_request_json(
             self,
@@ -189,7 +223,14 @@ class StoreSales(_Sales):
     ----------
     **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
 
-    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestLoop` Task 옵션을 전달할 수 있다.
+
+    max_retries: int | None
+        최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
+    request_delay: Literal["incremental"] | float | int | tuple[int, int]
+        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
         요청 간 대기 시간. 기본값은 `1`
@@ -226,7 +267,14 @@ class CategorySales(_Sales):
     ----------
     **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
 
-    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestLoop` Task 옵션을 전달할 수 있다.
+
+    max_retries: int | None
+        최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
+    request_delay: Literal["incremental"] | float | int | tuple[int, int]
+        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
         요청 간 대기 시간. 기본값은 `1`
@@ -263,7 +311,14 @@ class ProductSales(_Sales):
     ----------
     **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 전달해야 한다.
 
-    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestLoop` Task 옵션을 전달할 수 있다.
+
+    max_retries: int | None
+        최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `5`
+    request_delay: Literal["incremental"] | float | int | tuple[int, int]
+        재시도 간 대기 시간. `"incremental"`이면 대기 시간이 1초씩 점진적으로 증가한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
         요청 간 대기 시간. 기본값은 `1`
