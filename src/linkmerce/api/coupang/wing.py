@@ -103,7 +103,7 @@ def product_option(
 
         **NOTE** `see_more=True` 조건으로 실행하면 결과가 다르다.
             - 변환 및 적재 과정을 거치면 상품 목록 테이블에 누락된 `[ 노출상품ID, 옵션ID, 판매가 ]` 값이 추가된다.
-            - 원본 응답을 반환할 때는 `{"products": [ProductOption], "details": [ProductDetail]}` 구조로 반환된다.
+            - 원본 응답을 반환할 때는 `{"products": ProductOption, "details": ProductDetail}` 구조로 반환된다.
     """
     from linkmerce.core.coupang.wing.product.extract import ProductOption
     from linkmerce.core.coupang.wing.product.transform import ProductOption as T
@@ -397,7 +397,7 @@ def rocket_option(
 
         **NOTE** `see_more=True` 조건으로 실행하면 결과가 다르다.
             - 변환 및 적재 과정을 거치면 로켓 상품 테이블에 누락된 `[ 등록옵션ID, 옵션ID, 바코드 ]` 값이 추가된다.
-            - 원본 응답을 반환할 때는 `{"products": [RocketOption], "details": [ProductDetail]}` 구조로 반환된다.
+            - 원본 응답을 반환할 때는 `{"products": RocketOption, "details": ProductDetail}` 구조로 반환된다.
     """
     from linkmerce.core.coupang.wing.product.extract import RocketInventory
     from linkmerce.core.coupang.wing.product.transform import RocketOption as T

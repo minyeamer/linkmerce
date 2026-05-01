@@ -601,7 +601,7 @@ class Search(DuckDBTransformer):
         `SearchSectionParser: str -> list[list[dict]]`
 
     - **Tables** ( *table_key: table_name (description)* ):
-        1. `sections: naver_search_sections` (JSON 섹션 목록)
+        1. `sections: naver_search_sections` (검색 결과 섹션 목록)
         2. `summary: naver_search_summary` (검색 결과 요약)
 
     Parameters

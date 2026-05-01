@@ -835,9 +835,10 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
 
     def run(self, *args, how_to_run: Literal["sync", "async", "async_loop"] = "sync", **kwargs) -> Any:
         """`how_to_run` 키워드 인자로 `extract` 또는 `extract_async` 메서드를 실행한다.
-        - `sync` | 동기 실행 | `extract` 메서드를 실행한다.
-        - `async` | 비동기 실행 | `asyncio.run` 함수로 감싸서 `extract_async` 코루틴을 실행한다.
-        - `async_loop` | 비동기 루프 내 실행 | 주피터 노트북 등 이미 비동기 이벤트 루프 내에 있을 경우에 비동기 실행을 처리한다."""
+        - `"sync"`: 동기 실행. `extract` 메서드를 실행한다. (기본값)
+        - `"async"`: 비동기 실행. `asyncio.run` 함수로 감싸서 `extract_async` 코루틴을 실행한다.
+        - `"async_loop"`: 비동기 루프 내 실행. 주피터 노트북 등 이미 비동기 이벤트 루프 내에 있을 경우에 비동기 실행을 처리한다.
+        """
         if how_to_run == "sync":
             return self.extract(*args, **kwargs)
         elif how_to_run == "async":

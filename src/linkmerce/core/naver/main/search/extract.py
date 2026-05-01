@@ -50,12 +50,12 @@ class Search(Extractor):
             - `True`: 모바일 검색 (기본값)
             - `False`: PC 검색
         parse_html: bool
-            - `True`: HTML 소스코드를 `BeautifulSoup` 객체로 파싱 (기본값)
-            - `False`: HTML 소스코드를 텍스트로 반환
+            - `True`: HTML 소스코드를 `BeautifulSoup` 객체로 파싱한다. (기본값)
+            - `False`: HTML 소스코드를 텍스트로 반환한다.
 
         Returns
         -------
-        BeautifulSoup | str | list[BeautifulSoup] | list[str]
+        str | list[str] | BeautifulSoup | list[BeautifulSoup]
             네이버 통합검색 결과 페이지 소스코드.
             `query` 타입과 `parse_html` 값에 따라 반환 타입이 다르다. (JS 삼항 연산 표현)
                 - `query`가 `str` 타입일 때 -> `parse_html ? BeautifulSoup : str`
@@ -237,10 +237,10 @@ class CafeArticle(Extractor):
         Parameters
         ----------
         url: str | Iterable[str]
-            카페 URL. 문자열 또는 문자열의 배열을 입력한다. 다음 3가지 형식의 URL을 허용한다.
-                - https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}
-                - https://cafe.naver.com/{cafe_url}/{article_id}
-                - https://m.cafe.naver.com/{cafe_url}/{article_id}
+            카페 URL. 문자열 또는 문자열의 배열을 입력한다. 다음 3가지 도메인에 대한 URL을 허용한다.
+                - `"article"`: https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}
+                - `"cafe"`: https://cafe.naver.com/{cafe_url}/{article_id}
+                - `"m"`: https://m.cafe.naver.com/{cafe_url}/{article_id}
         domain: str
             카페 URL의 도메인. `url` 파라미터로 전달되는 URL 값은 전부 동일한 도메인이어야 한다.
 
