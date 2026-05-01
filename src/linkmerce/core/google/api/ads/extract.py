@@ -76,7 +76,7 @@ class GoogleAds(GoogleApi):
         end_date: dt.date | str | None
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
         date_range: str | None
-            GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 전달되면 무시된다.
+            GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 있으면 무시된다.
         fields: Sequence[str]
             조회할 GAQL 필드 목록. 생략 시 클래스에 정의된 `fields` 속성을 사용한다.
 
@@ -350,7 +350,7 @@ class Insight(GoogleAds):
                 - `'W'`: 월요일 기준 주 단위로 기간을 분할한다.
                 - `'M'`: 매월 1일 기준 월 단위로 기간을 분할한다.
         date_range: str | None
-            GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 전달되면 무시된다.
+            GAQL 사전 정의 조회 기간. `start_date` 또는 `end_date`가 있으면 무시된다.
         fields: Sequence[str]
             조회할 GAQL 필드 목록. 생략 시 클래스에 정의된 `fields` 속성을 사용한다.
 
