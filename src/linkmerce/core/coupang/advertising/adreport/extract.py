@@ -148,7 +148,7 @@ class Creative(CoupangAds):
         Parameters
         ----------
         campaign_id: int | str | Sequence[int | str]
-            조회할 캠페인 ID. 정수 또는 정수의 배열을 입력한다.
+            조회할 캠페인 ID. 단일 값 또는 배열을 입력한다.
         vendor_id: str | None
             업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
 

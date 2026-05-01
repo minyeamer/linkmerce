@@ -73,18 +73,18 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.coupang.advertising import adreport
         from linkmerce.extensions.bigquery import BigQueryClient
-        source = f"coupang_adreport_{report_type}"
+        from importlib import import_module
+        extract = getattr(import_module("linkmerce.api.coupang.advertising"), f"adreport_{report_type}")
         report_level = "creative" if report_type == "nca" else "vendorItem"
+        source = f"coupang_adreport_{report_type}"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            adreport(
+            extract(
                 cookies = cookies,
                 vendor_id = vendor_id,
                 start_date = date,
                 end_date = date,
-                report_type = report_type,
                 date_type = "daily",
                 report_level = report_level,
                 connection = conn,
@@ -95,8 +95,8 @@ with DAG(
                 return {
                     "params": {
                         "vendor_id": vendor_id,
-                        "date": date,
                         "report_type": report_type,
+                        "date": date,
                         "date_type": "daily",
                         "report_level": report_level,
                     },

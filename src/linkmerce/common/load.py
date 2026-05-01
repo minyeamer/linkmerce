@@ -345,7 +345,7 @@ class DuckDBConnection(Connection):
             query: str,
             params: object | None = None,
             save_to: str | Path | None = None,
-        ) -> list[tuple] | list[tuple] | bytes | None:
+        ) -> list[tuple] | list[dict] | bytes | None:
         """SQL 쿼리를 실행하고, 결과를 지정한 형식(`csv`, `json`, `parquet`)으로 반환하거나 파일로 저장한다."""
         try:
             return getattr(self, f"fetch_all_to_{format}")(query, params, save_to)

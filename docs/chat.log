@@ -1910,3 +1910,31 @@ wait_for_completion 함수 분리
 
   결론: 현재 코드는 Airflow 3.1.3 환경에서 정상 동작 가능.
 
+  [2026-04-30] Q-docstring-task: API docstring 작성 지시 문서 정리
+  ================================================================================
+
+  배경
+  ----
+    extract/transform 모듈을 근거로 api/ 경로 아래 API 함수 docstring을
+    일관되게 작성하기 위한 GPT-5.4용 작업 지시 문서가 필요해짐.
+
+  정리한 규칙
+  -----------
+    1. source of truth 우선순위:
+      api 함수 시그니처 > core/extract.py > core/transform.py > 승인된 기준 docstring
+    2. 한 줄 설명 바로 아래에 Table/Tables 배치
+    3. connection 문구 고정:
+      사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    4. raw 설명 구분:
+      - 수집형: 데이터 수집 후 원본 응답 반환
+      - 다운로드형: 데이터 다운로드 후 {파일명: 엑셀 바이너리} 구조 반환
+    5. none 설명 고정:
+      모든 과정을 수행한 후 `None`을 반환한다.
+    6. 요청 간 표현 유지, 명사형 설명 끝 마침표 금지
+
+  산출물
+  ------
+    docs/api-docstring-task-instructions.md
+    - GPT-5.4가 그대로 따라 쓸 수 있는 작업 규칙
+    - 금지 사항, Returns 작성 규칙, 테이블 수별 패턴, 체크리스트 포함
+

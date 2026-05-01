@@ -56,7 +56,7 @@ class Stock(CjEflexs):
         Parameters
         ----------
         customer_id: int | str | Iterable[int | str]
-            조회할 고객 ID. 정수 또는 정수의 배열을 입력한다.
+            조회할 고객 ID. 단일 값 또는 배열을 입력한다.
         start_date: dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":last_week:"`: 오늘 기준 7일 전 날짜 (기본값)

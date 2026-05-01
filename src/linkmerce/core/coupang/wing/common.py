@@ -17,7 +17,7 @@ class CoupangWing(Extractor):
     ----------
     **NOTE** 인스턴스 생성 시 `cookies` 인자로 로그인 쿠키 문자열을 반드시 전달해야 한다.
 
-    `token_required=True`인 경우 쿠키에 `XSRF-TOKEN` 키값이 포함되어야 한다.
+    `token_required=True`인 경우 쿠키에 `XSRF-TOKEN` 값이 포함되어야 한다.
     """
 
     method: str | None = None
@@ -63,7 +63,7 @@ class CoupangLogin(LoginHandler):
             with_token: bool = True,
             **kwargs
         ) -> str:
-        """로그인 수행 후 `XSRF-TOKEN`을 쿠키에 더한다.
+        """로그인 수행 후 선택적으로 `XSRF-TOKEN` 값을 쿠키에 더한다.
 
         Parameters
         ----------
@@ -75,11 +75,15 @@ class CoupangLogin(LoginHandler):
             로그인할 판매자 계정의 도메인
                 - `"wing"`: 쿠팡 Wing (기본값)
                 - `"supplier"`: 쿠팡 서플라이어 허브
+        with_token: bool
+            `XSRF-TOKEN` 포함 여부
+                - `True`: 추가 요청을 보내 `XSRF-TOKEN` 값을 취득한다. (기본값)
+                - `False`: 추가 요청 없이 `XSRF-TOKEN` 값이 누락된 쿠키를 반환한다.
 
         Returns
         -------
         str
-            쿠팡 Wing 또는 서플라이어 로그인 쿠키
+            쿠팡 Wing 또는 서플라이어 로그인 쿠키 문자열
         """
         self.origin = f"https://{domain}.coupang.com"
         self.vendor_login(userid, passwd)

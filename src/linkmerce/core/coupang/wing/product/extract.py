@@ -132,7 +132,7 @@ class ProductDetail(CoupangWing):
         Parameters
         ----------
         vendor_inventory_id: int | str | Sequence[int | str]
-            조회할 상품의 등록상품ID. 정수 또는 정수의 배열을 입력한다.
+            조회할 상품의 등록상품ID. 단일 값 또는 배열을 입력한다.
 
         Returns
         -------
@@ -199,7 +199,9 @@ class ProductDownload(ProductOption):
         fields: list[str]
             엑셀 항목 코드 목록. 생략 시 기본 항목으로 조회한다.
         is_deleted: bool
-            삭제된 상품만 조회할지 여부. 기본값은 `False`
+            삭제된 상품 조회 여부
+                - `True`: 삭제된 상품만 조회
+                - `False`: 삭제되지 않은 전체 상품 조회 (기본값)
         vendor_id: str | None
             업체 코드. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
         wait_seconds: int
@@ -338,14 +340,12 @@ class RocketInventory(CoupangWing):
 
     Attributes
     ----------
-    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 키값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `CursorAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
         커서 요청 간 대기 시간(초). 기본값은 `1`
-    tqdm_options: dict | None
-        커서 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
 
     method = "POST"

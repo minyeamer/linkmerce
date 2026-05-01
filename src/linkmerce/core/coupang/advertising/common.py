@@ -68,7 +68,7 @@ class CoupangLogin(LoginHandler):
         Returns
         -------
         str
-            쿠팡 광고센터 로그인 쿠키
+            쿠팡 광고센터 로그인 쿠키 문자열
         """
         login_url = self.login_redirect(domain)
         # login_url = "https://xauth.coupang.com/auth/realms/seller/protocol/openid-connect/auth?client_id=wing-compat&scope={scope}&response_type=code&redirect_uri=https%3A%2F%2Fadvertising.coupang.com%2Fuser%2Fwing%2Fauthorization-callback&state={state}&code_challenge={code_challenge}&code_challenge_method=S256"

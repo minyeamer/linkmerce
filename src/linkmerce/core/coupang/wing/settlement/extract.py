@@ -23,7 +23,7 @@ class Summary(CoupangWing):
 
     Attributes
     ----------
-    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 키값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
     """
 
     method = "POST"
@@ -63,7 +63,7 @@ class RocketSettlement(CoupangWing):
 
     Attributes
     ----------
-    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 키값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
     """
 
     method = "POST"
@@ -140,7 +140,7 @@ class RocketSettlementDownload(RocketSettlement):
 
     Attributes
     ----------
-    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 키값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
+    **NOTE** 인스턴스 생성 시 `cookies` 인자로 `XSRF-TOKEN` 값이 포함된 쿠키 문자열을 반드시 전달해야 한다.
     """
 
     method = "POST"
