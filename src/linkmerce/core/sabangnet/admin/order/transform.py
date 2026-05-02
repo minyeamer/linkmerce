@@ -57,8 +57,8 @@ class OrderDownload(DuckDBTransformer):
     ----------
     **NOTE** 인스턴스 생성 시 `bulk_insert` 삽입 쿼리를 선택하기 위한 설정값을 반드시 전달해야 한다.
 
-    download_type: Literal["order", "option", "invoice", "dispatch"]
-        테이블 키와 대응되는 다운로드 유형
+    download_type: str
+        다운로드 유형. 주문 내역을 스키마에 맞춰 변환하고 적재할 테이블의 `table_key` 하나를 입력한다.
     """
 
     extractor = "OrderDownload"

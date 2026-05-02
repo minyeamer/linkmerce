@@ -130,10 +130,9 @@ def product_option(
         from linkmerce.core.coupang.wing.product.transform import ProductDetail as T
 
         if return_type == "raw":
-            ids = set()
-            for result in products:
-                ids = ids.union({product["vendor_inventory_id"] for product in result})
-            vendor_inventory_id = list(ids)
+            from linkmerce.utils.nested import hier_get
+            ids = [product["vendorInventoryId"] for result in products for product in hier_get(result, "data.productList")]
+            vendor_inventory_id = list(dict.fromkeys(ids))
         else:
             query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(common["tables"]["table"])
             vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
@@ -419,10 +418,10 @@ def rocket_option(
         from linkmerce.core.coupang.wing.product.transform import ProductDetail as T
 
         if return_type == "raw":
-            ids = set()
-            for result in products:
-                ids = ids.union({product["vendor_inventory_id"] for product in result})
-            vendor_inventory_id = list(ids)
+            from linkmerce.utils.nested import hier_get
+            id_key = "listingDetails.vendorInventoryId"
+            ids = [hier_get(product, id_key) for result in products for product in hier_get(result, "viProperties")]
+            vendor_inventory_id = list(dict.fromkeys(ids))
         else:
             query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(common["tables"]["table"])
             vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]

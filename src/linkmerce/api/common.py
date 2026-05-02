@@ -63,7 +63,7 @@ def prepare_duckdb_extract(
     return merge(extract_options, kwargs) if kwargs else extract_options
 
 
-def with_duckdb_connection(tables: dict | None = None, table: dict | None = None):
+def with_duckdb_connection(tables: dict | None = None, table: str | None = None):
     """DuckDB 연결을 보장한다. `connection`이 없다면 연결을 생성하고, 실행 종료 후 연결을 닫는다.
 
     `return_type`에 따라 실행 결과를 형식에 맞게 변환하여 반환한다.
@@ -74,6 +74,8 @@ def with_duckdb_connection(tables: dict | None = None, table: dict | None = None
     - `"none"`: 아무것도 반환하지 않는다.
 
     **NOTE** 조회 대상 테이블(`tables`)을 데코레이터 호출 시점에 지정할 수 있다.
+
+    테이블이 여러 개라면 테이블 조회 결과는 `{table_key: DuckDBResult}` 구조로 반환한다.
     """
     tables = {"table": table} if table else tables
 

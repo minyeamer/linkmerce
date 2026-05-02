@@ -222,7 +222,7 @@ def adreport_pa(
             3. `vendorItem`: 캠페인 > 광고그룹 > 상품 (기본값)
             4. `keyword`: 캠페인 > 광고그룹 > 상품 > 키워드
     campaign_ids: Sequence[int | str]
-        조회할 캠페인 ID 목록. 생략 시 기간 내 전체 캠페인을 조회하여 선택한다.
+        조회할 캠페인 ID 목록. 생략하면 기간 내 전체 캠페인을 조회하여 선택한다.
     wait_seconds: int
         보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
         시간 내 보고서가 생성 완료되지 않으면 `ValueError`를 발생시킨다.
@@ -299,7 +299,7 @@ def adreport_nca(
             3. `keyword`: 캠페인 > 광고 > 키워드
             4. `creative`: 캠페인 > 광고 > 키워드 > 소재 (기본값)
     campaign_ids: Sequence[int | str]
-        조회할 캠페인 ID 목록. 생략 시 기간 내 전체 캠페인을 조회하여 선택한다.
+        조회할 캠페인 ID 목록. 생략하면 기간 내 전체 캠페인을 조회하여 선택한다.
     wait_seconds: int
         보고서 생성 완료를 기다리는 최대 시간(초). 기본값은 `60`   
         시간 내 보고서가 생성 완료되지 않으면 `ValueError`를 발생시킨다.

@@ -346,7 +346,7 @@ class OrderStatus(OrderDownload):
                 - `":now:"`: 현재 시각
         date_type: list[str]
             일자 유형 목록. `date_type` 속성의 키를 하나 이상 입력한다.   
-            기본값은 "출고완료일", "취소완료일", "반품완료일", "교환완료일"에 해당하는 코드 목록이다.
+            기본값은 ["출고완료일", "취소완료일", "반품완료일", "교환완료일"]에 해당하는 코드 목록
         order_seq: list[int]
             사방넷 주문 번호를 목록으로 선택할 수 있다.
         order_status_div: str
@@ -515,7 +515,7 @@ class SkuMapping(SabangnetAdmin):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        단품상품별 요청 간 대기 시간(초). 기본값은 `0.3`
+        상품별 요청 간 대기 시간(초). 기본값은 `0.3`
     tqdm_options: dict | None
         반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
@@ -532,7 +532,7 @@ class SkuMapping(SabangnetAdmin):
         Parameters
         ----------
         query: SkuQuery | Iterable[SkuQuery]
-            조회할 단품상품 식별 정보 목록. 각 항목은 아래 키를 포함해야 한다.
+            조회할 상품 식별 정보 목록. 각 항목은 아래 키를 포함해야 한다.
                 - `product_id_shop`: 쇼핑몰상품코드
                 - `shop_id`: 쇼핑몰ID
                 - `product_id`: 품번코드

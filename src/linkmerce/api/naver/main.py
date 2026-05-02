@@ -249,7 +249,7 @@ def search_cafe_plus(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `1.01`
+        검색어 및 카페 URL별 요청 간 대기 시간(초). 기본값은 `1.01`
     progress: bool
         반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
