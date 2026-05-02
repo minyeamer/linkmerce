@@ -10,7 +10,7 @@
   - `html`: `HtmlTransformer`
   - `excel`: `ExcelTransformer`
 - 커스텀 `ResponseTransformer` 종류:
-  - `csv`: `CsvTransformer`
+  - `csv`: `ZipCsvTransformer`
   - `tsv`: `TsvTransformer`
 - [테스트 예시](#테스트-예시)에 따라 테스트 중 중간 결과 저장
 
@@ -296,9 +296,9 @@ searchad/
         │   └── Creative(DuckDBTransformer)::transform >> json
         └── PerformanceReport(SearchAdGfa)::extract
             ├── CampaignReport(DuckDBTransformer)::transform
-            │   └── CsvTransformer(ExcelTransformer)::transform
+            │   └── ZipCsvTransformer(ExcelTransformer)::transform
             └── CreativeReport(DuckDBTransformer)::transform
-                └── CsvTransformer(ExcelTransformer)::transform
+                └── ZipCsvTransformer(ExcelTransformer)::transform
 ```
 
 ## SmartStore
@@ -373,7 +373,7 @@ smartstore/
   - `.xlsx` 파일 저장 시 `bytes` 객체를 `mode="wb"`로 저장
     - `ExcelTransformer` 또는 반환 객체 타입이 `bytes`인 경우
   - `.csv` 또는 `.tsv` 파일 저장 시 `str` 객체를 `mode="w", encoding="utf-8"`로 저장
-    - 반환 객체 타입이 `str`이고, `CsvTransformer` 또는 `TsvTransformer`인 경우
+    - 반환 객체 타입이 `str`이고, `ZipCsvTransformer` 또는 `TsvTransformer`인 경우
   - 그 외엔 확장자 없이 저장
     - 반환 객체 타입이 `bytes`인 경우 `mode="wb"`로 저장
     - 반환 객체 타입이 `str`인 경우 `mode="w", encoding="utf-8"`로 저장

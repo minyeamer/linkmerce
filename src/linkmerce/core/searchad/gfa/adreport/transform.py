@@ -88,7 +88,7 @@ class Creative(DuckDBTransformer):
     params = {"account_no": "$account_no"}
 
 
-class CsvTransformer(ExcelTransformer):
+class ZipCsvTransformer(ExcelTransformer):
     """네이버 성과형 디스플레이 광고 성과 보고서 다운로드 결과를 파싱하는 클래스."""
 
     header = 1
@@ -115,7 +115,7 @@ class CampaignReport(DuckDBTransformer):
     - **Extractor**: `CampaignReport`
 
     - **Parser** ( *parser_class: input_type -> output_type* ):
-        `CsvTransformer: bytes -> list[dict]`
+        `ZipCsvTransformer: bytes -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
         `table: searchad_campaign_report`
@@ -130,7 +130,7 @@ class CampaignReport(DuckDBTransformer):
 
     extractor = "CampaignReport"
     tables = {"table": "searchad_campaign_report"}
-    parser = CsvTransformer
+    parser = ZipCsvTransformer
     parser_config = dict(
         fields = ["캠페인 ID", "노출수", "클릭수", "총비용", "총 전환수", "총 전환매출액", "기간"],
     )
@@ -143,7 +143,7 @@ class CreativeReport(DuckDBTransformer):
     - **Extractor**: `CreativeReport`
 
     - **Parser** ( *parser_class: input_type -> output_type* ):
-        `CsvTransformer: bytes -> list[dict]`
+        `ZipCsvTransformer: bytes -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
         `table: searchad_creative_report`
@@ -158,7 +158,7 @@ class CreativeReport(DuckDBTransformer):
 
     extractor = "CreativeReport"
     tables = {"table": "searchad_creative_report"}
-    parser = CsvTransformer
+    parser = ZipCsvTransformer
     parser_config = dict(
         fields = [
             "캠페인 ID", "광고 그룹 ID", "광고 소재 ID", "노출수", "클릭수",

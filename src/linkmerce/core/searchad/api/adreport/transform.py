@@ -352,7 +352,7 @@ class MasterAd(DuckDBTransformer):
         3. `contents_ad: contents_ad` (파워컨텐츠 소재 목록)
         4. `shopping_product: shopping_product` (쇼핑상품 소재 목록)
         5. `brand_ad: brand_ad` (쇼핑브랜드 소재 목록)
-        6. `product_group: product_group` (상품그룹)
+        6. `product_group: product_group` (상품그룹 목록)
         7. `product_group_rel: product_group_rel` (상품그룹-광고그룹 관계)
         8. `brand_thumbnail_ad: brand_thumbnail_ad` (썸네일 이미지형 소재 목록)
         9. `brand_banner_ad: brand_banner_ad` (배너 이미지형 소재 목록)

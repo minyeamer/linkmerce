@@ -72,9 +72,9 @@ class ExposureDiagnosis(SearchAdCenter):
                 - `False`: PC
         is_own: bool | None
             소유 여부 필터. 조회 시점에는 사용되지 않고 파서 함수에 전달된다.
-                - `True`: 내 광고 상품만 반환
-                - `False`: 내 광고 상품을 제외하고 반환
-                - `None`: 전체 광고 상품 반환 (기본값)
+                - `True`: 내 광고 상품만 필터
+                - `False`: 내 광고 상품을 제외하고 필터
+                - `None`: 필터하지 않음 (기본값)
 
         Returns
         -------

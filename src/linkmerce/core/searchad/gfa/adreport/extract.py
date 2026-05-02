@@ -419,7 +419,7 @@ class PerformanceReport(SearchAdGfa):
         Returns
         -------
         dict[str, str]
-            `{파일명: 엑셀 바이너리}` 구조의 성과 보고서 다운로드 결과
+            `{파일명: ZIP 바이너리}` 구조의 성과 보고서 다운로드 결과
             - 파일명은 `ReportDownload_aa_{account_no}_PERFORMANCE_{start_date}_{end_date}.csv`
                 명명 규칙에 따라 생성된다.
         """

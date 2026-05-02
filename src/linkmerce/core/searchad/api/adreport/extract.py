@@ -146,7 +146,7 @@ class _MasterReport(_ReportsDownload):
         ----------
         from_date: dt.date | str | None
             조회 기간. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
-            해당 날짜부터 현재까지 변경분을 포함한다. 생략 시 현재 시점 (기본값)
+            해당 날짜부터 현재까지 변경분을 포함한다. 생략하면 현재 시점을 적용한다.
 
         Returns
         -------
@@ -722,7 +722,7 @@ class MasterAd(_MasterReport):
         ----------
         from_date: dt.date | str | None
             조회 기간. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.   
-            해당 날짜부터 현재까지 변경분을 포함한다. 생략 시 현재 시점 (기본값)
+            해당 날짜부터 현재까지 변경분을 포함한다. 생략 시 현재 시점을 적용한다.
 
         Returns
         -------
