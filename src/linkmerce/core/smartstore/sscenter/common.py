@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 def has_accounts(session: Session) -> bool:
-    """스마트스토어센터 로그인 세션으로 판매자 정보가 조회되는지 검증한다."""
+    """네이버 스마트스토어센터 로그인 세션으로 판매자 정보가 조회되는지 검증한다."""
     from linkmerce.utils.headers import build_headers
     origin = "https://accounts.commerce.naver.com"
     url = f"{origin}/graphql?query=userInfo"
@@ -20,7 +20,7 @@ def has_accounts(session: Session) -> bool:
 
 
 def has_cookies(session: Session) -> bool:
-    """스마트스토어센터 로그인 세션이 유효한지 검증한다."""
+    """네이버 스마트스토어센터 로그인 세션이 유효한지 검증한다."""
     from linkmerce.utils.headers import build_headers
     origin = "https://accounts.commerce.naver.com"
     url = f"{origin}/graphql?query=nidAuth"
@@ -62,7 +62,7 @@ class SmartstoreCenterLogin(LoginHandler):
         channel_seq: int | str | None
             채널 번호. 로그인 후 접속된 채널이 다르면 채널 번호에 맞는 채널로 전환한다.
         cookies: str | None
-            네이버 로그인 쿠키. 판매자 아이디 로그인을 대체하여 네이버 아이디로 로그인한다.
+            네이버 로그인 쿠키 문자열. 판매자 아이디 로그인을 대체하여 네이버 아이디로 로그인한다.
 
         Returns
         -------

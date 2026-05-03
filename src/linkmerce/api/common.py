@@ -130,6 +130,20 @@ def fetch_all_duckdb_tables(
                 for key, name in tables.items()}
 
 
+def get_tables(transform_options: dict | None, tables: dict) -> dict:
+    """`Transformer` 초기화 옵션에서 `tables` 값이 있다면 기본 테이블 정보에 덮어써서 반환한다."""
+    if not isinstance(transform_options, dict):
+        return tables
+    return tables | (transform_options.get("tables") or dict())
+
+
+def get_table(transform_options: dict | None, table_key: str = "table", default: str | None = None) -> str | None:
+    """`Transformer` 초기화 옵션에서 `table_key`에 해당하는 테이블 명을 꺼낸다. 대상이 없으면 `default`를 반환한다."""
+    if not isinstance(transform_options, dict):
+        return default
+    return (transform_options.get("tables") or dict()).get(table_key, default)
+
+
 def handle_cookies(handler: LoginHandler, save_to: str | Path | None = None, mkdir: bool = True) -> str:
     """쿠키를 파일로 저장하고 쿠키를 문자열 형태로 반환한다."""
     cookies = handler.get_cookies(to="str")

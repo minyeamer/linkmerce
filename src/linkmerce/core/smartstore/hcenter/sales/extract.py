@@ -81,7 +81,7 @@ class _Sales(PartnerCenter):
         page: int | Iterable[int]
             페이지 번호. 정수 또는 정수의 배열을 입력한다.
         page_size: int
-            한 번에 표시할 목록 수
+            한 번에 표시할 목록 수. 가본값은 `1000`
 
         Returns
         -------
@@ -131,7 +131,7 @@ class _Sales(PartnerCenter):
         page: int | Iterable[int]
             페이지 번호. 정수 또는 정수의 배열을 입력한다.
         page_size: int
-            한 번에 표시할 목록 수
+            한 번에 표시할 목록 수. 가본값은 `1000`
 
         Returns
         -------

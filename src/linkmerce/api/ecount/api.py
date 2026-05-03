@@ -40,7 +40,7 @@ def request(
     Returns
     -------
     JsonObject
-        요청에 대한 JSON 응답을 반환한다.
+        오픈 API 응답 결과
     """
     from linkmerce.core.ecount.api import EcountRequestApi
     from linkmerce.utils.nested import merge
@@ -80,7 +80,7 @@ def test(
     Returns
     -------
     JsonObject
-        요청에 대한 JSON 응답을 반환한다.
+        테스트 API 응답 결과
     """
     from linkmerce.core.ecount.api import EcountTestApi
     from linkmerce.utils.nested import merge

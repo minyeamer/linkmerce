@@ -2,10 +2,6 @@ from __future__ import annotations
 from linkmerce.common.extract import Extractor
 from linkmerce.core.smartstore.sscenter.common import SmartstoreCenterLogin
 
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_v1_5
-import base64
-
 
 class PartnerCenter(Extractor):
     """네이버 쇼핑파트너센터에서 데이터를 조회하는 공통 클래스.
@@ -55,7 +51,7 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
             cookies: str | None = None,
             **kwargs
         ) -> dict:
-        """스마트스토어센터 로그인 수행 후 대시보드로 이동해 토큰을 발급받는다.
+        """스마트스토어센터 로그인 수행 후 쇼핑파트너센터 대시보드로 이동해 토큰을 발급받는다.
 
         Parameters
         ----------
@@ -66,7 +62,7 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
         channel_seq: int | str | None
             채널 번호. 로그인 후 접속된 채널이 다르면 채널 번호에 맞는 채널로 전환한다.
         cookies: str | None
-            네이버 로그인 쿠키. 판매자 아이디 로그인을 대체하여 네이버 아이디로 로그인한다.
+            네이버 로그인 쿠키 문자열. 판매자 아이디 로그인을 대체하여 네이버 아이디로 로그인한다.
 
         Returns
         -------
@@ -175,6 +171,10 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
         }
 
     def JSEncrypt(self, username: str, publicKey: str) -> bytes:
+        from Crypto.PublicKey import RSA
+        from Crypto.Cipher import PKCS1_v1_5
+        import base64
+
         rsa_key = RSA.importKey(publicKey.encode("utf-8"))
         cipher = PKCS1_v1_5.new(rsa_key)
         return base64.b64encode(cipher.encrypt(username.encode("utf-8")))

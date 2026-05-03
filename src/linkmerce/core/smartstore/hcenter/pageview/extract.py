@@ -117,7 +117,7 @@ class _PageView(PartnerCenter):
 
     @property
     def fields(self) -> list[dict]:
-        """페이지뷰 GraphQL 응답 필드 목록을 반환한다."""
+        """방문 통계 GraphQL 응답 필드 목록을 반환한다."""
         metrics = ["pageClick", "userClick", "timeOnSite", "pageClickPerUser", "timeOnSitePerClick", "timeOnSitePerUser"]
         return [{
             "items": [

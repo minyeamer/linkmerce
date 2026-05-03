@@ -122,7 +122,7 @@ class SmartstoreTestAPI(SmartstoreApi):
             json: JsonObject | None = None,
             headers: dict[str, str] = None,
             **kwargs
-        ) -> JsonObject:
+        ) -> dict:
         """커머스 API 경로와 메시지를 전달하면 응답 결과를 JSON 형식으로 반환한다.
 
         Parameters

@@ -89,7 +89,8 @@ def product_option(
     extract_options: tuple[dict | None, dict | None]
         `Extractor` 초기화 옵션. `(ProductOption, ProductDetail)` 순서로 튜플을 구성한다.
     transform_options: tuple[dict | None, dict | None]
-        `Transformer` 초기화 옵션. `(ProductOption, ProductDetail)` 순서로 튜플을 구성한다.
+        `Transformer` 초기화 옵션. `(ProductOption, ProductDetail)` 순서로 튜플을 구성한다.   
+        테이블 명칭은 `ProductOption` 옵션에만 지정한다. `ProductDetail` 옵션에는 동일한 값이 적용된다.
 
     Returns
     -------
@@ -109,11 +110,6 @@ def product_option(
     from linkmerce.core.coupang.wing.product.transform import ProductOption as T
     OPTION, DETAIL = 0, 1
 
-    if isinstance((opt := transform_options[OPTION]), dict) and ("tables" in opt):
-        common = opt["tables"]
-    else:
-        common = dict(tables={"table": "coupang_product"})
-
     products = ProductOption(**prepare_duckdb_extract(
         T, connection, extract_options[OPTION], transform_options[OPTION], return_type,
         cookies = cookies,
@@ -128,20 +124,20 @@ def product_option(
     if see_more:
         from linkmerce.core.coupang.wing.product.extract import ProductDetail
         from linkmerce.core.coupang.wing.product.transform import ProductDetail as T
+        from linkmerce.api.common import get_table
+        table = get_table(transform_options[OPTION], default="coupang_product")
 
         if return_type == "raw":
             from linkmerce.utils.nested import hier_get
             ids = [product["vendorInventoryId"] for result in products for product in hier_get(result, "data.productList")]
             vendor_inventory_id = list(dict.fromkeys(ids))
         else:
-            query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(common["tables"]["table"])
+            query = f"SELECT DISTINCT vendor_inventory_id FROM {table}"
             vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
 
+        transform_options_ = (transform_options[DETAIL] or dict()) | {"tables": {"table": table}}
         details = ProductDetail(**prepare_duckdb_extract(
-            T, connection, extract_options[DETAIL],
-            transform_options = ((transform_options[DETAIL] or dict()) | common),
-            return_type = return_type,
-            cookies = cookies,
+            T, connection, extract_options[DETAIL], transform_options_, return_type, cookies,
             options = {
                 "RequestEach": {
                     "request_delay": request_delay,
@@ -382,7 +378,8 @@ def rocket_option(
     extract_options: tuple[dict | None, dict | None]
         `Extractor` 초기화 옵션. `(RocketInventory, ProductDetail)` 순서로 튜플을 구성한다.
     transform_options: tuple[dict | None, dict | None]
-        `Transformer` 초기화 옵션. `(RocketOption, ProductDetail)` 순서로 튜플을 구성한다.
+        `Transformer` 초기화 옵션. `(RocketOption, ProductDetail)` 순서로 튜플을 구성한다.   
+        테이블 명칭은 `RocketOption` 옵션에만 지정한다. `ProductDetail` 옵션에는 동일한 값이 적용된다.
 
     Returns
     -------
@@ -402,11 +399,6 @@ def rocket_option(
     from linkmerce.core.coupang.wing.product.transform import RocketOption as T
     OPTION, DETAIL = 0, 1
 
-    if isinstance((opt := transform_options[OPTION]), dict) and ("tables" in opt):
-        common = opt["tables"]
-    else:
-        common = dict(tables={"table": "coupang_rocket_option"})
-
     products = RocketInventory(**prepare_duckdb_extract(
         T, connection, extract_options[OPTION], transform_options[OPTION], return_type,
         cookies = cookies,
@@ -416,6 +408,8 @@ def rocket_option(
     if see_more:
         from linkmerce.core.coupang.wing.product.extract import ProductDetail
         from linkmerce.core.coupang.wing.product.transform import ProductDetail as T
+        from linkmerce.api.common import get_table
+        table = get_table(transform_options[OPTION], default="coupang_rocket_option")
 
         if return_type == "raw":
             from linkmerce.utils.nested import hier_get
@@ -423,14 +417,12 @@ def rocket_option(
             ids = [hier_get(product, id_key) for result in products for product in hier_get(result, "viProperties")]
             vendor_inventory_id = list(dict.fromkeys(ids))
         else:
-            query = "SELECT DISTINCT vendor_inventory_id FROM {}".format(common["tables"]["table"])
+            query = f"SELECT DISTINCT vendor_inventory_id FROM {table}"
             vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
 
+        transform_options_ = (transform_options[DETAIL] or dict()) | {"tables": {"table": table}}
         details = ProductDetail(**prepare_duckdb_extract(
-            T, connection, extract_options[DETAIL],
-            transform_options = ((transform_options[DETAIL] or dict()) | common),
-            return_type = return_type,
-            cookies = cookies,
+            T, connection, extract_options[DETAIL], transform_options_, return_type, cookies,
             options = {
                 "RequestEach": {
                     "request_delay": request_delay,

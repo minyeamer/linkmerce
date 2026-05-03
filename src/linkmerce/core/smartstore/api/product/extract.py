@@ -59,12 +59,12 @@ class Product(SmartstoreApi):
         ----------
         search_keyword: Sequence[int]
             검색 키워드
-                - 채널 상품번호(`CHANNEL_PRODUCT_NO`) 선택 시 채널 상품번호를 입력한다.
-                - 원상품번호(`PRODUCT_NO`) 선택 시 채널 원상품번호를 입력한다.
-                - 그룹상품번호(`GROUP_PRODUCT_NO`) 선택 시 그룹상품번호를 입력한다.
-                - 판매자 관리 코드(`SELLER_CODE`) 선택 시 판매자 관리 코드를 입력한다.
-        keyword_type: Literal["CHANNEL_PRODUCT_NO", "PRODUCT_NO", "GROUP_PRODUCT_NO"]
-            검색 키워드 타입. 기본값은 채널 상품번호(`CHANNEL_PRODUCT_NO`)
+                - 채널 상품번호(`"CHANNEL_PRODUCT_NO"`) 선택 시 채널 상품번호를 입력한다.
+                - 원상품번호(`"PRODUCT_NO"`) 선택 시 채널 원상품번호를 입력한다.
+                - 그룹상품번호(`"GROUP_PRODUCT_NO"`) 선택 시 그룹상품번호를 입력한다.
+                - 판매자 관리 코드(`"SELLER_CODE"`) 선택 시 판매자 관리 코드를 입력한다.
+        keyword_type: str
+            검색 키워드 타입. 기본값은 채널 상품번호(`"CHANNEL_PRODUCT_NO"`)
         status_type: Sequence[str]
             상품 판매 상태 목록
                 - `"WAIT"`: 판매 대기

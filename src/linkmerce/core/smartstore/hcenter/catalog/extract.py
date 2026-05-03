@@ -165,7 +165,7 @@ class BrandCatalog(_CatalogProduct):
         page: int | list[int] | None
             조회할 페이지 번호. 정수 또는 정수의 배열을 입력할 수 있다. (0부터 시작)
         page_size: int
-            한 번에 표시할 목록 수
+            한 번에 표시할 목록 수. 가본값은 `100`
 
         Returns
         -------
@@ -280,7 +280,7 @@ class BrandProduct(_CatalogProduct):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachPages` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        브랜드 및 쇼핑몰별 요청 간 대기 시간(초). 기본값은 `1`
+        브랜드+쇼핑몰별 요청 간 대기 시간(초). 기본값은 `1`
     max_concurrent: int | None
         비동기 요청 시 최대 동시 실행 횟수. 기본값은 `3`
     tqdm_options: dict | None
@@ -295,7 +295,7 @@ class BrandProduct(_CatalogProduct):
             brand_ids: str | Iterable[str],
             mall_seq: int | str | Iterable[int | str] | None = None,
             sort_type: Literal["popular", "recent", "price"] = "recent",
-            is_brand_catalog: bool | None = None,
+            is_brand_store: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
             **kwargs
@@ -312,14 +312,19 @@ class BrandProduct(_CatalogProduct):
         mall_seq: int | str | Iterable[int | str] | None
             쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력할 수 있다.   
             목록으로 입력할 시 브랜드 ID 목록에서 인덱스가 동일한 항목과 AND 조건으로 조회된다.
-        is_brand_catalog: bool | None
-            - `True`: 브랜드 카탈로그만 보기
-            - `False`: 일반 카탈로그만 보기
-            - `None`: 전체 카탈로그 보기 (기본값)
+        sort_type: str
+            정렬 기준
+                - `"popular"`: 상품 인기순
+                - `"recent"`: 등록일 최신순 (기본값)
+                - `"price"`: 가격낮은순
+        is_brand_store: bool | None
+            - `True`: 브랜드 공식스토어 상품만 보기
+            - `False`: 다른 쇼핑몰 상품만 보기
+            - `None`: 전체 상품 보기 (기본값)
         page: int | None
             조회할 페이지 번호 (0부터 시작)
         page_size: int
-            한 번에 표시할 목록 수
+            한 번에 표시할 목록 수. 가본값은 `100`
 
         Returns
         -------
@@ -330,7 +335,7 @@ class BrandProduct(_CatalogProduct):
                 2. `mall_seq`가 `int | str | None` 타입으로 입력된 경우
                 3. `page`가 `int` 타입으로 입력된 경우
         """
-        context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
+        context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_store, page, page_size)
         return (self.request_each_pages(self.request_json_verified, context)
                 .partial(**partial)
                 .expand(**expand)
@@ -343,7 +348,7 @@ class BrandProduct(_CatalogProduct):
             brand_ids: str | Iterable[str],
             mall_seq: int | str | Iterable | None = None,
             sort_type: Literal["popular", "recent", "price"] = "recent",
-            is_brand_catalog: bool | None = None,
+            is_brand_store: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
             **kwargs
@@ -360,7 +365,12 @@ class BrandProduct(_CatalogProduct):
         mall_seq: int | str | Iterable[int | str] | None
             쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력할 수 있다.   
             목록으로 입력할 시 브랜드 ID 목록에서 인덱스가 동일한 항목과 AND 조건으로 조회된다.
-        is_brand_catalog: bool | None
+        sort_type: str
+            정렬 기준
+                - `"popular"`: 상품 인기순
+                - `"recent"`: 등록일 최신순 (기본값)
+                - `"price"`: 가격낮은순
+        is_brand_store: bool | None
             - `True`: 브랜드 카탈로그만 보기
             - `False`: 일반 카탈로그만 보기
             - `None`: 전체 카탈로그 보기 (기본값)
@@ -378,7 +388,7 @@ class BrandProduct(_CatalogProduct):
                 2. `mall_seq`가 `int | str | None` 타입으로 입력된 경우
                 3. `page`가 `int` 타입으로 입력된 경우
         """
-        context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size)
+        context, partial, expand = self.split_map_kwargs(brand_ids, mall_seq, sort_type, is_brand_store, page, page_size)
         return await (self.request_each_pages(self.request_async_json_verified, context)
                 .partial(**partial)
                 .expand(**expand)
@@ -390,13 +400,13 @@ class BrandProduct(_CatalogProduct):
             brand_ids: str | Iterable[str],
             mall_seq: int | str | Iterable | None = None,
             sort_type: Literal["popular", "recent", "price"] = "recent",
-            is_brand_catalog: bool | None = None,
+            is_brand_store: bool | None = None,
             page: int | None = 0,
             page_size: int = 100,
         ) -> tuple[list, dict, dict]:
         """키워드 인자를 목록(`expand`)과 상수(`partial`)로 나눈다."""
         context = list()
-        partial, expand = super().split_map_kwargs(brand_ids, sort_type, is_brand_catalog, page, page_size)
+        partial, expand = super().split_map_kwargs(brand_ids, sort_type, is_brand_store, page, page_size)
 
         def is_iterable(obj: Any) -> bool:
             return (not isinstance(obj, str)) and isinstance(obj, Iterable)
@@ -416,7 +426,7 @@ class BrandProduct(_CatalogProduct):
             brand_ids: str,
             mall_seq: int | str | None = None,
             sort_type: Literal["popular", "recent", "price"] = "recent",
-            is_brand_catalog: bool | None = None,
+            is_brand_store: bool | None = None,
             page: int = 0,
             page_size: int = 100,
             **kwargs
@@ -428,7 +438,7 @@ class BrandProduct(_CatalogProduct):
                     "size": int(page_size),
                     **self.select_sort_type(sort_type),
                 },
-                **kv("isBrandOfficialMall", is_brand_catalog),
+                **kv("isBrandOfficialMall", is_brand_store),
                 "serviceYn": "Y",
                 **kv("mallSeq", mall_seq),
                 "brandSeqs": brand_ids.split(','),

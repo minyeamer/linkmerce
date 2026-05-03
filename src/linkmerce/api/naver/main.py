@@ -227,6 +227,7 @@ def search_cafe_plus(
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: tuple[dict | None, dict | None] = (None, None),
         transform_options: tuple[dict | None, dict | None] = (None, None),
+        merged_table: str | None = None,
     ) -> dict[str, DuckDBResult] | dict[str, Any] | None:
     """네이버 카페 검색 후 결과 게시글의 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
 
@@ -256,9 +257,13 @@ def search_cafe_plus(
         반환 형식. **Returns** 문단을 참고한다.
     extract_options: tuple[dict | None, dict | None]
         `Extractor` 초기화 옵션. `(SearchTab, CafeArticle)` 순서로 튜플을 구성한다.
-        `search`, `article` 순서의 `Extractor` 초기화 옵션
     transform_options: tuple[dict | None, dict | None]
-        `Transformer` 초기화 옵션. `(CafeTab, CafeArticle)` 순서로 튜플을 구성한다.
+        `Transformer` 초기화 옵션. `(CafeTab, CafeArticle)` 순서로 튜플을 구성한다.   
+        실행 결과의 `table_key`에 해당하는 테이블은 아래와 같이 각 `Transformer.table_key`와 매칭된다.
+            - `search` - `CafeTab.table`
+            - `article` - `CafeArticle.table`
+    merged_table: str | None
+        검색 결과와 게시글 병합 결과를 적재할 테이블 명칭. 생략하면 `"naver_cafe_result"` 테이블을 생성한다.
 
     Returns
     -------
@@ -270,7 +275,11 @@ def search_cafe_plus(
             - `"raw"`: 데이터 수집 후 `{"search": SearchTab, "article": CafeTab}` 구조의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
+    from linkmerce.api.common import get_table
     SEARCH, ARTICLE = 0, 1
+    search_table = get_table(transform_options[SEARCH], default="naver_cafe_search")
+    article_table = get_table(transform_options[ARTICLE], default="naver_cafe_article")
+
     results = dict()
     return_type = return_type if return_type == "raw" else "none"
 
@@ -278,11 +287,25 @@ def search_cafe_plus(
         query, mobile, cookies,
         connection=connection, request_delay=request_delay, progress=progress, return_type=return_type,
         extract_options=extract_options[SEARCH], transform_options=transform_options[SEARCH])
-    if isinstance(max_rank, int):
-        connection.execute(f"DELETE FROM naver_cafe_search WHERE rank > {max_rank}")
 
-    select_query = f"SELECT DISTINCT article_url FROM naver_cafe_search WHERE article_url IS NOT NULL"
-    article_url = [row[0] for row in connection.execute(select_query)[0].fetchall()]
+    if return_type == "raw":
+        from linkmerce.core.naver.main.search.transform import CafeParser
+        parser = CafeParser()
+
+        if isinstance(results["search"], list):
+            urls = [article["article_url"] for result in results["search"] for article in parser.transform(result)[:max_rank]]
+        else:
+            urls = [article["article_url"] for article in parser.transform(results["search"])[:max_rank]]
+
+        article_url = list(dict.fromkeys(urls))
+
+    else:
+        if isinstance(max_rank, int):
+            connection.execute(f"DELETE FROM {search_table} WHERE rank > {max_rank}")
+
+        q = f"SELECT DISTINCT article_url FROM {search_table} WHERE article_url IS NOT NULL"
+        article_url = [row[0] for row in connection.execute(q)[0].fetchall()]
+
     results["article"] = cafe_article(
         article_url, "article", cookies,
         connection=connection, request_delay=request_delay, progress=progress, return_type=return_type,
@@ -291,10 +314,8 @@ def search_cafe_plus(
     if return_type == "raw":
         return results
 
-    if connection.table_exists("naver_cafe_result"):
-        keyword = f"INSERT INTO naver_cafe_result "
-    else:
-        keyword = f"CREATE TABLE naver_cafe_result AS "
+    table = merged_table or "naver_cafe_result"
+    keyword = f"INSERT INTO {table}" if connection.table_exists(table) else f"CREATE TABLE {table} AS"
 
     from textwrap import dedent
     results["merged"] = connection.execute(
@@ -320,8 +341,8 @@ def search_cafe_plus(
             R.comment_count,
             R.commenter_count,
             COALESCE(STRFTIME(R.write_dt, '%Y-%m-%d %H:%M:%S'), L.write_date) AS write_date
-        FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM naver_cafe_search) AS L
-        LEFT JOIN naver_cafe_article AS R
+        FROM (SELECT *, (ROW_NUMBER() OVER ()) AS seq FROM {search_table}) AS L
+        LEFT JOIN {article_table} AS R
             ON (L.cafe_url = R.cafe_url) AND (L.article_id = R.article_id)
         ORDER BY L.seq, L.rank
         """))

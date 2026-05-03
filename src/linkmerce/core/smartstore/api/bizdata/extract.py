@@ -61,7 +61,7 @@ class MarketingChannel(SmartstoreApi):
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
         max_retries: int = 5
-            동시 요청 제한이 발생할 경우 최대 재시도 횟수
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
