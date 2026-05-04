@@ -413,7 +413,7 @@ class PerformanceReport(SearchAdGfa):
         wait_interval: int
             보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
         progress: bool
-            - `True`: 리포트 생성 요청 및 다운로드 시 진행도를 출력한다. (기본값)
+            - `True`: 보고서 생성 요청 및 다운로드 시 진행도를 출력한다. (기본값)
             - `False`: 진행도를 출력하지 않는다.
 
         Returns
@@ -437,7 +437,7 @@ class PerformanceReport(SearchAdGfa):
             wait_interval: int = 1,
             progress: bool = True,
         ) -> dict[str, bytes]:
-        """리포트 생성부터 삭제까지의 워크플로우를 실행한다."""
+        """보고서 생성부터 삭제까지의 워크플로우를 실행한다."""
         from linkmerce.utils.progress import import_tqdm
         import time
         tqdm = import_tqdm()
@@ -476,7 +476,7 @@ class PerformanceReport(SearchAdGfa):
         return date_split(start_date, end_date, delta={"days": 60}, format=self.date_format)
 
     def request_report(self, **kwargs) -> bool:
-        """성과 리포트 생성을 요청한다."""
+        """성과 보고서 생성을 요청한다."""
         body = self.build_download_json(**kwargs)
         headers = self.build_request_headers(**kwargs)
         headers["content-type"] = "application/json"
@@ -484,7 +484,7 @@ class PerformanceReport(SearchAdGfa):
             return response.json()["success"]
 
     def wait_reports(self, indices: list[int], wait_seconds: int = 60, wait_interval: int = 1, **kwargs) -> list[dict]:
-        """리포트 생성 완료를 대기한다."""
+        """보고서 생성 완료를 대기한다."""
         from linkmerce.common.exceptions import RequestError
         import time
         params = {"reportType": "PERFORMANCE"}
@@ -500,21 +500,21 @@ class PerformanceReport(SearchAdGfa):
         raise RequestError("Download was not completed within the waiting seconds.")
 
     def download_excel(self, download_no: int, **kwargs) -> bytes:
-        """리포트 엑셀 파일을 다운로드한다."""
+        """보고서 엑셀 파일을 다운로드한다."""
         url = self.url + f"/{download_no}/download"
         headers = self.build_request_headers(**kwargs)
         with self.request("GET", url, headers=headers) as response:
             return response.content
 
     def delete_report(self, download_no: int, **kwargs) -> bool:
-        """생성된 리포트를 삭제한다."""
+        """생성된 보고서를 삭제한다."""
         params = {"reportDownloadNos": download_no, "reportType": "PERFORMANCE"}
         headers = self.build_request_headers(**kwargs)
         with self.request("DELETE", self.url, params=params, headers=headers) as response:
             return response.json()["success"]
 
     def query_to_filename(self, report_query: dict) -> str:
-        """리포트 쿼리 값으로 엑셀 파일명을 생성한다."""
+        """`reportQuery`의 보고서 시작일과 종료일을 가지고 엑셀 파일명을 생성한다."""
         start_date = str(report_query["startDate"]).replace('-', '')
         end_date = str(report_query["endDate"]).replace('-', '')
         return f"ReportDownload_aa_{self.account_no}_PERFORMANCE_{start_date}_{end_date}.csv"
@@ -565,7 +565,7 @@ class PerformanceReport(SearchAdGfa):
 
     @property
     def db_columns(self) -> list[str]:
-        """성과 리포트 측정값 칼럼 목록을 반환한다."""
+        """성과 보고서 열 목록을 반환한다."""
         return ["sales", "impCount", "clickCount", "convCount", "convSales"]
 
     @property

@@ -12,25 +12,25 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "smartstore:order", "api:smartstore", "schedule:daily", "time:morning"],
     doc_md = dedent("""
-        # 스마트스토어 주문 ETL 파이프라인
+        # 스마트스토어 상품 주문 내역 ETL 파이프라인
 
         ## 인증(Credentials)
         스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.
 
         ## 추출(Extract)
         실행 시점(data_interval_end)에서 1일 전을 기준으로
-        - 전체 주문 데이터를 수집한다.
-        - 추가로, 주문 상태가 변경된 시점을 가져온다.
+        - 전체 상품 주문 내역을 수집한다.
+        - 추가로, 변경 상품 주문 내역을 가져온다.
 
         ## 변환(Transform)
-        - JSON 형식의 주문 내역으로부터 주문, 상품 주문, 배송, 옵션 정보를 분리해
+        - JSON 형식의 상품 주문 내역으로부터 주문 정보, 상품 주문 정보, 주문 배송 정보, 주문 옵션 정보를 분리해
         각각의 DuckDB 테이블에 적재한다.
-        - 주문 상태 변경 시점도 JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
+        - 변경 상품 주문 내역도 JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        - 주문, 상품 주문 테이블은 BigQuery 테이블 끝에 추가한다.
-        - 배송, 옵션 테이블은 대응되는 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-        - 주문 상태 변경 시점도 결제일 파티션 필터를 더해 기존 BigQuery 테이블과 MERGE 문으로 병합한다.
+        - 주문 정보, 상품 주문 정보 테이블은 BigQuery 테이블 끝에 추가한다.
+        - 주문 배송 정보, 주문 옵션 정보 테이블은 대응되는 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        - 변경 상품 주문 내역도 결제일 파티션 필터를 더해 기존 BigQuery 테이블과 MERGE 문으로 병합한다.
     """).strip(),
 ) as dag:
 

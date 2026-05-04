@@ -13,7 +13,7 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "loisparcel:invoice", "login:cj-loisparcel", "schedule:daily", "time:night", "playwright:true"],
     doc_md = dedent("""
-        # CJ 로이스파셀 운송장 ETL 파이프라인
+        # CJ 로이스파셀 기업고객일별배송상세 ETL 파이프라인
 
         ## 인증(Credentials)
         CJ 로이스파셀 로그인을 위한 아이디, 비밀번호와

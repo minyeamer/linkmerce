@@ -13,7 +13,7 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "searchad:report", "login:searchad", "login:gfa", "schedule:daily", "time:morning"],
     doc_md = dedent("""
-        # 네이버 검색광고 일별 보고서 ETL 파이프라인
+        # 네이버 검색광고 다차원 보고서 및 성과형 디스플레이 광고 성과 보고서 ETL 파이프라인
         네이버 검색광고와 성과형 디스플레이 광고에 대해 각각 별도의 TaskGroup으로 구분해 처리한다.
 
         > 안내) 네이버 로그인 정책 강화로 사용 중지 (~ v0.6.8)
@@ -25,15 +25,15 @@ with DAG(
         ## 추출(Extract)
         실행 시점(data_interval_end)에서 1일 전을 기준으로 두 가지 보고서를 다운로드한다.
         1. 네이버 검색광고에서 소재 수준의 다차원 보고서를 다운로드한다.
-        2. 네이버 성과형 디스플레이 광고(GFA)에서 캠페인과 소재 성과 리포트를 다운로드한다.
+        2. 네이버 성과형 디스플레이 광고(GFA)에서 캠페인 성과 보고서와 소재 성과 보고서를 다운로드한다.
 
         ## 변환(Transform)
         1. 검색광고의 다차원 보고서는 TSV 형식의 데이터를 파싱해 DuckDB 테이블에 적재한다.
-        2. GFA 보고서는 엑셀 바이너리 형식의 데이터를 파싱해 각각의 DuckDB 테이블에 적재한다.
-            - GFA 소재 성과 리포트에서 누락된 캠페인 성과 리포트를 'main_gfa' 함수에서 INSERT 문으로 추가한다.
+        2. GFA 성과 보고서는 엑셀 바이너리 형식의 데이터를 파싱해 각각의 DuckDB 테이블에 적재한다.
+            - GFA 소재 성과 보고서에서 누락된 캠페인 성과 보고서를 'main_gfa' 함수에서 INSERT 문으로 추가한다.
 
         ## 적재(Load)
-        각각의 보고서를 대응되는 BigQuery 테이블 끝에 추가한다.
+        각각의 다차원 보고서와 성과 보고서를 대응되는 BigQuery 테이블 끝에 추가한다.
     """).strip(),
 ) as dag:
 
@@ -132,7 +132,7 @@ with DAG(
 
         @task(task_id="etl_gfa_report", map_index_template="{{ credentials['account_no'] }}")
         def etl_gfa_report(credentials: dict, configs: dict, **kwargs) -> dict:
-            """계정별 GFA 캀페인/크리에이티브 일별 성과 리포트를 병합하여 BigQuery에 적재한다."""
+            """계정별 GFA 캠페인/소재 일별 성과 보고서를 병합하여 BigQuery에 적재한다."""
             from airflow_utils import get_execution_date
             return main_gfa(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
 

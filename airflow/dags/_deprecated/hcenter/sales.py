@@ -13,7 +13,7 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "naver:sales", "naver:product", "login:hcenter", "schedule:daily", "time:morning"],
     doc_md = dedent("""
-        # 네이버 스마트스토어 매출 ETL 파이프라인
+        # 네이버 스토어 상품 매출 ETL 파이프라인
 
         > 안내) 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가,
         > [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782)
@@ -21,19 +21,19 @@ with DAG(
 
         ## 인증(Credentials)
         네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
-        (브랜드스토어 권한이 필요하고, '브랜드 애널리틱스' 메뉴에 도달해야 한다.)
+        (브랜드 스토어 권한이 필요하고, '브랜드 애널리틱스' 메뉴에 도달해야 한다.)
 
         ## 추출(Extract)
         실행 시점(data_interval_end)에서 1일 전을 기준으로
-        판매처별/상품별 매출을 수집한다.
+        판매처별/상품별 매출 데이터를 수집한다.
         (조회수 등 지표가 1 이상 측정된 경우만 조회 가능하다.)
 
         ## 변환(Transform)
         JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-        정규화된 테이블 구성에 맞춰 매출 부분과 상품 정보 부분을 나눠서 적재한다.
+        매출 데이터로부터 상품 매출과 상품 정보를 각각의 테이블로 분리해 적재한다.
 
         ## 적재(Load)
-        각각의 테이블을 대응되는 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        상품 매출 테이블과 상품 정보 테이블을 대응되는 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
         (원본 매출 데이터가 오전 중 천천히 업데이트되기 때문에 하루에 여러 번 수집 시도한다.)
     """).strip(),
 ) as dag:

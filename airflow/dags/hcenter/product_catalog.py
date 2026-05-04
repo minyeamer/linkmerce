@@ -13,13 +13,13 @@ with DAG(
     catchup = False,
     tags = ["priority:mediaum", "naver:rank", "login:hcenter", "schedule:hourly", "time:daytime", "manual:dagrun"],
     doc_md = dedent("""
-        # 네이버 상품-카탈로그 매핑 ETL 파이프라인
+        # 네이버 카탈로그-상품 매핑 ETL 파이프라인
 
         > 안내) 네이버 쇼핑 검색 순위를 수집하는 `naver_shop_rank` DAG 실행 후 트리거된다.
 
         ## 인증(Credentials)
         네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
-        (브랜드스토어 권한이 필요하고, '브랜드 관리' 메뉴에 도달해야 한다.)
+        (브랜드 스토어 권한이 필요하고, '브랜드 관리' 메뉴에 도달해야 한다.)
 
         ## 추출(Extract)
         실행 시점에서 조회되는 판매처별 브랜드 상품들의 목록을 수집한다.
@@ -27,7 +27,7 @@ with DAG(
 
         ## 변환(Transform)
         JSON 형식의 응답 본문으로부터 카탈로그와 매칭된 상품만 필터한다.
-        상품-카탈로그 매핑 관계를 정리하여 DuckDB 테이블에 적재한다.
+        카탈로그-상품 매핑 내역을 정리하여 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
         - 현재 시간이 포함된 매핑 테이블을 일별 BigQuery 테이블에 끝에 추가해 누적한다.

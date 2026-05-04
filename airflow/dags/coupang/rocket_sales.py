@@ -13,25 +13,25 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "coupang:sales", "login:coupang", "schedule:daily", "time:morning", "manual:dagrun"],
     doc_md = dedent("""
-        # 쿠팡 로켓 정산 보고서 ETL 파이프라인
+        # 쿠팡 로켓그로스 정산 리포트 ETL 파이프라인
 
-        > 안내) 쿠팡 통합 ETL을 제어하는 `coupang` DAG 실행 중 트리거된다.
+        > 안내) 쿠팡 통합 ETL을 제어하는 'coupang' DAG 실행 중 트리거된다.
 
         ## 인증(Credentials)
-        `coupang` DAG에서 Playwright 브라우저로 쿠팡 윙 로그인 후 쿠키를 추출한다.
+        'coupang' DAG에서 Playwright 브라우저로 쿠팡 윙 로그인 후 쿠키를 추출한다.
         쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
 
         ## 추출(Extract)
         실행 시점(data_interval_end)이 포함된 1주간 매출인식일 기준으로 집계된
-        쿠팡 판매 수수료 리포트와 쿠팡 입출고비/배송비 리포트를 다운로드한다.
+        판매 수수료 리포트와 입출고비/배송비 리포트를 다운로드한다.
         (월요일부터 일요일까지를 한 주로 본다.)
 
         ## 변환(Transform)
-        엑셀 바이너리 형식의 보고서를 JSON 형식으로 변환하고
+        엑셀 바이너리 형식의 정산 리포트를 JSON 형식으로 변환하고
         BigQuery 테이블에 대응되는 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        각각의 보고서를 대응되는 BigQuery 테이블과 MERGE 문으로 병합한다.
+        각각의 정산 리포트를 대응되는 BigQuery 테이블과 MERGE 문으로 병합한다.
         (같은 날짜에 여러 번 DAG을 재실행해도 중복된 데이터가 적재되지 않게 보장한다.
         특히, 입출고비/배송비 리포트는 파티션 날짜와 조회 기준이 다르므로 반드시 중복 처리해야 한다.)
     """).strip(),

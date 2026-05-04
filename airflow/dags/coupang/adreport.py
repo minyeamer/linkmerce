@@ -13,12 +13,12 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "coupang:adreport", "login:coupang", "schedule:daily", "time:morning", "manual:dagrun"],
     doc_md = dedent("""
-        # 쿠팡 광고 성과 보고서 ETL 파이프라인
+        # 쿠팡 광고 보고서 ETL 파이프라인
 
-        > 안내) 쿠팡 통합 ETL을 제어하는 `coupang` DAG 실행 중 트리거된다.
+        > 안내) 쿠팡 통합 ETL을 제어하는 'coupang' DAG 실행 중 트리거된다.
 
         ## 인증(Credentials)
-        `coupang` DAG에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
+        'coupang' DAG에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
         쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
 
         ## 추출(Extract)
@@ -26,11 +26,11 @@ with DAG(
         매출 성장 광고 보고서(PA) 및 신규 구매 고객 확보 광고 보고서(NCA)를 다운로드한다.
 
         ## 변환(Transform)
-        엑셀 바이너리 형식의 보고서를 JSON 형식으로 변환하고
+        엑셀 바이너리 형식의 광고 보고서를 JSON 형식으로 변환하고
         BigQuery 테이블에 대응되는 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        각각의 보고서를 대응되는 BigQuery 테이블의 끝에 추가한다.
+        각각의 광고 보고서를 대응되는 BigQuery 테이블의 끝에 추가한다.
     """).strip(),
 ) as dag:
 
@@ -52,8 +52,10 @@ with DAG(
 
     @task(task_id="etl_coupang_adreport", map_index_template="{{ credentials['vendor_id'] }}")
     def etl_coupang_adreport(credentials: dict, configs: dict, **kwargs) -> dict:
-        """기본으로 매출 성장 광고 보고서(PA)를 가져온다.   
-        인증 정보에 `nca=True` 설정된 업체는 신규 구매 고객 확보 광고 보고서(NCA)를 추가로 다운로드한다."""
+        """기본으로 매출 성장 광고 보고서(PA)를 가져온다.
+
+        인증 정보에 `nca=True` 설정된 업체는 신규 구매 고객 확보 광고 보고서(NCA)를 추가로 다운로드한다.
+        """
         from airflow_utils import get_execution_date
         date = get_execution_date(kwargs, subdays=1)
         if credentials.get("nca"):

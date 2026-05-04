@@ -18,14 +18,14 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "smartstore:order", "api:smartstore", "schedule:daily", "time:daytime"],
     doc_md = dedent("""
-        # 스마트스토어 운송장 ETL 파이프라인
+        # 스마트스토어 주문 배송 정보 ETL 파이프라인
 
         ## 인증(Credentials)
         스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.
 
         ## 추출(Extract)
-        영업일 중 오전/오후 배송 접수 후, 결제일 기준 전일의 스마트스토어 주문 내역을 다운로드 받는다.
-        매일 새벽에 발송일 기준으로 주문 내역을 다시 조회해 누락을 검증한다.
+        영업일 중 오전/오후 배송 접수 후, 결제일 기준 전일의 스마트스토어 상품 주문 내역을 다운로드 받는다.
+        매일 새벽에 발송일 기준으로 상품 주문 내역을 다시 조회해 누락을 검증한다.
 
         ## 변환(Transform)
         JSON 형식의 응답 본문에서 주문 배송 정보를 추출해 DuckDB 테이블에 적재한다.

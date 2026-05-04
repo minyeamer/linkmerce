@@ -240,7 +240,7 @@ def campaign_report(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> DuckDBResult | dict[str, bytes] | None:
-    """네이버 성과형 디스플레이 광고 캠페인 성과 리포트를 다운로드해 DuckDB 테이블에 변환 및 적재한다.
+    """네이버 성과형 디스플레이 광고 캠페인 성과 보고서를 다운로드해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
         `table: searchad_campaign_report`
@@ -272,7 +272,7 @@ def campaign_report(
     wait_interval: int
         보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
     progress: bool
-        - `True`: 리포트 생성 요청 및 다운로드 시 진행도를 출력한다. (기본값)
+        - `True`: 보고서 생성 요청 및 다운로드 시 진행도를 출력한다. (기본값)
         - `False`: 진행도를 출력하지 않는다.
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
@@ -319,7 +319,7 @@ def creative_report(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> DuckDBResult | dict[str, bytes] | None:
-    """네이버 성과형 디스플레이 광고 소재 성과 리포트를 다운로드해 DuckDB 테이블에 변환 및 적재한다.
+    """네이버 성과형 디스플레이 광고 소재 성과 보고서를 다운로드해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
         `table: searchad_creative_report`
@@ -351,7 +351,7 @@ def creative_report(
     wait_interval: int
         보고서 생성 완료 여부를 확인하는 조회 간격(초). 기본값은 `1`
     progress: bool
-        - `True`: 리포트 생성 요청 및 다운로드 시 진행도를 출력한다. (기본값)
+        - `True`: 보고서 생성 요청 및 다운로드 시 진행도를 출력한다. (기본값)
         - `False`: 진행도를 출력하지 않는다.
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.

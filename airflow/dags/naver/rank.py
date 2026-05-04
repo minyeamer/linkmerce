@@ -16,7 +16,7 @@ with DAG(
     doc_md = dedent("""
         # 네이버 쇼핑 검색 순위 ETL 파이프라인
 
-        > 안내) 실행 후 상품-카탈로그 매핑 관계를 수집하는 `naver_product_catalog` DAG을 트리거한다.
+        > 안내) 실행 후 카탈로그-상품 매핑 내역을 수집하는 `naver_product_catalog` DAG을 트리거한다.
 
         ## 인증(Credentials)
         네이버 오픈 API 인증 키(Client ID, Client Secret)가 필요하다.
@@ -26,12 +26,12 @@ with DAG(
 
         ## 변환(Transform)
         JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-        정규화된 테이블 구성에 맞춰 순위 부분과 상품 정보 부분을 나눠서 적재한다.
+        쇼핑 검색 결과로부터 상품 순위와 상품 정보를 각각의 테이블로 분리해 적재한다.
 
         ## 적재(Load)
-        - 순위 테이블은 BigQuery 테이블 끝에 추가한다.
+        - 상품 순위 테이블은 BigQuery 테이블 끝에 추가한다.
         - 동일한 순위 데이터를 최신 데이터만 기록하는 BigQuery 테이블에 MERGE 문으로 덮어쓴다.
-        - 상품 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        - 상품 정보 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 

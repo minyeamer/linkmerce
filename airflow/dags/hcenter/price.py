@@ -13,11 +13,11 @@ with DAG(
     catchup = False,
     tags = ["priority:medium", "naver:price", "naver:product", "login:hcenter", "schedule:daily", "time:night"],
     doc_md = dedent("""
-        # 네이버 브랜드스토어 상품 가격 ETL 파이프라인
+        # 네이버 브랜드 상품 가격 ETL 파이프라인
 
         ## 인증(Credentials)
         네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
-        (브랜드스토어 권한이 필요하고, '브랜드 관리' 메뉴에 도달해야 한다.)
+        (브랜드 스토어 권한이 필요하고, '브랜드 관리' 메뉴에 도달해야 한다.)
 
         ## 추출(Extract)
         실행 시점에서 조회되는 판매처별 브랜드 상품들의 목록을 수집한다.
@@ -25,11 +25,11 @@ with DAG(
 
         ## 변환(Transform)
         JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-        정규화된 테이블 구성에 맞춰 가격 부분과 상품 정보 부분을 나눠서 적재한다.
+        브랜드 상품 데이터로부터 브랜드 상품 가격과 브랜드 상품 정보를 각각의 테이블로 분리해 적재한다.
 
         ## 적재(Load)
-        - 가격 테이블은 BigQuery 테이블 끝에 추가한다.
-        - 상품 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        - 브랜드 상품 가격 테이블은 BigQuery 테이블 끝에 추가한다.
+        - 브랜드 상품 정보 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 

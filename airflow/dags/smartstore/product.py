@@ -12,7 +12,7 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "smartstore:product", "smartstore:option", "api:smartstore", "schedule:weekdays", "time:night"],
     doc_md = dedent("""
-        # 스마트스토어 상품 옵션 ETL 파이프라인
+        # 스마트스토어 상품 및 옵션 ETL 파이프라인
 
         ## 인증(Credentials)
         스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.

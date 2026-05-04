@@ -12,13 +12,13 @@ with DAG(
     catchup = False,
     tags = ["priority:medium", "searchad:master", "login:gfa", "schedule:weekdays", "time:morning"],
     doc_md = dedent("""
-        # 네이버 성과형 디스플레이 광고 소재 ETL 파이프라인
+        # 네이버 성과형 디스플레이 광고 캠페인/광고 그룹/소재 ETL 파이프라인
 
         ## 인증(Credentials)
         성과형 디스플레이 광고 계정을 보유한 네이버 계정의 로그인 쿠키가 필요하다.
 
         ## 추출(Extract)
-        계정별 캠페인, 광고그룹, 소재 목록을 수집한다.
+        계정별 캠페인 목록, 광고 그룹 목록, 소재 목록을 수집한다.
 
         ## 변환(Transform)
         JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
