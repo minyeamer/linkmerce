@@ -301,7 +301,8 @@ class ForEach(Task):
         """결과 리스트의 병합 방식을 설정한다.
         - **always**: 모든 실행 결과가 리스트 타입일 것으로 인식하고 2차원 리스트를 1차원으로 전개한다.
         - **never**: 실행 결과 리스트를 병합하지 않는다.
-        - **auto**: 모든 실행 결과가 리스트 타입인지 확인하여 선택적으로 병합한다."""
+        - **auto**: 모든 실행 결과가 리스트 타입인지 확인하여 선택적으로 병합한다.
+        """
         return self.setattr("concat_how", how)
 
     def _concat_results(self, results: list) -> list:
@@ -441,7 +442,8 @@ class RequestEach(ForEach, Request):
 
 class RequestEachLoop(RequestEach):
     """`Request`, `RunLoop`, `ForEach`를 결합하여,
-    매개변수 목록에 대해 순차적으로 요청하면서 조건을 만족할 때까지 재시도하는 Task."""
+    매개변수 목록에 대해 순차적으로 요청하면서 조건을 만족할 때까지 재시도하는 Task.
+    """
 
     def __init__(
             self,
@@ -630,7 +632,8 @@ class PaginateAll(ForEach, Request):
 
 class RequestEachPages(RequestEach):
     """`Request`, `ForEach`, `PaginateAll`을 결합하여,
-    매개변수 목록에 대해 순차적으로 요청하면서 각 인자별 전체 페이지를 수집하는 Task."""
+    매개변수 목록에 대해 순차적으로 요청하면서 각 인자별 전체 페이지를 수집하는 Task.
+    """
 
     def __init__(
             self,

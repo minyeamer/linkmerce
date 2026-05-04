@@ -46,7 +46,8 @@ def read_models(path: str, name: str, keys: Sequence[str] = list(), full_scan: b
 def read_models_all_lines(path: str, name: str, keys: Sequence[str] = list()) -> dict[str, str]:
     """SQL 파일 전체를 읽어 해당 이름의 모든 쿼리를 파싱한다.
 
-    하나의 쿼리는 `-- 이름: 키` 주석 라인으로 시작하여, 다음 주석 라인 또는 라인 끝까지의 범위로 구분한다."""
+    하나의 쿼리는 `-- 이름: 키` 주석 라인으로 시작하여, 다음 주석 라인 또는 라인 끝까지의 범위로 구분한다.
+    """
     queries, indices = dict(), list()
     with open(path, 'r', encoding="utf-8") as file:
         lines = file.read().split('\n')
@@ -66,7 +67,8 @@ def read_models_all_lines(path: str, name: str, keys: Sequence[str] = list()) ->
 def read_models_by_line(path: str, name: str, keys: Sequence[str]) -> dict[str, str]:
     """SQL 파일을 한 줄씩 읽으며 지정된 키에 해당하는 쿼리만 추출한다.
 
-    하나의 쿼리는 `-- 이름: 키` 주석 라인으로 시작하여, 다음 주석 라인 또는 라인 끝까지의 범위로 구분한다."""
+    하나의 쿼리는 `-- 이름: 키` 주석 라인으로 시작하여, 다음 주석 라인 또는 라인 끝까지의 범위로 구분한다.
+    """
     queries, lines = dict(), list()
 
     key_set, key = set(keys), None

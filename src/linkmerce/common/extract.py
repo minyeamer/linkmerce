@@ -219,7 +219,8 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
         ):
         """HTTP 요청 헤더 속성을 설정한다. 헤더에 쿠키가 있다면 `cookies` 속성 및 세션 객체에 업데이트한다.
 
-        쿠키의 값을 꺼내 헤더에 넣어야 할 경우 `from_cookies`를 `{cookie_key: header_key}` 형태로 전달한다."""
+        쿠키의 값을 꺼내 헤더에 넣어야 할 경우 `from_cookies`를 `{cookie_key: header_key}` 형태로 전달한다.
+        """
         if headers is None:
             from linkmerce.utils.headers import build_headers
             headers = build_headers(
@@ -237,8 +238,10 @@ class BaseSessionClient(Client, metaclass=ABCMeta):
         self.__headers = headers
 
     def require_cookies(self, key: str | None = None):
-        """1. 세션 객체에 쿠키가 없으면 경고 메시지를 발생시킨다.
-        2. `key`가 주어진 경우, 쿠키에 해당 키가 없다면 `ValueError`를 발생시킨다."""
+        """
+        1. 세션 객체에 쿠키가 없으면 경고 메시지를 발생시킨다.
+        2. `key`가 주어진 경우, 쿠키에 해당 키가 없다면 `ValueError`를 발생시킨다.
+        """
         cookies = self.get_cookies(to="dict")
         if key and (key not in cookies):
             raise KeyError(f"Missing '{key}' in cookies.")
@@ -768,7 +771,8 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
     """ETL 파이프라인의 추출(Extract) 단계를 담당하는 추상 클래스.
 
     `SessionClient`의 HTTP 요청 기능과 `TaskClient`의 Task 생성 기능을 통합하며,
-    `extract` 메서드를 구현하여 데이터를 추출한다."""
+    `extract` 메서드를 구현하여 데이터를 추출한다.
+    """
 
     method: str | None = None
     url: str | None = None
@@ -872,7 +876,8 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         """HTTP 요청 중 사용할 설정을 적용한다.
 
         `config_fields` 속성이 있을 경우 `configs`에서 지정된 경로의 값만 추출하고,
-        이때 경로가 없다면 `KeyError`를 발생시킨다."""
+        이때 경로가 없다면 `KeyError`를 발생시킨다.
+        """
         if self.config_fields:
             from linkmerce.utils.nested import select_values
             configs = select_values(configs, self.config_fields, on_missing="raise")
@@ -897,7 +902,8 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         일/주/월 빈도에 따라 다음과 같은 날짜 범위가 만들어진다.
         - `D`: 일 단위 `date` 객체를 반환한다.
         - `W`: 월요일 기준 주 단위로 `date` 객체를 반환한다.
-        - `M`: 매월 1일 기준 월 단위로 `date` 객체를 반환한다."""
+        - `M`: 매월 1일 기준 월 단위로 `date` 객체를 반환한다.
+        """
         from linkmerce.utils.date import date_range
         ranges = date_range(start_date, (start_date if end_date == ":start_date:" else end_date), freq, format)
         return ranges[0] if len(ranges) == 1 else ranges
@@ -914,7 +920,8 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         일/주/월 빈도에 따라 다음과 같은 날짜 범위가 만들어진다.
         - `D`: 일 단위로 기간을 분할한다. 분할된 각각의 쌍은 시작일과 종료일이 동일하다.
         - `W`: 월요일 기준 주 단위로 기간을 분할한다. 중간 기간은 (월요일, 일요일) 쌍으로 생성된다.
-        - `M`: 매월 1일 기준 월 단위로 기간을 분할한다. 중간 기간은 (1일, 말일) 쌍으로 생성된다."""
+        - `M`: 매월 1일 기준 월 단위로 기간을 분할한다. 중간 기간은 (1일, 말일) 쌍으로 생성된다.
+        """
         from linkmerce.utils.date import date_pairs
         pairs = date_pairs(start_date, (start_date if end_date == ":start_date:" else end_date), freq, format)
         context = list(map(lambda values: dict(zip(["start_date", "end_date"], values)), pairs))
@@ -929,7 +936,8 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         ) -> list[tuple[dt.date, dt.date]] | tuple[dt.date, dt.date]:
         """시작일부터 종료일까지의 기간을 지정된 간격으로 (시작일, 종료일) 쌍의 리스트로 분할한다.
 
-        `delta`가 정수형인 경우 `days`로 인식하며, `timedelta`에 전달할 파라미터를 딕셔너리로 지정할 수도 있다."""
+        `delta`가 정수형인 경우 `days`로 인식하며, `timedelta`에 전달할 파라미터를 딕셔너리로 지정할 수도 있다.
+        """
         from linkmerce.utils.date import date_split
         pairs = date_split(start_date, (start_date if end_date == ":start_date:" else end_date), delta, format)
         return pairs[0] if len(pairs) == 1 else pairs
@@ -943,7 +951,8 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
         ) -> list[dict[str, dt.date]] | dict[str, dt.date]:
         """시작일부터 종료일까지의 기간을 지정된 간격으로 `{"start_date": 시작일, "end_date": 종료일}` 딕셔너리 리스트로 분할한다.
 
-        `delta`가 정수형인 경우 `days`로 인식하며, `timedelta`에 전달할 파라미터를 딕셔너리로 지정할 수도 있다."""
+        `delta`가 정수형인 경우 `days`로 인식하며, `timedelta`에 전달할 파라미터를 딕셔너리로 지정할 수도 있다.
+        """
         from linkmerce.utils.date import date_split
         pairs = date_split(start_date, (start_date if end_date == ":start_date:" else end_date), delta, format)
         context = list(map(lambda values: dict(zip(["start_date", "end_date"], values)), pairs))
@@ -957,7 +966,8 @@ class Extractor(SessionClient, TaskClient, metaclass=ABCMeta):
 class LoginHandler(Extractor):
     """외부 서비스 로그인을 처리하는 추상 클래스.
 
-    `login` 메서드를 구현하여 인증을 수행하고, 세션 쿠키를 보존한다."""
+    `login` 메서드를 구현하여 인증을 수행하고, 세션 쿠키를 보존한다.
+    """
 
     cookies: str | None = None
 

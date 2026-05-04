@@ -248,7 +248,8 @@ class Connection(metaclass=ABCMeta):
 class DuckDBConnection(Connection):
     """DuckDB 인메모리 데이터베이스 연결을 관리하는 클래스.
 
-    SQL 실행, 테이블 CRUD, 데이터 읽기/쓰기, 그룹 집계 등의 기능을 제공한다."""
+    SQL 실행, 테이블 CRUD, 데이터 읽기/쓰기, 그룹 집계 등의 기능을 제공한다.
+    """
 
     def __init__(self, tzinfo: str | None = None, **kwargs):
         self.set_connection(tzinfo, **kwargs)

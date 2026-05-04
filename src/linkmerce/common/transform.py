@@ -72,7 +72,8 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
     4. `select_fields` - 변환된 데이터에서 필요한 필드만 추출
     5. `select_and_extend` - 필드 선택과 파생 필드 생성을 연결해 개별 항목 처리
-    6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환"""
+    6. `extend_fields` - 필드 선택 결과에 파생 필드 생성 또는 값 변환
+    """
 
     scope: str | None = None
     fields: dict | list | None = None
@@ -89,12 +90,13 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
         ):
         """파이프라인 처리를 위한 속성을 초기화한다.
 
-        Args:
+        Parameters:
             `scope`: 전체 HTTP 응답 데이터에서 필요한 대상 데이터 경로.
             `fields`: HTTP 응답 데이터에서 추출할 `{필드명: 경로}` 스키마.
             `extends`: 파생 필드로 추가할 `{필드명: 값_또는_$매개변수명}` 스키마.
             `on_missing`: 대상 경로를 탐색하지 못했을 때 동작 `"raise"`의 경우 오류를 발생시킨다.
-            `**kwargs`: 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자."""
+            `**kwargs`: 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자.
+        """
         self.pre_init(**kwargs)
         if scope is not None:
             self.scope = scope
@@ -175,7 +177,8 @@ class JsonTransformer(ResponseTransformer):
     - `scope` - `hier_get` 함수로 탐색할 데이터의 중첩 키 경로
     - `fields` - `select_values` 함수에 전달할 스키마 정의
     - `extends` - 각 행마다 공통으로 추가할 기본 키-값 목록
-    - `on_missing` - 필드 조회 실패 시 동작 (`raise` 또는 `ignore`)"""
+    - `on_missing` - 필드 조회 실패 시 동작 (`raise` 또는 `ignore`)
+    """
 
     dtype: type[dict | list] = dict
     scope: str | None = None
@@ -246,7 +249,8 @@ class HtmlTransformer(ResponseTransformer):
     - `scope` - 파싱 대상 요소를 탐색할 CSS 선택자 (없으면 입력 전체)
     - `fields` - `{필드명: CSS_선택자}` 형식의 스키마 정의
     - `extends` - 각 행마다 공통으로 추가할 기본 키-값 목록
-    - `on_missing` - CSS 선택자 탐색 실패 시 동작 (`raise` 또는 `ignore`)"""
+    - `on_missing` - CSS 선택자 탐색 실패 시 동작 (`raise` 또는 `ignore`)
+    """
 
     scope: str | None = None
     fields: dict[str, str | tuple[str, Any]] | None = None
@@ -315,7 +319,8 @@ class ExcelTransformer(JsonTransformer):
     - `header` - Excel 헤더 행 번호 (1부터 시작)
     - `fields` - `select_values` 함수에 전달할 스키마 정의
     - `extends` - 각 행마다 공통으로 추가할 기본 키-값 목록
-    - `on_missing` - 필드 조회 실패 시 동작 (`raise` 또는 `ignore`)"""
+    - `on_missing` - 필드 조회 실패 시 동작 (`raise` 또는 `ignore`)
+    """
 
     sheet_name: str | None = None
     header: int = 1
@@ -370,7 +375,8 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
     - `queries` - SQL 모델 파일에서 불러올 쿼리 키 목록
     - `tables` - `{테이블_별칭: 실제_테이블명}` 형식의 테이블 매핑
     - `parser` - 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
-    - `parser_config` - 파서 객체 초기화 시 전달할 설정 변수 (`ParserConfig`)"""
+    - `parser_config` - 파서 객체 초기화 시 전달할 설정 변수 (`ParserConfig`)
+    """
 
     queries: list[str] = ["create", "bulk_insert"]
     tables: dict[TableKey, TableName] = {"table": "data"}
@@ -396,7 +402,10 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         ):
         """데이터베이스 연결 및 SQL 쿼리를 불러오고 테이블을 생성한다.
 
-        Args:
+        **NOTE** 데이터 파싱 및 적재를 위해 `tables`, `parser`, `parser_config`에   
+        기본적으로 할당된 속성값은 각각의 클래스 docstring을 참고한다.
+
+        Parameters:
             `db_info`: 데이터베이스 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
             `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
             `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
@@ -404,7 +413,8 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             `parser`: 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
             `parser_config`: 파서 객체 초기화 시 전달할 설정 변수.
             `render`: SQL 쿼리 렌더링(Jinja)에 사용할 기본 컨텍스트 설정 변수.
-            `**kwargs`: 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자."""
+            `**kwargs`: 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자.
+        """
         self.pre_init(**kwargs)
 
         self.set_connection(**db_info)
@@ -459,7 +469,8 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         - `parser`가 문자열(`"json"`, `"html"`, `"excel"`) -> 해당 `ResponseTransformer`를 사용한다.
         - `parser`가 클래스 -> 해당 클래스를 인스턴스화해 `transform` 메서드로 원본 데이터를 변환한다.
         - `parser`가 `dict` -> 테이블 별칭별로 각 파서를 실행해 `{테이블_별칭: list}` 형태로 반환한다.
-        - `parser`가 `None` -> 원본 데이터를 그대로 반환한다."""
+        - `parser`가 `None` -> 원본 데이터를 그대로 반환한다.
+        """
 
         config = self.parser_config or dict()
         if isinstance(self.parser, dict):
@@ -635,7 +646,8 @@ class DuckDBTransformer(DBTransformer):
     - `queries` - SQL 모델 파일에서 불러올 쿼리 키 목록
     - `tables` - `{테이블_별칭: 실제_테이블명}` 형식의 테이블 매핑
     - `parser` - 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
-    - `parser_config` - 파서 객체 초기화 시 전달할 설정 변수 (`ParserConfig`)"""
+    - `parser_config` - 파서 객체 초기화 시 전달할 설정 변수 (`ParserConfig`)
+    """
 
     extractor: str | None = None
     queries: list[str] = ["create", "bulk_insert"]
@@ -664,7 +676,10 @@ class DuckDBTransformer(DBTransformer):
         ):
         """DuckDB 연결 및 SQL 쿼리를 불러오고 테이블을 생성한다.
 
-        Args:
+        **NOTE** 데이터 파싱 및 적재를 위해 `tables`, `parser`, `parser_config`에   
+        기본적으로 할당된 속성값은 각각의 클래스 docstring을 참고한다.
+
+        Parameters:
             `db_info`: DuckDB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
             `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
             `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
