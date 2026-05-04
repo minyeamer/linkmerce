@@ -1,22 +1,58 @@
 # 테스트 안내
 
-- `/` 로 끝나는 노드는 모듈
-- 가지가 `─x` 로 표시된 노드는 하위 노드를 포함해 테스트 제외
-- 모듈이 아닌 노드는 `클래스(부모클래스)::모듈` 형태로 표시
-- `Extractor` > (`ResponseTransformer`) > `DuckDBTransformer`로 이어지는 구조를 트리로 표시
-- `DuckDBTransformer`가 기본형 `ResponseTransformer`를 사용하면 `>>` 로 한 줄 표시
-- 기본형 `ResponseTransformer` 종류:
-  - `json`: `JsonTransformer`
-  - `html`: `HtmlTransformer`
-  - `excel`: `ExcelTransformer`
-- 커스텀 `ResponseTransformer` 종류:
-  - `csv`: `ZipCsvTransformer`
-  - `tsv`: `TsvTransformer`
-- [테스트 예시](#테스트-예시)에 따라 테스트 중 중간 결과 저장
+해당 테스트는 `linkmerce` 패키지의 `Extractor`와 `DuckDBTransformer`의 동작을 검증하는 테스트 모음이다.
 
-# 테스트 대상
+아래 2가지 테스트를 실행할 수 있다.
+1. `test_extract.py` - `Extractor.extract()` 결과를 저장한다.
+2. `test_transform.py` - `DuckDBTransformer.transform()` 결과를 저장한다.
 
-## CJ
+## 실행
+
+1. `pytest src/tests/test_extract.py -m extract -v -s`
+2. `pytest src/tests/test_transform.py -m transform -v -s`
+
+특정 도메인만 실행할 때는 마커를 조합한다.
+> 예시: `pytest src/tests/test_transform.py -m "transform and smartstore_api" -v -s`
+
+⚠️ `test_transform.py` 테스트를 실행하기 위해선 `test_extract.py` 실행 결과가 먼저 저장되어야 한다.
+
+## 결과
+
+모든 결과는 `src/tests/results/` 경로 아래에 `linkmerce.core` 모듈명 및 클래스명 경로로 조합한 위치에 저장한다.
+1. `test_extract.py` 테스트 실행 시 `{module}/{Extractor}/` 하위 경로를 생성한다.   
+    테스트 실행 결과는 해당 하위 경로에 `extract.{ext}` 파일로 저장한다.
+2. `test_transform.py` 테스트 실행 시 상위 `{module}/{Extractor}/{DuckDBTransformer}` 하위 경로를 생성한다.   
+    테스트는 변환 기능을 수행하는 `parse()`와 테이블 적재 기능을 수행하는 `bulk_insert()` 두 부분으로 나눠진다.
+    - `parse()` 실행 결과는 하위 `ResponseTransformer` 클래스명을 하위 경로로 생성하며,   
+        그 아래에 `/transform.{ext}` 파일로 변환 결과를 저장한다.
+    - `bulk_insert()` 실행 후 모든 테이블에 대한 `SELECT *` 조회 결과를 `{table_key}.{ext}` 파일로 저장한다.
+
+`test_extract.py` 테스트는 코드 내에 HTTP 응답 결과에 대한 확장자를 직접 지정하고,   
+`test_transform.py` 테스트는 항상 JSON 형식으로 변환 및 테이블 조회 결과를 저장한다.
+
+다음과 같은 확장자를 지원하며, 저장 시 옵션을 같이 안내한다.
+1. `.json` - `indent=2, ensure_ascii=False, default=str`
+2. `.html` - `BeautifulSoup` 객체의 `prettify()` 메서드로 문자열 변환
+3. `.xlsx` - `bytes` 객체를 `mode="wb"` 옵션으로 파일 쓰기
+4. `.csv`, `.tsv`, `.txt` - 문자열을 `mode="w", encoding="utf-8"` 모드로 파일 쓰기
+5. 그 외엔 확장자 없이 `mode="wb"` 옵션으로 저장한다.
+
+💡 하나의 테스트가 여러 개의 실행 결과를 저장해야 하는 경우 `extract_{index}.{ext}` 형식으로 구분한다.
+
+## 패키지 구조
+
+### 표기 규칙
+
+- `/` 로 끝나는 노드는 모듈 디렉터리
+- `─x` 로 표시된 노드는 하위 노드를 포함해 테스트에서 제외할 클래스 또는 보조 모듈
+- 모듈이 아닌 노드는 `클래스(부모클래스)::모듈` 형식으로 표기
+- 트리는 `Extractor -> ResponseTransformer -> DuckDBTransformer` 연결을 토대로 확장된다.
+- `DuckDBTransformer`가 기본형 `ResponseTransformer`를 직접 파서로 사용할 때는 `>>` 로 축약 표기한다.
+    1. `json`: `JsonTransformer`
+    2. `html`: `HtmlTransformer`
+    3. `excel`: `ExcelTransformer`
+
+### CJ
 
 ```bash
 cj/
@@ -27,7 +63,7 @@ cj/
             └── Stock(DuckDBTransformer)::transform >> json
 ```
 
-## Coupang
+### Coupang
 
 ```bash
 coupang/
@@ -72,7 +108,7 @@ coupang/
                 └── RocketShippingParser(ExcelTransformer)::transform
 ```
 
-## Ecount
+### Ecount
 
 ```bash
 ecount/
@@ -88,7 +124,7 @@ ecount/
             └── Product(DuckDBTransformer)::transform >> json
 ```
 
-## Google
+### Google
 
 ```bash
 google/
@@ -114,7 +150,7 @@ google/
                 └── AssetViewParser(_CommonParser)::transform
 ```
 
-## Meta
+### Meta
 
 ```bash
 meta/
@@ -133,7 +169,7 @@ meta/
             └── Insights(DuckDBTransformer)::transform >> json
 ```
 
-## Naver
+### Naver
 
 ```bash
 naver/
@@ -190,7 +226,7 @@ naver/
                 └── SearchParser(JsonTransformer)::transform
 ```
 
-## SabangNet
+### SabangNet
 
 ```bash
 sabangnet/
@@ -222,12 +258,12 @@ sabangnet/
             └── AddProduct(DuckDBTransformer)::transform >> json
 ```
 
-## SearchAd
+### SearchAd
 
 ```bash
 searchad/
 ├── api/
-│   ├── NaverSearchAdApi(Extractor)::common
+│   ├─x NaverSearchAdApi(Extractor)::common
 │   ├── adreport/
 │   │   ├─x _ReportsDownload(NaverSearchAdApi)::extract
 │   │   ├─x _MasterReport(_ReportsDownload)::extract
@@ -285,7 +321,7 @@ searchad/
 │           ├── ExposureDiagnosis(DuckDBTransformer)::transform >> json
 │           └── ExposureRank(ExposureDiagnosis)::transform >> json
 └── gfa/
-    ├── SearchAdGfa(Extractor)::common
+    ├─x SearchAdGfa(Extractor)::common
     └── adreport/
         ├─x _MasterReport(SearchAdGfa)::extract
         ├── Campaign(_MasterReport)::extract
@@ -301,7 +337,7 @@ searchad/
                 └── ZipCsvTransformer(ExcelTransformer)::transform
 ```
 
-## SmartStore
+### SmartStore
 
 ```bash
 smartstore/
@@ -360,27 +396,10 @@ smartstore/
     └─x SmartstoreCenterLogin(LoginHandler)::common
 ```
 
-# 테스트 예시
+## 테스트 예시
 
-`src/tests/results/` 경로 아래에 트리와 동일한 경로로 테스트 결과 생성
-
-- `Extractor`에서 하위 `Transformer`로 HTTP 응답 데이터를 전달하기 전에 `extract.{확장자}` 파일로 중간 저장
-  - 확장자는 `ResponseTransformer`를 통해 추정, 또는 반환 객체 타입을 통해 추정, 모르면 텍스트 파일로 저장
-  - `.json` 파일 저장 시 `indent=2, ensure_ascii=False, default=str` 설정 저장
-    - `JsonTransformer` 또는 반환 객체 타입이 `dict` 또는 `list`인 경우
-  - `.html` 파일 저장 시 `BeautifulSoup` 객체의 `prettify()` 메서드로 문자열 변환하여 저장
-    - `HtmlTransformer` 또는 반환 객체 타입이 `BeautifulSoup`인 경우
-  - `.xlsx` 파일 저장 시 `bytes` 객체를 `mode="wb"`로 저장
-    - `ExcelTransformer` 또는 반환 객체 타입이 `bytes`인 경우
-  - `.csv` 또는 `.tsv` 파일 저장 시 `str` 객체를 `mode="w", encoding="utf-8"`로 저장
-    - 반환 객체 타입이 `str`이고, `ZipCsvTransformer` 또는 `TsvTransformer`인 경우
-  - 그 외엔 확장자 없이 저장
-    - 반환 객체 타입이 `bytes`인 경우 `mode="wb"`로 저장
-    - 반환 객체 타입이 `str`인 경우 `mode="w", encoding="utf-8"`로 저장
-- `ResponseTransformer`는 `transform()` 메서드 실행 결과를 `transform.json` 파일로 저장
-- `DuckDBTransformer`는 모든 테이블의 `SELECT *` 결과를 각각의 `{테이블키}.json` 파일로 저장
-
-예를 들어, `coupang.advertising.adreport` 모듈에서 `Campaign` 테스트 시 다음과 같은 결과 생성
+예를 들어, `coupang_ads` 마커를 가지는 `TestCoupangAds` 클래스의
+`test_campaign` 테스트를 실행하면 다음과 같은 결과를 생성한다.
 
 ```bash
 src/
@@ -400,15 +419,47 @@ src/
                         └── extract.json
 ```
 
-`Campaign(DuckDBTransformer)`는 2개의 테이블이 있으므로 각각의 `SELECT *` 결과를 저장
+`Campaign(DuckDBTransformer)` 클래스에는 2개의 파서와 테이블이 할당되어 있기 때문에   
+각각에 대한 `parse()` 실행 결과 및 `SELECT *` 조회 결과를 저장한다.
 
 ```python
 class Campaign(DuckDBTransformer):
+    extractor = "Campaign"
     tables = {"campaign": "coupang_campaign", "adgroup": "coupang_adgroup"}
     parser = {"campaign": CampaignParser, "adgroup": AdgroupParser}
 ```
 
-또 하나의 예시로, `smartstore.api.order` 모듈에서 `Order` 테스트 시 다음과 같은 결과 생성
+또 다른 예시로, `smartstore_api` 마커를 가지는 `TestSmartstoreApi` 클래스의
+`test_order` 테스트를 실행하면 다음과 같은 결과를 생성한다.
+
+```bash
+src/
+└── tests/
+    └── results/
+        └── smartstore/
+            └── api/
+                └── order/
+                    └── Order/
+                        ├── Order/
+                        │   ├── json/
+                        │   │   └── transform.json
+                        │   ├── order.json
+                        │   ├── product_order.json
+                        │   ├── delivery.json
+                        │   └── option.json
+                        └── extract.json
+```
+
+`Order(DuckDBTransformer)` 클래스는 1개의 파서와 4개의 테이블이 할당되어 있다.
+
+```python
+class Order(DuckDBTransformer):
+    extractor = "Order"
+    tables = {table: f"smartstore_{table}" for table in ["order", "product_order", "delivery", "option"]}
+    parser = "json"
+```
+
+이어서 동일한 클래스의 `test_order_time` 테스트를 실행하면 다음과 같이 결과가 추가된다.
 
 ```bash
 src/
@@ -432,16 +483,12 @@ src/
                         └── extract.json
 ```
 
-1. 하나의 `Extractor`에 여러 개의 `DuckDBTransformer`가 연결된 경우 위와 같이 폴더 구분
-2. 기본형 `ResponseTransformer`를 사용하면 `json`, `excel` 등 상수명을 폴더로 사용
+`OrderTime(Order)` 클래스는 `Order(DuckDBTransformer)` 클래스와 동일한 Extractor를 공유하므로   
+같은 경로 아래에 `OrderTime/` 하위 경로가 추가된다.
 
 ```python
-class Order(DuckDBTransformer):
-    tables = {table: f"smartstore_{table}" for table in ["order", "product_order", "delivery", "option"]}
-    parser = "json"
-
-
 class OrderTime(Order):
+    extractor = "Order"
     tables = {"table": "smartstore_order_time"}
     parser = "json"
 ```
