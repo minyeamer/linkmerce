@@ -1,374 +1,275 @@
-# Airflow 워크플로우
+# Apache Airflow 실행 안내
 
-> Apache Airflow 3.1.3 기반 이커머스 데이터 ETL 스케줄링
-
----
+> LinkMerce 프로젝트의 DAG, 플러그인, Docker Compose 실행 환경을 설명한다.
 
 ## 목차
 
-- [Airflow 워크플로우](#airflow-워크플로우)
-  - [목차](#목차)
-  - [개요](#개요)
-  - [구조](#구조)
-  - [실행](#실행)
-  - [DAG 아키텍처 패턴](#dag-아키텍처-패턴)
-    - [표준 패턴 — Partial + Expand](#표준-패턴--partial--expand)
-    - [고급 패턴](#고급-패턴)
-  - [DAG 목록](#dag-목록)
-    - [인증](#인증)
-    - [쿠팡](#쿠팡)
-    - [네이버 검색/순위](#네이버-검색순위)
-    - [스마트스토어](#스마트스토어)
-    - [검색광고](#검색광고)
-    - [사방넷](#사방넷)
-    - [Google Ads / Meta Ads](#google-ads--meta-ads)
-    - [CJ대한통운 / 이카운트](#cj대한통운--이카운트)
-  - [스케줄 타임라인](#스케줄-타임라인)
-  - [플러그인](#플러그인)
-    - [`variables.py`](#variablespy)
-  - [동시성 제어 (Pool)](#동시성-제어-pool)
-  - [환경설정](#환경설정)
-    - [Docker Compose](#docker-compose)
-    - [추가 패키지](#추가-패키지)
-    - [BigQuery 적재 전략](#bigquery-적재-전략)
-
----
+- [개요](#개요)
+- [한눈에 보기](#한눈에-보기)
+- [디렉터리 구조](#디렉터리-구조)
+- [로컬 실행 환경](#로컬-실행-환경)
+- [표준 DAG 패턴](#표준-dag-패턴)
+- [DAG 구조](#dag-구조)
+- [플러그인](#플러그인)
 
 ## 개요
 
-27개 DAG가 이커머스 플랫폼의 데이터를 주기적으로 수집하여 Google BigQuery에 적재한다.
+DAG은 공통적으로 다음 흐름을 따른다.
 
-**실행 흐름:**
+1. `airflow_utils` 플러그인의 `read_config()` 또는 `read_credentials()` 함수로 설정과 인증 정보를 불러온다.
+2. `linkmerce.api.*` 함수를 호출해 추출(extract)과 변환(transform) 과정을 수행한다.
+3. `DuckDBConnection`을 통해 테이블에 적재된 API 실행 결과를 불러올 수 있다.
+4. `BigQueryClient`를 활용해 API 실행 결과를 BigQuery 테이블에 적재한다.
+5. Task 결과를 `{params: {...}, counts: {...}, status: {...}}` 딕셔너리로 반환한다.
 
-```
-[Airflow Scheduler]
-        │
-        ▼
-┌──────────────────┐     ┌────────────────────┐     ┌──────────────────┐
-│  read_variables  │     │ read_credentials   │     │  (Airflow Pool)  │
-│  (config.yaml)   │     │ (credentials.yaml) │     │  동시성 제어        │
-└───────┬──────────┘     └───────┬────────────┘     └──────────────────┘
-        │                        │
-        ▼                        ▼
-┌───────────────────────────────────────────────┐
-│  ETL Task (.partial().expand())               │
-│                                               │
-│  ┌─────────┐  ┌───────────┐  ┌────────────┐   │
-│  │ Extract │→ │ DuckDB    │→ │ BigQuery   │   │
-│  │ (API)   │  │ Transform │  │ Load       │   │
-│  └─────────┘  └───────────┘  └────────────┘   │
-│                                               │
-│  return {params, counts, status}              │
-└───────────────────────────────────────────────┘
-```
+## 한눈에 보기
 
----
+- **베이스 이미지**: `apache/airflow:3.1.8-python3.12`
+- **핵심 의존성**: `linkmerce`, `gspread`, `google-cloud-bigquery`, `playwright`
+- **Providers**: `apache-airflow-providers-slack`
 
-## 구조
+## 디렉터리 구조
 
-```
+```bash
 airflow/
-├── dags/                   # DAG 정의 파일 (27개)
-│   ├── all_login.py        #   통합 로그인
-│   ├── coupang_*.py        #   쿠팡 (4개)
-│   ├── naver_*.py          #   네이버 (8개)
-│   ├── smartstore_*.py     #   스마트스토어 (4개)
-│   ├── searchad_*.py       #   검색광고 (3개)
-│   ├── sabangnet_*.py      #   사방넷 (3개)
-│   ├── google_ads.py       #   Google Ads
-│   ├── meta_ads.py         #   Meta Ads
-│   ├── ecount_stock_report.py  # 이카운트 재고
-│   └── cj_loisparcel_invoice.py # CJ 송장
-│
-├── plugins/                # Airflow 플러그인
-│   ├── variables.py        #   변수, 인증, 설정 로더
-│   └── linkmerce/          #   패키지 심볼릭 링크
-│
 ├── config/
-│   └── airflow.cfg         # Airflow 설정
-│
-├── files/env/              # 환경 파일 (마운트)
-├── logs/                   # 실행 로그
-│
-├── docker-compose.yaml     # Docker Compose 정의
-├── exec_api.sh             # API 컨테이너 접속
-├── exec_db.sh              # DB 컨테이너 접속
-└── init.sh                 # 초기 설정 스크립트
+│   └── airflow.cfg
+├── dags/
+│   ├── _deprecated/
+│   ├── coupang/
+│   ├── hcenter/
+│   ├── naver/
+│   ├── sabangnet/
+│   ├── searchad/
+│   └── smartstore/
+├── files/
+├── logs/
+├── plugins/
+│   ├── airflow_api.py
+│   ├── airflow_patches.py
+│   ├── airflow_utils.py
+│   └── pw_actions.py
+├── scripts/
+├── docker-compose.yaml
+└── init.sh
 ```
 
----
+## 로컬 실행 환경
 
-## 실행
+`docker-compose.yaml` 설정은 Airflow Celery Executor 구성을 기준으로 다음 서비스를 실행한다.
+
+- `postgres`
+- `redis`
+- `playwright`
+- `airflow-apiserver`
+- `airflow-scheduler`
+- `airflow-dag-processor`
+- `airflow-worker`
+- `airflow-triggerer`
+- `airflow-init`
+
+API 서버에 대한 볼륨 마운트도 현재 저장소 구조를 기준으로 연결된다.
+
+- `./config -> /opt/airflow/config`
+- `./dags -> /opt/airflow/dags`
+- `./files -> /opt/airflow/files`
+- `./logs -> /opt/airflow/logs`
+- `./plugins -> /opt/airflow/plugins`
+- `../src/env -> /opt/airflow/files/env`
+- `../src/linkmerce -> /opt/airflow/plugins/linkmerce`
+
+Docker Compose 실행은 다음 명령어 또는 `init.sh` 스크립트를 실행한다.
 
 ```bash
-cd airflow
-docker compose up airflow-init && docker compose up -d
+docker compose up airflow-init
+docker compose up -d
 ```
 
-**개별 DAG 테스트:**
+실행 중인 API 서버에 접속할 때는 `scripts` 경로의 `exec_api.sh` 스크립트를 실행한다.
 
 ```bash
-# API 컨테이너 접속
-./exec_api.sh
-
-# DAG 트리거
-airflow dags trigger ${dag_id}
+./scripts/exec_api.sh
+---------------------
+/opt/airflow$
 ```
 
----
+Airflow의 MetaDB에 접속할 때는 `scripts` 경로의 `exec_db.sh` 스크립트를 실행한다.
 
-## DAG 아키텍처 패턴
+```bash
+./scripts/exec_db.sh
+--------------------
+psql (13.23 (Debian 13.23-1.pgdg13+1))
+Type "help" for help.
 
-### 표준 패턴 — Partial + Expand
+airflow=#
+```
 
-대부분의 DAG가 따르는 패턴. 인증 정보별로 Dynamic Task Mapping을 활용해 병렬 실행한다.
+## 표준 DAG 패턴
+
+일반적인 DAG은 다음 패턴을 공유한다.
 
 ```python
-with DAG(dag_id="smartstore_bizdata", schedule="10 8 * * *", ...):
+with DAG(dag_id="...") as dag:
 
-    PATH = ["smartstore", "api", "smartstore_bizdata"]
+    PATH = "platform.hostname.category"
 
-    @task
-    def read_variables() -> dict:
-        from variables import read
-        return read(PATH, tables=True, service_account=True)
+    @task(task_id="...")
+    def read_configs() -> dict:
+        from airflow_utils import read_config
+        return read_config(PATH, tables=True, service_account=True)
 
-    @task
+    @task(task_id="...")
     def read_credentials() -> list:
-        from variables import read
-        return read(PATH, credentials=True)["credentials"]
+        from airflow_utils import read_config
+        return read_config(PATH, credentials=True)["credentials"]
 
-    @task(map_index_template="{{ credentials['channel_seq'] }}")
-    def etl_task(credentials: dict, variables: dict, **kwargs) -> dict:
-        from variables import get_execution_date
-        date = get_execution_date(kwargs, subdays=1)
-        return main(**credentials, date=date, **variables)
+    @task(task_id="...", map_index_template="{{ credentials['id'] }}")
+    def etl_task(credentials: dict, configs: dict, **kwargs) -> dict:
+        return main(**credentials, **configs)
 
-    def main(client_id, client_secret, channel_seq, date, service_account, tables, **kwargs):
+    def main(service_account: dict, tables: dict[str, str], **kwargs) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.api.smartstore.api import marketing_channel
+        from linkmerce.api.platform.hostname import example_api
         from linkmerce.extensions.bigquery import BigQueryClient
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            marketing_channel(
-                client_id=client_id, client_secret=client_secret,
-                channel_seq=channel_seq, start_date=date, end_date=date,
-                connection=conn, progress=False, return_type="none",
-            )
+            example_api(**kwargs)
+
             with BigQueryClient(service_account) as client:
-                return dict(
-                    params=dict(channel_seq=channel_seq, date=date),
-                    counts=dict(data=conn.count_table("data")),
-                    status=dict(data=client.load_table_from_duckdb(
-                        connection=conn, source_table="data",
-                        target_table=tables["marketing_channel"],
-                    )),
+                status = client.load_table_from_duckdb(
+                    connection = conn,
+                    source_table = "table",
+                    target_table = tables["table"]
                 )
+                return {"params": {}, "counts": {}, "status": {"table": status}}
 
-    etl_task.partial(variables=read_variables()).expand(credentials=read_credentials())
+    (etl_task
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))
 ```
 
-### 고급 패턴
+핵심 특징은 다음과 같다.
 
-| 패턴 | 사용 DAG | 설명 |
-|------|----------|------|
-| **TaskGroup** | `ecount_stock_report` | 복합 워크플로우를 그룹으로 조직화 (CJ → 쿠팡 → 이카운트 → 리포트) |
-| **BranchPythonOperator** | `sabangnet_order`, `naver_*_search` | 조건 분기 실행 |
-| **DAG 트리거** | `naver_rank_shop` → `naver_product_catalog` | DAG 간 체이닝 |
-| **MultipleCronTriggerTimetable** | `smartstore_invoice`, `sabangnet_invoice` | 하루 여러 번 실행 |
-| **Slack 알림** | `naver_cafe_search`, `ecount_stock_report` | 엑셀 리포트 Slack 파일 전송 |
+- 설정은 `airflow_utils` 플러그인의 `read_config` 함수를 통해 불러온다.
+- 여러 개의 계정에 대한 ETL 프로세스를 독립적으로 실행할 경우 Dynamic Task Mapping을 활용한다.
+- 실제 ETL 프로세스는 `linkmerce.api.*` 모듈의 API 함수에 위임한다.
+- 실행 결과는 `DuckDBConnection`의 테이블에 적재되며, 이 연결을 `BigQueryClient`에 넘겨준다.
+- BigQuery 테이블에는 `APPEND`, `OVERWRITE`, `MERGE` 3가지 방식 중 한 가지 방식으로 적재한다.
 
----
+일부 복잡한 DAG은 다음과 같은 전략을 사용한다.
 
-## DAG 목록
+- `BranchPythonOperator`: 분기에 따라 선택적으로 Task를 실행하는 경우
+- `MultipleCronTriggerTimetable`: 여러 개의 크론탭으로 스케줄을 표현해야 하는 경우
+- `Playwright`: 브라우저 활용이 필요한 어려운 스크래핑 작업을 처리하는 경우
+- `TaskGroup`: 여러 개의 Task를 하나의 그룹으로 묶을 경우
+- `TriggerDagRunOperator`: Task 실행 전후로 다른 DAG을 호출할 경우
 
-### 인증
+## DAG 구조
 
-| DAG | 스케줄 | 설명 |
-|-----|--------|------|
-| `all_login` | 매일 01:00 | 네이버 쇼핑 파트너센터 + 검색광고 로그인 쿠키 갱신 |
-| `coupang_login` | - | 크론탭으로 이관됨 (05:41 광고, 09:01 윙) |
+### 쿠팡 (coupang)
 
-### 쿠팡
+| DAG ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `coupang` | 매일 `08:20` | 판매자별 로그인 후 SubDAG을 트리거하는 통합 오케스트레이터 |
+| `coupang_adreport` | 트리거 전용 | 쿠팡 광고 보고서 ETL |
+| `coupang_campaign` | 트리거 전용 | 쿠팡 광고 캠페인/광고그룹/소재 ETL |
+| `coupang_product_option` | 트리거 전용 | 쿠팡 상품 옵션 ETL |
+| `coupang_rocket_sales` | 트리거 전용 | 쿠팡 로켓그로스 정산 리포트 ETL |
 
-| DAG | 스케줄 | 설명 |
-|-----|--------|------|
-| `coupang_adreport` | 매일 05:50 | 벤더별 PA/NCA 광고 보고서 → `merge` |
-| `coupang_campaign` | 평일 05:55 | 캠페인, 광고그룹, 크리에이티브 마스터 데이터 → `load` |
-| `coupang_option` | 매일 09:20 | 상품 옵션 전체 → `overwrite` |
-| `coupang_rocket_sales` | 매일 09:10 | 주간 정산 (매출, 배송), 월-일 집계 → `merge` |
+### 네이버 쇼핑파트너센터 (hcenter)
 
-### 네이버 검색/순위
+| DAG ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `naver_hcenter_login` | 매일 `01:00` | 쇼핑파트너센터 로그인 상태 갱신 |
+| `naver_brand_price` | 매일 `00:01` | 네이버 브랜드 상품 가격 ETL |
+| `naver_product_catalog` | 트리거 전용 | 네이버 카탈로그-상품 매핑 ETL |
 
-| DAG | 스케줄 | 설명 |
-|-----|--------|------|
-| `naver_rank_ad` | 매시간 06:00-18:00 | 검색광고 키워드 순위 (100개 단위 청크) |
-| `naver_rank_shop` | 매시간 06:00-18:00 | 쇼핑 검색 순위 (3페이지) → 카탈로그 DAG 트리거 |
-| `naver_product_catalog` | 수동/트리거 | 카탈로그 매칭 업데이트 |
-| `naver_brand_price` | 매일 00:01 | 경쟁사 상품 가격 모니터링 → `merge` |
-| `naver_brand_sales` | 매일 08:00 | 경쟁사 상품 매출 → `merge` |
-| `naver_brand_pageview` | 매일 10:00 | 경쟁사 상품 페이지뷰 → `merge` |
-| `naver_cafe_search` | 10분 간격 (평일 08:00-10:00) | 카페 검색 + 글 수집 → 엑셀 Slack 전송 |
-| `naver_main_search` | 10분 간격 (평일 08:00-10:00) | 메인 검색 섹션별 순위 → 엑셀 Slack 전송 |
+### 네이버 메인 (naver)
 
-### 스마트스토어
+| DAG ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `naver_cafe_search` | `08:00-09:50` 10분 간격 | 네이버 카페 검색 모니터링 |
+| `naver_main_search` | `08:00-09:50` 10분 간격 | 네이버 통합검색 모니터링 파이프라인 |
+| `naver_shop_rank` | 매일 `06-18시` 정각 | 네이버 쇼핑 검색 순위 ETL |
 
-| DAG | 스케줄 | 설명 |
-|-----|--------|------|
-| `smartstore_product` | 평일 23:30 | 상품, 옵션 카탈로그 → `load` |
-| `smartstore_order` | 매일 08:30 | 주문 상세 (주문, 상품주문, 배송, 옵션, 상태) → `merge` |
-| `smartstore_invoice` | 03:00, 10:30, 15:00 | 송장 내역 업데이트 (PAYED/DISPATCHED 필터) → `merge` |
-| `smartstore_bizdata` | 평일 08:10 | 마케팅 채널 API 데이터 → `load` |
+### 사방넷 (sabangnet)
 
-### 검색광고
+| DAG ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `sabangnet_order` | 매일 `23:30` | 사방넷 발주 내역 ETL |
+| `sabangnet_invoice` | 평일 `10:30`, `14:30`, `23:50` | 사방넷 주문 ETL |
+| `sabangnet_product` | 평일 `23:20` | 사방넷 상품/옵션/매핑 ETL |
 
-| DAG | 스케줄 | 설명 |
-|-----|--------|------|
-| `searchad_contract` | 매일 05:30 | 브랜드 + 신제품 광고 계약 내역 → `merge` |
-| `searchad_master` | 평일 23:40 | API + GFA 마스터 데이터 (캠페인, 광고그룹, 광고) |
-| `searchad_report` | 매일 05:40 | 일별 다차원 보고서 → `merge` |
+### 네이버 광고 (searchad)
 
-### 사방넷
+| DAG ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `searchad_contract` | 매일 `05:30` | 네이버 검색광고 계약 정보 ETL |
+| `searchad_master_gfa` | 평일 `05:30` | 네이버 GFA 캠페인/광고 그룹/소재 ETL |
+| `searchad_master_sad` | 평일 `23:40` | 네이버 검색광고 마스터 보고서 ETL |
+| `searchad_report_gfa` | 매일 `05:20` | 네이버 GFA 성과 보고서 ETL |
+| `searchad_report_sad` | 매일 `05:40` | 네이버 검색광고 다차원 보고서 ETL |
 
-| DAG | 스케줄 | 설명 |
-|-----|--------|------|
-| `sabangnet_order` | 매일 23:30 | 주문, 출고, 옵션 다운로드 → `merge` |
-| `sabangnet_invoice` | 평일 10:30, 14:30, 23:50 | 송장 상태 (주문일/집하일/배달일 필터) → `merge` |
-| `sabangnet_product` | 평일 23:20 | 상품, 옵션, 매핑 전체 추출 → `overwrite` |
+### 네이버 스마트스토어 (smartstore)
 
-### Google Ads / Meta Ads
+| DAG ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `smartstore_bizdata` | 매일 `08:10` | 마케팅 채널 데이터 적재 |
+| `smartstore_invoice` | `03:00` 매일, `10:30`/`15:00` 평일 | 송장/주문 후속 상태 갱신 |
+| `smartstore_order` | 매일 `08:30` | 주문, 상품주문, 배송, 옵션, 변경 주문 상태 적재 |
+| `smartstore_product` | 평일 `23:30` | 상품/옵션 카탈로그 적재 |
 
-| DAG | 스케줄 | 설명 |
-|-----|--------|------|
-| `google_ads` | 매일 07:50 | 캠페인, 광고그룹, 광고, 에셋 마스터 + 30일 인사이트 |
-| `meta_ads` | 매일 07:40 | 캠페인, 광고세트, 광고 마스터 + 일별 인사이트 |
+### 기타
 
-### CJ대한통운 / 이카운트
+하위 경로로 분류하지 않은 DAG은 `dags/` 경로 아래에 배치한다.
 
-| DAG | 스케줄 | 설명 |
-|-----|--------|------|
-| `cj_loisparcel_invoice` | 매일 02:00 | Playwright 브라우저 자동화, 2FA 이메일 인증 → 송장 추출 |
-| `ecount_stock_report` | 수동 트리거 | 4단계 TaskGroup: CJ 재고 → 쿠팡 재고 → 이카운트 재고 → 엑셀 리포트 |
+| DAG ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `cj_loisparcel_invoice` | 매일 `02:00` | CJ 로이스파셀 기업고객일별배송상세 ETL |
+| `ecount_stock_report` | 트리거 전용 | 재고 현황 보고 |
+| `google_ads` | 매일 `07:50` | 구글 광고 ETL |
+| `meta_ads` | 매일 `07:40` | 메타 광고 ETL |
 
----
-
-## 스케줄 타임라인
-
-```
-00:00 ┬── naver_brand_price (00:01)
-      │
-01:00 ├── all_login (01:00)
-      │
-02:00 ├── cj_loisparcel_invoice (02:00)
-      │
-03:00 ├── smartstore_invoice ① (03:00)
-      │
-05:00 ├── searchad_contract (05:30)
-      ├── searchad_report (05:40)
-      ├── coupang_adreport (05:50)
-      ├── coupang_campaign (05:55, 평일)
-      │
-06:00 ├── naver_rank_ad ↻ 매시간 (06:00-18:00)
-      ├── naver_rank_shop ↻ 매시간 (06:00-18:00)
-      │
-07:00 ├── meta_ads (07:40)
-      ├── google_ads (07:50)
-      │
-08:00 ├── naver_brand_sales (08:00)
-      ├── naver_cafe_search ↻ 10분 (08:00-10:00, 평일)
-      ├── naver_main_search ↻ 10분 (08:00-10:00, 평일)
-      ├── smartstore_bizdata (08:10, 평일)
-      ├── smartstore_order (08:30)
-      │
-09:00 ├── coupang_rocket_sales (09:10)
-      ├── coupang_option (09:20)
-      │
-10:00 ├── naver_brand_pageview (10:00)
-      ├── smartstore_invoice ② (10:30)
-      ├── sabangnet_invoice ① (10:30, 평일)
-      │
-14:00 ├── sabangnet_invoice ② (14:30, 평일)
-      │
-15:00 ├── smartstore_invoice ③ (15:00)
-      │
-23:00 ├── sabangnet_product (23:20, 평일)
-      ├── sabangnet_order (23:30)
-      ├── smartstore_product (23:30, 평일)
-      ├── searchad_master (23:40, 평일)
-      └── sabangnet_invoice ③ (23:50, 평일)
-```
-
----
+스크래핑 대상 웹사이트의 구조적 변경으로 비활성화된 DAG은 `_deprecated/` 경로로 옮긴다.
 
 ## 플러그인
 
-### `variables.py`
+`plugins/` 경로는 Airflow에서 제공하는 플러그인 시스템이며, DAG에서 공용으로 사용하는 기능을 제공한다.
 
-모든 DAG에서 사용하는 설정, 인증 정보 로더.
+### `airflow_utils.py`
 
-**주요 함수:**
+대부분의 DAG에서 공통으로 사용하는 유틸리티 함수를 제공한다.
 
-| 함수 | 설명 |
-|------|------|
-| `read(path, **kwargs)` | YAML 계층 경로로 설정 로드. `tables`, `credentials`, `service_account`, `sheets` 옵션 |
-| `get_execution_date(kwargs, subdays=1)` | DAG 컨텍스트에서 실행일 추출 (기본 1일 전) |
-| `format_date(datetime, fmt)` | 날짜 포맷 (pendulum) |
-| `split_by_credentials(creds, shuffle)` | 인증 정보 리스트를 개별 딕셔너리로 분리 |
+- `read_config`: Airflow Variable로 등록한 설정 파일 경로의 내용 읽기
+- `read_credentials`: 인증 정보를 읽으면서 쿠키 등 파일 참조를 실제 내용으로 치환
+- `in_timezone`: `pendulum` 날짜에 시간대 설정 및 timedelta 연산
+- `format_date`: `in_timezone` 실행 결과를 문자열로 변환
+- `get_execution_date`: 템플릿 변수 `data_interval_end`에 `format_date` 함수 적용
 
-**설정 로드 예시:**
+### `airflow_api.py`
 
-```python
-# config.yaml 경로: ["depth1", "depth2", "depth3"]
-variables = read(
-    ["depth1", "depth2", "depth3"],
-    tables=True,            # → tables: {"data": "example.table", ...}
-    service_account=True,   # → service_account: {...}
-    credentials=True,       # → credentials: [{cookies}, ...]
-)
-```
+통합 오케스트레이터 DAG에서 Airflow REST API를 호출하여 다른 DAG을 동적으로 실행할 때 활용된다.
 
----
+- `authenticate`: Airflow JWT 액세스 토큰을 발급
+- `request`: Airflow REST API에 대한 HTTP 요청
+- `trigger_dagrun`: DAG ID에 대한 DAG 실행을 트리거
+- `wait_for_completion`: DAG Run ID에 대한 DAG 실행 대기
 
-## 동시성 제어 (Pool)
+### `airflow_patches.py`
 
-| Pool | 용도 | 제한 |
-|------|------|------|
-| `login_pool` | 브라우저 로그인 직렬화 | 1 |
-| `coupang_pool` | 쿠팡 벤더별 병렬 | 벤더 수 |
-| `nsearch_pool` | 네이버 검색 동시성 제어 | 제한적 |
-| `sabangnet_pool` | 사방넷 요청 직렬화 | 1 |
+Airflow Variable `test_mode`가 `true`인 조건에서 다음 동작을 런타임 패치한다.
 
----
+- BigQuery Load Job 메서드의 동작을 차단하고 DuckDB 테이블 미리보기를 반환
+- Slack 파일 전송을 차단하고 가상의 응답 결과를 반환
 
-## 환경설정
+즉, 외부 시스템에 대한 적재와 Slack 메시지 전송을 차단하여 온전히 DAG 로직만 확인할 때 쓰는 안전장치다.
 
-### Docker Compose
+### `pw_actions.py`
 
-- **이미지**: Apache Airflow 3.1.3 (Python 3.12, 한국어 로케일)
-- **서비스**: webserver, scheduler, worker, triggerer, postgres, redis
-- **볼륨 마운트**:
-  - `./dags` → `/opt/airflow/dags`
-  - `./plugins` → `/opt/airflow/plugins`
-  - `./files/env` → `/opt/airflow/env` (설정 파일)
-  - `./logs` → `/opt/airflow/logs`
+Playwright WebSocket 서버를 사용해 브라우저 자동화를 수행한다.
 
-### 추가 패키지
+- `login_coupang`: 쿠팡 Wing 로그인 후 '광고센터' 탭까지 이동해 쿠키 수집
+- `login_naver`: 저장된 세션 또는 재로그인으로 네이버 쿠키 수집
+- `get_browser_cookies`: 세션 쿠키가 생길 때까지 대기 후 쿠키를 문자열로 반환
 
-```
-apache-airflow-providers-slack    # Slack 알림
-google-cloud-bigquery             # BigQuery 적재
-gspread                           # Google Sheets
-pyarrow                           # Parquet 처리 (BigQuery 의존성)
-playwright                        # 브라우저 자동화
-linkmerce                         # 핵심 ETL 패키지
-```
-
-### BigQuery 적재 전략
-
-DAG별로 데이터 특성에 맞는 적재 전략을 사용한다:
-
-| 전략 | 메서드 | 사용 DAG 예시 |
-|------|--------|--------------|
-| **load** (append) | `load_table_from_duckdb()` | `smartstore_product`, `coupang_campaign` |
-| **merge** (upsert) | `merge_into_table_from_duckdb()` | `smartstore_order`, `coupang_adreport`, `searchad_report` |
-| **overwrite** (조건부 삭제+삽입) | `overwrite_table_from_duckdb()` | `coupang_option`, `sabangnet_product` |
+단, `playwright` 서비스가 비활성화되었을 경우 해당 함수를 사용할 수 없다.

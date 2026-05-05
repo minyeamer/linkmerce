@@ -1,288 +1,269 @@
-
 # LinkMerce
 
-**이커머스 데이터 수집 · 변환 · 적재 통합 프레임워크**
+**이커머스 데이터 수집, 변환, 적재 통합 프레임워크**
 
-> 다양한 이커머스 플랫폼의 API 및 웹 스크래핑을 통해 데이터를 수집하고, DuckDB 기반 SQL 변환을 거쳐 Google BigQuery에 적재하는 Python ETL 프레임워크
-
----
+> 다양한 이커머스 API와 웹문서 응답을 수집하고 DuckDB 기반 변환을 거쳐,   
+> 외부 시스템에 데이터를 적재하는 워크플로우를 관리하기 위한 프로젝트를 안내한다.
 
 ## 목차
 
-- [LinkMerce](#linkmerce)
-  - [목차](#목차)
-  - [개요](#개요)
-  - [아키텍처](#아키텍처)
-  - [프로젝트 구조](#프로젝트-구조)
-  - [핵심 패키지 (`src/linkmerce/`)](#핵심-패키지-srclinkmerce)
-    - [ETL 파이프라인 구조](#etl-파이프라인-구조)
-    - [지원 플랫폼 및 API](#지원-플랫폼-및-api)
-  - [스케줄링 (`airflow/`)](#스케줄링-airflow)
-  - [크론탭 (`crontab/`)](#크론탭-crontab)
-  - [수동 실행 UI (`streamlit/`)](#수동-실행-ui-streamlit)
-  - [설치](#설치)
-    - [PyPI 패키지](#pypi-패키지)
-    - [Airflow 환경](#airflow-환경)
-  - [실행](#실행)
+- [프로젝트 개요](#프로젝트-개요)
+- [핵심 아키텍처](#핵심-아키텍처)
+- [표준 ETL 모듈 구조](#표준-etl-모듈-구조)
+- [Airflow 서비스 구조](#airflow-서비스-구조)
+- [Airflow 작업 스케줄링](#airflow-작업-스케줄링)
+- [Streamlit UI](#streamlit-ui)
+- [빠른 시작](#빠른-시작)
+- [예시 코드](#예시-코드)
 
----
+## 프로젝트 개요
 
-## 개요
+LinkMerce 프로젝트는 이커머스 플랫폼으로부터 쇼핑몰 운영에 필요한 데이터를 수집하기 위한 목적을 가진다.
 
-LinkMerce는 이커머스 운영에 필요한 데이터를 **9개 플랫폼**으로부터 자동 수집하여 BigQuery 데이터 웨어하우스에 통합하는 프레임워크이다. 핵심 기능은 PyPI 패키지(`linkmerce`)로 배포하고, Apache Airflow로 스케줄링하며, 브라우저 자동화가 필요한 작업은 크론탭으로, 담당자 수동 실행은 Streamlit 웹 UI로 처리한다.
+Python 스크래핑 로직을 구현한 PyPI 패키지가 프로젝트의 중심이 되며,   
+작업 스케줄링을 처리하기 위해 Apache Airflow를 적극적으로 활용한다.
 
-**데이터 처리 흐름:**
+프로젝트에서 주목할 부분은 다음 4가지다.
 
-```
-[이커머스 API / 웹] → Extract → DuckDB (SQL Transform) → BigQuery (Load)
-```
+1. `src/linkmerce`: 웹 스크래핑 및 외부 시스템과의 데이터 연동을 지원하는 핵심 Python 패키지
+2. `src/tests`: Python 패키지의 동작을 검증하고 중간 실행 결과를 저장하는 테스트 모음
+3. `airflow`: 작업 스케줄링, 오케스트레이션, Playwright 기반 브라우저 자동화가 들어 있는 DAG 모음
+4. `streamlit`: 쇼핑몰 운영 담당자가 비정기적인 데이터 수집을 위해 DAG을 수동으로 트리거할 때 사용하는 UI
 
-1. **Extract** — HTTP API 호출 또는 웹 스크래핑으로 원천 데이터 수집
-2. **Transform** — DuckDB 인메모리 DB에서 SQL로 데이터 정제·변환
-3. **Load** — DuckDB에서 BigQuery로 적재 (append / merge / overwrite)
+linkmerce 패키지가 지원하는 이커머스 관련 플랫폼의 수집 범위는 다음과 같다.
 
----
+| 플랫폼 구분 | 수집 범위 |
+| --- | --- |
+| CJ대한통운 eFLEXs | 재고 |
+| 쿠팡 광고센터 | 광고 |
+| 쿠팡 판매자센터 | 상품, 매출 |
+| 이카운트 API | 상품, 재고 |
+| 구글 API | 광고 |
+| 메타 API | 광고 |
+| 네이버 메인 | 검색 |
+| 네이버 오픈 API | 검색 |
+| 사방넷 시스템 | 주문, 상품 |
+| 네이버 검색광고 API | 광고 보고서, 광고 계약, 검색량 |
+| 네이버 광고주센터 (검색광고) | 광고 보고서 |
+| 네이버 성과형 디스플레이 광고 | 광고 보고서, 광고 순위 |
+| 네이버 커머스 API | 주문, 상품, 통계 |
+| 네이버 쇼핑파트너센터 | 매출, 방문 통계, 카탈로그/상품 |
 
-## 아키텍처
+## 핵심 아키텍처
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    스케줄링 & 실행                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │   Airflow    │  │   Crontab    │  │   Streamlit   │  │
-│  │  (27 DAGs)   │  │ (브라우저 로그인)│  │  (수동 실행 UI) │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬────────┘  │
-└─────────┼─────────────────┼─────────────────┼───────────┘
-          │                 │                 │
-          ▼                 ▼                 ▼
-┌─────────────────────────────────────────────────────────┐
-│               linkmerce 핵심 패키지 (PyPI)                 │
-│                                                         │
-│  ┌──────────┐    ┌─────────────┐    ┌────────────────┐  │
-│  │   api/   │───▶│    core/    │───▶│    common/     │  │
-│  │ (통합 API)│    │ (Extract+   │    │ (Extractor,    │  │
-│  │          │    │ Transform)  │    │  Transformer,  │  │
-│  │          │    │             │    │  Connection)   │  │
-│  └──────────┘    └─────────────┘    └────────────────┘  │
-│                                                         │
-│  ┌──────────────┐              ┌─────────────────────┐  │
-│  │ extensions/  │              │       utils/        │  │
-│  │ (BigQuery,   │              │ (날짜, 엑셀, 파싱 등)   │  │
-│  │  Sheets)     │              │                     │  │
-│  └──────────────┘              └─────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────┐
-│              외부 서비스                                   │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐   │
-│  │  DuckDB  │  │ BigQuery │  │  Sheets  │  │ Slack  │   │
-│  │ (인메모리) │  │  (DW)    │  │ (리포트)   │  │ (알림)  │   │
-│  └──────────┘  └──────────┘  └──────────┘  └────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
+linkmerce 패키지를 이해하기 위해 주목해야 할 것은 `Extractor` → `Transformer` 연결이다.
 
----
+linkmerce 패키지는 ETL 프로세스를 [ _추출(Extract), 변환(Transform), 적재(Load)_ ] 3가지 부분으로 구분한다.   
+`Extractor`와 `Transformer`는 각각 추출과 변환 역할을 담당한다.
 
-## 프로젝트 구조
+1. `Extractor`는 동기 또는 비동기 HTTP 세션을 활용한 HTTP 요청을 담당한다.   
+    일부 작업은 매개변수 목록에 대해 반복 요청하는데, `Task`를 활용해 이러한 동작을 추상화한다.
+2. `Transformer`는 HTTP 응답 결과를 JSON 형식으로 파싱하고, DuckDB 테이블의 스키마에 맞게 변환해 적재한다.   
+    DuckDB 연결을 통해 BigQuery 등의 외부 시스템에 데이터를 적재하는 확장 기능을 별도로 제공한다.
 
-```
-linkmerce/
-├── src/linkmerce/          # 핵심 패키지 (PyPI 배포)
-│   ├── api/                #   통합 API — core/의 Extract+Transform을 조합한 실행 진입점
-│   ├── core/               #   ETL 모듈 — 플랫폼별 extract.py, transform.py, models.sql
-│   ├── common/             #   공통 베이스 — Extractor, Transformer, DuckDBConnection
-│   ├── extensions/         #   외부 연동 — BigQuery, Google Sheets
-│   └── utils/              #   유틸리티 — 날짜, 엑셀, 파싱, 정규식 등
-│
-├── airflow/                # Airflow 스케줄링
-│   ├── dags/               #   27개 DAG 정의
-│   ├── plugins/            #   변수 로더, linkmerce 패키지 심볼릭 링크
-│   └── config/             #   airflow.cfg
-│
-├── crontab/                # 크론탭 (브라우저 자동화 로그인)
-│   ├── coupang_login.py    #   쿠팡 로그인 스크립트
-│   └── *.sh                #   셸 래퍼 (cron 등록용)
-│
-├── streamlit/              # 수동 실행 UI
-│   └── app.py              #   Airflow DAG 트리거 웹 인터페이스
-│
-├── src/env/                # 환경설정 (비공개)
-│   ├── config.yaml         #   테이블 매핑, 스키마 경로
-│   ├── credentials.yaml    #   플랫폼별 인증 정보
-│   ├── schemas.json        #   BigQuery 테이블 스키마 정의
-│   └── service_account.json#   GCP 서비스 계정
-│
-├── pyproject.toml          # 패키지 메타데이터 (v0.6.8)
-└── Dockerfile              # Airflow 워커 이미지
+지금까지의 설명을 아래 표로 정리할 수 있다.
+
+| 계층 구분 | 책임 | 구현 경로 |
+| --- | --- | --- |
+| `Extractor` | HTTP 세션 관리, 요청 메시지 빌드 | `src/linkmerce/common/extract.py` |
+| `Task` | 반복 요청, 재시도, 페이지네이션 | `src/linkmerce/common/tasks.py` |
+| `ResponseTransformer` | 응답 결과 파싱, JSON 형식으로 변환 | `src/linkmerce/common/transform.py` |
+| `DuckDBTransformer` | DuckDB 테이블 생성 및 적재 | `src/linkmerce/common/transform.py` |
+| `DuckDBConnection` | DuckDB 연결 관리, CRUD 작업 지원 | `src/linkmerce/common/transform.py` |
+| `API Endpoint` | `Extractor`와 `Transformer` 연결 | `src/linkmerce/api/common.py` |
+| `Extensions` | DuckDB 테이블을 외부 시스템과 연동 | `src/linkmerce/extensions/*.py` |
+
+계층 구분에 따른 워크플로우는 또한 다음의 흐름도로 정리해볼 수도 있다.
+
+```bash
+[API Endpoint] (api/...)
+    ↓   사용자 파라미터 전달
+Extractor (core/.../extract.py)
+    ↓   HTTP 요청 및 응답 수신
+ResponseTransformer (core/.../transform.py)
+    ↓   JSON 형식으로 변환
+DuckDBTransformer (core/.../transform.py)
+    ↓   DuckDB 테이블에 적재
+DuckDBConnection (common/load.py)
+    ↓   외부 시스템에 적재
+BigQueryClient (extensions/...)
 ```
 
-> 각 하위 디렉토리의 상세 문서: [`src/linkmerce/README.md`](src/linkmerce/README.md) · [`airflow/README.md`](airflow/README.md)
+## 표준 ETL 모듈 구조
 
----
+ETL 프로세스를 플랫폼, 호스트명, 카테고리로 구성된 3단계 하위 경로로 구분한다.
 
-## 핵심 패키지 (`src/linkmerce/`)
-
-### ETL 파이프라인 구조
-
-모든 데이터 수집 작업은 `core/` 하위에 **동일한 3파일 구조**로 구성된다:
-
-```
-core/{플랫폼}/{서비스}/{작업}/
-├── extract.py      # 데이터 추출 (API 호출, 웹 스크래핑)
-├── transform.py    # 데이터 변환 (DuckDB SQL)
-└── models.sql      # SQL 모델 정의 (CREATE, SELECT, INSERT)
+```bash
+core/{platform}/{hostname}/{category}/
+├── extract.py
+├── transform.py
+└── models.sql
 ```
 
-`api/` 모듈이 이 세 파일을 조합하여 하나의 실행 가능한 함수로 노출한다:
+이 구조는 하나의 카테고리 안에서 책임을 명확히 분리한다.
+
+- `extract.py`: HTTP 요청 방식 구현
+- `transform.py`: 응답 파싱 및 DuckDB 적재 방식 구현
+- `models.sql`: CREATE, INSERT 등 SQL 쿼리문 설계
+
+이 패턴 덕분에 플랫폼 또는 호스트별로 구현이 달라도, 실행 방식과 테스트 방식은 비교적 일관되게 유지된다.
+
+ETL 프로세스를 실행할 때는 편의성을 위해 `core/` 모듈을 순서대로 호출하지 않고, 하나의 API 함수를 호출한다.
+
+linkmerce 패키지와 관련된 `src/linkmerce/` 경로에 대한 상세 설명은 별도의 [문서](src/README.md)를 참고한다.
+
+## 테스트 안내
+
+`src/tests` 경로에선 단일 `Extractor` 또는 `Transformer` 단위로 정상 동작하는지 테스트를 담당한다.
+
+- `test_extract.py`: `Extractor.extract()` 실행 결과 저장
+- `test_transform.py`: `DuckDBTransformer.parse()` 및 `bulk_insert()` 실행 결과 저장
+- `conftest.py`: 공용 리소스 Fixture 정의, `Transformer` 테스트를 지원하는 `TransformerHarness` 제공
+- `results/`: 각 테스트의 실행 결과가 저장되는 경로. Git 버전 관리에서는 제외된다.
+
+테스트와 관련된 `src/linkmerce/tests/` 경로에 대한 상세 설명은 별도의 [문서](src/tests/README.md)를 참고한다.
+
+## Airflow 서비스 구조
+
+Airflow 시스템을 구성하는 서비스 목록은 `docker-compose.yaml` 설정에서 정의한다.   
+운영 환경에서 Airflow Celery Executor 구성을 기준으로 다음 서비스들이 실행되고 있다.
+
+- `postgres`
+- `redis`
+- `playwright`
+- `airflow-apiserver`
+- `airflow-scheduler`
+- `airflow-dag-processor`
+- `airflow-worker`
+- `airflow-triggerer`
+- `airflow-init`
+
+나머지는 Apache Airflow에서 기본으로 정의한 서비스들이지만, `playwright` 서비스를 예외적으로 추가했다.   
+일부 작업에서는 `playwright` 서비스를 활용해 브라우저 렌더링을 활용한 웹 스크래핑을 수행한다.
+
+Docker Compose 실행은 다음 명령어 또는 `init.sh` 스크립트를 실행한다.
+
+```bash
+cd airflow
+docker compose up airflow-init
+docker compose up -d
+```
+
+## Airflow 작업 스케줄링
+
+linkmerce 패키지를 활용하는 Airflow DAG은 공통적으로 다음 흐름을 가진다.
+
+1. `airflow_utils` 플러그인의 `read_config()` 또는 `read_credentials()` 함수로 설정과 인증 정보를 불러온다.
+2. `linkmerce.api.*` 함수를 호출해 추출(extract)과 변환(transform) 과정을 수행한다.
+3. `DuckDBConnection`을 통해 테이블에 적재된 API 실행 결과를 불러올 수 있다.
+4. `BigQueryClient`를 활용해 API 실행 결과를 BigQuery 테이블에 적재한다.
+5. Task 결과를 `{params: {...}, counts: {...}, status: {...}}` 딕셔너리로 반환한다.
+
+이러한 흐름을 DAG으로 구현할 경우 다음과 같은 코드로 나타낼 수 있다.
 
 ```python
-from linkmerce.common.load import DuckDBConnection
-from linkmerce.api.smartstore.api import marketing_channel
+with DAG(dag_id="...") as dag:
 
-with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-    marketing_channel(
-        client_id="...", client_secret="...", channel_seq="...",
-        start_date="2025-01-01", end_date="2025-01-31",
-        connection=conn,
-    )
-    # conn 내부의 DuckDB 테이블에 변환된 데이터가 적재됨
-    # → BigQuery 등 외부 시스템으로 로드
+    PATH = "platform.hostname.category"
+
+    @task(task_id="...")
+    def read_configs() -> dict:
+        from airflow_utils import read_config
+        return read_config(PATH, tables=True, service_account=True)
+
+    @task(task_id="...")
+    def read_credentials() -> list:
+        from airflow_utils import read_config
+        return read_config(PATH, credentials=True)["credentials"]
+
+    @task(task_id="...", map_index_template="{{ credentials['id'] }}")
+    def etl_task(credentials: dict, configs: dict, **kwargs) -> dict:
+        return main(**credentials, **configs)
+
+    def main(service_account: dict, tables: dict[str, str], **kwargs) -> dict:
+        from linkmerce.common.load import DuckDBConnection
+        from linkmerce.api.platform.hostname import example_api
+        from linkmerce.extensions.bigquery import BigQueryClient
+
+        with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
+            example_api(**kwargs)
+
+            with BigQueryClient(service_account) as client:
+                status = client.load_table_from_duckdb(
+                    connection = conn,
+                    source_table = "table",
+                    target_table = tables["table"]
+                )
+                return {"params": {}, "counts": {}, "status": {"table": status}}
+
+    (etl_task
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))
 ```
 
-**핵심 클래스:**
+Airflow와 관련된 `airflow/` 경로에 대한 상세 설명은 별도의 [문서](airflow/README.md)를 참고한다.
 
-| 클래스 | 모듈 | 역할 |
-|--------|------|------|
-| `Extractor` | `common/extract.py` | HTTP 세션 관리, 동기/비동기 요청, 페이지네이션, 재시도 |
-| `Transformer` | `common/transform.py` | JSON/HTML 파싱, DuckDB SQL 변환, 테이블 생성·삽입 |
-| `DuckDBConnection` | `common/load.py` | 인메모리 DuckDB 커넥션, SQL 실행, 표현식 빌더 |
-| `BigQueryClient` | `extensions/bigquery.py` | DuckDB → BigQuery 적재 (append/merge/overwrite) |
+## Streamlit UI
 
-### 지원 플랫폼 및 API
+`streamlit/app.py`는 Airflow REST API를 호출하여 수동으로 DAG을 트리거하기 위한 운영용 UI다.
 
-총 **9개 플랫폼**, **27개 ETL 모듈** 지원:
+Airflow UI에 접근하여 직접 DAG을 트리거할 수 없는 쇼핑몰 운영 담당자가   
+비정기적인 데이터 수집 작업(_사방넷 주문 ETL만 지원_)에서 DAG을 제어할 수 있게 간단한 UI을 제공한다.
 
-| 플랫폼 | 모듈 경로 | 주요 API | 데이터 |
-|--------|-----------|----------|--------|
-| **쿠팡** | `coupang/` | Advertising, Wing | 광고 리포트, 캠페인, 상품 옵션, 로켓 정산 |
-| **네이버 스마트스토어** | `smartstore/` | Commerce API, 브랜드센터, 파트너센터 | 주문, 상품, 매출, 페이지뷰, 마케팅 채널 |
-| **네이버 검색광고** | `searchad/` | API, GFA, 관리 | 광고 리포트, 계약, 키워드 순위, 노출 진단 |
-| **네이버 검색** | `naver/` | 메인 검색, 오픈 API | 검색 결과, 카페 글, 쇼핑 순위 |
-| **사방넷** | `sabangnet/` | Admin | 주문, 상품, 옵션, 송장 |
-| **CJ 대한통운** | `cj/` | eFlexs, 로이스파셀 | 재고, 송장 |
-| **이카운트** | `ecount/` | ERP API | 상품, 재고 |
-| **Google** | `google/` | Google Ads API | 캠페인, 광고그룹, 광고, 인사이트 |
-| **Meta** | `meta/` | Marketing API | 캠페인, 광고세트, 광고, 인사이트 |
+Airflow와는 별도의 Docker Compose로 단일 Streamlit 서비스를 관리하며,   
+로컬 네트워크에서 서버 아이피와 포트를 조합한 주소로 접근한다.
 
----
-
-## 스케줄링 (`airflow/`)
-
-Docker 기반 Apache Airflow 3.1.3에서 **27개 DAG**를 운영한다.
-
-**표준 DAG 실행 패턴:**
-
-```python
-# 1. 변수·인증 정보 로드
-read_variables() → read_credentials()
-# 2. 인증 정보별 병렬 실행 (Dynamic Task Mapping)
-etl_task.partial(variables=vars).expand(credentials=creds)
-# 3. ETL 실행: Extract → DuckDB Transform → BigQuery Load
-# 4. 결과 반환: {params, counts, status}
-```
-
-주요 DAG 스케줄:
-
-| 시간대 | DAG | 주기 |
-|--------|-----|------|
-| 00:01 | 브랜드 가격 | 매일 |
-| 01:00 | 통합 로그인 (스마트스토어, 검색광고) | 매일 |
-| 02:00 | CJ 로이스파셀 송장 | 매일 |
-| 05:30–05:55 | 검색광고 계약·리포트, 쿠팡 광고 리포트 | 매일 |
-| 06:00–18:00 | 네이버 광고/쇼핑 순위 | 매시간 |
-| 07:40–08:30 | Meta·Google 광고, 스마트스토어 주문·비즈데이터 | 매일 |
-| 09:10–09:20 | 쿠팡 로켓 정산·상품 옵션 | 매일 |
-| 23:20–23:50 | 사방넷 상품·송장, 스마트스토어 상품 | 평일 |
-
-> 상세: [`airflow/README.md`](airflow/README.md)
-
----
-
-## 크론탭 (`crontab/`)
-
-Airflow 워커에서 실행할 수 없는 **브라우저 자동화 로그인**을 크론탭으로 처리한다.
-
-| 스크립트 | 시간 | 목적 |
-|----------|------|------|
-| `coupang_login_advertising.sh` | 05:41 | 쿠팡 광고 도메인 쿠키 갱신 |
-| `coupang_login_wing.sh` | 09:01 | 쿠팡 윙 도메인 쿠키 갱신 |
-
-`coupang_login.py` 가 실제 로그인 로직을 수행하고, 셸 스크립트가 크론에서 이를 호출한다.
-
----
-
-## 수동 실행 UI (`streamlit/`)
-
-사내 담당자가 브라우저에서 Airflow DAG를 수동 트리거할 수 있는 Streamlit 웹 애플리케이션이다.
-
-- 날짜/시간 범위 입력
-- Airflow REST API를 통한 DAG 실행
-- 실행 상태 실시간 모니터링 (running, success, failed 등)
+Docker Compose 실행은 다음 명령어를 사용한다.
 
 ```bash
 cd streamlit
 docker compose up -d
 ```
 
----
+## 빠른 시작
 
-## 설치
-
-### PyPI 패키지
+### 1. 패키지 개발 환경
 
 ```bash
-pip install linkmerce
+pip install -e .
 ```
 
-- Python >= 3.10
-- 주요 의존성: `aiohttp`, `duckdb`, `requests`, `bs4`, `openpyxl`, `jinja2`
-- BigQuery/Sheets 연동 시 별도 설치 필요: `google-cloud-bigquery`, `gspread`
+패키지 메타데이터는 `pyproject.toml`에 정의되어 있다.
 
-### Airflow 환경
+### 2. Airflow 로컬 실행
 
 ```bash
 cd airflow
-docker compose up airflow-init && docker compose up -d
+docker compose up airflow-init
+docker compose up -d
 ```
 
-- 기반 이미지: Apache Airflow 3.1.3 (Python 3.12)
-- 추가 패키지: `playwright`, `apache-airflow-providers-slack`, `pyarrow`
+### 3. 테스트 실행
 
----
+```bash
+pytest src/tests/test_extract.py -m extract -v -s
+pytest src/tests/test_transform.py -m transform -v -s
+```
 
-## 실행
+## 예시 코드
 
 ```python
-# 단독 사용 예시: 스마트스토어 마케팅 채널 데이터 수집
-from linkmerce.common.load import DuckDBConnection
 from linkmerce.api.smartstore.api import marketing_channel
-from linkmerce.extensions.bigquery import BigQueryClient
+from linkmerce.common.load import DuckDBConnection
 
 with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-    marketing_channel(
-        client_id="YOUR_CLIENT_ID",
-        client_secret="YOUR_CLIENT_SECRET",
-        channel_seq="CHANNEL_SEQ",
+    rows = marketing_channel(
+        client_id="...",
+        client_secret="...",
+        channel_seq="...",
         start_date="2025-01-01",
         end_date="2025-01-31",
         connection=conn,
+        return_type="json",
     )
 
-    with BigQueryClient(service_account) as bq:
-        bq.load_table_from_duckdb(
-            connection=conn,
-            source_table="data",
-            target_table="project.dataset.marketing_channel",
-        )
+print(len(rows))
 ```
+
+이 호출은 API 함수를 통해 `Extractor`와 `DuckDBTransformer`를 연쇄적으로 실행하고,   
+결과를 DuckDB 테이블에 적재한 뒤, 테이블 행을 조회하여 `list[dict]` 형식으로 반환한다.

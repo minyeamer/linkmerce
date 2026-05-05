@@ -66,7 +66,7 @@ class Transformer(metaclass=ABCMeta):
 class ResponseTransformer(Transformer, metaclass=ABCMeta):
     """HTTP 응답 데이터를 `list[dict]` 형식 객체로 변환하는 추상 클래스.
 
-    아래 5단계 파이프라인을 통해 HTTP 응답 데이터를 처리한다:
+    아래 6단계 파이프라인을 통해 HTTP 응답 데이터를 처리한다:
     1. `assert_valid_response` - HTTP 응답 데이터의 타입 및 유효성 검증
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
@@ -164,7 +164,7 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
 class JsonTransformer(ResponseTransformer):
     """`dict` 또는 `list` 형태의 JSON 데이터를 변환하는 클래스.
 
-    아래 5단계 파이프라인을 통해 JSON 데이터를 처리한다:
+    아래 6단계 파이프라인을 통해 JSON 데이터를 처리한다:
     1. `assert_valid_response` - HTTP 응답 데이터의 타입 및 유효성 검증
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
@@ -237,7 +237,7 @@ class JsonTransformer(ResponseTransformer):
 class HtmlTransformer(ResponseTransformer):
     """HTML(BeautifulSoup) 응답 데이터를 JSON 형식으로 변환하는 클래스.
 
-    아래 5단계 파이프라인을 통해 HTTP 응답 데이터를 처리한다:
+    아래 6단계 파이프라인을 통해 HTTP 응답 데이터를 처리한다:
     1. `assert_valid_response` - HTTP 응답 데이터의 타입 및 유효성 검증
     2. `get_scope` - 전체 데이터 중 파싱 대상이 되는 특정 지점(`scope`) 탐색
     3. `parse` - 탐색된 데이터를 필드 선택에 용이한 데이터 구조로 변환
@@ -306,7 +306,7 @@ class HtmlTransformer(ResponseTransformer):
 class ExcelTransformer(JsonTransformer):
     """Excel(openpyxl) 응답 데이터를 JSON 형식으로 변환하는 클래스.
 
-    아래 5단계 파이프라인을 통해 HTTP 응답 데이터를 처리한다:
+    아래 6단계 파이프라인을 통해 HTTP 응답 데이터를 처리한다:
     1. `assert_valid_response` - HTTP 응답 데이터의 타입 및 유효성 검증
     2. `get_scope` - 엑셀 불러오기 전 작업, 필요 시 구현
     3. `parse` - 엑셀 시트를 JSON 형식으로 불러오고 필드 선택에 용이한 데이터 구조로 변환

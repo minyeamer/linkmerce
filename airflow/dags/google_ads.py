@@ -12,10 +12,10 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "google:ads", "api:google", "schedule:daily", "time:morning"],
     doc_md = dedent("""
-        # 구글 Ads ETL 파이프라인
+        # 구글 광고 ETL 파이프라인
 
         ## 인증(Credentials)
-        구글 Ads API 인증 정보(개발자 토큰, 계정 ID, 매니저 계정 ID)와
+        구글 광고 API 인증 정보(개발자 토큰, 계정 ID, 매니저 계정 ID)와
         GCP 서비스 계정이 필요하다.
 
         ## 추출(Extract)
