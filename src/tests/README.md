@@ -1,4 +1,4 @@
-# 테스트 안내
+# linkmerce 테스트 안내
 
 해당 테스트는 `linkmerce` 패키지의 `Extractor`와 `DuckDBTransformer`의 동작을 검증하는 테스트 모음이다.
 

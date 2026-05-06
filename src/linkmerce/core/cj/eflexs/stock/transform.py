@@ -4,7 +4,7 @@ from linkmerce.common.transform import DuckDBTransformer
 
 
 class Stock(DuckDBTransformer):
-    """CJ eFLEXs 상세 재고 현황을 변환 및 적재하는 클래스.
+    """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역을 변환 및 적재하는 클래스.
 
     - **Extractor**: `Stock`
 

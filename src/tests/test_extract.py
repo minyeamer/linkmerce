@@ -23,7 +23,7 @@ pytestmark = pytest.mark.extract
 ###################################################################
 
 class TestCjLogistics:
-    """CJ eFLEXs 데이터 추출 테스트.
+    """CJ대한통운 eFLEXs 데이터 추출 테스트.
     - cj.eflexs.stock.Stock"""
 
     def credentials(self, reader: YamlReader) -> dict:
@@ -37,7 +37,7 @@ class TestCjLogistics:
     @pytest.mark.skip
     @pytest.mark.cj_logistics
     def test_stock(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        """CJ eFLEXs 상세 재고 현황을 조회하는 테스트."""
+        """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역을 조회하는 테스트."""
         from linkmerce.core.cj.eflexs.stock.extract import Stock
         _configs = configs("cjlogistics.eflexs.stock")
         Stock(
@@ -1197,7 +1197,7 @@ class TestSmartstoreApi:
 ###################### SmartStore Bizdata API #####################
 ###################################################################
 
-class TestBizdataApi:
+class TestSmartstoreBizdataApi:
     """스마트스토어 API데이터솔루션(통계) 데이터 추출 테스트.
     - smartstore.api.bizdata.MarketingChannel"""
 
@@ -1211,7 +1211,7 @@ class TestBizdataApi:
     def channel_seq(self, reader: YamlReader) -> int | str:
         return reader("smartstore.bizdata.0")["channel_seq"]
 
-    @pytest.mark.bizdata_api
+    @pytest.mark.ss_bizdata_api
     def test_marketing_channel(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 커머스 API로 사용자 정의 채널 상세 데이터를 조회하는 테스트."""
         from linkmerce.core.smartstore.api.bizdata.extract import MarketingChannel
@@ -1228,10 +1228,10 @@ class TestBizdataApi:
 
 
 ###################################################################
-################## Naver Shopping Partner Center ##################
+##################### Shopping Partner Center #####################
 ###################################################################
 
-class TestPartnerCenter:
+class TestShoppingPartnerCenter:
     """네이버 쇼핑파트너센터 데이터 추출 테스트.
     - smartstore.hcenter.catalog.BrandCatalog
     - smartstore.hcenter.catalog.BrandProduct
@@ -1246,7 +1246,7 @@ class TestPartnerCenter:
     def cookies(self, reader: YamlReader) -> str:
         return reader("smartstore.hcenter")["cookies"]
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_brand_catalog(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 브랜드 카탈로그 목록을 조회하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.extract import BrandCatalog
@@ -1262,7 +1262,7 @@ class TestPartnerCenter:
             page_size = _configs.get("page_size", 10),
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_brand_product(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 브랜드 상품 목록을 조회하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.extract import BrandProduct
@@ -1279,7 +1279,7 @@ class TestPartnerCenter:
             page_size = _configs.get("page_size", 10),
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_page_view_by_device(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 브랜드 스토어의 일별/기기별 방문 통계 데이터를 조회하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByDevice
@@ -1293,7 +1293,7 @@ class TestPartnerCenter:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_page_view_by_url(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 조회하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByUrl
@@ -1307,7 +1307,7 @@ class TestPartnerCenter:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_store_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 스토어의 매출 데이터를 조회하는 공통 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.extract import StoreSales
@@ -1324,7 +1324,7 @@ class TestPartnerCenter:
             page_size = _configs.get("page_size", 1000),
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_category_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 스토어의 카테고리별 매출 데이터를 조회하는 공통 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.extract import CategorySales
@@ -1341,7 +1341,7 @@ class TestPartnerCenter:
             page_size = _configs.get("page_size", 1000),
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_product_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 스토어의 상품별 매출 데이터를 조회하는 공통 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.extract import ProductSales

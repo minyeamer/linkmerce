@@ -24,13 +24,13 @@ with DAG(
 
         ## 인증(Credentials)
         다음 3가지 플랫폼에 대한 인증 정보가 필요하다.
-        1. CJ eFLEXs 로그인을 위한 아이디, 비밀번호 및 2단계 인증 메일 정보
-        2. 쿠팡 윙 로그인 쿠키
+        1. CJ대한통운 eFLEXs 로그인을 위한 아이디, 비밀번호 및 2단계 인증 메일 정보
+        2. 쿠팡 Wing 로그인 쿠키
         3. 이카운트 API 인증 키(회사코드, 사용자ID, API 키)
 
         ## 추출(Extract)
-        1. CJ eFLEXs 재고 검색 결과를 수집한다.
-        2. 쿠팡 로켓 재고 내역을 수집한다.
+        1. CJ대한통운 eFLEXs 상세재고조회 결과를 수집한다.
+        2. 쿠팡 로켓그로스 재고현황을 수집한다.
         3. 이카운트 창고별/품목별 재고 현황과 품목 리스트를 수집한다.
 
         ## 변환(Transform)
@@ -38,8 +38,8 @@ with DAG(
         각각의 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        1. CJ eFLEXs 재고 테이블의 데이터를 기존 BigQuery 테이블을 지우고 덮어쓴다.
-        2. 쿠팡 로켓 재고 데이터는 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        1. CJ대한통운 eFLEXs 상세재고조회 결과는 기존 BigQuery 테이블을 지우고 덮어쓴다.
+        2. 쿠팡 로켓그로스 재고현황은 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
         3. 이카운트 재고와 상품 데이터도 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
 
         ## 알림(Alert)
@@ -64,7 +64,7 @@ with DAG(
 
         @task(task_id="etl_eflexs_stock")
         def etl_eflexs_stock(ti: TaskInstance, **kwargs) -> dict:
-            """CJ eFLEXs 재고 검색 결과를 수집 및 BigQuery 테이블에 적재한다.
+            """CJ대한통운 eFLEXs 상세재고조회 결과를 수집 및 BigQuery 테이블에 적재한다.
             (2단계 인증 메일 수신에 2분 정도 시간이 걸린다.)"""
             from airflow_utils import get_execution_date
             start_date, end_date = get_execution_date(kwargs, subdays=7), get_execution_date(kwargs)
@@ -141,7 +141,7 @@ with DAG(
 
         @task(task_id="etl_coupang_inventory")
         def etl_coupang_inventory(configs: dict, **kwargs) -> dict:
-            """업체별 순차적으로 쿠팡 윙 로그인 후, 쿠팡 로켓 배송 재고 내역을 수집하여 BigQuery 테이블에 적재한다."""
+            """업체별 순차적으로 쿠팡 Wing 로그인 후, 쿠팡 로켓그로스 재고현황을 수집하여 BigQuery 테이블에 적재한다."""
             from pw_actions import login_coupang
             import logging
             import time
@@ -157,7 +157,7 @@ with DAG(
                 exec_info = {"vendor_id": vendor_id, "cookies": dict(), "login": None, "etl": dict()}
                 user_info = (credentials["userid"], credentials["passwd"])
 
-                # 1. 쿠팡 윙 로그인 (최대 3회 재시도)
+                # 1. 쿠팡 Wing 로그인 (최대 3회 재시도)
                 error_flag = False
                 for _ in range(3):
                     try:
@@ -511,7 +511,7 @@ with DAG(
 
 
         def sum_eflexs_quantity(rows: list[tuple]) -> int:
-            """테이블 함수 조회 시 CJ eFLEXs 재고 내역이 가끔씩 누락된다. 재고 수량이 없다면 재시도를 요구하기 위한 함수다."""
+            """테이블 함수 조회 시 CJ대한통운 eFLEXs 재고 내역이 가끔씩 누락된다. 재고 수량이 없다면 재시도를 요구하기 위한 함수다."""
             ELFEXS_QUANTITY = 10
             try:
                 return sum([(row[ELFEXS_QUANTITY] or 0) for row in rows[1:]]) if rows else 0

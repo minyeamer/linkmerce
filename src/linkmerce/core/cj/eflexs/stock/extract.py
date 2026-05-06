@@ -9,9 +9,9 @@ if TYPE_CHECKING:
 
 
 class Stock(CjEflexs):
-    """CJ eFLEXs 상세 재고 현황을 조회하는 클래스.
+    """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역을 조회하는 클래스.
 
-    - **Menu**: 재고관리 > 현황 > 상세재고현황 (`IMSI0002M`)
+    - **Menu**: 재고관리 > 재고조회 > 상세재고조회 (`IMSI0002M`)
     - **API**: https://eflexs-x.cjlogistics.com/IMSI0002M/selectDtlStckSearch.do
     - **Referer**: https://eflexs-x.cjlogistics.com/index.do
 
@@ -51,7 +51,7 @@ class Stock(CjEflexs):
             end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
             **kwargs
         ) -> dict | list[dict]:
-        """고객별 상세 재고 현황을 조회해 JSON 형식으로 반환한다.
+        """상세재고조회 화면에서 고객별 재고 내역을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
@@ -68,7 +68,7 @@ class Stock(CjEflexs):
         Returns
         -------
         dict | list[dict]
-            상세 재고 현황. `customer_id` 타입에 따라 반환 타입이 다르다.
+            고객별 재고 내역. `customer_id` 타입에 따라 반환 타입이 다르다.
                 - `customer_id`가 `int | str` 타입일 때 -> `dict`
                 - `customer_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """

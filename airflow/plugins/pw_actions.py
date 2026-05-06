@@ -45,7 +45,7 @@ def get_browser_cookies(
 ###################################################################
 
 def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True) -> dict:
-    """Playwright 브라우저로 쿠팡 윙/광고 로그인을 수행하고 `{wing: "...", ads: "..."}` 형태의 쿠키를 반환한다.
+    """Playwright 브라우저로 쿠팡 Wing/광고 로그인을 수행하고 `{wing: "...", ads: "..."}` 형태의 쿠키를 반환한다.
 
     주의) Playwright 브라우저가 `headless=False` 옵션 또는 가상 렌더링을 지원하지 않으면   
     `Access Denied` 페이지가 발생하며 로그인이 실패한다."""
@@ -55,7 +55,7 @@ def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True) -> dic
 
 
     def wing_login_action(page: Page):
-        """쿠팡 윙 판매자센터로 이동하여 로그인을 수행한다."""
+        """쿠팡 Wing 판매자센터로 이동하여 로그인을 수행한다."""
         page.goto("https://wing.coupang.com/", wait_until="domcontentloaded")
 
         page.wait_for_selector("input#username", timeout=60_000)
@@ -68,13 +68,13 @@ def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True) -> dic
 
 
     def get_wing_cookies(context: BrowserContext) -> str:
-        """쿠팡 윙 판매자센터에서 쿠키에 `XSRF-TOKEN`이 추가될 때까지 대기하고, 쿠키 문자열을 추출한다."""
+        """쿠팡 Wing 판매자센터에서 쿠키에 `XSRF-TOKEN`이 추가될 때까지 대기하고, 쿠키 문자열을 추출한다."""
         return get_browser_cookies(context, ["https://wing.coupang.com"],
             requires=["XSRF-TOKEN"], err_msg="Failed to login in to Coupang Wing.")
 
 
     def open_ads_menu(context: BrowserContext, page: Page):
-        """쿠팡 윙 판매자센터의 사이드 메뉴에서 '광고센터' 탭을 클릭해서 새 탭에 쿠팡 광고센터를 연다."""
+        """쿠팡 Wing 판매자센터의 사이드 메뉴에서 '광고센터' 탭을 클릭해서 새 탭에 쿠팡 광고센터를 연다."""
         with context.expect_page() as new_page_info:
             selector = '#wing-top-main-side-menu [data-menu-code="ADS_CENTER_ALL"] a'
             page.locator(selector).first.click()
@@ -85,7 +85,7 @@ def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True) -> dic
 
 
     def get_ads_cookies(context: BrowserContext):
-        """쿠팡 윙 광고센터로 이동한 후 쿠키 문자열을 추출한다."""
+        """쿠팡 Wing 광고센터로 이동한 후 쿠키 문자열을 추출한다."""
         return get_browser_cookies(context, ["https://advertising.coupang.com"],
             err_msg="Failed to login in to Coupang Ads.")
 

@@ -5,7 +5,7 @@ import functools
 
 
 class CjEflexs(Extractor):
-    """CJ eFLEXs 로그인 및 2단계 인증을 처리하는 공통 클래스.
+    """CJ대한통운 eFLEXs 로그인 및 2단계 인증을 처리하는 공통 클래스.
 
     - **URL**: https://eflexs-x.cjlogistics.com/index.do
 
@@ -14,9 +14,9 @@ class CjEflexs(Extractor):
     **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
 
     userid: str
-        CJ eFLEXs 로그인을 위한 User ID
+        CJ대한통운 eFLEXs 로그인을 위한 User ID
     passwd: str
-        CJ eFLEXs 로그인을 위한 Password
+        CJ대한통운 eFLEXs 로그인을 위한 Password
     mail_info: dict[str, str]
         2단계 인증을 위한 이메일 정보. 다음 키값을 포함해야 한다.
         - **origin**: 메일 서비스 도메인
@@ -43,7 +43,7 @@ class CjEflexs(Extractor):
         return wrapper
 
     def login(self, userid: str, passwd: str, mail_info: dict, **context):
-        """CJ eFLEXs 로그인 및 2단계 인증을 처리한다."""
+        """CJ대한통운 eFLEXs 로그인 및 2단계 인증을 처리한다."""
         try:
             self._disable_warnings()
             self._init_session()
@@ -53,7 +53,7 @@ class CjEflexs(Extractor):
             self._login_final(userid, key, code)
         except:
             from linkmerce.common.exceptions import AuthenticationError
-            raise AuthenticationError("Failed to login in to CJ eFLEXs.")
+            raise AuthenticationError("Failed to login in to CJ대한통운 eFLEXs.")
 
     def _disable_warnings(self):
         from urllib3 import disable_warnings as disable

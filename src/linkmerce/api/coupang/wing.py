@@ -137,7 +137,8 @@ def product_option(
 
         transform_options_ = (transform_options[DETAIL] or dict()) | {"tables": {"table": table}}
         details = ProductDetail(**prepare_duckdb_extract(
-            T, connection, extract_options[DETAIL], transform_options_, return_type, cookies,
+            T, connection, extract_options[DETAIL], transform_options_, return_type,
+            cookies = cookies,
             options = {
                 "RequestEach": {
                     "request_delay": request_delay,
@@ -422,7 +423,8 @@ def rocket_option(
 
         transform_options_ = (transform_options[DETAIL] or dict()) | {"tables": {"table": table}}
         details = ProductDetail(**prepare_duckdb_extract(
-            T, connection, extract_options[DETAIL], transform_options_, return_type, cookies,
+            T, connection, extract_options[DETAIL], transform_options_, return_type,
+            cookies = cookies,
             options = {
                 "RequestEach": {
                     "request_delay": request_delay,

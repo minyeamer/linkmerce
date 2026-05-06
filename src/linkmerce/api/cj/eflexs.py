@@ -27,7 +27,7 @@ def stock(
         extract_options: dict | None = None,
         transform_options: dict | None = None,
     ) -> DuckDBResult | dict | list[dict] | None:
-    """CJ eFLEXs 상세 재고 현황 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
+    """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
         `table: eflexs_stock`

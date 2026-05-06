@@ -110,7 +110,8 @@ core/{platform}/{hostname}/{category}/
 
 ETL 프로세스를 실행할 때는 편의성을 위해 `core/` 모듈을 순서대로 호출하지 않고, 하나의 API 함수를 호출한다.
 
-linkmerce 패키지와 관련된 `src/linkmerce/` 경로에 대한 상세 설명은 별도의 [문서](src/README.md)를 참고한다.
+linkmerce 패키지와 관련된 `src/linkmerce/` 경로에 대한 상세 설명은
+별도의 [문서](https://github.com/minyeamer/linkmerce/blob/main/src/README.md)를 참고한다.
 
 ## 테스트 안내
 
@@ -121,7 +122,8 @@ linkmerce 패키지와 관련된 `src/linkmerce/` 경로에 대한 상세 설명
 - `conftest.py`: 공용 리소스 Fixture 정의, `Transformer` 테스트를 지원하는 `TransformerHarness` 제공
 - `results/`: 각 테스트의 실행 결과가 저장되는 경로. Git 버전 관리에서는 제외된다.
 
-테스트와 관련된 `src/linkmerce/tests/` 경로에 대한 상세 설명은 별도의 [문서](src/tests/README.md)를 참고한다.
+테스트와 관련된 `src/linkmerce/tests/` 경로에 대한 상세 설명은
+별도의 [문서](https://github.com/minyeamer/linkmerce/blob/main/src/tests/README.md)를 참고한다.
 
 ## Airflow 서비스 구조
 
@@ -201,7 +203,8 @@ with DAG(dag_id="...") as dag:
     .expand(credentials=read_credentials()))
 ```
 
-Airflow와 관련된 `airflow/` 경로에 대한 상세 설명은 별도의 [문서](airflow/README.md)를 참고한다.
+Airflow와 관련된 `airflow/` 경로에 대한 상세 설명은
+별도의 [문서](https://github.com/minyeamer/linkmerce/blob/main/airflow/README.md)를 참고한다.
 
 ## Streamlit UI
 

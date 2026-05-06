@@ -26,13 +26,13 @@ pytestmark = pytest.mark.transform
 ###################################################################
 
 class TestCjLogistics:
-    """CJ eFLEXs 데이터 변환 테스트.
+    """CJ대한통운 eFLEXs 데이터 변환 테스트.
     - cj.eflexs.stock.Stock"""
 
     @pytest.mark.skip
     @pytest.mark.cj_logistics
     def test_stock(self, transformer_harness: Harness):
-        """CJ eFLEXs 상세 재고 현황을 변환하는 테스트."""
+        """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역을 변환하는 테스트."""
         from linkmerce.core.cj.eflexs.stock.transform import Stock
         transformer_harness(Stock).transform()
 
@@ -841,14 +841,14 @@ class TestSmartstoreApi:
 ###################### SmartStore Bizdata API #####################
 ###################################################################
 
-class TestBizdataApi:
+class TestSmartstoreBizdataApi:
     """스마트스토어 API데이터솔루션(통계) 데이터 변환 테스트.
     - smartstore.api.bizdata.MarketingChannel"""
 
     def channel_seq(self, reader: YamlReader):
         return reader("smartstore.bizdata.0")["channel_seq"]
 
-    @pytest.mark.bizdata_api
+    @pytest.mark.ss_bizdata_api
     def test_marketing_channel(self, transformer_harness: Harness, credentials: YamlReader, yesterday: dt.date):
         """스마트스토어 사용자 정의 채널 상세 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.api.bizdata.transform import MarketingChannel
@@ -859,10 +859,10 @@ class TestBizdataApi:
 
 
 ###################################################################
-######################## SmartStore Brand #########################
+##################### Shopping Partner Center #####################
 ###################################################################
 
-class TestSmartStoreBrand:
+class TestShoppingPartnerCenter:
     """네이버 쇼핑파트너센터 데이터 변환 테스트.
     - smartstore.hcenter.catalog.BrandCatalog
     - smartstore.hcenter.catalog.BrandProduct
@@ -878,7 +878,7 @@ class TestSmartStoreBrand:
 
     eol_date = dt.date(2026, 2, 26)
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_brand_catalog(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 카탈로그 목록을 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.transform import BrandCatalog
@@ -887,7 +887,7 @@ class TestSmartStoreBrand:
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_brand_product(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 상품 목록을 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.transform import BrandProduct
@@ -897,7 +897,7 @@ class TestSmartStoreBrand:
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_brand_price(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 상품 목록에서 판매가 변동을 추적하기 위한 가격 정보를 추출 및 적재하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.transform import BrandPrice
@@ -907,7 +907,7 @@ class TestSmartStoreBrand:
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_product_catalog(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 상품 목록에서 카탈로그-상품 매핑 내역을 추출 및 적재하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.transform import ProductCatalog
@@ -917,7 +917,7 @@ class TestSmartStoreBrand:
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_page_view_by_device(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 스토어의 일별/기기별 방문 통계 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByDevice
@@ -927,7 +927,7 @@ class TestSmartStoreBrand:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_page_view_by_url(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByUrl
@@ -937,7 +937,7 @@ class TestSmartStoreBrand:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_page_view_by_product(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 일별/상품별 데이터로 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByProduct
@@ -947,7 +947,7 @@ class TestSmartStoreBrand:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_store_sales(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 스토어의 일간 매출 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.transform import StoreSales
@@ -958,7 +958,7 @@ class TestSmartStoreBrand:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_category_sales(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 스토어의 일간/카테고리별 매출 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.transform import CategorySales
@@ -969,7 +969,7 @@ class TestSmartStoreBrand:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_product_sales(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 스토어의 일간/상품별 매출 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.transform import ProductSales
@@ -980,7 +980,7 @@ class TestSmartStoreBrand:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.smartstore_hcenter
+    @pytest.mark.ss_hcenter
     def test_aggregated_sales(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 스토어의 일간/상품별 매출 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.transform import AggregatedSales

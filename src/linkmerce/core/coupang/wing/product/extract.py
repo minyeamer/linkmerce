@@ -375,7 +375,7 @@ class RocketInventory(CoupangWing):
         Returns
         -------
         list[dict]
-            로켓그로스 상품 목록
+            로켓그로스 재고현황
         """
         return (self.cursor_all(self.request_json_safe, self.get_next_cursor)
                 .run(hidden_status=hidden_status, vendor_id=vendor_id, referer=kwargs.get("referer")))

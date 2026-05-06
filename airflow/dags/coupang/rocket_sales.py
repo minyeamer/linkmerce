@@ -18,7 +18,7 @@ with DAG(
         > 안내) 쿠팡 통합 ETL을 제어하는 'coupang' DAG 실행 중 트리거된다.
 
         ## 인증(Credentials)
-        'coupang' DAG에서 Playwright 브라우저로 쿠팡 윙 로그인 후 쿠키를 추출한다.
+        'coupang' DAG에서 Playwright 브라우저로 쿠팡 Wing 로그인 후 쿠키를 추출한다.
         쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
 
         ## 추출(Extract)

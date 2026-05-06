@@ -17,11 +17,11 @@ with DAG(
         "login:coupang", "schedule:daily", "time:morning"
     ],
     doc_md = dedent("""
-        # 쿠팡 윙/광고 통합 ETL 파이프라인
+        # 쿠팡 Wing/광고 통합 ETL 파이프라인
 
         ## 동작 방식
         쿠팡 계정 목록을 순회하면서 한 번에 하나씩 [로그인 >> 4개의 SubDAG 순차 실행] 사이클을 반복한다.
-        로그인은 쿠팡 윙 인증 후 광고센터 탭으로 전환하여 윙/광고에 대한 쿠키를 한번에 수집한다.
+        로그인은 쿠팡 Wing 인증 후 광고센터 탭으로 전환하여 윙/광고에 대한 쿠키를 한번에 수집한다.
 
         ## 주의 사항
         쿠팡 로그인 정책 강화로 인해 한 번에 하나의 판매자 계정만 로그인 가능하다.
@@ -131,7 +131,7 @@ with DAG(
             exec_info = {"vendor_id": vendor_id, "cookies": dict(), "login": None, "subdags": dict()}
             user_info = (creds["userid"], creds["passwd"])
 
-            # 2. 쿠팡 윙/광고 로그인 (최대 3회 재시도)
+            # 2. 쿠팡 Wing/광고 로그인 (최대 3회 재시도)
             login_error_flag = False
             for _ in range(3):
                 try:

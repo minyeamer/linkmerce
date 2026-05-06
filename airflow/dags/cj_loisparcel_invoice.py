@@ -13,10 +13,10 @@ with DAG(
     catchup = False,
     tags = ["priority:high", "loisparcel:invoice", "login:cj-loisparcel", "schedule:daily", "time:night", "playwright:true"],
     doc_md = dedent("""
-        # CJ 로이스파셀 기업고객일별배송상세 ETL 파이프라인
+        # CJ대한통운 로이스파셀 기업고객일별배송상세 ETL 파이프라인
 
         ## 인증(Credentials)
-        CJ 로이스파셀 로그인을 위한 아이디, 비밀번호와
+        CJ대한통운 로이스파셀 로그인을 위한 아이디, 비밀번호와
         2단계 인증을 위한 이메일 계정 로그인 정보가 필요하다.
         (동일한 도커 네트워크의 Playwright 컨테이너가 실행 중이어야 한다.)
 
@@ -132,7 +132,7 @@ with DAG(
         SHORT = 0.5
 
         def login_begin(page: Page, userid: str, passwd: str):
-            """CJ 로이스파셀 로그인을 시도한다."""
+            """CJ대한통운 로이스파셀 로그인을 시도한다."""
             login_url = "https://loisparcelp.cjlogistics.com/index.do"
             page.goto(login_url)
             page.type('input[type="text"]', userid, delay=100); time.sleep(MEDIUM)
@@ -140,7 +140,7 @@ with DAG(
             page.click("div.btn-login > a"); time.sleep(SHORT)
 
         def two_login_action(page: Page, code: str):
-            """CJ 로이스파셀 로그인 요청 후 2단계 인증을 처리한다."""
+            """CJ대한통운 로이스파셀 로그인 요청 후 2단계 인증을 처리한다."""
             page.type("input.cl-text", code, delay=100); time.sleep(SHORT)
             page.click("div.btn-login > a"); time.sleep(SHORT)
             page.wait_for_selector("div.main-logintime", timeout=30*1000)
@@ -356,7 +356,7 @@ with DAG(
             wait_interval: int = 1,
             **kwargs
         ) -> str:
-        """CJ 로이스파셀 로그인을 위해 2단계 인증을 수행한다."""
+        """CJ대한통운 로이스파셀 로그인을 위해 2단계 인증을 수행한다."""
         from linkmerce.utils.headers import build_headers
         import requests
         import time
