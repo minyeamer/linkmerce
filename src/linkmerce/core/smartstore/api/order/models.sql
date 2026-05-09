@@ -1,22 +1,23 @@
 -- Order: create
 CREATE TABLE IF NOT EXISTS {{ order }} (
-    order_id BIGINT PRIMARY KEY
+    order_id BIGINT NOT NULL
   , channel_seq BIGINT NOT NULL
   , orderer_no BIGINT
-  , payment_location INTEGER
+  , payment_location TINYINT
   , order_dt TIMESTAMP
   , payment_dt TIMESTAMP NOT NULL
+  , PRIMARY KEY (order_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ product_order }} (
-    product_order_id BIGINT PRIMARY KEY
+    product_order_id BIGINT NOT NULL
   , order_id BIGINT NOT NULL
   , channel_seq BIGINT NOT NULL
   , product_id BIGINT NOT NULL
   , option_id BIGINT NOT NULL
   , product_type TINYINT -- {0: '단일상품', 1: '옵션상품', 2: '추가구성상품'}
-  , delivery_type INTEGER
-  , delivery_tag_type INTEGER
+  , delivery_type TINYINT
+  , delivery_tag_type TINYINT
   , inflow_path VARCHAR
   , inflow_path_add VARCHAR
   , order_quantity INTEGER
@@ -29,26 +30,28 @@ CREATE TABLE IF NOT EXISTS {{ product_order }} (
   , supply_amount INTEGER
   , delivery_fee INTEGER
   , payment_dt TIMESTAMP NOT NULL
+  , PRIMARY KEY (product_order_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ delivery }} (
-    product_order_id BIGINT PRIMARY KEY
+    product_order_id BIGINT NOT NULL
   , order_id BIGINT NOT NULL
   , channel_seq BIGINT NOT NULL
   , invoice_no VARCHAR NOT NULL
   , delivery_company VARCHAR
-  , delivery_method INTEGER
+  , delivery_method TINYINT
   , zip_code VARCHAR
   , latitude VARCHAR
   , longitude VARCHAR
   , pickup_dt TIMESTAMP
   , send_dt TIMESTAMP
   , payment_dt TIMESTAMP NOT NULL
+  , PRIMARY KEY (product_order_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ option }} (
-    product_id BIGINT
-  , option_id BIGINT PRIMARY KEY
+    product_id BIGINT NOT NULL
+  , option_id BIGINT NOT NULL
   , channel_seq BIGINT NOT NULL
   , seller_product_code VARCHAR
   , seller_option_code VARCHAR
@@ -58,13 +61,14 @@ CREATE TABLE IF NOT EXISTS {{ option }} (
   , sales_price INTEGER
   , option_price INTEGER
   , update_date DATE
+  , PRIMARY KEY (option_id)
 );
 
 -- Order: bulk_insert
 INSERT INTO {{ order }}
 SELECT
-    TRY_CAST(content.order.orderId AS BIGINT) AS order_id
-  , TRY_CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
+    CAST(content.order.orderId AS BIGINT) AS order_id
+  , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , TRY_CAST(content.order.ordererNo AS BIGINT) AS orderer_no
   , (CASE
       WHEN content.order.payLocationType == 'PC' THEN 0
@@ -78,11 +82,11 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ product_order }}
 SELECT
-    TRY_CAST(productOrderId AS BIGINT) AS product_order_id
-  , TRY_CAST(content.order.orderId AS BIGINT) AS order_id
-  , TRY_CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
-  , TRY_CAST(content.productOrder.productId AS BIGINT) AS product_id
-  , TRY_CAST(content.productOrder.optionCode AS BIGINT) AS option_id
+    CAST(productOrderId AS BIGINT) AS product_order_id
+  , CAST(content.order.orderId AS BIGINT) AS order_id
+  , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
+  , CAST(content.productOrder.productId AS BIGINT) AS product_id
+  , CAST(content.productOrder.optionCode AS BIGINT) AS option_id
   , (CASE
       WHEN content.productOrder.productClass = '단일상품' THEN 0
       WHEN content.productOrder.productClass IN ('옵션상품','조합형옵션상품') THEN 1
@@ -132,9 +136,9 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ delivery }}
 SELECT
-    TRY_CAST(productOrderId AS BIGINT) AS product_order_id
-  , TRY_CAST(content.order.orderId AS BIGINT) AS order_id
-  , TRY_CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
+    CAST(productOrderId AS BIGINT) AS product_order_id
+  , CAST(content.order.orderId AS BIGINT) AS order_id
+  , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , content.delivery.trackingNumber AS invoice_no
   , content.delivery.deliveryCompany AS delivery_company
   , (CASE
@@ -163,9 +167,9 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ option }}
 SELECT
-    TRY_CAST(content.productOrder.productId AS BIGINT) AS product_id
-  , TRY_CAST(content.productOrder.optionCode AS BIGINT) AS option_id
-  , TRY_CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
+    CAST(content.productOrder.productId AS BIGINT) AS product_id
+  , CAST(content.productOrder.optionCode AS BIGINT) AS option_id
+  , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , content.productOrder.sellerProductCode AS seller_product_code
   , content.productOrder.optionManageCode AS seller_option_code
   , (CASE
@@ -179,7 +183,6 @@ SELECT
   , content.productOrder.optionPrice AS option_price
   , TRY_CAST(content.order.paymentDate AS DATE) AS update_date
 FROM {{ rows }}
-WHERE TRY_CAST(content.productOrder.optionCode AS BIGINT) IS NOT NULL
 QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.optionCode) = 1
 ON CONFLICT DO UPDATE SET
     product_id = COALESCE(EXCLUDED.product_id, product_id)
@@ -255,10 +258,10 @@ FROM UNNEST([
 
 -- OrderTime: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_order_id BIGINT
+    product_order_id BIGINT NOT NULL
   , order_id BIGINT NOT NULL
-  , channel_seq BIGINT
-  , order_status TINYINT -- OrderStatus: order_status
+  , channel_seq BIGINT NOT NULL
+  , order_status TINYINT NOT NULL -- OrderStatus: order_status
   , payment_dt TIMESTAMP NOT NULL
   , updated_dt TIMESTAMP NOT NULL
   , PRIMARY KEY (product_order_id, order_status)
@@ -284,8 +287,8 @@ FROM (
     , updated_dt
   FROM (
     SELECT
-        TRY_CAST(productOrderId AS BIGINT) AS product_order_id
-      , TRY_CAST(content.order.orderId AS BIGINT) AS order_id
+        CAST(productOrderId AS BIGINT) AS product_order_id
+      , CAST(content.order.orderId AS BIGINT) AS order_id
       , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
       , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS dispatch_dt
       , TRY_STRPTIME(SUBSTR(content.delivery.deliveredDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS delivery_dt
@@ -319,11 +322,11 @@ ON CONFLICT DO NOTHING;
 
 -- OrderStatus: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_order_id BIGINT
+    product_order_id BIGINT NOT NULL
   , order_id BIGINT NOT NULL
   , channel_seq BIGINT
   -- , last_changed_type TINYINT -- OrderStatus: last_changed_type
-  , order_status TINYINT -- OrderStatus: order_status
+  , order_status TINYINT NOT NULL -- OrderStatus: order_status
   -- , claim_type TINYINT -- OrderStatus: claim_type
   -- , claim_status TINYINT -- OrderStatus: claim_status
   -- , is_address_changed BOOLEAN
@@ -338,8 +341,8 @@ INSERT INTO {{ table }}
 SELECT orders.*
 FROM (
   SELECT
-      TRY_CAST(productOrderId AS BIGINT) AS product_order_id
-    , TRY_CAST(orderId AS BIGINT) AS order_id
+      CAST(productOrderId AS BIGINT) AS product_order_id
+    , CAST(orderId AS BIGINT) AS order_id
     , $channel_seq AS channel_seq
     -- , lastChangedType AS last_changed_type
     , (CASE
@@ -352,7 +355,7 @@ FROM (
         WHEN productOrderStatus = 'CANCELED' THEN 6
         WHEN productOrderStatus = 'RETURNED' THEN 7
         WHEN productOrderStatus = 'CANCELED_BY_NOPAYMENT' THEN 8
-        ELSE NULL END
+        ELSE -1 END
       ) AS order_status
     -- , claimType AS claim_type
     -- , claimStatus AS claim_status

@@ -1,24 +1,24 @@
 -- MarketingChannel: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    channel_seq BIGINT
-  , device_category VARCHAR
-  , nt_source VARCHAR
-  , nt_medium VARCHAR
-  , nt_detail VARCHAR
-  , nt_keyword VARCHAR
+    channel_seq BIGINT NOT NULL
+  , device_category VARCHAR NOT NULL
+  , nt_source VARCHAR NOT NULL
+  , nt_medium VARCHAR NOT NULL
+  , nt_detail VARCHAR NOT NULL
+  , nt_keyword VARCHAR NOT NULL
   , num_users INTEGER
   , num_interactions INTEGER
   , page_view INTEGER
   , num_purchases INTEGER
   , payment_amount INTEGER
-  , ymd DATE
+  , ymd DATE NOT NULL
   , PRIMARY KEY (ymd, channel_seq, device_category, nt_source, nt_medium, nt_detail, nt_keyword)
 );
 
 -- MarketingChannel: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    CAST($channel_seq AS BIGINT) AS channel_seq
+    $channel_seq AS channel_seq
   , IFNULL(deviceCategory, '-') AS device_category
   , IFNULL(ntSource, '-') AS nt_source
   , IFNULL(ntMedium, '-') AS nt_medium
@@ -29,6 +29,6 @@ SELECT
   , TRY_CAST(pv AS INTEGER) AS page_view
   , TRY_CAST(numPurchases AS INTEGER) AS num_purchases
   , TRY_CAST(payAmount AS INTEGER) AS payment_amount
-  , CAST($ymd AS DATE) AS ymd
+  , $ymd AS ymd
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;

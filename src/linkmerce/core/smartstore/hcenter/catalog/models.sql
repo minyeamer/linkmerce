@@ -1,6 +1,6 @@
 -- BrandCatalog: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    id BIGINT PRIMARY KEY
+    product_id BIGINT NOT NULL
   , catalog_name VARCHAR
   , maker_id BIGINT
   , maker_name VARCHAR
@@ -25,12 +25,13 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , review_count INTEGER
   , review_rating TINYINT
   , register_dt TIMESTAMP
+  , PRIMARY KEY (product_id)
 );
 
 -- BrandCatalog: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    identifier AS id
+    identifier AS product_id
   , prodName AS catalog_name
   , NULLIF(makerSeq, 0) AS maker_id
   , makerName AS maker_name
@@ -56,13 +57,12 @@ SELECT
   , TRY_CAST(reviewRating AS INT8) AS review_rating
   , TRY_STRPTIME(SUBSTR(registerDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
 FROM {{ rows }}
-WHERE identifier IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 
 -- BrandProduct: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    id BIGINT PRIMARY KEY
+    nv_mid BIGINT NOT NULL
   , product_id VARCHAR NOT NULL
   , catalog_id BIGINT
   , product_name VARCHAR
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , maker_name VARCHAR
   , brand_id BIGINT
   , brand_name VARCHAR
-  , mall_seq BIGINT
+  , mall_seq BIGINT NOT NULL
   , mall_name VARCHAR
   , category_id INTEGER
   , category_name VARCHAR
@@ -89,12 +89,13 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , click_count INTEGER
   , review_count INTEGER
   , register_dt TIMESTAMP
+  , PRIMARY KEY (nv_mid)
 );
 
 -- BrandProduct: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    identifier AS id
+    identifier AS nv_mid
   , mallProductId AS product_id
   , catalogId AS catalog_id
   , name AS product_name
@@ -102,7 +103,7 @@ SELECT
   , makerName AS maker_name
   , brandSeq AS brand_id
   , brandName AS brand_name
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , $mall_seq AS mall_seq
   , mallName AS mall_name
   , TRY_CAST(categoryId AS INTEGER) AS category_id
   , categoryName AS category_name
@@ -122,52 +123,52 @@ SELECT
   , totalReviewCount AS review_count
   , TRY_STRPTIME(SUBSTR(registerDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS register_dt
 FROM {{ rows }}
-WHERE (identifier IS NOT NULL)
-  AND (mallProductId IS NOT NULL)
+WHERE mallProductId IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 
 -- BrandPrice: create
 CREATE TABLE IF NOT EXISTS {{ price }} (
-    product_id BIGINT PRIMARY KEY
-  , mall_seq BIGINT
+    product_id BIGINT NOT NULL
+  , mall_seq BIGINT NOT NULL
   , category_id INTEGER
   , sales_price INTEGER NOT NULL
   , created_at TIMESTAMP NOT NULL
+  , PRIMARY KEY (product_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ product }} (
-    product_id BIGINT PRIMARY KEY
-  , mall_seq BIGINT
+    product_id BIGINT NOT NULL
+  , mall_seq BIGINT NOT NULL
   , category_id INTEGER
   , category_id3 INTEGER
   , product_name VARCHAR
   , sales_price INTEGER
   , register_date DATE
   , update_date DATE NOT NULL
+  , PRIMARY KEY (product_id)
 );
 
 -- BrandPrice: bulk_insert
 INSERT INTO {{ price }}
 SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , $mall_seq AS mall_seq
   , TRY_CAST(categoryId AS INTEGER) AS category_id
-  , lowestPrice AS sales_price
+  , COALESCE(lowestPrice, 0) AS sales_price
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
 FROM {{ rows }}
-WHERE (TRY_CAST(mallProductId AS BIGINT) IS NOT NULL)
-  AND (lowestPrice IS NOT NULL)
+WHERE TRY_CAST(mallProductId AS BIGINT) IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ product }}
 SELECT
     TRY_CAST(mallProductId AS BIGINT) AS product_id
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , $mall_seq AS mall_seq
   , TRY_CAST(categoryId AS INTEGER) AS category_id
   , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 3) AS INTEGER) AS category_id3
   , name AS product_name
-  , lowestPrice AS sales_price
+  , COALESCE(lowestPrice, 0) AS sales_price
   , TRY_CAST(registerDate AS DATE) AS register_date
   , CURRENT_DATE AS update_date
 FROM {{ rows }}
@@ -183,9 +184,10 @@ ON CONFLICT DO UPDATE SET
 
 -- ProductCatalog: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_id BIGINT PRIMARY KEY
+    product_id BIGINT NOT NULL
   , catalog_id BIGINT NOT NULL
   , created_at TIMESTAMP NOT NULL
+  , PRIMARY KEY (product_id)
 );
 
 -- ProductCatalog: bulk_insert

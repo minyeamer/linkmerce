@@ -1,11 +1,12 @@
 -- Campaign: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    campaign_id VARCHAR PRIMARY KEY
+    campaign_id VARCHAR NOT NULL
   , campaign_name VARCHAR
   , campaign_type TINYINT -- Campaign: campaign_type
   , customer_id BIGINT NOT NULL
   , is_enabled BOOLEAN
   , is_deleted BOOLEAN
+  , PRIMARY KEY (campaign_id)
 );
 
 -- Campaign: bulk_insert
@@ -27,7 +28,6 @@ SELECT
   , activated AS is_enabled
   , deleted AS is_deleted
 FROM {{ rows }}
-WHERE no IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 -- Campaign: campaign_type
@@ -46,7 +46,7 @@ FROM UNNEST([
 
 -- AdSet: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    adgroup_id VARCHAR PRIMARY KEY
+    adgroup_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adgroup_name VARCHAR
   , adgroup_type TINYINT -- AdSet: adgroup_type
@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , is_enabled BOOLEAN
   , is_deleted BOOLEAN
   , bid_amount INTEGER
+  , PRIMARY KEY (adgroup_id)
 );
 
 -- AdSet: bulk_insert
@@ -68,12 +69,11 @@ SELECT
       WHEN bidGoal = 'MAX_CONV_VALUE' THEN 103
       WHEN bidGoal = 'NONE' THEN 104
       ELSE NULL END) AS adgroup_type
-  , TRY_CAST($account_no AS BIGINT) AS customer_id
+  , $account_no AS customer_id
   , activated AS is_enabled
   , (status = 'DELETED') AS is_deleted
   , bidPrice AS bid_amount
 FROM {{ rows }}
-WHERE no IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 -- AdSet: adgroup_type
@@ -88,7 +88,7 @@ FROM UNNEST([
 
 -- Creative: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    ad_id VARCHAR PRIMARY KEY
+    ad_id VARCHAR NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_type TINYINT -- Creative: creative_type
   , customer_id BIGINT NOT NULL
@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , product_id BIGINT
   , is_enabled BOOLEAN
   , is_deleted BOOLEAN
+  , PRIMARY KEY (ad_id)
 );
 
 -- Creative: bulk_insert
@@ -113,7 +114,7 @@ SELECT
       WHEN creativeType = 'CATALOG' THEN 105
       WHEN creativeType = 'COMPOSITION' THEN 106
       ELSE NULL END) AS ad_type
-  , TRY_CAST($account_no AS BIGINT) AS customer_id
+  , $account_no AS customer_id
   , name AS title
   , message AS description
   , medias."1".content.linkUrl AS landing_url_pc
@@ -121,7 +122,6 @@ SELECT
   , activated AS is_enabled
   , (status = 'DELETED') AS is_deleted
 FROM {{ rows }}
-WHERE no IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 -- Creative: creative_type
@@ -138,33 +138,31 @@ FROM UNNEST([
 
 -- CampaignReport: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    campaign_no BIGINT
-  , account_no BIGINT
+    campaign_no BIGINT NOT NULL
+  , account_no BIGINT NOT NULL
   , impression_count INTEGER
   , click_count INTEGER
-  , reach_count INTEGER
+  , reach_count INTEGER NULL -- Placeholder
   , ad_cost INTEGER
   , conv_count INTEGER
   , conv_amount INTEGER
-  , ymd DATE
-  , PRIMARY KEY (ymd, account_no, campaign_no)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, campaign_no)
 );
 
 -- CampaignReport: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    TRY_CAST("캠페인 ID" AS BIGINT) AS campaign_no
-  , TRY_CAST($account_no AS BIGINT) AS account_no
+    CAST("캠페인 ID" AS BIGINT) AS campaign_no
+  , $account_no AS account_no
   , TRY_CAST("노출수" AS BIGINT) AS impression_count
   , TRY_CAST("클릭수" AS BIGINT) AS click_count
   , NULL AS reach_count
   , TRY_CAST("총비용" AS BIGINT) AS ad_cost
   , TRY_CAST("총 전환수" AS BIGINT) AS conv_count
   , TRY_CAST("총 전환매출액" AS BIGINT) AS conv_amount
-  , TRY_CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) AS ymd
+  , CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) AS ymd
 FROM {{ rows }}
-WHERE (TRY_CAST("캠페인 ID" AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 
@@ -172,16 +170,16 @@ ON CONFLICT DO NOTHING;
 CREATE TABLE IF NOT EXISTS {{ table }} (
     campaign_no BIGINT NOT NULL
   , adset_no BIGINT NOT NULL
-  , creative_no BIGINT
-  , account_no BIGINT
+  , creative_no BIGINT NOT NULL
+  , account_no BIGINT NOT NULL
   , impression_count INTEGER
   , click_count INTEGER
-  , reach_count INTEGER
+  , reach_count INTEGER NULL -- Placeholder
   , ad_cost INTEGER
   , conv_count INTEGER
   , conv_amount INTEGER
-  , ymd DATE
-  , PRIMARY KEY (ymd, account_no, creative_no)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, creative_no)
 );
 
 -- CreativeReport: bulk_insert
@@ -189,16 +187,14 @@ INSERT INTO {{ table }}
 SELECT
     COALESCE(TRY_CAST("캠페인 ID" AS BIGINT), 0) AS campaign_no
   , COALESCE(TRY_CAST("광고 그룹 ID" AS BIGINT), 0) AS adset_no
-  , TRY_CAST("광고 소재 ID" AS BIGINT) AS creative_no
-  , TRY_CAST($account_no AS BIGINT) AS account_no
+  , CAST("광고 소재 ID" AS BIGINT) AS creative_no
+  , $account_no AS account_no
   , TRY_CAST("노출수" AS BIGINT) AS impression_count
   , TRY_CAST("클릭수" AS BIGINT) AS click_count
   , NULL AS reach_count
   , TRY_CAST("총비용" AS BIGINT) AS ad_cost
   , TRY_CAST("총 전환수" AS BIGINT) AS conv_count
   , TRY_CAST("총 전환매출액" AS BIGINT) AS conv_amount
-  , TRY_CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) AS ymd
+  , CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) AS ymd
 FROM {{ rows }}
-WHERE (TRY_CAST("광고 소재 ID" AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST(STRPTIME("기간", '%Y.%m.%d.') AS DATE) IS NOT NULL)
 ON CONFLICT DO NOTHING;

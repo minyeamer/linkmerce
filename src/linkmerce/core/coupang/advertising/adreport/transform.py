@@ -21,7 +21,7 @@ class AdgroupParser(JsonTransformer):
     dtype = dict
     scope = "campaigns"
     fields = [
-        "id", {"campaignId": None}, "paCampaignId", "name", "goalType", "isActive", "isDeleted",
+        "id", "campaignId", "name", "goalType", "isActive", "isDeleted",
         {"roasTarget": None}, "createdAt", "updatedAt"
     ]
 

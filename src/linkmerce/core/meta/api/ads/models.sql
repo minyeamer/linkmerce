@@ -18,13 +18,13 @@ FROM UNNEST([
 
 -- Campaigns: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    campaign_id VARCHAR
+    campaign_id VARCHAR NOT NULL
   , campaign_name VARCHAR
-  , account_id VARCHAR
+  , account_id VARCHAR NOT NULL
   , objective VARCHAR
   , effective_status VARCHAR
   , created_at TIMESTAMP
-  , PRIMARY KEY (account_id, campaign_id)
+  , PRIMARY KEY (campaign_id)
 );
 
 -- Campaigns: bulk_insert
@@ -68,14 +68,14 @@ FROM UNNEST([
 
 -- Adsets: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    adset_id VARCHAR
+    adset_id VARCHAR NOT NULL
   , adset_name VARCHAR
-  , account_id VARCHAR
+  , account_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
   , effective_status VARCHAR
   , daily_budget INTEGER
   , created_at TIMESTAMP
-  , PRIMARY KEY (account_id, adset_id)
+  , PRIMARY KEY (adset_id)
 );
 
 -- Adsets: bulk_insert
@@ -94,15 +94,15 @@ ON CONFLICT DO NOTHING;
 
 -- Ads: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    ad_id VARCHAR
+    ad_id VARCHAR NOT NULL
   , ad_name VARCHAR
-  , account_id VARCHAR
+  , account_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adset_id VARCHAR NOT NULL
   -- , creative_id VARCHAR
   , effective_status VARCHAR
   , created_at TIMESTAMP
-  , PRIMARY KEY (account_id, ad_id)
+  , PRIMARY KEY (ad_id)
 );
 
 -- Ads: bulk_insert
@@ -122,52 +122,52 @@ ON CONFLICT DO NOTHING;
 
 -- Insights: create
 CREATE TABLE IF NOT EXISTS {{ campaigns }} (
-    campaign_id VARCHAR
+    campaign_id VARCHAR NOT NULL
   , campaign_name VARCHAR
-  , account_id VARCHAR
-  , is_active BOOLEAN
-  , is_deleted BOOLEAN
-  , objective VARCHAR
-  , created_at TIMESTAMP
+  , account_id VARCHAR NOT NULL
+  , is_active BOOLEAN NULL -- Placeholder
+  , is_deleted BOOLEAN NULL -- Placeholder
+  , objective VARCHAR NULL -- Placeholder
+  , created_at TIMESTAMP NULL -- Placeholder
   , PRIMARY KEY (account_id, campaign_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ adsets }} (
-    adset_id VARCHAR
+    adset_id VARCHAR NOT NULL
   , adset_name VARCHAR
-  , account_id VARCHAR
+  , account_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
-  , is_active BOOLEAN
-  , is_deleted BOOLEAN
-  , daily_budget INTEGER
-  , created_at TIMESTAMP
-  , PRIMARY KEY (account_id, adset_id)
+  , is_active BOOLEAN NULL -- Placeholder
+  , is_deleted BOOLEAN NULL -- Placeholder
+  , daily_budget INTEGER NULL -- Placeholder
+  , created_at TIMESTAMP NULL -- Placeholder
+  , PRIMARY KEY (account_id, campaign_id, adset_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ ads }} (
-    ad_id VARCHAR
+    ad_id VARCHAR NOT NULL
   , ad_name VARCHAR
-  , account_id VARCHAR
+  , account_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adset_id VARCHAR NOT NULL
-  , is_active BOOLEAN
-  , is_deleted BOOLEAN
-  , created_at TIMESTAMP
-  , PRIMARY KEY (account_id, ad_id)
+  , is_active BOOLEAN NULL -- Placeholder
+  , is_deleted BOOLEAN NULL -- Placeholder
+  , created_at TIMESTAMP NULL -- Placeholder
+  , PRIMARY KEY (account_id, campaign_id, adset_id, ad_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ insights }} (
-    account_id VARCHAR
+    account_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adset_id VARCHAR NOT NULL
-  , ad_id VARCHAR
+  , ad_id VARCHAR NOT NULL
   , impression_count INTEGER
   , reach_count INTEGER
   , click_count INTEGER
   , link_click_count INTEGER
   , ad_cost INTEGER
-  , ymd DATE
-  , PRIMARY KEY (ymd, account_id, ad_id)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, account_id, campaign_id, adset_id, ad_id)
 );
 
 -- Insights: bulk_insert
@@ -220,6 +220,6 @@ SELECT
   , clicks AS click_count
   , inline_link_clicks AS link_click_count
   , spend AS ad_cost
-  , TRY_STRPTIME(date_start, '%Y-%m-%d') AS ymd
+  , CAST(STRPTIME(date_start, '%Y-%m-%d') AS DATE) AS ymd
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;

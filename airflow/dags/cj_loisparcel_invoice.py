@@ -294,7 +294,7 @@ with DAG(
         """기업고객일별배송상세 데이터에서 필요한 항목만 선택한 테이블을 생성하는 쿼리를 반환한다."""
         return dedent(f"""
             CREATE TABLE IF NOT EXISTS {table} (
-                invoice_no VARCHAR PRIMARY KEY
+                invoice_no VARCHAR NOT NULL
                 , order_id VARCHAR
                 , product_id VARCHAR
                 , product_name VARCHAR
@@ -314,6 +314,7 @@ with DAG(
                 , register_date DATE NOT NULL
                 , pickup_date DATE
                 , delivery_date DATE
+                , PRIMARY KEY (invoice_no)
             )
             """).strip()
 
@@ -343,7 +344,6 @@ with DAG(
                 , CAST("집화일자" AS DATE) AS pickup_date
                 , CAST("배송일자" AS DATE) AS delivery_date
             FROM (SELECT rows.* FROM (SELECT UNNEST($rows) AS rows))
-            WHERE ("운송장번호" IS NOT NULL) AND (CAST("접수일자" AS DATE) IS NOT NULL)
             ON CONFLICT DO NOTHING
             """).strip()
 

@@ -5,18 +5,19 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_amount BIGINT
   , refund_amount BIGINT
   , payment_date DATE NOT NULL
+  , PRIMARY KEY (payment_date, mall_seq)
 );
 
 -- StoreSales: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+    $mall_seq AS mall_seq
   , sales.paymentCount AS payment_count
   , sales.paymentAmount AS payment_amount
   , sales.refundAmount AS refund_amount
-  , TRY_CAST($end_date AS DATE) AS payment_date
+  , $end_date AS payment_date
 FROM {{ rows }}
-WHERE (TRY_CAST($end_date AS DATE) IS NOT NULL);
+ON CONFLICT DO NOTHING;
 
 
 -- CategorySales: create
@@ -28,21 +29,21 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_count BIGINT
   , payment_amount BIGINT
   , payment_date DATE NOT NULL
+  , PRIMARY KEY (payment_date, category_id3)
 );
 
 -- CategorySales: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
+    CAST(product.category.identifier AS INTEGER) AS category_id3
   , product.category.fullName AS full_category_name
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , $mall_seq AS mall_seq
   , visit.click AS click_count
   , sales.paymentCount AS payment_count
   , sales.paymentAmount AS payment_amount
-  , TRY_CAST($end_date AS DATE) AS payment_date
+  , $end_date AS payment_date
 FROM {{ rows }}
-WHERE (TRY_CAST(product.category.identifier AS INTEGER) IS NOT NULL)
-  AND (TRY_CAST($end_date AS DATE) IS NOT NULL);
+ON CONFLICT DO NOTHING;
 
 
 -- ProductSales: create
@@ -57,47 +58,48 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , payment_count BIGINT
   , payment_amount BIGINT
   , payment_date DATE NOT NULL
+  , PRIMARY KEY (payment_date, product_id)
 );
 
 -- ProductSales: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    TRY_CAST(product.identifier AS BIGINT) AS product_id
+    CAST(product.identifier AS BIGINT) AS product_id
   , product.name AS product_name
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+  , $mall_seq AS mall_seq
   , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
   , product.category.name AS category_name3
   , product.category.fullName AS full_category_name
   , visit.click AS click_count
   , sales.paymentCount AS payment_count
   , sales.paymentAmount AS payment_amount
-  , TRY_CAST($end_date AS DATE) AS payment_date
+  , $end_date AS payment_date
 FROM {{ rows }}
-WHERE (TRY_CAST(product.identifier AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST($end_date AS DATE) IS NOT NULL);
+ON CONFLICT DO NOTHING;
 
 
 -- AggregatedSales: create
 CREATE TABLE IF NOT EXISTS {{ sales }} (
-    product_id BIGINT
+    product_id BIGINT NOT NULL
   , mall_seq BIGINT
   , category_id3 INTEGER
   , click_count BIGINT
   , payment_count BIGINT
   , payment_amount BIGINT
-  , payment_date DATE
+  , payment_date DATE NOT NULL
   , PRIMARY KEY (payment_date, product_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ product }} (
-    product_id BIGINT PRIMARY KEY
+    product_id BIGINT NOT NULL
   , mall_seq BIGINT
-  , category_id INTEGER
-  , category_id3 INTEGER NULL -- Placeholder
+  , category_id INTEGER NULL -- Placeholder
+  , category_id3 INTEGER
   , product_name VARCHAR
   , sales_price INTEGER NULL -- Placeholder
   , register_date DATE
   , update_date DATE
+  , PRIMARY KEY (product_id)
 );
 
 -- AggregatedSales: bulk_insert
@@ -112,24 +114,22 @@ SELECT
   , items.payment_date
 FROM (
   SELECT DISTINCT
-      TRY_CAST(product.identifier AS BIGINT) AS product_id
-    , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+      CAST(product.identifier AS BIGINT) AS product_id
+    , $mall_seq AS mall_seq
     , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
     , visit.click AS click_count
     , sales.paymentCount AS payment_count
     , sales.paymentAmount AS payment_amount
-    , CAST($end_date AS DATE) AS payment_date
+    , $end_date AS payment_date
   FROM {{ rows }}
-  WHERE (TRY_CAST(product.identifier AS BIGINT) IS NOT NULL)
-    AND (TRY_CAST($end_date AS DATE) IS NOT NULL)
 ) AS items
 GROUP BY items.product_id, items.payment_date
 ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ product }}
 SELECT
-    TRY_CAST(product.identifier AS BIGINT) AS product_id
-  , TRY_CAST($mall_seq AS BIGINT) AS mall_seq
+    CAST(product.identifier AS BIGINT) AS product_id
+  , $mall_seq AS mall_seq
   , NULL AS category_id
   , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
   , product.name AS product_name
@@ -137,7 +137,6 @@ SELECT
   , $start_date AS register_date
   , $end_date AS update_date
 FROM {{ rows }}
-WHERE TRY_CAST(product.identifier AS BIGINT) IS NOT NULL
 QUALIFY ROW_NUMBER() OVER (PARTITION BY product.identifier) = 1
 ON CONFLICT DO UPDATE SET
     category_id = COALESCE(EXCLUDED.category_id, category_id)

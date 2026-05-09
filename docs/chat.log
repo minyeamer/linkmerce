@@ -92,12 +92,33 @@ LinkMerce 프로젝트 의사결정 로그
   - postgres/init.sql 재생성: 새 스키마 명명 규칙 적용 (1060 라인)
 
 
-[현재 세션] PRIMARY KEY + BigQuery 파티션/클러스터링 반영
+[2026-05-07] PostgreSQL 스키마 설계 및 파티션 최적화
 ================================================================================
 
 배경
 ----
-  postgres/init.sql의 테이블 구조에 PRIMARY KEY 제약과 PostgreSQL
+  PostgreSQL `init.sql` 설계 과정에서 스키마 분리 기준, 인덱스 효율성, 
+  그리고 빅쿼리 스타일의 파티셔닝 적용 방법에 대한 검토 진행.
+
+의사결정 1: 스키마 및 인덱스 전략
+----------------------------------
+  - **스키마 분리:** 테이블 개수가 적을 때는 소스(Source) 단위 통합 관리가 유리.
+    데이터 성격(마스터 vs 트랜잭션)에 따라 `sabangnet_ord` 등으로 분리 고려 가능.
+  - **인덱스 필요성:** 100행 미만(예: `stock`)은 불필요하나 문서화용으로 유지. 
+    6,000건 이상(예: `category`)은 조인 성능을 위해 인덱스 필수.
+  - **PK 권장:** 모든 테이블에 `SERIAL` 등을 이용한 PK 추가 권장 (dbt/CDC 대비).
+
+의사결정 2: 파티셔닝 및 Generated Column
+-----------------------------------------
+  - **자동 파티션 키:** `TIMESTAMP`에서 파생된 `DATE` 열을 `GENERATED ALWAYS AS (date(ts)) STORED`로 생성.
+    - `STORED` 옵션 사용 시 실제 물리적 용량(DATE 타입만큼) 차지.
+  - **쿼리 최적화:** 파티션 프루닝을 위해 `WHERE` 절에 반드시 `ymd` 필터 포함 필요.
+  - **복합 인덱스:** 시간대별 조회를 위해 `(ymd, order_dt)` 복합 인덱스 구성 제안.
+
+결과물
+------
+  - `sabangnet.order` 등 주요 트랜잭션 테이블의 파티션 구조 개선안 도출.
+
   성능 최적화 구성이 없었음.
   - src/linkmerce/core/**/models.sql : 각 테이블의 PK 정보 포함
   - GCP 프로젝트 BigQuery : DATE/TIMESTAMP 파티션 및
@@ -287,3 +308,371 @@ LinkMerce 프로젝트 의사결정 로그
   - postgres/init.sql: PARTITION BY RANGE 적용, BRIN 인덱스 제거
   - src/linkmerce/extensions/postgres.py: PostgreSQL 클라이언트 모듈 신규
   - docs/postgres-partitioning.md: 설계 문서 신규
+
+
+[2026-04-13] PostgreSQL 인덱스 & 파티셔닝 전략 확정
+================================================================================
+
+배경
+----
+  LinkMerce의 로컬/컨테이너 PostgreSQL 환경(init.sql) 구축 중, 파티셔닝된
+  테이블의 인덱스 효율성과 복합 PK(Primary Key) 설계에 대한 기술적 검토를 수행함.
+
+주요 결정 사항
+--------------
+  1. 파티션 키와 인덱스 (Partition Pruning)
+    - ymd (날짜) 등 파티션 키로 사용된 컬럼은 별도의 인덱스를 생성할 필요가 없음.
+    - PostgreSQL 13 이상에서 "Partition Pruning" 메커니즘이 쿼리의 WHERE 조건에
+      따라 불필요한 파티션을 물리적으로 건너뛰므로, 파티션 내부에서의 ymd
+      인덱싱은 저장 공간 낭비 및 쓰기 성능 저하만 유발함.
+
+  2. PK의 인덱스 자동 생성
+    - PRIMARY KEY 로 지정된 컬럼(들)은 PostgreSQL에 의해 자동으로 Unique B-tree
+      인덱스가 생성됨. 따라서 PK 컬럼에 대해 명시적인 CREATE INDEX 를 추가로
+      호출하지 않음.
+
+  3. 파티셔닝 제약 사항 (PK 구조)
+    - 파티셔닝된 테이블의 PRIMARY KEY 또는 UNIQUE 제약 조건에는 반드시
+      파티션 키(예: ymd)가 포함되어야 함 (PostgreSQL 엔진 강제 사항).
+    - 예: PRIMARY KEY (ymd, vendor_id, campaign_id, ...)
+
+  4. 복합 PK 구성 전략 (vendor_id 포함 여부)
+    - vendor_id(셀러 ID)가 campaign_id 등과 1:1 대응하여 전역적으로 유니크하더라도,
+      PK에 vendor_id를 선두 컬럼으로 포함시키는 것을 권장함.
+    - 이유: 특정 셀러 데이터를 조회/집계할 때 Index Scan 효율이 극대화되며,
+      B-tree 인덱스 구조상 "Index Only Scan"을 유도하여 데이터 페이지 접근 없이
+      결과를 반환할 수 있음.
+
+  5. GROUP BY 성능 (Sort/Stream Aggregate)
+    - PK가 (vendor_id, campaign_id) 순서로 구성되어 있다면, 정렬된 상태를 활용하여
+      Hash Aggregate 대신 저비용의 Stream/Group Aggregate가 수행됨.
+    - 쿼리에 vendor_id를 GROUP BY에 추가하더라도 이미 인덱스 정렬 조건에
+      부합하므로 추가적인 정렬 비용(Sort Cost)이 발생하지 않음.
+
+init.sql 수정 내역
+------------------
+  - 중복 인덱스 제거: PK 자동 인덱스를 믿고 별도 정의 삭제.
+  - 버그 수정: coupang_ads.report_nca 가 report_pa 를 참조하던 오타 해결.
+  - 명명 규칙 통일: 모든 인덱스 명칭을 f"{prefix}_{table}__{column}_idx" 형식으로
+    정규화 (예: cpg_rocket_shipping__vendor_idx).
+
+결정 사항
+---------
+  1. 파티션 키(ymd)는 PK에는 포함하되 개별 인덱싱에서는 제외하여 최적화.
+  2. 조회 성능과 집계(Group By) 효율을 위해 vendor_id를 PK의 선두에 배치.
+  3. 모든 DDL은 "자동 생성 인덱스 활용 + 명시적 인덱스 최소화" 원칙 준수.
+
+
+[2026-04-13] 분석 DB 후보 재검토: PostgreSQL vs TimescaleDB vs ClickHouse
+================================================================================
+
+배경
+----
+  사용자가 다음 구조를 검토함.
+  - 원천 ETL 적재: PostgreSQL 유지
+  - 분석 DB: PostgreSQL 내부 별도 레이어 또는 별도 분석 엔진 검토
+  추가 검토 조건:
+  - ClickHouse를 사용할 경우, PostgreSQL 원천 데이터를 JOIN하여 ClickHouse에 적재할 수 있는지
+  - 적재된 ClickHouse 분석 DB 안에서 다시 JOIN이 발생할 수 있는지
+  - 비교 대상에 TimescaleDB도 포함할 것
+
+문제의식
+--------
+  1. dbt는 기본적으로 한 번의 run에서 하나의 target adapter를 기준으로 실행된다.
+  2. 따라서 "dbt가 PostgreSQL과 ClickHouse를 동시에 직접 조인한다"기보다,
+    target이 ClickHouse일 때 ClickHouse가 PostgreSQL 데이터를 읽을 수 있어야 한다.
+  3. ClickHouse는 PostgreSQL table engine / postgresql() table function을 제공하지만,
+    공식 문서상 JOIN, aggregation, sorting은 PostgreSQL pushdown이 아니라
+    ClickHouse 측에서 수행된다.
+  4. 따라서 대형 PostgreSQL 원격 테이블 간 JOIN을 ClickHouse에서 직접 수행하면
+    네트워크 전송량과 원격 스캔 비용이 커질 수 있다.
+  5. TimescaleDB는 PostgreSQL 확장이므로 기존 SQL/JOIN/운영 모델을 유지하면서도
+    시계열 최적화(hypertable, chunk skipping, continuous aggregate, hypercore)를 얻을 수 있다.
+
+추론 과정
+---------
+  1. ClickHouse 공식 문서 확인
+    - PostgreSQL engine / table function으로 원격 PostgreSQL 데이터 SELECT/INSERT 가능
+    - MaterializedPostgreSQL database engine 존재하지만 experimental
+    - dbt-clickhouse는 table/view/incremental/materialized view/snapshot/test 지원
+    - dbt-clickhouse는 매우 큰 row-preserving 모델보다 요약 위주의 모델링을 권장
+
+  2. dbt 공식 문서 확인
+    - profiles.yml의 target을 기준으로 실행 환경이 결정됨
+    - source는 target 플랫폼에서 접근 가능한 테이블이어야 함
+    - 결론: target이 ClickHouse라면 ClickHouse 내부 또는 ClickHouse가 읽을 수 있는 외부 소스를
+      dbt source로 선언해 모델링하는 방식이 맞음
+
+  3. TimescaleDB 공식 문서 확인
+    - hypertable: 시간 기준 자동 청크 분할, chunk skipping, 추가 인덱스 가능
+    - hypercore: rowstore + columnstore 하이브리드, 90~98% 압축, ACID 유지
+    - continuous aggregate: 증분 갱신, 계층형 aggregate 가능
+    - JOIN 지원: v2.16 기준 INNER/LEFT/LATERAL 및 다중 PostgreSQL 테이블 JOIN 가능
+      단, hypertable 변경만 자동 추적되고 일반 PostgreSQL 테이블 변경은 자동 추적되지 않음
+
+판단
+----
+  1. ClickHouse는 LinkMerce의 대용량 fact 분석에는 유의미하다.
+    - 특히 광고 보고서, 랭크, 주문/유입/전환 요약과 같은 대규모 스캔·집계성 워크로드에 적합
+
+  2. 다만 ClickHouse를 분석 DB의 기본 엔진으로 즉시 전면 전환하는 것은 이르다.
+    - 분석 DB 안에서 재JOIN이 많고 관계형 유연성이 중요하면 TimescaleDB가 더 안전함
+
+  3. 실무 권고 구조
+    - PostgreSQL: 원천 적재 및 운영 기준 저장소
+    - TimescaleDB: 낮은 운영 리스크의 1차 분석 DB 대안
+    - ClickHouse: 대용량 fact mart 전용 분석 엔진
+
+  4. dbt 처리 가능 여부
+    - 가능은 함
+    - 단, "dbt가 직접 PostgreSQL + ClickHouse를 크로스 DB 조인"하는 구조가 아니라
+      ClickHouse가 PostgreSQL을 읽을 수 있게 한 뒤 dbt-clickhouse가 ClickHouse에서 모델을 실행하는 구조여야 함
+    - 운영 구조로는 PostgreSQL -> Airflow batch/CDC -> ClickHouse raw/staging -> dbt-clickhouse mart 가 바람직함
+    - PostgreSQL 원격 테이블 직접 JOIN은 PoC/소형 dimension/초기 부트스트랩 용도로만 제한 권장
+
+진행 내역
+---------
+  - docs/analytics-db-evaluation.md 신규 작성
+    · PostgreSQL / TimescaleDB / ClickHouse 비교
+    · dbt 처리 가능 여부 판단
+    · ClickHouse 서비스 폴더 구성 계획 정리
+
+결과물
+------
+  - docs/analytics-db-evaluation.md 생성
+  - docs/chat.log 현재 세션 내용 업데이트
+
+
+[2026-05-07] PostgreSQL → ClickHouse + BigQuery 주문 분석 동기화 전략 확정
+================================================================================
+
+배경
+----
+  사용자가 TimescaleDB는 "PostgreSQL 확장일 뿐이라 공수 대비 열 단위 DB로서의 이점이 크지 않다"고 판단하고,
+  원천 PostgreSQL → ClickHouse 분석 DB 구성을 사실상 전제로 다시 검토를 요청함.
+
+  추가 요구사항:
+  - local dashboard는 ClickHouse를 조회
+  - remote dashboard는 BigQuery를 조회
+  - 두 분석 저장소는 같은 결과를 유지해야 함
+  - 주문 분석 테이블은 약 30만 행 규모
+  - 5분 단위 갱신이면 충분하며, 몇 초 지연은 허용됨
+  - 원천 PostgreSQL은 소수 작업만 수행하므로 병목을 크게 고려할 필요 없음
+
+문제의식
+--------
+  사용자가 제공한 `sabangnet_total_order.sql` 및 상위 루틴을 확인한 결과,
+  최종 주문 분석 결과는 단순 append fact가 아니라 다음과 같은 "재계산형 비즈니스 mart"에 가깝다고 판단함.
+
+  주요 의존:
+  - sabangnet.order
+  - sabangnet.order_invoice
+  - sabangnet.order_status
+  - smartstore.order_detail / order_delivery / order_status
+  - relation.smt_opt_to_sbn_ids
+  - relation.smt_opt_to_sbn_ids_est 의 입력 테이블들
+  - sabangnet.model
+  - ecount.product 를 참조하는 sabangnet.main_product()
+
+  따라서 다음 변경이 모두 과거 행 재계산을 유발함.
+  1. 과거 주문 단건 수정
+  2. 과거 주문 단건 삭제
+  3. option_id ↔ bundle_option_ids 매핑 변경
+  4. product_id ↔ product_name 차원 변경
+
+추론 과정
+---------
+  1. 주문 mart 규모가 30만 행 수준이라면,
+     row-level CDC를 정교하게 구현하는 비용보다 전체 재생성 비용이 더 낮을 수 있다고 판단.
+
+  2. 사용자가 허용한 SLA가 "실시간이 아닌 5분 단위 자동 업데이트"이므로,
+     수 초~수십 초 수준의 재생성/교체 방식이 충분히 현실적이라고 판단.
+
+  3. ClickHouse와 BigQuery에 동일한 결과를 넣어야 하므로,
+     변환 로직을 두 엔진에 각각 구현하는 것보다 PostgreSQL 쪽에 canonical 결과를 한 번 만들고
+     그것을 fan-out 하는 구조가 더 안전하다고 판단.
+
+  4. dbt는 lineage와 변환 로직 관리에 적합하고,
+     Airflow는 주기 실행과 다중 타깃 반영에 적합하므로,
+     "dbt로 계산, Airflow로 배포" 역할 분담이 가장 명확하다고 판단.
+
+최종 판단
+---------
+  현재 단계의 최선의 기법은 다음과 같음.
+
+  1. 주문 분석 테이블은 CDC로 미세 업데이트하지 않음.
+  2. PostgreSQL에서 dbt-postgres로 canonical 주문 mart를 생성함.
+  3. Airflow가 5분마다 canonical mart를 다시 추출함.
+  4. 동일한 추출 결과를 ClickHouse stage 와 BigQuery stage 에 적재함.
+  5. 검증 후 ClickHouse target 과 BigQuery target 을 각각 교체함.
+
+  즉,
+  - 계산은 한 번만 수행
+  - 서빙 저장소는 두 곳으로 fan-out
+  - 주문 mart는 전체 재생성 + stage swap / replace
+
+CDC에 대한 판단
+----------------
+  - full CDC 인프라(Debezium/Kafka 등)는 현재 규모와 운영 역량 기준으로 과함
+  - raw 복제용 CDC는 나중에 검토 가능
+  - 하지만 최종 주문 mart 자체는 여전히 재계산형이 적합
+  - 현재 규모에서는 전체 재생성 전략이 더 단순하고 더 안전함
+
+권장 구현 구조
+--------------
+  - PostgreSQL: raw_pg + analytics_pg
+  - dbt-postgres: staging / intermediate / mart lineage 관리
+  - Airflow DAG:
+      1) dbt build
+      2) PostgreSQL mart export
+      3) ClickHouse stage load
+      4) ClickHouse swap
+      5) BigQuery stage load
+      6) BigQuery replace
+      7) row count / checksum 검증
+
+세부 전략
+---------
+  - `sabangnet_total_order` 계열은 날짜 파라미터 함수보다 전체 이력 dbt 모델로 포팅
+  - 결과는 Parquet payload 한 번 생성 후 ClickHouse와 BigQuery에 동일하게 반영
+  - 주문 mart는 전체 재생성 대상
+  - 10억 행 순위/광고 fact 는 별도 incremental 전략으로 분리 운영
+
+결과물
+------
+  - docs/postgres-clickhouse-bigquery-sync-plan.md 생성
+  - chat.log 현재 세션 기록 추가
+
+
+[2026-05-07] BigQuery 비용 관점 보정: 전체 교체 vs 부분 업데이트
+================================================================================
+
+배경
+----
+  사용자가 추가로 다음 우려를 제기함.
+  - ClickHouse는 교체 비용이 적지만, BigQuery는 교체 시 비용이 발생할 수 있음
+  - 쿼리가 커질수록 비용이 커지므로 주기적 전체 교체가 부담될 수 있음
+  - 30만 건 주문 mart를 통째로 가는 것이 실제로 비싼지 판단이 필요함
+
+추가 확인 내용
+--------------
+  BigQuery 공식 가격 문서 기준으로 다음을 확인함.
+
+  1. query / DML / DDL (일부) 비용
+    - BigQuery는 SQL query, DML, 일부 DDL에서 bytes processed 기준 비용이 발생함
+    - `MERGE`, `CREATE OR REPLACE TABLE AS SELECT` 같은 방식은 query 비용 대상임
+
+  2. batch load 비용
+    - BigQuery batch loading 은 shared slot pool 기준 무료
+    - Parquet 파일 load job 은 query 비용 없이 적재 가능
+
+  3. copy job 비용
+    - BigQuery table copy 는 무료 operation 임
+    - storage 비용만 고려하면 됨
+
+판단
+----
+  핵심은 "전체 교체냐 부분 업데이트냐"보다,
+  **BigQuery 안에서 다시 계산하느냐, 아니면 계산된 결과를 load/copy 하느냐**임.
+
+  결론은 다음과 같음.
+
+  1. PostgreSQL에서 계산 완료된 30만 건 주문 mart를 Parquet로 export 하고,
+    BigQuery에 batch load 한 뒤 copy job 으로 target 을 교체하는 방식은
+    비용상 충분히 저렴함.
+
+  2. 오히려 BigQuery 안에서 `MERGE` 또는 `CREATE OR REPLACE ... AS SELECT` 를
+    5분 주기로 반복하는 편이 더 비쌀 가능성이 높음.
+
+  3. 따라서 현재 규모에서는 BigQuery도 부분 업데이트보다
+     **free batch load + free copy 기반 전체 교체**가 더 단순하고 경제적임.
+
+추가 설계 보정
+--------------
+  - ClickHouse: stage load 후 swap
+  - BigQuery: stage load 후 copy job overwrite (또는 WRITE_TRUNCATE load)
+  - BigQuery SQL 기반 재계산은 지양
+
+향후 확장 시 전략
+------------------
+  - 주문 mart 규모가 커지면 BigQuery partition table 로 전환
+  - 영향을 받은 파티션만 다시 export / load
+  - 대형 append fact 는 처음부터 partition incremental 전략 적용
+
+결과물
+------
+  - docs/postgres-clickhouse-bigquery-sync-plan.md 비용 관점 반영 업데이트
+  - chat.log 현재 세션 기록 추가
+
+
+[2026-05-07] 주문 mart 텍스트 속성 분리: fact core + display dimension
+================================================================================
+
+배경
+----
+  사용자가 추가로 다음 판단을 요청함.
+  - `category_name1`, `product_name` 같은 텍스트 속성은 계산에는 쓰이지 않고 마지막에 `product_id` 로 JOIN 해서 붙는 속성임
+  - 이런 컬럼을 주문 fact 에 같이 넣으면 row 폭이 커져 저장량이 늘어날 수 있음
+  - BigQuery 에서는 late JOIN 이 부담이 적지만, ClickHouse 는 JOIN 이 느리다고 알려져 있어 분리 가능 여부 판단이 필요함
+  - 만약 이 텍스트를 late join 으로 뺄 수 있다면, 상품명 변경 때문에 과거 주문 fact 를 전체 재생성할 필요도 줄어듦
+
+추가 확인 내용
+--------------
+  현재 exported routine `sabangnet_total_order.sql` 을 다시 확인함.
+
+  1. `sabangnet.model` 조인 자체는 존재함
+    - `LEFT JOIN sabangnet.model AS mdl ON ord.product_id = mdl.product_id`
+
+  2. 하지만 `sabangnet.model` 의 모든 컬럼이 단순 표시용은 아님
+    - `delivery_group` 은 최종 출력/해석에 직접 사용됨
+    - `delivery_fee` 는 `COALESCE(ord.delivery_fee, mdl.delivery_fee, 0)` 형태로 계산에 사용됨
+
+  3. 따라서 `sabangnet.model` 전체를 late join 대상으로 보면 안 되고,
+     계산용 속성과 표시용 속성을 나눠서 봐야 함
+
+판단
+----
+  최선의 구조는 다음과 같음.
+
+  1. 주문 분석 테이블을 하나의 wide fact 로 계속 유지하지 말고,
+     `fact core + product display dimension` 으로 분리함.
+
+  2. fact core 에는 아래를 남김.
+    - 주문 키
+    - 수량/매출/원가/공급가/배송비
+    - `product_id`, `option_id` 같은 조인 키
+    - `delivery_group`, `delivery_fee` 같은 계산 관련 속성
+
+  3. product display dimension 에는 아래를 둠.
+    - `product_name`
+    - `category_name1..4`
+    - `brand_name`, `color`, `maker_name`
+    - 기타 화면 표시용 텍스트
+
+  4. 이 구조에서는 `product_name` 변경이 fact 전체 재생성 사유가 아님.
+    - dimension refresh 만 수행하면 됨
+    - 반면 `delivery_fee` 같은 계산 속성 변경은 여전히 fact 재생성 사유임
+
+ClickHouse 에 대한 판단
+-----------------------
+  - ClickHouse 에서 느린 것은 보통 "큰 fact 들을 여러 번 JOIN 하는 경우"임
+  - 현재처럼 `product_id` 기준의 작은 1:1 상품 dimension 하나를 late join 하는 것은 충분히 현실적임
+  - 필요 시 dictionary 또는 작은 key-value 성격 테이블을 사용해 lookup 형태로 붙일 수 있음
+  - 따라서 "설명용 텍스트만 따로 JOIN" 하는 구조는 ClickHouse 에서도 허용 가능하다고 판단함
+
+설계 보정
+---------
+  - PostgreSQL canonical layer:
+    · `mart_total_order_core`
+    · `dim_product_display_current`
+  - ClickHouse:
+    · fact core swap 유지
+    · 상품명/카테고리명은 작은 dimension join 또는 dictionary lookup
+  - BigQuery:
+    · fact core + dimension 분리
+    · 필요 시 wide view 제공
+
+결과물
+------
+  - docs/postgres-clickhouse-bigquery-sync-plan.md 에 fact core / display dimension 분리 전략 반영
+  - chat.log 현재 세션 기록 추가

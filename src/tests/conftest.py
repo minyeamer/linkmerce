@@ -8,6 +8,8 @@ from ruamel.yaml import YAML
 import datetime as dt
 import json
 import os
+import sys
+import unicodedata
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Literal
@@ -315,9 +317,11 @@ class TransformerHarness:
     def load_extract(self, map_index: str | None = None, kwargs: dict | None = None) -> tuple[Any, str]:
         """`Extractor` 결과 파일을 읽어서, 역직렬화된 데이터와 함께 파일명에서 `index`를 추출해 반환한다."""
         pattern = f"extract{_map_index(map_index, kwargs)}.*"
-        for file_path in self.extractor_dir.glob(pattern):
-            return _read_file(file_path), _get_index(file_path.name)
-        pytest.skip(f"Extraction results not found: {pattern}")
+        for form in ["NFC", "NFD"]: # OS별 파일 시스템의 한글 정규화 방식(NFD/NFC)에 맞춰 패턴 적용
+            pattern_norm = unicodedata.normalize(form, pattern)
+            for file_path in self.extractor_dir.glob(pattern_norm):
+                return _read_file(file_path), _get_index(file_path.name)
+        pytest.skip(f"Extraction results not found: {self.extractor_dir.relative_to(RESULTS_DIR) / pattern}")
 
     def transform(self, skip_dump: bool = False, map_index: str | None = None, **kwargs) -> Any:
         """`Extractor` 결과 파일을 읽어서 파싱한 뒤 DB에 삽입하는 파이프라인을 실행한다."""

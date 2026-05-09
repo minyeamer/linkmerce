@@ -1,12 +1,12 @@
 -- ProductOption: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    vendor_inventory_id BIGINT
-  , vendor_inventory_item_id BIGINT
-  , product_id BIGINT
-  , option_id BIGINT PRIMARY KEY
-  , item_id BIGINT
+    vendor_inventory_id BIGINT NOT NULL
+  , vendor_inventory_item_id BIGINT NOT NULL
+  , product_id BIGINT NULL
+  , option_id BIGINT NOT NULL
+  , item_id BIGINT NULL
   , barcode VARCHAR
-  , vendor_id VARCHAR
+  , vendor_id VARCHAR NOT NULL
   , product_name VARCHAR
   , option_name VARCHAR
   , display_category_id INTEGER
@@ -16,13 +16,14 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , maker_name VARCHAR
   , product_status TINYINT -- {0: '판매중', 1: '품절', 2: '숨김상품'}
   , is_deleted BOOLEAN
-  , price INTEGER
+  , price INTEGER NULL
   , sales_price INTEGER
   , delivery_fee INTEGER
   , order_quantity INTEGER
   , stock_quantity INTEGER
   , register_dt TIMESTAMP
   , modify_dt TIMESTAMP
+  , PRIMARY KEY (option_id)
 );
 
 -- ProductOption: bulk_insert
@@ -52,15 +53,14 @@ SELECT
   , TRY_CAST(createdOn AS TIMESTAMP) AS register_dt
   , TRY_CAST(modifiedOn AS TIMESTAMP) AS modify_dt
 FROM {{ rows }}
-WHERE vendorItemId IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 
 -- ProductDetail: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    vendor_inventory_id BIGINT
-  , vendor_inventory_item_id BIGINT
-  , option_id BIGINT PRIMARY KEY
+    vendor_inventory_id BIGINT NOT NULL
+  , vendor_inventory_item_id BIGINT NOT NULL
+  , option_id BIGINT NOT NULL
   , product_id BIGINT
   , item_id BIGINT
   , barcode VARCHAR
@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , price INTEGER
   , sales_price INTEGER
   , stock_quantity INTEGER
+  , PRIMARY KEY (option_id)
 );
 
 -- ProductDetail: bulk_insert
@@ -84,7 +85,6 @@ SELECT
   , salePrice AS sales_price
   , stockQuantity AS stock_quantity
 FROM {{ rows }}
-WHERE vendorItemId IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 -- ProductDetail: bulk_insert_vendor
@@ -133,11 +133,11 @@ ON CONFLICT (option_id) DO UPDATE SET
 
 -- ProductDownload: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    vendor_inventory_id BIGINT
-  , product_id BIGINT
-  , option_id BIGINT PRIMARY KEY
+    vendor_inventory_id BIGINT NOT NULL
+  , product_id BIGINT NOT NULL
+  , option_id BIGINT NOT NULL
   , barcode VARCHAR
-  , vendor_id VARCHAR
+  , vendor_id VARCHAR NOT NULL
   , vendor_inventory_name VARCHAR
   , product_name VARCHAR
   , option_name VARCHAR
@@ -147,14 +147,15 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , sales_price INTEGER
   , order_quantity INTEGER
   , stock_quantity INTEGER
+  , PRIMARY KEY (option_id)
 );
 
 -- ProductDownload: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    TRY_CAST("등록상품ID" AS BIGINT) AS vendor_inventory_id
-  , TRY_CAST("Product ID" AS BIGINT) AS product_id
-  , TRY_CAST("옵션 ID" AS BIGINT) AS option_id
+    CAST("등록상품ID" AS BIGINT) AS vendor_inventory_id
+  , CAST("Product ID" AS BIGINT) AS product_id
+  , CAST("옵션 ID" AS BIGINT) AS option_id
   , "바코드" AS barcode
   , $vendor_id AS vendor_id
   , "쿠팡 노출 상품명" AS vendor_inventory_name
@@ -167,18 +168,17 @@ SELECT
   , TRY_CAST("판매수량" AS INTEGER) AS order_quantity
   , TRY_CAST("잔여수량(재고)" AS INTEGER) AS stock_quantity
 FROM {{ rows }}
-WHERE TRY_CAST("옵션 ID" AS BIGINT) IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 
 -- RocketInventory: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    vendor_inventory_id BIGINT
+    vendor_inventory_id BIGINT NOT NULL
   , vendor_inventory_item_id BIGINT
-  , product_id BIGINT
-  , option_id BIGINT PRIMARY KEY
+  , product_id BIGINT NOT NULL
+  , option_id BIGINT NOT NULL
   , sku_id BIGINT
-  , vendor_id VARCHAR
+  , vendor_id VARCHAR NOT NULL
   , stock_quantity INTEGER
   , inprogress_quantity INTEGER
   , sales_amount_7d INTEGER
@@ -188,6 +188,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , days_of_cover INTEGER
   , fee_amount INTEGER
   , updated_at TIMESTAMP
+  , PRIMARY KEY (option_id)
 );
 
 -- RocketInventory: bulk_insert
@@ -209,30 +210,30 @@ SELECT
   , TRY_CAST(inventoryDetails.storageFee.monthlyStorageFeeAmount.amount AS INTEGER) AS fee_amount
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
 FROM {{ rows }}
-WHERE vendorItemId IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 
 -- RocketOption: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    vendor_inventory_id BIGINT
+    vendor_inventory_id BIGINT NOT NULL
   , vendor_inventory_item_id BIGINT
-  , product_id BIGINT
-  , option_id BIGINT PRIMARY KEY
+  , product_id BIGINT NOT NULL
+  , option_id BIGINT NOT NULL
   , item_id BIGINT
-  , barcode VARCHAR
-  , vendor_id VARCHAR
+  , barcode VARCHAR NULL
+  , vendor_id VARCHAR NOT NULL
   , product_name VARCHAR
   , option_name VARCHAR
   , display_category_id INTEGER
   , category_id INTEGER
   , category_name VARCHAR
   , product_status TINYINT -- {0: '판매중', 1: '품절', 2: '숨김상품'}
-  , price INTEGER
+  , price INTEGER NULL
   , sales_price INTEGER
   , order_quantity INTEGER
   , stock_quantity INTEGER
   , register_dt TIMESTAMP
+  , PRIMARY KEY (option_id)
 );
 
 -- RocketOption: bulk_insert
@@ -266,5 +267,4 @@ SELECT
   , inventoryDetails.orderableQuantity AS stock_quantity
   , TRY_CAST(listingDetails.productRegistrationDate AS TIMESTAMP) AS register_dt
 FROM {{ rows }}
-WHERE vendorItemId IS NOT NULL
 ON CONFLICT DO NOTHING;

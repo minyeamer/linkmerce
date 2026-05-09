@@ -1,9 +1,9 @@
 -- Campaign: create
 CREATE TABLE IF NOT EXISTS {{ campaign }} (
-    campaign_id BIGINT PRIMARY KEY
+    campaign_id BIGINT NOT NULL
   , campaign_name VARCHAR
   , campaign_type VARCHAR -- {'PA': '상품광고'}
-  , vendor_id VARCHAR
+  , vendor_id VARCHAR NOT NULL
   , vendor_type TINYINT -- {0: 'Wing', 1: '서플라이어 허브'}
   , goal_type TINYINT -- {0: '매출 성장', 1: '신규 구매 고객 확보', 2: '인지도 상승'}
   , is_active BOOLEAN
@@ -14,19 +14,21 @@ CREATE TABLE IF NOT EXISTS {{ campaign }} (
   -- , spent_budget INTEGER
   , created_at TIMESTAMP
   , updated_at TIMESTAMP
+  , PRIMARY KEY (campaign_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ adgroup }} (
-    adgroup_id BIGINT PRIMARY KEY
-  , campaign_id BIGINT NOT NULL
+    adgroup_id BIGINT NOT NULL
   , adgroup_name VARCHAR
-  , vendor_id VARCHAR
+  , vendor_id VARCHAR NOT NULL
+  , campaign_id BIGINT NOT NULL
   , goal_type TINYINT -- {0: '매출 성장', 1: '신규 구매 고객 확보', 2: '인지도 상승'}
   , is_active BOOLEAN
   , is_deleted BOOLEAN
   , roas_target INTEGER
   , created_at TIMESTAMP
   , updated_at TIMESTAMP
+  , PRIMARY KEY (adgroup_id)
 );
 
 -- Campaign: bulk_insert
@@ -54,15 +56,14 @@ SELECT
   , TRY_STRPTIME(SUBSTR(createdAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS created_at
   , TRY_STRPTIME(SUBSTR(updatedAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS updated_at
 FROM {{ campaign_rows }}
-WHERE id IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ adgroup }}
 SELECT
     id AS adgroup_id
-  , paCampaignId AS campaign_id
   , name AS adgroup_name
   , $vendor_id AS vendor_id
+  , campaignId AS campaign_id
   , (CASE
       WHEN goalType = 'SALES' THEN 0
       WHEN goalType = 'NCA' THEN 1
@@ -74,7 +75,6 @@ SELECT
   , TRY_STRPTIME(SUBSTR(createdAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS created_at
   , TRY_STRPTIME(SUBSTR(updatedAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS updated_at
 FROM {{ adgroup_rows }}
-WHERE (id IS NOT NULL) AND (campaignId IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 -- Campaign: goal_type
@@ -88,14 +88,15 @@ FROM UNNEST([
 
 -- Creative: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    creative_id BIGINT PRIMARY KEY
+    creative_id BIGINT NOT NULL
   , option_id BIGINT
-  , vendor_id VARCHAR
+  , vendor_id VARCHAR NOT NULL
   , creative_type VARCHAR
   , headline VARCHAR
   -- , description VARCHAR
   -- , image_url VARCHAR
   , ordering INTEGER
+  , PRIMARY KEY (creative_id)
 );
 
 -- Creative: bulk_insert
@@ -110,24 +111,23 @@ SELECT
   -- , imageUrl AS image_url
   , ordering
 FROM {{ rows }}
-WHERE id IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 
 -- ProductAdReport: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    campaign_id BIGINT
+    campaign_id BIGINT NOT NULL
   -- , campaign_name VARCHAR
   -- , adgroup_name VARCHAR
-  , vendor_id VARCHAR
+  , vendor_id VARCHAR NOT NULL
   -- , price_type VARCHAR -- {'cpc': '상품광고'}
   -- , vendor_type VARCHAR -- {'3P': 'Wing', 'Retail': '서플라이어 허브'}
   -- , target_type VARCHAR -- {'매출 최적화', '수동 성과형'}
-  , option_id BIGINT
+  , option_id BIGINT NOT NULL
   -- , option_name VARCHAR
-  , option_conv_id BIGINT
+  , option_conv_id BIGINT NOT NULL
   -- , option_conv_name VARCHAR
-  , placement_group TINYINT -- {0: '검색 영역', 1: '비검색 영역', 2: '외부 채널'}
+  , placement_group TINYINT NOT NULL -- {0: '검색 영역', 1: '비검색 영역', 2: '외부 채널'}
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
@@ -137,8 +137,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , direct_conv_amount INTEGER
   -- , campaign_start_date DATE
   -- , campaign_end_date DATE
-  , ymd DATE
-  , PRIMARY KEY (ymd, vendor_id, campaign_id, option_id, option_conv_id, placement_group)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, campaign_id, option_id, option_conv_id, placement_group)
 );
 
 -- ProductAdReport: bulk_insert
@@ -159,15 +159,15 @@ SELECT
   , ymd
 FROM (
   SELECT
-      TRY_CAST("캠페인 ID" AS BIGINT) AS campaign_id
+      CAST("캠페인 ID" AS BIGINT) AS campaign_id
     -- , "캠페인명" AS campaign_name
     -- , "광고그룹" AS adgroup_name
     -- , "과금방식" AS price_type
     -- , "판매방식" AS vendor_type
     -- , "광고유형" AS target_type
-    , TRY_CAST("광고집행 옵션ID" AS BIGINT) AS option_id
+    , CAST("광고집행 옵션ID" AS BIGINT) AS option_id
     -- , "광고집행 상품명" AS option_name
-    , COALESCE(TRY_CAST("광고전환매출발생 옵션ID" AS BIGINT), 0) AS option_conv_id
+    , COALESCE(CAST("광고전환매출발생 옵션ID" AS BIGINT), 0) AS option_conv_id
     -- , "광고전환매출발생 상품명" AS option_conv_name
     , (CASE
         WHEN "광고 노출 지면" = '검색 영역' THEN 0
@@ -182,30 +182,27 @@ FROM (
     , TRY_CAST(REPLACE(TRY_CAST("직접 전환매출액(1일)" AS VARCHAR), ',', '') AS INTEGER) AS direct_conv_amount
     -- , TRY_CAST(TRY_STRPTIME("캠페인 시작일", '%Y.%m.%d') AS DATE) AS campaign_start_date
     -- , TRY_CAST(TRY_STRPTIME("캠페인 종료일", '%Y.%m.%d') AS DATE) AS campaign_end_date
-    , TRY_CAST(TRY_STRPTIME(CAST(CAST("날짜" AS BIGINT) AS VARCHAR), '%Y%m%d') AS DATE) AS ymd
+    , CAST(STRPTIME(CAST(CAST("날짜" AS BIGINT) AS VARCHAR), '%Y%m%d') AS DATE) AS ymd
   FROM {{ rows }}
 ) AS report
-WHERE (campaign_id IS NOT NULL)
-  AND (option_id IS NOT NULL)
-  AND (ymd IS NOT NULL)
 GROUP BY ymd, campaign_id, option_id, option_conv_id, placement_group
 ON CONFLICT DO NOTHING;
 
 
 -- NewCustomerAdReport: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    campaign_id BIGINT
+    campaign_id BIGINT NOT NULL
   -- , campaign_name VARCHAR
   -- , adgroup_name VARCHAR
-  , vendor_id VARCHAR
-  , creative_id BIGINT
+  , vendor_id VARCHAR NOT NULL
+  , creative_id BIGINT NOT NULL
   , creative_type TINYINT -- {0: '상품', 1: '동영상'}
   -- , price_type VARCHAR -- {'cpc': '상품광고'}
   -- , vendor_type VARCHAR -- {'3P': 'Wing', 'Retail': '서플라이어 허브'}
   -- , target_type VARCHAR -- {'매출 최적화', '수동 성과형'}
   , option_id BIGINT
   -- , option_name VARCHAR
-  , placement_group TINYINT -- {0: '검색 영역', 1: '비검색 영역', 2: '외부 채널'}
+  , placement_group TINYINT NOT NULL -- {0: '검색 영역', 1: '비검색 영역', 2: '외부 채널'}
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
@@ -213,8 +210,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , stay_time DECIMAL(18, 2)
   -- , campaign_start_date DATE
   -- , campaign_end_date DATE
-  , ymd DATE
-  , PRIMARY KEY (ymd, vendor_id, campaign_id, creative_id, placement_group)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, campaign_id, creative_id, placement_group)
 );
 
 -- NewCustomerAdReport: bulk_insert
@@ -234,10 +231,10 @@ SELECT
   , ymd
 FROM (
   SELECT
-      TRY_CAST("캠페인 ID" AS BIGINT) AS campaign_id
+      CAST("캠페인 ID" AS BIGINT) AS campaign_id
     -- , "캠페인명" AS campaign_name
     -- , "광고그룹" AS adgroup_name
-    , TRY_CAST("소재 ID" AS BIGINT) AS creative_id
+    , CAST("소재 ID" AS BIGINT) AS creative_id
     , (CASE WHEN "소재" = '상품' THEN 0 WHEN "소재" = '동영상' THEN 1 ELSE NULL END) AS creative_type
     -- , "과금방식" AS price_type
     -- , "판매방식" AS vendor_type
@@ -255,11 +252,8 @@ FROM (
     , TRY_CAST("평균 재생 시간" AS FLOAT) AS stay_time
     -- , TRY_CAST(TRY_STRPTIME("캠페인 시작일", '%Y.%m.%d') AS DATE) AS campaign_start_date
     -- , TRY_CAST(TRY_STRPTIME("캠페인 종료일", '%Y.%m.%d') AS DATE) AS campaign_end_date
-    , TRY_CAST(TRY_STRPTIME(CAST(CAST("날짜" AS BIGINT) AS VARCHAR), '%Y%m%d') AS DATE) AS ymd
+    , CAST(STRPTIME(CAST(CAST("날짜" AS BIGINT) AS VARCHAR), '%Y%m%d') AS DATE) AS ymd
   FROM {{ rows }}
 ) AS report
-WHERE (campaign_id IS NOT NULL)
-  AND (creative_id IS NOT NULL)
-  AND (ymd IS NOT NULL)
 GROUP BY ymd, campaign_id, creative_id, placement_group
 ON CONFLICT DO NOTHING;

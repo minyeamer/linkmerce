@@ -1,6 +1,6 @@
 -- Campaign: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    campaign_id VARCHAR PRIMARY KEY
+    campaign_id VARCHAR NOT NULL
   , campaign_name VARCHAR
   , campaign_type TINYINT -- Campaign: campaign_type
   , customer_id BIGINT NOT NULL
@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
   -- , shared_budget_id VARCHAR
+  , PRIMARY KEY (campaign_id)
 );
 
 -- Campaign: bulk_insert
@@ -46,7 +47,7 @@ FROM UNNEST([
 
 -- Adgroup: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    adgroup_id VARCHAR PRIMARY KEY
+    adgroup_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adgroup_name VARCHAR
   , adgroup_type TINYINT -- Adgroup: adgroup_type
@@ -63,6 +64,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
   -- , content_type VARCHAR
+  , PRIMARY KEY (adgroup_id)
 );
 
 -- Adgroup: bulk_insert
@@ -107,7 +109,7 @@ FROM UNNEST([
 
 -- MasterAd: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    ad_id VARCHAR PRIMARY KEY
+    ad_id VARCHAR NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_type TINYINT -- MasterAd: ad_type
   , customer_id BIGINT NOT NULL
@@ -124,12 +126,13 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , sales_price INTEGER
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
+  , PRIMARY KEY (ad_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ link_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
+  , ad_id VARCHAR NOT NULL
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , subject VARCHAR
   , description VARCHAR
@@ -140,12 +143,13 @@ CREATE TABLE IF NOT EXISTS {{ link_ad }} (
   , is_deleted BOOLEAN
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
+  , PRIMARY KEY (customer_id, adgroup_id, ad_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ contents_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
+  , ad_id VARCHAR NOT NULL
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , subject VARCHAR
   , description VARCHAR
@@ -159,12 +163,13 @@ CREATE TABLE IF NOT EXISTS {{ contents_ad }} (
   , is_deleted BOOLEAN
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
+  , PRIMARY KEY (customer_id, adgroup_id, ad_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ shopping_product }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
+  , ad_id VARCHAR NOT NULL
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , is_enabled BOOLEAN
   , is_deleted BOOLEAN
@@ -190,11 +195,12 @@ CREATE TABLE IF NOT EXISTS {{ shopping_product }} (
   , category_id3 INTEGER
   , category_id4 INTEGER
   , full_category_name VARCHAR
+  , PRIMARY KEY (customer_id, adgroup_id, ad_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ product_group }} (
     customer_id BIGINT NOT NULL
-  , product_group_id VARCHAR PRIMARY KEY
+  , product_group_id VARCHAR NOT NULL
   , business_channel_id VARCHAR
   , product_group_name VARCHAR
   , registration_method TINYINT -- {1: '몰에 등록된 전체 상품을 등록', 2: '개별 상품 혹은 카테고리'}
@@ -202,21 +208,23 @@ CREATE TABLE IF NOT EXISTS {{ product_group }} (
   , attribute_json VARCHAR
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
+  , PRIMARY KEY (customer_id, product_group_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ product_group_rel }} (
     customer_id BIGINT NOT NULL
-  , relation_id VARCHAR PRIMARY KEY
+  , relation_id VARCHAR NOT NULL
   , product_group_id VARCHAR NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
+  , PRIMARY KEY (customer_id, relation_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ brand_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
+  , ad_id VARCHAR NOT NULL
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , is_enabled BOOLEAN
   , is_deleted BOOLEAN
@@ -228,12 +236,13 @@ CREATE TABLE IF NOT EXISTS {{ brand_ad }} (
   , image_path VARCHAR
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
+  , PRIMARY KEY (customer_id, adgroup_id, ad_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ brand_thumbnail_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
+  , ad_id VARCHAR NOT NULL
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , is_enabled BOOLEAN
   , is_deleted BOOLEAN
@@ -246,12 +255,13 @@ CREATE TABLE IF NOT EXISTS {{ brand_thumbnail_ad }} (
   , thumbnail_image_path VARCHAR
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
+  , PRIMARY KEY (customer_id, adgroup_id, ad_id)
 );
 
 CREATE TABLE IF NOT EXISTS {{ brand_banner_ad }} (
     customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR PRIMARY KEY
+  , ad_id VARCHAR NOT NULL
   , inspect_status TINYINT -- {10: '검토 대기', 20: '통과', 30: '보류', 40: '반려'}
   , is_enabled BOOLEAN
   , is_deleted BOOLEAN
@@ -263,6 +273,7 @@ CREATE TABLE IF NOT EXISTS {{ brand_banner_ad }} (
   , thumbnail_image_path VARCHAR
   , created_at TIMESTAMP
   , deleted_at TIMESTAMP
+  , PRIMARY KEY (customer_id, adgroup_id, ad_id)
 );
 
 -- MasterAd: bulk_insert_link_ad
@@ -327,8 +338,8 @@ SELECT
   , "Ad Link Status" AS ad_link_status
   , "regTm" AS created_at
   , "delTm" AS deleted_at
-  , TRY_CAST("Product ID" AS BIGINT) AS nv_mid
-  , TRY_CAST("Product ID Of Mall" AS BIGINT) AS product_id
+  , CAST("Product ID" AS BIGINT) AS nv_mid
+  , CAST("Product ID Of Mall" AS BIGINT) AS product_id
   , COALESCE(NULLIF("Ad Product Name", ''), "Product Name") AS product_name
   , COALESCE(NULLIF("Ad Image URL", ''), "Product Image URL") AS image_url
   , "PC Landing URL" AS landing_url_pc
@@ -616,9 +627,9 @@ FROM UNNEST([
 
 -- Media: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    media_code INTEGER
+    media_code INTEGER NOT NULL
   , media_name VARCHAR
-  , media_type TINYINT -- {0: 'media', 1: 'group'}
+  , media_type TINYINT NOT NULL -- {0: 'media', 1: 'group'}
   -- , media_url VARCHAR
   -- , naver_ad_networks_yn BOOLEAN
   -- , portal_site_yn BOOLEAN
@@ -656,36 +667,36 @@ ON CONFLICT DO NOTHING;
 
 -- AdvancedReport: create
 CREATE TABLE IF NOT EXISTS {{ ad_stat }} (
-    ad_id VARCHAR
-  , customer_id BIGINT
-  , media_code BIGINT
-  , pc_mobile_type TINYINT
+    ad_id VARCHAR NOT NULL
+  , customer_id BIGINT NOT NULL
+  , media_code BIGINT NOT NULL
+  , pc_mobile_type TINYINT NOT NULL -- {0: 'PC', 1: '모바일', 2: '기타'}
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
   , ad_rank_sum INTEGER
-  , ymd DATE
-  , PRIMARY KEY (ymd, customer_id, ad_id, media_code, pc_mobile_type)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, ad_id, pc_mobile_type, media_code)
 );
 
 CREATE TABLE IF NOT EXISTS {{ ad_conv }} (
-    ad_id VARCHAR
-  , customer_id BIGINT
-  , media_code BIGINT
-  , pc_mobile_type TINYINT
+    ad_id VARCHAR NOT NULL
+  , customer_id BIGINT NOT NULL
+  , media_code BIGINT NOT NULL
+  , pc_mobile_type TINYINT NOT NULL -- {0: 'PC', 1: '모바일', 2: '기타'}
   , conv_count INTEGER
   , direct_conv_count INTEGER
   , conv_amount INTEGER
   , direct_conv_amount INTEGER
-  , ymd DATE
-  , PRIMARY KEY (ymd, customer_id, ad_id, media_code, pc_mobile_type)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, ad_id, pc_mobile_type, media_code)
 );
 
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    ad_id VARCHAR
-  , customer_id BIGINT
-  , media_code BIGINT
-  , pc_mobile_type TINYINT
+    ad_id VARCHAR NOT NULL
+  , customer_id BIGINT NOT NULL
+  , media_code BIGINT NOT NULL
+  , pc_mobile_type TINYINT NOT NULL -- {0: 'PC', 1: '모바일', 2: '기타'}
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
@@ -694,8 +705,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , direct_conv_count INTEGER
   , conv_amount INTEGER
   , direct_conv_amount INTEGER
-  , ymd DATE
-  , PRIMARY KEY (ymd, customer_id, ad_id, media_code, pc_mobile_type)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, ad_id, pc_mobile_type, media_code)
 );
 
 -- AdvancedReport: bulk_insert_ad_stat
@@ -728,9 +739,6 @@ FROM (
     , "Date" AS ymd
   FROM {{ rows }}
 ) AS report
-WHERE (ad_id IS NOT NULL)
-  AND (customer_id IS NOT NULL)
-  AND (ymd IS NOT NULL)
 GROUP BY ymd, customer_id, ad_id, media_code, pc_mobile_type;
 
 -- AdvancedReport: bulk_insert_ad_conv
@@ -762,9 +770,6 @@ FROM (
     , "Date" AS ymd
   FROM {{ rows }}
 ) AS report
-WHERE (ad_id IS NOT NULL)
-  AND (customer_id IS NOT NULL)
-  AND (ymd IS NOT NULL)
 GROUP BY ymd, customer_id, ad_id, media_code, pc_mobile_type;
 
 -- AdvancedReport: merge_insert

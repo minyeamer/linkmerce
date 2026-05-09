@@ -1,14 +1,15 @@
 -- Search: create
 CREATE TABLE IF NOT EXISTS {{ sections }} (
-    query VARCHAR PRIMARY KEY
+    query VARCHAR NOT NULL
   , sections JSON -- list[list[dict]]
+  , PRIMARY KEY (query)
 );
 
 CREATE TABLE IF NOT EXISTS {{ summary }} (
-    query VARCHAR
-  , seq INTEGER
+    query VARCHAR NOT NULL
+  , seq INTEGER NOT NULL
   , section VARCHAR
-  , subject VARCHAR
+  , subject VARCHAR NOT NULL
   , item_count INTEGER
   , PRIMARY KEY (query, seq, subject)
 );
@@ -27,8 +28,8 @@ ON CONFLICT DO NOTHING;
 
 -- CafeTab: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    query VARCHAR
-  , rank INTEGER
+    query VARCHAR NOT NULL
+  , rank INTEGER NOT NULL
   , cafe_url VARCHAR
   , article_id BIGINT
   , ad_id VARCHAR
@@ -65,8 +66,8 @@ ON CONFLICT DO NOTHING;
 
 -- CafeArticle: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    cafe_id BIGINT
-  , article_id BIGINT
+    cafe_id BIGINT NOT NULL
+  , article_id BIGINT NOT NULL
   , cafe_url VARCHAR
   , cafe_name VARCHAR
   , menu_name VARCHAR
@@ -113,10 +114,11 @@ ON CONFLICT DO NOTHING;
 
 -- ShoppingPage: create (deprecated)
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    keyword VARCHAR PRIMARY KEY
+    keyword VARCHAR NOT NULL
   , page_unit_ad INTEGER
   , page_unit_shop INTEGER
   , updated_at TIMESTAMP NOT NULL
+  , PRIMARY KEY (keyword)
 );
 
 -- ShoppingPage: bulk_insert (deprecated)

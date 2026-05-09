@@ -1,8 +1,8 @@
 -- ExposureDiagnosis: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    keyword VARCHAR
-  , display_rank SMALLINT
-  , id BIGINT
+    keyword VARCHAR NOT NULL
+  , display_rank SMALLINT NOT NULL
+  , nv_mid BIGINT
   , product_name VARCHAR
   , is_own BOOLEAN
   , full_category_name VARCHAR
@@ -23,7 +23,7 @@ SELECT
         TRY_CAST(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/main_\d+/(\d+)', 1) AS BIGINT)
       WHEN PREFIX(imageUrl, 'https://searchad-') THEN
         TRY_CAST(TRY_CAST(FROM_BASE64(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/[^/]+/([^.]+)', 1)) AS VARCHAR) AS BIGINT)
-      ELSE NULL END) AS id
+      ELSE NULL END) AS nv_mid
   , productTitle AS product_name
   , isOwn AS is_own
   , categoryNames AS full_category_name
@@ -38,15 +38,15 @@ ON CONFLICT DO NOTHING;
 
 -- ExposureRank: create
 CREATE TABLE IF NOT EXISTS {{ rank }} (
-    keyword VARCHAR
-  , id BIGINT
-  , display_rank SMALLINT
+    keyword VARCHAR NOT NULL
+  , nv_mid BIGINT
+  , display_rank SMALLINT NOT NULL
   , created_at TIMESTAMP NOT NULL
   , PRIMARY KEY (keyword, display_rank)
 );
 
 CREATE TABLE IF NOT EXISTS {{ product }} (
-    id BIGINT PRIMARY KEY
+    nv_mid BIGINT NOT NULL
   , product_id BIGINT NULL -- Placeholder
   , product_type TINYINT -- {0: '가격비교 상품', 1: '일반상품', 3: '광고상품'}
   , product_name VARCHAR
@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS {{ product }} (
   , brand_name VARCHAR
   , sales_price INTEGER
   , updated_at TIMESTAMP NOT NULL
+  , PRIMARY KEY (nv_mid)
 );
 
 -- ExposureRank: bulk_insert
@@ -69,13 +70,13 @@ FROM (
           TRY_CAST(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/main_\d+/(\d+)', 1) AS BIGINT)
         WHEN PREFIX(imageUrl, 'https://searchad-') THEN
           TRY_CAST(TRY_CAST(FROM_BASE64(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/[^/]+/([^.]+)', 1)) AS VARCHAR) AS BIGINT)
-        ELSE NULL END) AS id
+        ELSE NULL END) AS nv_mid
     , rank AS display_rank
     , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS created_at
   FROM {{ rows }}
   WHERE ($is_own IS NULL) OR (isOwn = $is_own)
 ) AS exposure
-WHERE exposure.id IS NOT NULL
+WHERE exposure.nv_mid IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ product }}
@@ -87,7 +88,7 @@ FROM (
           TRY_CAST(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/main_\d+/(\d+)', 1) AS BIGINT)
         WHEN PREFIX(imageUrl, 'https://searchad-') THEN
           TRY_CAST(TRY_CAST(FROM_BASE64(REGEXP_EXTRACT(imageUrl, '^https://[^/]+/[^/]+/([^.]+)', 1)) AS VARCHAR) AS BIGINT)
-        ELSE NULL END) AS id
+        ELSE NULL END) AS nv_mid
     , NULL AS product_id
     , IF(PREFIX(imageUrl, 'https://shopping-'), 0, 3) AS product_type
     , productTitle AS product_name
@@ -100,7 +101,7 @@ FROM (
   FROM {{ rows }}
   WHERE ($is_own IS NULL) OR (isOwn = $is_own)
 ) AS exposure
-WHERE exposure.id IS NOT NULL
+WHERE exposure.nv_mid IS NOT NULL
 ON CONFLICT DO UPDATE SET
     product_name = COALESCE(EXCLUDED.product_name, product_name)
   , full_category_name = COALESCE(EXCLUDED.full_category_name, full_category_name)

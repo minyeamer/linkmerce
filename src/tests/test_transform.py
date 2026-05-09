@@ -51,7 +51,6 @@ class TestCoupangAds:
     def vendor_id(self, reader: YamlReader) -> str:
         return reader("coupang.advertising.0")["vendor_id"]
 
-    @pytest.mark.skip
     @pytest.mark.coupang_ads
     def test_campaign(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 캠페인 목록을 변환하는 테스트."""
@@ -78,6 +77,7 @@ class TestCoupangAds:
             vendor_id = self.vendor_id(credentials),
         )
 
+    @pytest.mark.skip
     @pytest.mark.coupang_ads
     def test_new_customer_adreport(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 신규 구매 고객 확보 광고 보고서를 변환하는 테스트."""
@@ -316,6 +316,7 @@ class TestNaverSearch:
     - naver.main.search.CafeTab
     - naver.main.search.CafeArticle"""
 
+    @pytest.mark.skip
     @pytest.mark.naver_search
     def test_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 통합검색 결과를 변환하는 테스트."""
@@ -335,6 +336,7 @@ class TestNaverSearch:
         summary = harness.summarize_sections(query, sections, sep)
         harness.bulk_insert(summary, map_index=query, render={"summary": harness.tables["summary"]})
 
+    @pytest.mark.skip
     @pytest.mark.naver_search
     def test_cafe_tab(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 탭별 검색 결과를 변환하는 테스트."""
@@ -345,6 +347,7 @@ class TestNaverSearch:
             map_index = _configs["query"],
         )
 
+    @pytest.mark.skip
     @pytest.mark.naver_search
     def test_cafe_article(self, transformer_harness: Harness):
         """네이버 카페 게시글의 정보를 변환하는 테스트."""

@@ -143,7 +143,7 @@ def brand_catalog(
 def brand_product(
         cookies: str,
         brand_ids: str | Iterable[str],
-        mall_seq: int | str | Iterable[int | str] | None = None,
+        mall_seq: int | str | Iterable[int | str],
         sort_type: Literal["popular", "recent", "price"] = "recent",
         is_brand_store: bool | None = None,
         page: int | list[int] | None = 0,
@@ -170,7 +170,7 @@ def brand_product(
     brand_ids: str | Iterable[str]
         브랜드 ID. 문자열 또는 문자열의 배열을 입력한다.   
         브랜드 ID를 쉼표(,)로 묶어서 OR 조건으로 동시에 조회할 수 있다.
-    mall_seq: int | str | Iterable[int | str] | None
+    mall_seq: int | str | Iterable[int | str]
         쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력할 수 있다.   
         목록으로 입력할 시 브랜드 ID 목록에서 인덱스가 동일한 항목과 AND 조건으로 조회된다.
     sort_type: str
@@ -268,7 +268,7 @@ def brand_price(
     brand_ids: str | Iterable[str]
         브랜드 ID. 문자열 또는 문자열의 배열을 입력한다.   
         브랜드 ID를 쉼표(,)로 묶어서 OR 조건으로 동시에 조회할 수 있다.
-    mall_seq: int | str | Iterable[int | str] | None
+    mall_seq: int | str | Iterable[int | str]
         쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력할 수 있다.   
         목록으로 입력할 시 브랜드 ID 목록에서 인덱스가 동일한 항목과 AND 조건으로 조회된다.
     sort_type: str
@@ -365,7 +365,7 @@ def product_catalog(
     brand_ids: str | Iterable[str]
         브랜드 ID. 문자열 또는 문자열의 배열을 입력한다.   
         브랜드 ID를 쉼표(,)로 묶어서 OR 조건으로 동시에 조회할 수 있다.
-    mall_seq: int | str | Iterable[int | str] | None
+    mall_seq: int | str | Iterable[int | str]
         쇼핑몰 순번. 정수 또는 문자열, 또는 정수/문자열의 배열을 입력할 수 있다.   
         목록으로 입력할 시 브랜드 ID 목록에서 인덱스가 동일한 항목과 AND 조건으로 조회된다.
     sort_type: str

@@ -37,11 +37,11 @@ airflow/
 ├── dags/
 │   ├── _deprecated/
 │   ├── coupang/
-│   ├── hcenter/
 │   ├── naver/
 │   ├── sabangnet/
 │   ├── searchad/
-│   └── smartstore/
+│   ├── smartstore/
+│   └── ss_hcenter/
 ├── files/
 ├── logs/
 ├── plugins/
@@ -176,7 +176,7 @@ with DAG(dag_id="...") as dag:
 | `coupang_product_option` | 트리거 전용 | 쿠팡 상품 옵션 ETL |
 | `coupang_rocket_sales` | 트리거 전용 | 쿠팡 로켓그로스 정산 리포트 ETL |
 
-### 네이버 쇼핑파트너센터 (hcenter)
+### 네이버 쇼핑파트너센터 (ss_hcenter)
 
 | DAG ID | 스케줄 | 역할 |
 | --- | --- | --- |

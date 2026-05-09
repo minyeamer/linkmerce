@@ -11,9 +11,9 @@ FROM UNNEST([
 
 -- Campaign: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    campaign_id VARCHAR
+    campaign_id VARCHAR NOT NULL
   , campaign_name VARCHAR
-  , customer_id VARCHAR
+  , customer_id BIGINT NOT NULL
   , campaign_type VARCHAR
   , campaign_status VARCHAR
   , bidding_strategy VARCHAR
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , click_count_30d INTEGER
   , ad_cost_30d INTEGER
   , created_at TIMESTAMP
-  , PRIMARY KEY (customer_id, campaign_id)
+  , PRIMARY KEY (campaign_id)
 );
 
 -- Campaign: bulk_insert
@@ -92,9 +92,9 @@ FROM UNNEST([
 
 -- AdGroup: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    adgroup_id VARCHAR
+    adgroup_id VARCHAR NOT NULL
   , adgroup_name VARCHAR
-  , customer_id VARCHAR
+  , customer_id BIGINT NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adgroup_type VARCHAR
   , adgroup_status VARCHAR
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , impression_count_30d INTEGER
   , click_count_30d INTEGER
   , ad_cost_30d INTEGER
-  , PRIMARY KEY (customer_id, adgroup_id)
+  , PRIMARY KEY (adgroup_id)
 );
 
 -- AdGroup: bulk_insert
@@ -148,9 +148,9 @@ FROM UNNEST([
 
 -- Ad: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    ad_id VARCHAR
+    ad_id VARCHAR NOT NULL
   , ad_name VARCHAR
-  , customer_id VARCHAR
+  , customer_id BIGINT NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adgroup_id VARCHAR NOT NULL
   , ad_type VARCHAR
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , impression_count_30d INTEGER
   , click_count_30d INTEGER
   , ad_cost_30d INTEGER
-  , PRIMARY KEY (customer_id, ad_id)
+  , PRIMARY KEY (ad_id)
 );
 
 -- Ad: bulk_insert
@@ -219,16 +219,16 @@ FROM UNNEST([
 
 -- Insight: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    customer_id VARCHAR
+    customer_id BIGINT NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR
-  , device_type TINYINT
+  , ad_id VARCHAR NOT NULL
+  , device_type TINYINT NOT NULL
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
-  , ymd DATE
-  , PRIMARY KEY (ymd, customer_id, ad_id, device_type)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, ad_id, device_type)
 );
 
 -- Insight: bulk_insert
@@ -250,19 +250,19 @@ SELECT
   , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count
   , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost
-  , TRY_STRPTIME(segments.date, '%Y-%m-%d') AS ymd
+  , CAST(STRPTIME(segments.date, '%Y-%m-%d') AS DATE) AS ymd
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 
 
 -- Asset: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    asset_id VARCHAR
+    asset_id VARCHAR NOT NULL
   , asset_name VARCHAR
-  , customer_id VARCHAR
+  , customer_id BIGINT NOT NULL
   , asset_type VARCHAR
   , asset_url VARCHAR
-  , PRIMARY KEY (customer_id, asset_id)
+  , PRIMARY KEY (asset_id)
 );
 
 -- Asset: bulk_insert
@@ -316,17 +316,17 @@ FROM UNNEST([
 
 -- AssetView: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    customer_id VARCHAR
+    customer_id BIGINT NOT NULL
   , adgroup_id VARCHAR NOT NULL
-  , ad_id VARCHAR
-  , asset_id VARCHAR
-  , field_type TINYINT
-  , device_type TINYINT
+  , ad_id VARCHAR NOT NULL
+  , asset_id VARCHAR NOT NULL
+  , field_type TINYINT NOT NULL
+  , device_type TINYINT NOT NULL
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
-  , ymd DATE
-  , PRIMARY KEY (ymd, customer_id, ad_id, asset_id, field_type, device_type)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, ad_id, asset_id, field_type, device_type)
 );
 
 -- AssetView: bulk_insert
@@ -386,7 +386,7 @@ SELECT
   , COALESCE(TRY_CAST(metrics.impressions AS INTEGER), 0) AS impression_count
   , COALESCE(TRY_CAST(metrics.clicks AS INTEGER), 0) AS click_count
   , ROUND(COALESCE(TRY_CAST(metrics.costMicros AS BIGINT), 0) / 1000000) AS ad_cost
-  , TRY_STRPTIME(segments.date, '%Y-%m-%d') AS ymd
+  , CAST(STRPTIME(segments.date, '%Y-%m-%d') AS DATE) AS ymd
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
 

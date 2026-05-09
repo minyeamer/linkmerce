@@ -1,6 +1,6 @@
 -- TimeContract: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    contract_id VARCHAR PRIMARY KEY
+    contract_id VARCHAR NOT NULL
   , adgroup_id VARCHAR NOT NULL
   -- , adgroup_name VARCHAR
   , customer_id INTEGER NOT NULL
@@ -13,11 +13,12 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , keyword_qc INTEGER
   , register_dt TIMESTAMP
   , edit_dt TIMESTAMP
-  , contract_start_date DATE
+  , contract_start_date DATE NOT NULL
   , contract_end_date DATE NOT NULL
   , exposure_start_date DATE
   , exposure_end_date DATE
   , cancel_date DATE
+  , PRIMARY KEY (contract_id)
 );
 
 -- TimeContract: bulk_insert
@@ -43,16 +44,12 @@ SELECT
   , totalKeywordQc AS keyword_qc
   , (TRY_CAST(regTm AS TIMESTAMP) + INTERVAL 9 HOUR) AS register_dt
   , (TRY_CAST(editTm AS TIMESTAMP) + INTERVAL 9 HOUR) AS edit_dt
-  , TRY_CAST((TRY_CAST(contractStartDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS contract_start_date
-  , TRY_CAST((TRY_CAST(contractEndDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS contract_end_date
+  , CAST((CAST(contractStartDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS contract_start_date
+  , CAST((CAST(contractEndDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS contract_end_date
   , TRY_CAST((TRY_CAST(exposureStartDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS exposure_start_date
   , TRY_CAST((TRY_CAST(exposureEndDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS exposure_end_date
   , TRY_CAST((TRY_CAST(cancelTm AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS cancel_date
 FROM {{ rows }}
-WHERE (nccTimeContractId IS NOT NULL)
-  AND (nccAdgroupId IS NOT NULL)
-  AND (customerId IS NOT NULL)
-  AND (TRY_CAST(contractEndDt AS TIMESTAMP) IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 -- TimeContract: contract_status
@@ -69,7 +66,7 @@ FROM UNNEST([
 
 -- BrandNewContract: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    contract_id VARCHAR PRIMARY KEY
+    contract_id VARCHAR NOT NULL
   , adgroup_id VARCHAR NOT NULL
   -- , adgroup_name VARCHAR
   , customer_id INTEGER NOT NULL
@@ -81,16 +78,17 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , bid_amount INTEGER
   , contract_amount INTEGER
   , refund_amount INTEGER
-  , contract_qc INTEGER
-  , keyword_qc INTEGER
+  , contract_qc INTEGER NULL -- Placeholder
+  , keyword_qc INTEGER NULL -- Placeholder
   , register_dt TIMESTAMP
   , edit_dt TIMESTAMP
-  , contract_start_date DATE
+  , contract_start_date DATE NOT NULL
   , contract_end_date DATE NOT NULL
   , exposure_start_date DATE
   , exposure_end_date DATE
   -- , winning_bid_date DATE
   , cancel_date DATE
+  , PRIMARY KEY (contract_id)
 );
 
 -- BrandNewContract: bulk_insert
@@ -125,17 +123,13 @@ SELECT
   , NULL AS keyword_qc
   , (TRY_CAST(regTm AS TIMESTAMP) + INTERVAL 9 HOUR) AS register_dt
   , (TRY_CAST(editTm AS TIMESTAMP) + INTERVAL 9 HOUR) AS edit_dt
-  , TRY_CAST((TRY_CAST(contractStartDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS contract_start_date
-  , TRY_CAST((TRY_CAST(contractEndDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS contract_end_date
+  , CAST((CAST(contractStartDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS contract_start_date
+  , CAST((CAST(contractEndDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS contract_end_date
   , TRY_CAST((TRY_CAST(exposureStartDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS exposure_start_date
   , TRY_CAST((TRY_CAST(exposureEndDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS exposure_end_date
   -- , TRY_CAST((TRY_CAST(winningBidDt AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS winning_bid_date
   , TRY_CAST((TRY_CAST(cancelTm AS TIMESTAMP) + INTERVAL 9 HOUR) AS DATE) AS cancel_date
 FROM {{ rows }}
-WHERE (brandNewContractId IS NOT NULL)
-  AND (nccAdgroupId IS NOT NULL)
-  AND (customerId IS NOT NULL)
-  AND (TRY_CAST(contractEndDt AS TIMESTAMP) IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 -- BrandNewContract: contract_status

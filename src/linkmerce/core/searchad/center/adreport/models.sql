@@ -1,10 +1,10 @@
 -- DailyReport: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    ad_id VARCHAR
-  , customer_id INTEGER
-  , media_name VARCHAR
-  , pc_mobile_type TINYINT -- {0: 'PC', 1: '모바일', 2: '기타'}
-  , network_type TINYINT -- {0: '검색', 1: '콘텐츠', 2: '기타'}
+    ad_id VARCHAR NOT NULL
+  , customer_id INTEGER NOT NULL
+  , media_name VARCHAR NOT NULL
+  , pc_mobile_type TINYINT NOT NULL -- {0: 'PC', 1: '모바일', 2: '기타'}
+  , network_type TINYINT NOT NULL -- {0: '검색', 1: '콘텐츠', 2: '기타'}
   , impression_count INTEGER
   , click_count INTEGER
   , ad_cost INTEGER
@@ -15,15 +15,15 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , avg_rank DECIMAL(18, 1)
   , page_view_per_visit DECIMAL(18, 2)
   , stay_time_per_visit DECIMAL(18, 2)
-  , ymd DATE
-  , PRIMARY KEY (ymd, customer_id, pc_mobile_type, network_type, media_name, ad_id)
+  , ymd DATE NOT NULL
+  , PRIMARY KEY (ymd, ad_id, pc_mobile_type, network_type, media_name)
 );
 
 -- DailyReport: bulk_insert
 INSERT INTO {{ table }}
 SELECT
     REPLACE(nccAdId, '(삭제)', '') AS ad_id
-  , TRY_CAST($customer_id AS INTEGER) AS customer_id
+  , $customer_id AS customer_id
   , mediaNm AS media_name
   , (CASE WHEN pcMblTp = 'PC' THEN 0 WHEN pcMblTp = '모바일' THEN 1 ELSE 2 END) AS pc_mobile_type
   , (CASE WHEN ntwkTp = '검색' THEN 0 WHEN ntwkTp = '콘텐츠' THEN 1 ELSE 2 END) AS network_type
@@ -39,5 +39,4 @@ SELECT
   , stayTm AS stay_time_per_visit
   , ymd
 FROM {{ rows }}
-WHERE (nccAdId IS NOT NULL) AND (ymd IS NOT NULL)
 ON CONFLICT DO NOTHING;

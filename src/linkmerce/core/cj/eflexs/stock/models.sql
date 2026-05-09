@@ -25,7 +25,7 @@ INSERT INTO {{ table }}
 SELECT
     itemCd AS item_code
   , itemVarcode AS barcode
-  , TRY_CAST(strrId AS BIGINT) AS customer_id
+  , CAST(strrId AS BIGINT) AS customer_id
   -- , strrNm AS customer_name
   , itemNm AS item_name
   , whCd AS warehouse_code
@@ -41,6 +41,4 @@ SELECT
   , TRY_CAST(validDatetime AS DATE) AS validate_date
   , TRY_CAST(STRPTIME(CAST(inbDate AS VARCHAR), '%Y%m%d') AS DATE) AS inbound_date
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
-FROM {{ rows }}
-WHERE (itemCd IS NOT NULL)
-  AND (TRY_CAST(strrId AS BIGINT) IS NOT NULL);
+FROM {{ rows }};

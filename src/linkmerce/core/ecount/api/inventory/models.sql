@@ -1,8 +1,9 @@
 -- Inventory: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_code VARCHAR PRIMARY KEY
+    product_code VARCHAR NOT NULL
   , quantity INTEGER
   , updated_at TIMESTAMP
+  , PRIMARY KEY (product_code)
 );
 
 -- Inventory: bulk_insert

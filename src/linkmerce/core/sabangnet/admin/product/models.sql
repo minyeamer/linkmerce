@@ -1,6 +1,6 @@
 -- Product: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_id VARCHAR PRIMARY KEY
+    product_id VARCHAR NOT NULL
   , model_code VARCHAR
   , model_id VARCHAR
   , product_name VARCHAR
@@ -8,13 +8,14 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , brand_name VARCHAR
   , maker_name VARCHAR
   , logistics_service VARCHAR
-  , product_status INTEGER
+  , product_status TINYINT
   , manufacture_year INTEGER
   , sales_price INTEGER
   , org_price INTEGER
   , image_file VARCHAR
   , register_dt TIMESTAMP
   , modify_dt TIMESTAMP
+  , PRIMARY KEY (product_id)
 );
 
 -- Product: bulk_insert
@@ -28,7 +29,7 @@ SELECT
   , brndNm AS brand_name
   , mkcpNm AS maker_name
   , lgstscSvcAcntIdK AS logistics_service
-  , TRY_CAST(prdSplyStsCd AS INTEGER) AS product_status
+  , TRY_CAST(prdSplyStsCd AS TINYINT) AS product_status
   , TRY_CAST(prdcYy AS INTEGER) AS manufacture_year
   , sepr AS sales_price
   , splyCprc AS org_price
@@ -36,7 +37,6 @@ SELECT
   , TRY_CAST(fstRegsDt AS TIMESTAMP) AS register_dt
   , TRY_CAST(fnlChgDt AS TIMESTAMP) AS modify_dt
 FROM {{ rows }}
-WHERE prdNo IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 -- Product: product_status
@@ -55,11 +55,11 @@ FROM UNNEST([
 
 -- Option: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_id VARCHAR
-  , sku_id VARCHAR
+    product_id VARCHAR NOT NULL
+  , sku_id VARCHAR NOT NULL
   , option_group VARCHAR
   , option_name VARCHAR
-  , option_status INTEGER
+  , option_status TINYINT
   , quantity INTEGER
   , option_price INTEGER
   , register_dt TIMESTAMP
@@ -74,13 +74,12 @@ SELECT
   , skuNo AS sku_id
   , optCnfgNm AS option_group
   , optDtlNm AS option_name
-  , TRY_CAST(skuSplyStsCd AS INTEGER) AS option_status
+  , TRY_CAST(skuSplyStsCd AS TINYINT) AS option_status
   , skuQt AS quantity
   , skuAddAmt AS option_price
   , TRY_CAST(fstRegsDt AS TIMESTAMP) AS register_dt
   , TRY_CAST(fnlChgDt AS TIMESTAMP) AS modify_dt
 FROM {{ rows }}
-WHERE (prdNo IS NOT NULL) AND (skuNo IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 -- Option: option_status
@@ -94,16 +93,17 @@ FROM UNNEST([
 
 -- OptionDownload: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    option_id VARCHAR PRIMARY KEY
+    option_id VARCHAR NOT NULL
   , barcode BIGINT
   , option_group VARCHAR
   , option_name VARCHAR
   , bundle_option_ids VARCHAR
-  , option_status INTEGER
-  , option_type INTEGER
+  , option_status TINYINT
+  , option_type TINYINT
   , option_quantity INTEGER
   , option_price INTEGER
   , register_dt TIMESTAMP
+  , PRIMARY KEY (option_id)
 );
 
 -- OptionDownload: bulk_insert
@@ -114,13 +114,12 @@ SELECT
   , "옵션제목" AS option_group
   , "옵션상세명칭" AS option_name
   , "연결상품코드" AS bundle_option_ids
-  , TRY_CAST("공급상태" AS INTEGER) AS option_status
-  , TRY_CAST("옵션구분" AS INTEGER) AS option_type
+  , TRY_CAST("공급상태" AS TINYINT) AS option_status
+  , TRY_CAST("옵션구분" AS TINYINT) AS option_type
   , "EA" AS option_quantity
   , TRY_CAST("단품추가금액" AS INTEGER) AS option_price
   , TRY_CAST("등록일시" AS TIMESTAMP) AS register_dt
 FROM {{ rows }}
-WHERE "사방넷상품코드" IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 -- OptionDownload: option_status
@@ -142,10 +141,11 @@ FROM UNNEST([
 
 -- AddProductGroup: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    group_id VARCHAR PRIMARY KEY
+    group_id VARCHAR NOT NULL
   , group_name VARCHAR
   -- , register_dt TIMESTAMP
   -- , modify_dt TIMESTAMP
+  , PRIMARY KEY (group_id)
 );
 
 -- AddProductGroup: bulk_insert
@@ -161,10 +161,10 @@ ON CONFLICT DO NOTHING;
 
 -- AddProduct: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    group_id VARCHAR
+    group_id VARCHAR NOT NULL
   , group_name VARCHAR
   , shop_id VARCHAR
-  , option_seq INTEGER
+  , option_seq INTEGER NOT NULL
   , option_id VARCHAR NOT NULL
   , option_name VARCHAR
   , sales_price INTEGER

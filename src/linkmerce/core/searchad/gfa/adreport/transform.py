@@ -128,7 +128,7 @@ class CampaignReport(DuckDBTransformer):
         성과형 디스플레이 광고 계정 번호
     """
 
-    extractor = "CampaignReport"
+    extractor = "PerformanceReport"
     tables = {"table": "searchad_campaign_report"}
     parser = ZipCsvTransformer
     parser_config = dict(
@@ -156,7 +156,7 @@ class CreativeReport(DuckDBTransformer):
         성과형 디스플레이 광고 계정 번호
     """
 
-    extractor = "CreativeReport"
+    extractor = "PerformanceReport"
     tables = {"table": "searchad_creative_report"}
     parser = ZipCsvTransformer
     parser_config = dict(

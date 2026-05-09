@@ -1,7 +1,7 @@
 -- RocketSettlement: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    group_key VARCHAR PRIMARY KEY
-  , vendor_id VARCHAR
+    group_key VARCHAR NOT NULL
+  , vendor_id VARCHAR NOT NULL
   , settlement_ratio INTEGER
   , settlement_amount INTEGER
   , sales_amount INTEGER
@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , cfs_inventory_compensation_amount INTEGER
   , start_date TIMESTAMP NOT NULL
   , end_date TIMESTAMP NOT NULL
+  , PRIMARY KEY (group_key)
 );
 
 -- RocketSettlement: bulk_insert
@@ -61,28 +62,25 @@ SELECT
   , settlementStatusReportDetail.totalPastCfsDeductionAmount AS past_cfs_fee -- 기납부된 비용
   , settlementStatusReportDetail.totalCarryOverSettlementDeductionAmount AS carry_over_fee -- 다음 정산으로 이월(g)
   , settlementStatusReportDetail.totalCfsInventoryCompensationAmount AS cfs_inventory_compensation_amount -- 재고 손실 보상 (K)
-  , (TRY_CAST(settlementPeriodStartDate AS TIMESTAMP) + INTERVAL 9 HOUR) AS start_date -- 매출인식일(시작)
-  , (TRY_CAST(settlementPeriodEndDate AS TIMESTAMP) + INTERVAL 9 HOUR) AS end_date -- 매출인식일(종료)
+  , (CAST(settlementPeriodStartDate AS TIMESTAMP) + INTERVAL 9 HOUR) AS start_date -- 매출인식일(시작)
+  , (CAST(settlementPeriodEndDate AS TIMESTAMP) + INTERVAL 9 HOUR) AS end_date -- 매출인식일(종료)
 FROM {{ rows }}
-WHERE (settlementGroupKey IS NOT NULL)
-  AND (settlementPeriodStartDate IS NOT NULL)
-  AND (settlementPeriodEndDate IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 
 -- RocketSettlementDownload: create
 CREATE TABLE IF NOT EXISTS {{ sales }} (
-    order_id BIGINT
-  , vendor_id VARCHAR
-  , product_id BIGINT
-  , option_id BIGINT
+    order_id BIGINT NOT NULL
+  , vendor_id VARCHAR NOT NULL
+  , product_id BIGINT NOT NULL
+  , option_id BIGINT NOT NULL
   , sku_id BIGINT
   -- , product_name VARCHAR
   -- , option_name VARCHAR
   , category_id INTEGER
   -- , category_name VARCHAR
-  , settlement_type TINYINT
-  , period_type TINYINT
+  , settlement_type TINYINT NOT NULL
+  , period_type TINYINT NOT NULL
   , unit_price INTEGER
   , order_quantity INTEGER
   -- , order_amount INTEGER
@@ -94,45 +92,45 @@ CREATE TABLE IF NOT EXISTS {{ sales }} (
   , settlement_amount INTEGER
   -- , commission_rate DECIMAL(18, 1)
   -- , commission_amount INTEGER
-  , sales_date DATE
+  , sales_date DATE NOT NULL
   , settlement_date DATE
-  , PRIMARY KEY (vendor_id, order_id, option_id, settlement_type)
+  , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
 );
 
 CREATE TABLE IF NOT EXISTS {{ shipping }} (
-    order_id BIGINT
-  , invoice_no BIGINT
-  , vendor_id VARCHAR
-  , product_id BIGINT
-  , option_id BIGINT
+    order_id BIGINT NOT NULL
+  , invoice_no BIGINT NOT NULL
+  , vendor_id VARCHAR NOT NULL
+  , product_id BIGINT NOT NULL
+  , option_id BIGINT NOT NULL
   , sku_id BIGINT
   -- , product_name VARCHAR
   -- , option_name VARCHAR
   -- , category_name1 VARCHAR
   -- , category_name2 VARCHAR
-  -- , product_size INTEGER
+  -- , product_size TINYINT
   -- , warehouse VARCHAR
-  , settlement_type TINYINT
-  , period_type TINYINT
+  , settlement_type TINYINT NOT NULL
+  , period_type TINYINT NOT NULL
   -- , unit_price INTEGER
   -- , unit_quantity INTEGER
   -- , order_quantity INTEGER
   , warehousing_fee INTEGER
   , discount_amount INTEGER
   , extra_fee INTEGER
-  , sales_date DATE
+  , sales_date DATE NOT NULL
   , shipping_date DATE
   , settlement_date DATE
-  , PRIMARY KEY (vendor_id, order_id, option_id, settlement_type)
+  , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
 );
 
 -- RocketSettlementDownload: bulk_insert_sales
 INSERT INTO {{ sales }}
 SELECT
-    TRY_CAST("주문ID" AS BIGINT) AS order_id
+    CAST("주문ID" AS BIGINT) AS order_id
   , $vendor_id AS vendor_id
-  , TRY_CAST("등록상품 ID" AS BIGINT) AS product_id
-  , TRY_CAST("옵션ID" AS BIGINT) AS option_id
+  , CAST("등록상품 ID" AS BIGINT) AS product_id
+  , CAST("옵션ID" AS BIGINT) AS option_id
   , TRY_CAST("SKU ID" AS BIGINT) AS sku_id
   -- , "등록상품명" AS product_name
   -- , "옵션명" AS option_name
@@ -151,22 +149,20 @@ SELECT
   , TRY_CAST("정산대상액" AS INTEGER) AS settlement_amount
   -- , "판매수수료율(%,VAT별도)" AS commission_rate
   -- , (TRY_CAST("판매수수료" AS INTEGER) + TRY_CAST("판매수수료 VAT" AS INTEGER)) AS commission_amount
-  , TRY_CAST("매출인식일" AS DATE) AS sales_date
+  , CAST("매출인식일" AS DATE) AS sales_date
   , TRY_CAST("정산주기(종료일)" AS DATE) AS settlement_date
 FROM {{ sales_rows }}
-WHERE (TRY_CAST("주문ID" AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST("옵션ID" AS BIGINT) IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 -- RocketSettlementDownload: bulk_insert_shipping
 INSERT INTO {{ shipping }}
 SELECT
-    TRY_CAST("주문ID" AS BIGINT) AS order_id
-  , TRY_CAST("배송ID" AS BIGINT) AS invoice_no
+    CAST("주문ID" AS BIGINT) AS order_id
+  , CAST("배송ID" AS BIGINT) AS invoice_no
   , $vendor_id AS vendor_id
-  , TRY_CAST("등록상품 ID" AS BIGINT) AS product_id
-  , TRY_CAST("옵션ID" AS BIGINT) AS option_id
-  , TRY_CAST("SKU ID" AS BIGINT) AS sku_id
+  , CAST("등록상품 ID" AS BIGINT) AS product_id
+  , CAST("옵션ID" AS BIGINT) AS option_id
+  , CAST("SKU ID" AS BIGINT) AS sku_id
   -- , "등록상품명" AS product_name
   -- , "옵션명" AS option_name
   -- , "1차" AS category_name1
@@ -186,12 +182,10 @@ SELECT
   , TRY_CAST("발생비용(A)" AS INTEGER) AS warehousing_fee
   , TRY_CAST("할인가(B)" AS INTEGER) AS discount_amount
   , TRY_CAST("추가비용" AS INTEGER) AS extra_fee
-  , TRY_CAST("주문일" AS DATE) AS sales_date
+  , CAST("주문일" AS DATE) AS sales_date
   , TRY_CAST("매출인식일" AS DATE) AS shipping_date
   , TRY_CAST("정산주기(종료일)" AS DATE) AS settlement_date
 FROM {{ shipping_rows }}
-WHERE (TRY_CAST("주문ID" AS BIGINT) IS NOT NULL)
-  AND (TRY_CAST("옵션ID" AS BIGINT) IS NOT NULL)
 ON CONFLICT DO NOTHING;
 
 -- RocketSettlementDownload: settlement_type
@@ -199,7 +193,7 @@ SELECT *
 FROM UNNEST([
     STRUCT(0 AS seq, '주문 정산' AS name)
   , STRUCT(1 AS seq, '주문 정산취소' AS name)
-    STRUCT(2 AS seq, '입출고비 정산' AS name)
+  , STRUCT(2 AS seq, '입출고비 정산' AS name)
   , STRUCT(3 AS seq, '입출고비 정산취소' AS name)
   , STRUCT(4 AS seq, '배송비 정산' AS name)
   , STRUCT(5 AS seq, '배송비 정산취소' AS name)

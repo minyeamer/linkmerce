@@ -149,7 +149,7 @@ def order_download(
 
     **Tables** ( *table_key: table_name (description)* ):
         1. `order: sabangnet_order` (주문 내역)
-        2. `option: sabangnet_option` (주문 옵션 목록)
+        2. `option: sabangnet_option` (주문 옵션 정보)
         3. `invoice: sabangnet_invoice` (발주 내역)
         4. `dispatch: sabangnet_dispatch` (발송 내역)
 

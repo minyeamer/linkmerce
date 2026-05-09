@@ -1,6 +1,6 @@
 -- Product: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_id BIGINT PRIMARY KEY
+    product_id BIGINT NOT NULL
   , product_no BIGINT NOT NULL
   , catalog_id BIGINT
   , channel_seq BIGINT NOT NULL
@@ -26,15 +26,16 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , exchange_fee INTEGER
   , register_dt TIMESTAMP
   , modify_dt TIMESTAMP
+  , PRIMARY KEY (product_id)
 );
 
 -- Product: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    TRY_CAST(channelProductNo AS BIGINT) AS product_id
-  , TRY_CAST(originProductNo AS BIGINT) AS product_no
+    CAST(channelProductNo AS BIGINT) AS product_id
+  , CAST(originProductNo AS BIGINT) AS product_no
   , TRY_CAST(modelId AS BIGINT) AS catalog_id
-  , CAST($channel_seq AS BIGINT) AS channel_seq
+  , $channel_seq AS channel_seq
   -- , channelServiceType AS channel_type
   , name AS product_name
   , sellerManagementCode AS management_code
@@ -93,10 +94,10 @@ FROM UNNEST([
 
 -- Option: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    option_id BIGINT PRIMARY KEY
-  , product_id BIGINT
-  , channel_seq BIGINT
-  , product_type INTEGER -- {0: '옵션상품(단독형)', 1: '옵션상품(조합형)', 2: '추가상품'}
+    option_id BIGINT NOT NULL
+  , product_id BIGINT NOT NULL
+  , channel_seq BIGINT NOT NULL
+  , product_type TINYINT -- {0: '옵션상품(단독형)', 1: '옵션상품(조합형)', 2: '추가상품'}
   , option_group1 VARCHAR
   , option_name1 VARCHAR
   , option_group2 VARCHAR
@@ -108,6 +109,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , option_price INTEGER
   , stock_quantity INTEGER
   , register_order INTEGER
+  , PRIMARY KEY (option_id)
 );
 
 -- Option: bulk_insert
@@ -125,8 +127,8 @@ INSERT INTO {{ table }} (
 )
 SELECT
     id AS option_id
-  , TRY_CAST($product_id AS BIGINT) AS product_id
-  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
+  , $product_id AS product_id
+  , $channel_seq AS channel_seq
   , 0 AS product_type
   , groupName AS option_group1
   , name AS option_name1
@@ -135,7 +137,6 @@ SELECT
   , TRY_CAST(stockQuantity AS INTEGER) AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
 FROM {{ option_simple_rows }}
-WHERE id IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ table }} (
@@ -157,8 +158,8 @@ INSERT INTO {{ table }} (
 )
 SELECT
     id AS option_id
-  , TRY_CAST($product_id AS BIGINT) AS product_id
-  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
+  , $product_id AS product_id
+  , $channel_seq AS channel_seq
   , 1 AS product_type
   , optionGroupName1 AS option_group1
   , optionName1 AS option_name1
@@ -172,7 +173,6 @@ SELECT
   , stockQuantity AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
 FROM {{ option_comb_rows }}
-WHERE id IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ table }} (
@@ -190,8 +190,8 @@ INSERT INTO {{ table }} (
 )
 SELECT
     id AS option_id
-  , TRY_CAST($product_id AS BIGINT) AS product_id
-  , TRY_CAST($channel_seq AS BIGINT) AS channel_seq
+  , $product_id AS product_id
+  , $channel_seq AS channel_seq
   , 2 AS product_type
   , groupName AS option_group1
   , name AS option_name1
@@ -201,5 +201,4 @@ SELECT
   , stockQuantity AS stock_quantity
   , ROW_NUMBER() OVER () AS register_order
 FROM {{ supplement_rows }}
-WHERE id IS NOT NULL
 ON CONFLICT DO NOTHING;

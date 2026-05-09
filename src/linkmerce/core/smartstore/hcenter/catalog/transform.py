@@ -47,7 +47,7 @@ class BrandProduct(DuckDBTransformer):
     ----------
     **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
 
-    mall_seq: int | str | None
+    mall_seq: int | str
         쇼핑몰 순번
     """
 
@@ -83,7 +83,7 @@ class BrandPrice(BrandProduct):
     ----------
     **NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.
 
-    mall_seq: int | str | None
+    mall_seq: int | str
         쇼핑몰 순번
     """
 

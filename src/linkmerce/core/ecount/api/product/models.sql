@@ -1,6 +1,6 @@
 -- Product: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    product_code VARCHAR PRIMARY KEY
+    product_code VARCHAR NOT NULL
   , option_id VARCHAR
   , product_name VARCHAR
   , remarks_name VARCHAR
@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , org_price INTEGER
   , expiration_date VARCHAR
   , updated_at TIMESTAMP
+  , PRIMARY KEY (product_code)
 );
 
 -- Product: bulk_insert

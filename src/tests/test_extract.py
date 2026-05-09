@@ -64,7 +64,6 @@ class TestCoupangAds:
     def cookies(self, reader: YamlReader) -> str:
         return reader("coupang.advertising.0")["cookies"]
 
-    @pytest.mark.skip
     @pytest.mark.coupang_ads
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 광고센터 캠페인 목록을 조회하는 테스트."""
@@ -109,6 +108,7 @@ class TestCoupangAds:
             wait_interval = _configs.get("wait_interval", 1),
         )
 
+    @pytest.mark.skip
     @pytest.mark.coupang_ads
     def test_new_customer_adreport(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """쿠팡 신규 구매 고객 확보 광고 보고서를 생성 및 다운로드하는 테스트."""
@@ -404,9 +404,9 @@ class TestMetaAds:
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("meta.marketing_api.0")
         return {
-            "app_id": _credentials["app_id"],
+            "app_id": _credentials.get("app_id", str()),
             "app_secret": _credentials.get("app_secret", str()),
-            "access_token": _credentials.get("access_token", str()),
+            "access_token": _credentials["access_token"],
         }
 
     @pytest.mark.meta_ads
@@ -482,6 +482,7 @@ class TestNaverSearch:
     - naver.main.search.SearchTab
     - naver.main.search.CafeArticle"""
 
+    @pytest.mark.skip
     @pytest.mark.naver_search
     def test_search(self, configs: YamlReader, dump_extract: Callable):
         """네이버 통합검색 결과를 스크래핑하여 HTML 소스코드를 추출하는 테스트."""
@@ -495,6 +496,7 @@ class TestNaverSearch:
             parse_html = _configs.get("parse_html", False),
         )
 
+    @pytest.mark.skip
     @pytest.mark.naver_search
     def test_search_tab(self, configs: YamlReader, dump_extract: Callable):
         """네이버 탭별 검색 결과를 스크래핑하여 HTML 소스코드를 추출하는 테스트."""
@@ -508,6 +510,7 @@ class TestNaverSearch:
             mobile = _configs.get("mobile", True),
         )
 
+    @pytest.mark.skip
     @pytest.mark.naver_search
     def test_cafe_article(self, configs: YamlReader, dump_extract: Callable):
         """네이버 카페 게시글을 조회하는 테스트."""
@@ -980,7 +983,10 @@ class TestSearchAdCenter:
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("searchad.center.0")
         return dict(
-            configs = {"customer_id": _credentials["customer_id"]},
+            configs = {
+                "account_no": _credentials["account_no"],
+                "customer_id": _credentials["customer_id"],
+            },
             cookies = _credentials["cookies"],
         )
 

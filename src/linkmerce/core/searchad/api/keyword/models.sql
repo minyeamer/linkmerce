@@ -1,6 +1,6 @@
 -- Keyword: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    keyword VARCHAR PRIMARY KEY
+    keyword VARCHAR NOT NULL
   , monthly_qc_cnt_pc INTEGER
   , monthly_qc_cnt_mo INTEGER
   , monthly_avg_click_cnt_pc DECIMAL(18, 1)
@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , avg_depth_pc INTEGER
   , start_date DATE
   , end_date DATE
+  , PRIMARY KEY (keyword)
 );
 
 -- Keyword: bulk_insert
