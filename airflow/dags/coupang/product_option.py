@@ -92,8 +92,9 @@ with DAG(
                 return_type = "none",
             )
 
+            conn.execute("DELETE FROM {} WHERE option_id IS NULL".format(sources["table"]))
             if conn.table_has_rows(sources["rfm"]):
-                conn.execute(insert_rocket_options())
+                conn.execute(insert_rocket_options(**sources))
 
             with BigQueryClient(service_account) as client:
                 return {
@@ -118,9 +119,9 @@ with DAG(
                     },
                 }
 
-    def insert_rocket_options() -> str:
-        return dedent("""
-            INSERT INTO coupang_product (
+    def insert_rocket_options(table: str, rfm: str) -> str:
+        return dedent(f"""
+            INSERT INTO {table} (
                 vendor_inventory_id
                 , vendor_inventory_item_id
                 , product_id
@@ -140,7 +141,9 @@ with DAG(
                 , stock_quantity
                 , register_dt
             )
-            SELECT * FROM coupang_rocket_option ON CONFLICT DO NOTHING
+            SELECT * FROM {rfm}
+            WHERE vendor_inventory_item_id IS NOT NULL
+            ON CONFLICT DO NOTHING
             """).strip()
 
 

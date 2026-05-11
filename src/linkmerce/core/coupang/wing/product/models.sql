@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
     vendor_inventory_id BIGINT NOT NULL
   , vendor_inventory_item_id BIGINT NOT NULL
   , product_id BIGINT NULL
-  , option_id BIGINT NOT NULL
+  , option_id BIGINT
   , item_id BIGINT NULL
   , barcode VARCHAR
   , vendor_id VARCHAR NOT NULL
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , stock_quantity INTEGER
   , register_dt TIMESTAMP
   , modify_dt TIMESTAMP
-  , PRIMARY KEY (option_id)
+  , PRIMARY KEY (vendor_inventory_item_id)
 );
 
 -- ProductOption: bulk_insert
@@ -60,15 +60,15 @@ ON CONFLICT DO NOTHING;
 CREATE TABLE IF NOT EXISTS {{ table }} (
     vendor_inventory_id BIGINT NOT NULL
   , vendor_inventory_item_id BIGINT NOT NULL
-  , option_id BIGINT NOT NULL
   , product_id BIGINT
+  , option_id BIGINT
   , item_id BIGINT
   , barcode VARCHAR
   , option_name VARCHAR
   , price INTEGER
   , sales_price INTEGER
   , stock_quantity INTEGER
-  , PRIMARY KEY (option_id)
+  , PRIMARY KEY (vendor_inventory_item_id)
 );
 
 -- ProductDetail: bulk_insert
@@ -76,8 +76,8 @@ INSERT INTO {{ table }}
 SELECT
     vendorInventoryId AS vendor_inventory_id
   , vendorInventoryItemId AS vendor_inventory_item_id
-  , vendorItemId AS option_id
   , productId AS product_id
+  , vendorItemId AS option_id
   , itemId AS item_id
   , barcode
   , itemName AS option_name
@@ -89,19 +89,22 @@ ON CONFLICT DO NOTHING;
 
 -- ProductDetail: bulk_insert_vendor
 INSERT INTO {{ table }} (
-    option_id
+    vendor_inventory_item_id
   , product_id
+  , option_id
   , item_id
   , price
 )
 SELECT
-    vendorItemId AS option_id
+    vendorInventoryItemId AS vendor_inventory_item_id
   , productId AS product_id
+  , vendorItemId AS option_id
   , itemId AS item_id
   , originalPrice AS price
 FROM {{ rows }}
-ON CONFLICT (option_id) DO UPDATE SET
+ON CONFLICT (vendor_inventory_item_id) DO UPDATE SET
     product_id = EXCLUDED.product_id
+  , option_id = EXCLUDED.option_id
   , item_id = EXCLUDED.item_id
   , price = EXCLUDED.price;
 
