@@ -120,6 +120,7 @@ SELECT
   , TRY_CAST("단품추가금액" AS INTEGER) AS option_price
   , TRY_CAST("등록일시" AS TIMESTAMP) AS register_dt
 FROM {{ rows }}
+WHERE REGEXP_MATCHES("사방넷상품코드", '^\d{6}-\d{4}$')
 ON CONFLICT DO NOTHING;
 
 -- OptionDownload: option_status
