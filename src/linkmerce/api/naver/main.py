@@ -202,10 +202,10 @@ def cafe_article(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,
         options = {
-            "RequestEach": {
+            "RequestEachLoop": {
                 "request_delay": request_delay,
                 "tqdm_options": {"disable": (not progress)}
-            }
+            },
         },
     )).extract(url, domain)
 
@@ -304,7 +304,7 @@ def search_cafe_plus(
             connection.execute(f"DELETE FROM {search_table} WHERE rank > {max_rank}")
 
         q = f"SELECT DISTINCT article_url FROM {search_table} WHERE article_url IS NOT NULL"
-        article_url = [row[0] for row in connection.execute(q)[0].fetchall()]
+        article_url = connection.fetch_values(q, axis=1)
 
     results["article"] = cafe_article(
         article_url, "article", cookies,
@@ -318,7 +318,7 @@ def search_cafe_plus(
     keyword = f"INSERT INTO {table}" if connection.table_exists(table) else f"CREATE TABLE {table} AS"
 
     from textwrap import dedent
-    results["merged"] = connection.execute(
+    connection.execute(
         dedent(f"""{keyword}
         SELECT
             L.query,
@@ -346,5 +346,3 @@ def search_cafe_plus(
             ON (L.cafe_url = R.cafe_url) AND (L.article_id = R.article_id)
         ORDER BY L.seq, L.rank
         """))
-
-    return results

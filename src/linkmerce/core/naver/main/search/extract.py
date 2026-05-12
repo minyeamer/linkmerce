@@ -212,10 +212,18 @@ class CafeArticle(Extractor):
 
     Attributes
     ----------
-    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestLoop` Task 옵션을 전달할 수 있다.
+
+    max_retries: int | None
+        최대 반복 실행 횟수. `None`이면 조건을 만족할 때까지 무한 반복한다. 기본값은 `1`
+    request_delay: Literal["incremental"] | float | int | tuple[int, int]
+        재시도 요청 간 대기 시간(초). `"incremental"`이면 재시도 요청 간 대기 시간(초)이 1초씩 점진적으로 증가한다.
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEachLoop` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        카페 URL별 요청 간 대기 시간(초). 기본값은 `1.01`
+        키워드별 요청 간 대기 시간(초). 기본값은 `1.01`
     tqdm_options: dict | None
         반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
@@ -223,7 +231,10 @@ class CafeArticle(Extractor):
     method = "GET"
     url = "https://article.cafe.naver.com/gw/v4/cafes/{cafe_url}/articles/{article_id}"
     referer = "https://{m_}cafe.naver.com/{cafe_url}/{article_id}"
-    default_options = {"RequestEach": {"request_delay": 1.01}}
+    default_options = {
+        "RequestLoop": {"max_retries": 1, "ignored_errors": Exception},
+        "RequestEachLoop": {"request_delay": 1.01},
+    }
 
     @Extractor.with_session
     def extract(
@@ -251,7 +262,7 @@ class CafeArticle(Extractor):
                 - `url`이 `str` 타입일 때 -> `dict`
                 - `url`이 `Iterable[str]` 타입일 때 -> `list[dict]`
         """
-        return (self.request_each(self.request_json_safe)
+        return (self.request_each_loop(self.request_json_safe)
                 .partial(domain=domain)
                 .expand(url=url)
                 .run())
