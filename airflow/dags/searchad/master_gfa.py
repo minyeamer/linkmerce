@@ -87,10 +87,8 @@ with DAG(
                         "table": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = source,
-                            staging_table = f'{tables[f"temp_{api_type}"]}_{account_no}',
                             target_table = tables[api_type],
                             **merge[api_type],
-                            progress = False,
                         ),
                     },
                 }

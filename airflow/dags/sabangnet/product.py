@@ -106,10 +106,8 @@ with DAG(
                         product_type: client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = source,
-                            staging_table = tables[f"temp_{product_type}"],
                             target_table = tables[product_type],
                             **merge[product_type],
-                            progress = False,
                         ),
                     },
                 }
@@ -162,18 +160,14 @@ with DAG(
                         "product": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["product"],
-                            staging_table = tables["temp_mapping_product"],
                             target_table = tables["mapping_product"],
                             **merge["mapping_product"],
-                            progress = False,
                         ),
                         "sku": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["sku"],
-                            staging_table = tables["temp_mapping_sku"],
                             target_table = tables["mapping_sku"],
                             **merge["mapping_sku"],
-                            progress = False,
                         ),
                     },
                 }

@@ -120,26 +120,20 @@ with DAG(
                         "campaign": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["campaign"],
-                            staging_table = f'{tables["temp_campaign"]}_{vendor_id}',
                             target_table = tables["campaign"],
                             **merge["campaign"],
-                            progress = False,
                         ),
                         "adgroup": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["adgroup"],
-                            staging_table = f'{tables["temp_adgroup"]}_{vendor_id}',
                             target_table = tables["adgroup"],
                             **merge["adgroup"],
-                            progress = False,
                         ),
                         "creative": (client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["creative"],
-                            staging_table = f'{tables["temp_creative"]}_{vendor_id}',
                             target_table = tables["creative"],
                             **merge["creative"],
-                            progress = False,
                         ) if nca_campaign_ids else None),
                     },
                 }

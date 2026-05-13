@@ -154,7 +154,7 @@ with DAG(
             # [EXTRACT-TRANSFORM] 네이버 모바일 카페 탭 검색 결과를 수집하여 DuckDB 테이블에 적재한다.
             search_cafe_plus(
                 cookies = cookies,
-                query = [row[0] for row in conn.execute(f"SELECT DISTINCT query FROM {table}")[0].fetchall()],
+                query = conn.fetch_values(f"SELECT DISTINCT query FROM {table}", axis=1),
                 mobile = True,
                 max_rank = max_rank,
                 connection = conn,

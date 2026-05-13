@@ -115,8 +115,7 @@ with DAG(
                                 connection = conn,
                                 source_table = source,
                                 target_table = tables["table"],
-                                progress = False,
-                                truncate_target_table = True,
+                                where_clause = None,
                             ),
                         },
                     }
@@ -223,10 +222,8 @@ with DAG(
                             "table": client.merge_into_table_from_duckdb(
                                 connection = conn,
                                 source_table = source,
-                                staging_table = f'{tables["temp_table"]}_{vendor_id}',
                                 target_table = tables["table"],
                                 **merge["table"],
-                                progress = False,
                             ),
                         },
                     }
@@ -304,10 +301,8 @@ with DAG(
                             api_type: client.merge_into_table_from_duckdb(
                                 connection = conn,
                                 source_table = source,
-                                staging_table = tables[f"temp_{api_type}"],
                                 target_table = tables[api_type],
                                 **merge[api_type],
-                                progress = False,
                             )
                         },
                     }

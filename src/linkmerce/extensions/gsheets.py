@@ -104,7 +104,11 @@ def py2worksheet(
 ###################################################################
 
 class WorksheetClient(Client):
-    """구글 워크시트 클라이언트. 워크시트에 대한 읽기 및 쓰기 작업을 지원한다."""
+    """구글 워크시트 클라이언트. 워크시트에 대한 읽기 및 쓰기 작업을 지원한다.
+
+    구글 워크시트 편집을 위해 [`gspread`](https://pypi.org/project/gspread/)
+    라이브러리를 사용한다.
+    """
 
     def __init__(self, account: ServiceAccount, key: str | None = None, sheet: str | None = None):
         """서비스 계정을 초기화하고, 스프레드시트 키와 워크시트 명칭을 입력받는다."""

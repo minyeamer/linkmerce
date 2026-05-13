@@ -110,7 +110,6 @@ with DAG(
                             connection = conn,
                             source_table = source,
                             target_table = tables[report_type],
-                            progress = False,
                         ),
                     }
                 }

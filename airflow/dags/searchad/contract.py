@@ -102,7 +102,6 @@ with DAG(
                             source_table = sources["contract"],
                             target_table = tables["table"],
                             where_clause = f"(contract_end_date > '2000-01-01') AND (customer_id = {customer_id})",
-                            progress = False,
                         ),
                     },
                 }

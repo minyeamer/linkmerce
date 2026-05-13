@@ -121,6 +121,10 @@ class Connection(metaclass=ABCMeta):
         """데이터베이스 연결을 통해 SQL 쿼리를 실행한다."""
         raise NotImplementedError("The 'execute' method must be implemented.")
 
+    def execute_batch(self, *args, **kwargs) -> list[Any]:
+        """데이터베이스 연결을 통해 하나 이상의 SQL 쿼리를 실행한다."""
+        raise NotImplementedError("The 'execute_batch' method must be implemented.")
+
     def __enter__(self) -> Connection:
         return self
 
@@ -284,60 +288,118 @@ class DuckDBConnection(Connection):
 
     ############################# Execute #############################
 
-    def execute(self, query: str, params: object | None = None) -> list[DuckDBPyConnection]:
-        """하나 이상의 SQL 문을 실행한다. 세미콜론으로 구분된 다중 쿼리를 지원한다."""
-        if ';' not in query:
-            return [self.conn.execute(query, parameters=params)]
+    def execute(self, query: str, params: object | None = None) -> DuckDBPyConnection:
+        """SQL 쿼리를 실행한다."""
+        return self.conn.execute(query, parameters=params)
 
-        # DuckDB는 `;`로 구분된 다중 쿼리에 파라미터를 적용할 수 없으므로 개별 쿼리로 나눠서 실행한다.
-        statements = [s for statement in query.split(';') if (s := statement.strip())]
-        if (params is not None) and (len(statements) > 1):
-            import re
-            results = list()
-            for statement in statements:
-                if isinstance(params, dict) and params:
-                    used_keys = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", statement))
-                    used_params = {key: value for key, value in params.items() if key in used_keys}
-                    # 파라미터로 전달되는 `rows`가 비어있으면 `BinderException: Binder Error` 발생을 회피하기 위해 스킵한다.
-                    # `DuckDBTransformer`에서 `execute`를 호출할 때 `rows` 길이를 검증하지만, 다중 쿼리에서는 예외가 있다.
-                    if any((isinstance(value, list) and not value) for value in used_params.values()):
-                        continue
-                    results.append(self.conn.execute(statement, parameters=(used_params or None)))
-                else:
-                    results.append(self.conn.execute(statement, parameters=params))
-            return results
-        return [self.conn.execute(query, parameters=params)]
+    def execute_batch(self, query: str, params: object | None = None) -> list[DuckDBPyConnection]:
+        """하나 이상의 SQL 쿼리를 실행한다."""
+        return [self.conn.execute(q, parameters=p) for q, p in self.split_queries(query, params)]
 
-    def sql(self, query: str, params: object | None = None) -> list[DuckDBPyRelation]:
-        """하나 이상의 SQL 문을 실행한다. 세미콜론으로 구분된 다중 쿼리를 지원한다."""
-        if ';' not in query:
-            return [self.conn.sql(query, params=params)]
+    def sql(self, query: str, params: object | None = None) -> DuckDBPyRelation:
+        """SQL 쿼리를 실행한다."""
+        return self.conn.sql(query, params=params)
 
-        # DuckDB does not support to pass parameters to multiple statements
-        statements = [s for statement in query.split(';') if (s := statement.strip())]
-        if (params is not None) and (len(statements) > 1):
-            import re
-            results = list()
-            for statement in statements:
-                if isinstance(params, dict) and params:
-                    used_keys = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", statement))
-                    used_params = {key: value for key, value in params.items() if key in used_keys}
-                    results.append(self.conn.sql(statement, params=(used_params or None)))
-                else:
-                    results.append(self.conn.sql(statement, params=params))
-            return results
-        return [self.conn.sql(query, params=params)]
+    def sql_batch(self, query: str, params: object | None = None) -> list[DuckDBPyRelation]:
+        """하나 이상의 SQL 쿼리를 실행한다."""
+        return [self.conn.sql(q, params=p) for q, p in self.split_queries(query, params)]
+
+    def split_queries(self, query: str, params: object | None = None) -> list[tuple[str, object | None]]:
+        """여러 개의 SQL 쿼리를 단일 쿼리와 파라미터 조합으로 분리한다.
+
+        **NOTE** DuckDB는 여러 개의 쿼리를 실행할 때 파라미터를 적용할 수 없다.   
+        파라미터가 딕셔너리 타입일 경우 각각의 SQL 쿼리가 사용하는 키워드 인자만 추출하여 조합을 생성한다.
+        """
+        import re
+        queries = list()
+        for q in query.strip().split(';'):
+            q = q.strip()
+            if isinstance(params, dict) and params:
+                used_keys = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", q))
+                used_params = {key: value for key, value in params.items() if key in used_keys}
+                # 파라미터로 전달되는 `rows`가 비어있으면 `BinderException: Binder Error` 발생을 회피하기 위해 스킵한다.
+                # `DuckDBTransformer`에서 `execute`를 호출할 때 `rows` 길이를 검증하지만, 다중 쿼리에서는 예외가 있다.
+                if not any((isinstance(value, list) and (not value)) for value in used_params.values()):
+                    queries.append((q, used_params or None))
+            elif q:
+                queries.append((q, params))
+        return queries
+
+    ####################### Execute with values #######################
+
+    def execute_with(
+            self,
+            format: Literal["csv", "json", "parquet"],
+            values: list[tuple] | list[dict] | bytes | str | Path,
+            params: object | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
+        ) -> DuckDBPyConnection:
+        """지정된 포맷의 데이터를 SELECT 쿼리로 조회하고 결과를 반환한다."""
+        try:
+            return getattr(self, f"execute_with_{format}")(values, params, prefix, suffix)
+        except AttributeError:
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
+
+    def execute_with_csv(
+            self,
+            values: list[tuple] | str | Path,
+            params: object | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
+        ) -> DuckDBPyConnection:
+        """CSV 파일 또는 튜플 리스트를 SELECT 쿼리로 조회하고 결과를 반환한다."""
+        if isinstance(values, (str, Path)):
+            query = f"SELECT * FROM execute_with_csv('{values}')"
+        else:
+            query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
+            params = (params or dict()) | {"values": csv_to_json(values)}
+        return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+
+    def execute_with_json(
+            self,
+            values: list[dict] | str | Path,
+            params: object | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
+        ) -> DuckDBPyConnection:
+        """JSON 파일 또는 딕셔너리 리스트를 SELECT 쿼리로 조회하고 결과를 반환한다."""
+        if isinstance(values, (str, Path)):
+            query = f"SELECT * FROM execute_with_json_auto('{values}')"
+        else:
+            query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
+            params = (params or dict()) | {"values": values}
+        return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+
+    def execute_with_parquet(
+            self,
+            values: bytes | str | Path,
+            params: object | None = None,
+            prefix: str | None = None,
+            suffix: str | None = None,
+        ) -> DuckDBPyConnection:
+        """Parquet 파일 또는 Parquet 바이너리를 SELECT 쿼리로 조회하고 결과를 반환한다."""
+        if isinstance(values, (str, Path)):
+            query = f"SELECT * FROM execute_with_parquet('{values}')"
+            return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+        else:
+            def create_table(temp_file: str) -> DuckDBPyConnection:
+                query = concat_sql(prefix, f"SELECT * FROM execute_with_parquet('{temp_file}')", suffix)
+                return self.conn.execute(query, parameters=params)
+            return run_with_tempfile(create_table, values, mode="w+b", suffix=".parquet")
 
     ############################## Fetch ##############################
 
     def fetch_one(self, query: str, index: int = 0, params: object | None = None) -> Any:
-        """SQL 쿼리로 값 하나를 가져온다."""
+        """SQL 쿼리를 실행하여 값 하나를 가져온다."""
         relation = self.conn.execute(query, parameters=params)
         return relation.fetchall()[0][index]
 
-    def fetch_values(self, query: str, params: object | None = None) -> tuple[Any, ...]:
-        """SQL 쿼리 결과의 첫 번째 행을 반환한다."""
+    def fetch_values(self, query: str, params: object | None = None, axis: int = 0) -> tuple[Any, ...]:
+        """SQL 쿼리 실행 결과를 1차원 리스트로 반환한다. `axis=0`은 첫 번째 행, `axis=1`은 첫 번째 열을 반환한다."""
         relation = self.conn.execute(query, parameters=params)
+        if axis == 1:
+            return tuple(row[0] for row in relation.fetchall())
         return relation.fetchall()[0]
 
     def fetch_all(
@@ -366,8 +428,7 @@ class DuckDBConnection(Connection):
         results = headers + relation.fetchall()
         if save_to:
             return save_to_csv(results, save_to, delimiter=',')
-        else:
-            return results
+        return results
 
     def fetch_all_to_json(
             self,
@@ -381,8 +442,7 @@ class DuckDBConnection(Connection):
         results = [dict(zip(columns, row)) for row in relation.fetchall()]
         if save_to:
             return save_to_json(results, save_to, indent=2, ensure_ascii=False, default=str)
-        else:
-            return results
+        return results
 
     def fetch_all_to_parquet(
             self,
@@ -398,69 +458,6 @@ class DuckDBConnection(Connection):
             def to_parquet(temp_file: str):
                 relation.to_parquet(temp_file)
             return write_tempfile(to_parquet, mode="w+b", suffix=".parquet")
-
-    ############################### Read ##############################
-
-    def read(
-            self,
-            format: Literal["csv", "json", "parquet"],
-            values: list[tuple] | list[dict] | bytes | str | Path,
-            params: object | None = None,
-            prefix: str | None = None,
-            suffix: str | None = None,
-        ) -> DuckDBPyConnection:
-        """지정된 포맷의 데이터를 SELECT 쿼리로 조회하고 결과를 반환한다."""
-        try:
-            return getattr(self, f"read_{format}")(values, params, prefix, suffix)
-        except AttributeError:
-            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
-
-    def read_csv(
-            self,
-            values: list[tuple] | str | Path,
-            params: object | None = None,
-            prefix: str | None = None,
-            suffix: str | None = None,
-        ) -> DuckDBPyConnection:
-        """CSV 파일 또는 튜플 리스트를 SELECT 쿼리로 조회하고 결과를 반환한다."""
-        if isinstance(values, (str, Path)):
-            query = f"SELECT * FROM read_csv('{values}')"
-        else:
-            query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
-            params = (params or dict()) | {"values": csv_to_json(values)}
-        return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
-
-    def read_json(
-            self,
-            values: list[dict] | str | Path,
-            params: object | None = None,
-            prefix: str | None = None,
-            suffix: str | None = None,
-        ) -> DuckDBPyConnection:
-        """JSON 파일 또는 딕셔너리 리스트를 SELECT 쿼리로 조회하고 결과를 반환한다."""
-        if isinstance(values, (str, Path)):
-            query = f"SELECT * FROM read_json_auto('{values}')"
-        else:
-            query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
-            params = (params or dict()) | {"values": values}
-        return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
-
-    def read_parquet(
-            self,
-            values: bytes | str | Path,
-            params: object | None = None,
-            prefix: str | None = None,
-            suffix: str | None = None,
-        ) -> DuckDBPyConnection:
-        """Parquet 파일 또는 Parquet 바이너리를 SELECT 쿼리로 조회하고 결과를 반환한다."""
-        if isinstance(values, (str, Path)):
-            query = f"SELECT * FROM read_parquet('{values}')"
-            return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
-        else:
-            def create_table(temp_file: str) -> DuckDBPyConnection:
-                query = concat_sql(prefix, f"SELECT * FROM read_parquet('{temp_file}')", suffix)
-                return self.conn.execute(query, parameters=params)
-            return run_with_tempfile(create_table, values, mode="w+b", suffix=".parquet")
 
     ############################## Create #############################
 
@@ -488,7 +485,7 @@ class DuckDBConnection(Connection):
             params: object | None = None,
         ) -> DuckDBPyConnection:
         """CSV 파일 또는 튜플 리스트를 조회하고 새 테이블을 생성한다."""
-        return self.read_csv(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
+        return self.execute_with_csv(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
 
     def create_table_from_json(
             self,
@@ -499,7 +496,7 @@ class DuckDBConnection(Connection):
             params: object | None = None,
         ) -> DuckDBPyConnection:
         """JSON 파일 또는 딕셔너리 리스트를 조회하고 새 테이블을 생성한다."""
-        return self.read_json(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
+        return self.execute_with_json(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
 
     def create_table_from_parquet(
             self,
@@ -510,7 +507,7 @@ class DuckDBConnection(Connection):
             params: object | None = None,
         ) -> DuckDBPyConnection:
         """Parquet 파일 또는 Parquet 바이너리를 조회하고 새 테이블을 생성한다."""
-        return self.read_parquet(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
+        return self.execute_with_parquet(values, params=params, prefix=f"{self.expr_create(option, temp)} {table} AS")
 
     def copy_table(
             self,
@@ -552,7 +549,7 @@ class DuckDBConnection(Connection):
         ) -> DuckDBPyConnection:
         """CSV 파일 또는 튜플 리스트를 조회하여 기존 테이블에 삽입한다."""
         suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
-        return self.read_csv(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
+        return self.execute_with_csv(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
 
     def insert_into_table_from_json(
             self,
@@ -563,7 +560,7 @@ class DuckDBConnection(Connection):
         ) -> DuckDBPyConnection:
         """JSON 파일 또는 딕셔너리 리스트를 조회하여 기존 테이블에 삽입한다."""
         suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
-        return self.read_json(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
+        return self.execute_with_json(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
 
     def insert_into_table_from_parquet(
             self,
@@ -574,7 +571,7 @@ class DuckDBConnection(Connection):
         ) -> DuckDBPyConnection:
         """Parquet 파일 또는 Parquet 바이너리를 조회하여 기존 테이블에 삽입한다."""
         suffix = f"ON CONFLICT {on_conflict}" if on_conflict else None
-        return self.read_parquet(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
+        return self.execute_with_parquet(values, params=params, prefix=f"INSERT INTO {table}", suffix=suffix)
 
     ############################# Group By ############################
 
@@ -607,7 +604,7 @@ class DuckDBConnection(Connection):
         else:
             return func
 
-    ############################## Utils ##############################
+    ############################## Helper #############################
 
     def table_exists(self, table: str) -> bool:
         """테이블 존재 여부를 확인한다."""
@@ -652,13 +649,14 @@ class DuckDBConnection(Connection):
 class DuckDBIterator(Task):
     """테이블 또는 데이터를 파티션별로 순회하는 DuckDB 이터레이터."""
 
-    temp_table: str = "temp_table"
+    temp_table: str = "partitions"
 
     def __init__(self, conn: DuckDBConnection, format: Literal["csv", "json", "parquet"]):
-        """DuckDB 연결과 반환할 데이터의 포맷을 초기화한다."""
+        """DuckDB 연결과 반환할 데이터의 포맷을 초기화한다. 조회 칼럼을 제한할 수 있다."""
         self.conn = conn
         self.format = format
         self.table = str()
+        self.columns = '*'
         self.partitions = [dict()]
         self.index = 0
 
@@ -679,6 +677,10 @@ class DuckDBIterator(Task):
         """지정된 포맷의 데이터를 조회하여 임시 테이블을 생성한다."""
         self.conn.create_table(self.temp_table, values, format, option="replace", temp=True, params=params)
         return self.setattr("table", self.temp_table)
+
+    def with_columns(self, columns: Sequence[str]) -> DuckDBIterator:
+        columns = ", ".join(columns) if columns else '*'
+        return self.setattr("columns", columns)
 
     def partition_by(
             self,
@@ -712,7 +714,7 @@ class DuckDBIterator(Task):
             raise StopIteration
         map_partition = self.partitions[self.index]
         where_clause = " AND ".join([f"{expr} = {self.conn.expr_value(value)}" for expr, value in map_partition.items()])
-        query = concat_sql(f"SELECT * FROM {self.table}", where(where_clause))
+        query = concat_sql(f"SELECT {self.columns} FROM {self.table}", where(where_clause))
         results = self.conn.fetch_all(self.format, query)
         self.index += 1
         return results

@@ -133,7 +133,7 @@ def product_option(
             vendor_inventory_id = list(dict.fromkeys(ids))
         else:
             query = f"SELECT DISTINCT vendor_inventory_id FROM {table}"
-            vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
+            vendor_inventory_id = connection.fetch_values(query, axis=1)
 
         transform_options_ = (transform_options[DETAIL] or dict()) | {"tables": {"table": table}}
         details = ProductDetail(**prepare_duckdb_extract(
@@ -419,7 +419,7 @@ def rocket_option(
             vendor_inventory_id = list(dict.fromkeys(ids))
         else:
             query = f"SELECT DISTINCT vendor_inventory_id FROM {table}"
-            vendor_inventory_id = [row[0] for row in connection.execute(query)[0].fetchall()]
+            vendor_inventory_id = connection.fetch_values(query, axis=1)
 
         transform_options_ = (transform_options[DETAIL] or dict()) | {"tables": {"table": table}}
         details = ProductDetail(**prepare_duckdb_extract(

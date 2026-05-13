@@ -354,7 +354,7 @@ def product_option(
         product_id = list(dict.fromkeys(ids))
     else:
         query = f"SELECT DISTINCT product_id FROM {product_table} WHERE channel_seq = {channel_seq}"
-        product_id = [row[0] for row in connection.execute(query)[0].fetchall()]
+        product_id = connection.fetch_values(query, axis=1)
 
     results["option"] = option(
         client_id, client_secret, product_id, channel_seq, max_retries,
@@ -416,8 +416,6 @@ def product_option(
         LEFT JOIN {option_table} AS R
             ON L.product_id = R.product_id
         """))
-
-    return results
 
 
 @with_duckdb_connection(tables={

@@ -90,12 +90,20 @@ class ResponseTransformer(Transformer, metaclass=ABCMeta):
         ):
         """파이프라인 처리를 위한 속성을 초기화한다.
 
-        Parameters:
-            `scope`: 전체 HTTP 응답 데이터에서 필요한 대상 데이터 경로.
-            `fields`: HTTP 응답 데이터에서 추출할 `{필드명: 경로}` 스키마.
-            `extends`: 파생 필드로 추가할 `{필드명: 값_또는_$매개변수명}` 스키마.
-            `on_missing`: 대상 경로를 탐색하지 못했을 때 동작 `"raise"`의 경우 오류를 발생시킨다.
-            `**kwargs`: 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자.
+        Parameters
+        ----------
+            scope: str | None
+                전체 HTTP 응답 데이터에서 필요한 대상 데이터 경로
+            fields: dict | list | None
+                HTTP 응답 데이터에서 추출할 `{필드명: 경로}` 스키마
+            extends: dict | None
+                파생 필드로 추가할 `{필드명: 값_또는_$매개변수명}` 스키마
+            on_missing: str
+                필드 조회 실패 시 동작
+                    - `"ignore"`: 오류를 무시한다.
+                    - `"raise"`: `KeyError`를 발생시킨다.
+            **kwargs:
+                하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자
         """
         self.pre_init(**kwargs)
         if scope is not None:
@@ -405,15 +413,26 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
         **NOTE** 데이터 파싱 및 적재를 위해 `tables`, `parser`, `parser_config`에   
         기본적으로 할당된 속성값은 각각의 클래스 docstring을 참고한다.
 
-        Parameters:
-            `db_info`: 데이터베이스 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
-            `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
-            `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
-            `create_options`: 초기화 시 테이블 생성에 사용할 옵션. `None` -> 테이블을 생성하지 않는다.
-            `parser`: 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
-            `parser_config`: 파서 객체 초기화 시 전달할 설정 변수.
-            `render`: SQL 쿼리 렌더링(Jinja)에 사용할 기본 컨텍스트 설정 변수.
-            `**kwargs`: 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자.
+        Parameters
+        ----------
+            db_info: dict
+                데이터베이스 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
+            model_path: str | Path
+                `models.sql` 파일 경로
+                    - `"this"`: 현재 모듈 경로 내에서 자동 탐색한다.
+            tables: dict | None
+                초기화 시 `self.tables`에 병합할 추가 테이블 매핑
+            create_options: dict | None
+                초기화 시 테이블 생성에 사용할 옵션
+                    - `None`: 테이블을 생성하지 않는다.
+            parser: type[ResponseTransformer] | None
+                원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나.
+            parser_config: ParserConfig | None
+                파서 객체 초기화 시 전달할 설정 변수
+            render: dict | None
+                SQL 쿼리 렌더링(Jinja)에 사용할 기본 컨텍스트 설정 변수
+            `**kwargs`:
+                하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자
         """
         self.pre_init(**kwargs)
 
@@ -516,6 +535,10 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
     def execute(self, *args, **kwargs) -> Any:
         """데이터베이스 연결을 통해 SQL 쿼리를 실행한다."""
         return self.get_connection().execute(*args, **kwargs)
+
+    def execute_batch(self, *args, **kwargs) -> list[Any]:
+        """데이터베이스 연결을 통해 하나 이상의 SQL 쿼리를 실행한다."""
+        return self.get_connection().execute_batch(*args, **kwargs)
 
     def __enter__(self) -> DBTransformer:
         return self
@@ -679,16 +702,28 @@ class DuckDBTransformer(DBTransformer):
         **NOTE** 데이터 파싱 및 적재를 위해 `tables`, `parser`, `parser_config`에   
         기본적으로 할당된 속성값은 각각의 클래스 docstring을 참고한다.
 
-        Parameters:
-            `db_info`: DuckDB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
-            `model_path`: `models.sql` 파일 경로. `"this"` -> 현재 모듈 경로 내에서 자동 탐색한다.
-            `tables`: 초기화 시 `self.tables`에 병합할 추가 테이블 매핑.
-            `create_options`: 초기화 시 테이블 생성에 사용할 옵션. `None` -> 테이블을 생성하지 않는다.
-            `parser`: 원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나
-            `parser_config`: 파서 객체 초기화 시 전달할 설정 변수.
-            `render`: SQL 쿼리 렌더링(Jinja)에 사용할 기본 컨텍스트 설정 변수.
-            `params`: SQL 쿼리 실행 시 전달할 기본 파라미터($변수) 설정 변수.
-            `**kwargs`: 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자.
+        Parameters
+        ----------
+            db_info: dict
+                DuckDB 연결 정보 딕셔너리. `set_connection` 메서드 호출 시 전달된다.
+            model_path: str | Path
+                `models.sql` 파일 경로
+                    - `"this"`: 현재 모듈 경로 내에서 자동 탐색한다.
+            tables: dict | None
+                초기화 시 `self.tables`에 병합할 추가 테이블 매핑
+            create_options: dict | None
+                초기화 시 테이블 생성에 사용할 옵션
+                    - `None`: 테이블을 생성하지 않는다.
+            parser: type[ResponseTransformer] | None
+                원본 데이터 파싱에 사용할 파서. 문자열 상수, 클래스 생성자, 또는 dict 중 하나.
+            parser_config: ParserConfig | None
+                파서 객체 초기화 시 전달할 설정 변수
+            render: dict | None
+                SQL 쿼리 렌더링(Jinja)에 사용할 기본 컨텍스트 설정 변수
+            `params`: dict | None
+                SQL 쿼리 실행 시 전달할 기본 파라미터($변수) 설정 변수
+            `**kwargs`:
+                하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자
         """
         self.pre_init(**kwargs)
 
@@ -729,7 +764,7 @@ class DuckDBTransformer(DBTransformer):
         render, params, total = self.prepare_bulk_params(result, render, params, **kwargs)
         if total > 0:
             query = self.prepare_query(query_key, render=render)
-            return self.execute(query, params)
+            return self.execute_batch(query, params)
         else:
             return list()
 
@@ -794,9 +829,13 @@ class DuckDBTransformer(DBTransformer):
         from linkmerce.common.load import DuckDBConnection
         self.__conn = conn if isinstance(conn, DuckDBConnection) else DuckDBConnection(**kwargs)
 
-    def execute(self, query: str, params: dict | None = None) -> list[DuckDBPyConnection]:
+    def execute(self, query: str, params: dict | None = None) -> DuckDBPyConnection:
         """DuckDB 연결을 통해 쿼리를 실행한다."""
         return self.get_connection().execute(query, params)
+
+    def execute_batch(self, query: str, params: dict | None = None) -> list[DuckDBPyConnection]:
+        """DuckDB 연결을 통해 하나 이상의 쿼리를 실행한다."""
+        return self.get_connection().execute_batch(query, params)
 
     def __enter__(self) -> DuckDBTransformer:
         return self
@@ -813,7 +852,7 @@ class DuckDBTransformer(DBTransformer):
         """테이블 생성 쿼리를 실행한다. `render = "tables"` -> `self.tables`를 렌더 컨텍스트로 사용한다."""
         render = self.tables if render == "tables" else render
         query = self.prepare_query(query_key, query, render=render)
-        return self.execute(query, params)
+        return self.execute_batch(query, params)
 
     def select(
             self,
@@ -824,7 +863,7 @@ class DuckDBTransformer(DBTransformer):
         ) -> list[DuckDBPyConnection]:
         """조회 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.execute(query, params)
+        return self.execute_batch(query, params)
 
     def update(
             self,
@@ -835,7 +874,7 @@ class DuckDBTransformer(DBTransformer):
         ) -> list[DuckDBPyConnection]:
         """수정 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.execute(query, params)
+        return self.execute_batch(query, params)
 
     def delete(
             self,
@@ -846,7 +885,7 @@ class DuckDBTransformer(DBTransformer):
         ) -> list[DuckDBPyConnection]:
         """삭제 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.execute(query, params)
+        return self.execute_batch(query, params)
 
     def insert_into(
             self,
@@ -857,7 +896,7 @@ class DuckDBTransformer(DBTransformer):
         ) -> list[DuckDBPyConnection]:
         """삽입 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.execute(query, params)
+        return self.execute_batch(query, params)
 
     def merge_into(
             self,
@@ -868,4 +907,4 @@ class DuckDBTransformer(DBTransformer):
         ) -> list[DuckDBPyConnection]:
         """UPSERT 쿼리를 실행한다. 쿼리가 없으면 `key`로 검색하고, `params`를 SQL 파라미터로 전달한다."""
         query = self.prepare_query(query_key, query, render=render)
-        return self.execute(query, params)
+        return self.execute_batch(query, params)

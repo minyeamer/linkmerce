@@ -100,19 +100,15 @@ with DAG(
                         "sales": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["sales"],
-                            staging_table = tables["temp_sales"],
                             target_table = tables["sales"],
                             **merge["sales"],
                             where_clause = f"T.payment_date BETWEEN '{start_date}' AND '{end_date}'",
-                            progress = False,
                         ),
                         "product": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["product"],
-                            staging_table = tables["temp_product"],
                             target_table = tables["product"],
                             **merge["product"],
-                            progress = False,
                         ),
                     },
                 }

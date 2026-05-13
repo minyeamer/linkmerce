@@ -104,7 +104,6 @@ with DAG(
                                 connection = conn,
                                 source_table = source,
                                 target_table = tables["table"],
-                                progress = False,
                             ),
                         },
                     }
@@ -196,7 +195,6 @@ with DAG(
                                 connection = conn,
                                 source_table = sources["merged"],
                                 target_table = tables["table"],
-                                progress = False,
                             ),
                         },
                     }

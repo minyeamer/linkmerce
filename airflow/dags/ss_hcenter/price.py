@@ -88,15 +88,12 @@ with DAG(
                             connection = conn,
                             source_table = sources["price"],
                             target_table = tables["price"],
-                            progress = False,
                         ),
                         "product": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["product"],
-                            staging_table = tables["temp_product"],
                             target_table = tables["product"],
                             **merge["product"],
-                            progress = False,
                         ),
                     },
                 }

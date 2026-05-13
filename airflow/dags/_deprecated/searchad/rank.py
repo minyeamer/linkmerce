@@ -116,23 +116,18 @@ with DAG(
                             connection = conn,
                             source_table = sources["rank"],
                             target_table = tables["rank"],
-                            progress = False,
                         ),
                         "now": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["rank"],
-                            staging_table = f'{tables["temp_now"]}_{customer_id}',
                             target_table = tables["now"],
                             **merge["now"],
-                            progress = False,
                         ),
                         "product": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["product"],
-                            staging_table = f'{tables["temp_product"]}_{customer_id}',
                             target_table = tables["product"],
                             **merge["product"],
-                            progress = False,
                         ),
                     },
                 }

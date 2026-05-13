@@ -26,8 +26,6 @@ if TYPE_CHECKING:
 
 DEFAULT_ACCOUNT = "env/service_account.json"
 
-TEMP_TABLE = "temp_table"
-
 
 class ServiceAccount(dict):
     """구글 클라우드 서비스 계정 인증 정보를 딕셔너리로 관리하는 클래스."""
@@ -46,8 +44,7 @@ class ServiceAccount(dict):
             else:
                 with open(info, 'r', encoding="utf-8") as file:
                     return json.loads(file.read())
-        else:
-            raise ValueError("Unrecognized service account.")
+        raise ValueError("Unrecognized service account.")
 
 
 class PartitionOptions(TypedDict, total=False):
@@ -58,12 +55,31 @@ class PartitionOptions(TypedDict, total=False):
     if_errors: Literal["ignore", "raise"]
 
 
+def build_staging_table_name(table: str, max_name_length: int | None = None) -> str:
+    """테이블명을 기준으로 충돌 가능성이 낮은 스테이징 테이블명을 생성한다."""
+    import hashlib
+    import re
+    import time
+
+    dataset, table_name = table.rsplit(".", 1) if "." in table else (str(), table)
+    hash = hashlib.sha1(f"{table}:{time.time_ns()}".encode("utf-8")).hexdigest()
+    length = min(max(0, max_name_length - len(table)), 8) if isinstance(max_name_length, int) else 8
+    suffix = re.sub(r"[^A-Za-z0-9_]", "_", hash)[:length]
+
+    staging_table = f"{table_name}_{suffix}"
+    return f"{dataset}.{staging_table}" if dataset else staging_table
+
+
 ###################################################################
 ######################### BigQuery Client #########################
 ###################################################################
 
 class BigQueryClient(Connection):
-    """구글 BigQuery 클라이언트. `Connection`을 상속하며 테이블 CRUD 작업을 지원한다."""
+    """구글 BigQuery 클라이언트. `Connection`을 상속하며 테이블 CRUD 작업을 지원한다.
+
+    BigQuery 연결을 위해 [`google-cloud-bigquery`](https://pypi.org/project/google-cloud-bigquery/)
+    라이브러리를 사용한다.
+    """
 
     def __init__(self, account: ServiceAccount):
         self.set_connection(account)
@@ -87,6 +103,14 @@ class BigQueryClient(Connection):
             self.conn.close()
         except:
             pass
+
+    def __enter__(self) -> BigQueryClient:
+        return self
+
+    def __exit__(self, type: type[BaseException], value: BaseException, traceback: TracebackType):
+        self.close()
+
+    ############################# Execute #############################
 
     def retry_on_concurrent_update(max_retries: int = 5, delay: float | int = 1, random_delay: tuple[float, float] | None = None):
         """BigQuery 테이블 동시 업데이트 오류 발생 시 재시도하는 데코레이터."""
@@ -123,12 +147,6 @@ class BigQueryClient(Connection):
         """SQL 쿼리를 실행하고 결과가 준비될 때까지 대기한다."""
         return self.conn.query_and_wait(query, **kwargs)
 
-    def __enter__(self) -> BigQueryClient:
-        return self
-
-    def __exit__(self, type: type[BaseException], value: BaseException, traceback: TracebackType):
-        self.close()
-
     ############################## Fetch ##############################
 
     def fetch_all(self, format: Literal["csv", "json"], query: str) -> list[dict]:
@@ -152,12 +170,12 @@ class BigQueryClient(Connection):
         return rows
 
     def fetch_all_to_json(self, query: str) -> list[dict]:
-        """SQL 쿼리를 실행하고 결과를 JSON 형식의 딕셔너리 리스트로 반환한다."""
+        """SQL 쿼리를 실행하고 결과를 JSON 형식으로 반환한다."""
         def row_to_dict(row: Row) -> dict[str, Any]:
             return dict(row.items())
         return [row_to_dict(row) for row in self.execute_job(query)]
 
-    ############################ CRUD Table ###########################
+    ############################### CRUD ##############################
 
     def create_table(
             self,
@@ -175,13 +193,16 @@ class BigQueryClient(Connection):
             source_table: str,
             target_table: str,
             where_clause: str | None = None,
-            limit: int | None = 0,
+            limit: int | None = None,
             option: Literal["replace", "ignore"] | None = None,
         ) -> RowIterator:
         """SELECT 문으로 조회한 소스 테이블을 타겟 테이블로 복사한다."""
-        select = f"SELECT * FROM `{self.project_id}.{source_table}`"
-        limit_ = f"LIMIT {limit}" if isinstance(limit, int) else None
-        query = concat_sql(f"{self.expr_create(option)} `{self.project_id}.{target_table}` AS", select, where(where_clause), limit_)
+        query = concat_sql(
+            f"{self.expr_create(option)} `{self.project_id}.{target_table}` AS",
+            f"SELECT * FROM `{self.project_id}.{source_table}`",
+            where(where_clause),
+            (f"LIMIT {limit}" if isinstance(limit, int) else None),
+        )
         return self.execute_job(query)
 
     def delete_table(self, table: str, where: str = "TRUE") -> RowIterator:
@@ -191,6 +212,458 @@ class BigQueryClient(Connection):
     def select_table_to_json(self, table: str) -> list[dict]:
         """테이블의 모든 행을 JSON 형태로 조회한다."""
         return self.fetch_all_to_json(f"SELECT * FROM `{self.project_id}.{table}`;")
+
+    ############################# Load Job ############################
+
+    def load_table_from_json(
+            self,
+            table: str,
+            values: list[dict] | str | Path,
+            serialize: bool = True,
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
+            if_table_not_found: Literal["break", "raise"] = "raise",
+        ) -> LoadJob | None:
+        """JSON 형식의 `list[dict]` 데이터를 BigQuery 테이블에 적재한다."""
+        if not self._validate_table_exists(table, if_table_not_found):
+            return None
+
+        if serialize:
+            import json
+            values = json.loads(json.dumps(values, ensure_ascii=False, default=str))
+
+        project_table = f"{self.project_id}.{table}"
+        table_schema = self._auto_detect_schema(table, schema)
+        job_option = {"write_disposition": write.upper()}
+        job_config = self._build_load_job_config(table_schema, **job_option)
+        return self.conn.load_table_from_json(values, project_table, job_config=job_config).result()
+
+    def load_table_from_file(
+            self,
+            table: str,
+            file_obj: IO[bytes],
+            format: Literal["avro", "csv", "json", "orc", "parquet"],
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
+            if_table_not_found: Literal["break", "raise"] = "raise",
+        ) -> LoadJob | None:
+        """지정된 형식의 바이너리 파일을 BigQuery 테이블에 적재한다."""
+        if not self._validate_table_exists(table, if_table_not_found):
+            return None
+
+        project_table = f"{self.project_id}.{table}"
+        table_schema = self._auto_detect_schema(table, schema)
+        job_option = {"source_format": format.upper(), "write_disposition": write.upper()}
+        job_config = self._build_load_job_config(table_schema, **job_option)
+        return self.conn.load_table_from_file(file_obj, project_table, job_config=job_config).result()
+
+    def _auto_detect_schema(
+            self,
+            table: str,
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+        ) -> list[dict | SchemaField] | None:
+        """스키마가 `auto`라면 기존 테이블에서 스키마를 자동 감지한다."""
+        if isinstance(schema, str):
+            if schema == "auto":
+                return self.get_schema(table) if self.table_exists(table) else None
+            return self.get_schema(schema)
+        return schema
+
+    def _build_load_job_config(
+            self,
+            schema: Sequence[dict | SchemaField] | None = None,
+            source_format: Literal["AVRO", "CSV", "JSON", "ORC", "PARQUET"] | None = None,
+            write_disposition: Literal["APPEND", "EMPTY", "TRUNCATE", "TRUNCATE_DATA"] | None = None,
+            **kwargs
+        ) -> LoadJobConfig:
+        """스키마, 파일 포맷, 쓰기 모드 설정을 적용한 `LoadJobConfig` 객체를 생성한다."""
+        from google.cloud.bigquery.job import LoadJobConfig
+        if schema is not None:
+            kwargs["schema"] = self._build_schema(schema)
+        if source_format is not None:
+            kwargs["source_format"] = "NEWLINE_DELIMITED_JSON" if source_format == "JSON" else source_format
+        if write_disposition is not None:
+            kwargs["write_disposition"] = f"WRITE_{write_disposition}"
+        return LoadJobConfig(**kwargs)
+
+    def _build_schema(self, fields: Sequence[dict | SchemaField]) -> list[SchemaField]:
+        """`list[dict]`를 `SchemaField` 리스트로 변환한다."""
+        from google.cloud.bigquery import SchemaField
+        def build(type: str | None = None, **kwargs) -> SchemaField:
+            if type is not None:
+                kwargs["field_type"] = type
+            return SchemaField(**kwargs)
+        return [field if isinstance(field, SchemaField) else build(**field) for field in fields]
+
+    def _validate_table_exists(self, table: str, if_table_not_found: Literal["break", "raise"] = "raise") -> bool:
+        """스키마 및 테이블 존재 여부를 검증한다.
+            1. 테이블이 있으면 `True`를 반환한다.
+            2. 테이블이 없고 `if_table_not_found="break"` 조건에서는 `False`를 반환한다.
+            3. 테이블이 없고 `if_table_not_found="raise"` 조건에서는 `NotFound` 예외를 발생시킨다.
+        """
+        if self.table_exists(table):
+            return True
+        elif if_table_not_found == "break":
+            return False
+        else:
+            from google.api_core.exceptions import NotFound
+            raise NotFound(f"Table '{self.project_id}.{table}' was not found.")
+
+    ############################## Merge ##############################
+
+    def merge_into_table(
+            self,
+            source_table: str,
+            target_table: str,
+            on_conflict: str | Sequence[str],
+            matched: Clause
+                | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
+                | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
+            where_clause: Clause | None = None,
+        ) -> LoadJob:
+        """MERGE 문으로 소스 테이블을 타겟 테이블에 병합한다.
+
+        **NOTE** WHERE 문에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
+        """
+        query = self._compose_merge_query(source_table, target_table, on_conflict, matched, not_matched, where_clause)
+        return self.execute_job(query)
+
+    def _compose_merge_query(
+            self,
+            source_table: str,
+            target_table: str,
+            on_conflict: str | Sequence[str],
+            matched: Clause
+                | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
+                | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
+            where_clause: Clause | None = None,
+        ) -> str:
+        """MERGE 실행에 사용할 쿼리 문자열을 생성한다."""
+        on = [f"T.{col} = S.{col}" for col in ([on_conflict] if isinstance(on_conflict, str) else on_conflict)]
+        return concat_sql(
+            f"MERGE INTO `{self.project_id}.{target_table}` AS T",
+            f"USING `{self.project_id}.{source_table}` AS S",
+            "ON {}".format(" AND ".join(on + ([where_clause] if where_clause else list()))),
+            self._compose_merge_matched(matched, target_table, on_conflict), # WHEN MATCHED THEN UPDATE SET
+            self._compose_merge_not_matched(not_matched, target_table), # WHEN NOT MATCHED THEN INSERT
+        )
+
+    def _compose_merge_matched(
+            self,
+            matched: Clause
+                | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
+                | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            target_table: str = str(),
+            on_conflict: str | Sequence[str] = list(),
+        ) -> str:
+        """MERGE 문의 WHEN MATCHED THEN UPDATE SET 절을 생성한다."""
+        prefix = "WHEN MATCHED THEN UPDATE SET "
+        if matched == ":replace_all:":
+            on = [on_conflict] if isinstance(on_conflict, str) else on_conflict
+            return self._compose_merge_matched({col: "replace" for col in self.get_columns(target_table) if col not in on})
+        elif matched == ":do_nothing:":
+            return None
+        elif isinstance(matched, dict):
+            def render(col: str, agg: str) -> str:
+                if agg in {"source_first", "target_first"}:
+                    kwargs = dict(zip(["left", "right"], ('S','T') if agg == "source_first" else ('T','S')))
+                    return "COALESCE({left}.{col}, {right}.{col})".format(col=col, **kwargs)
+                elif agg in {"greatest", "least"}:
+                    return f"{agg.upper()}(S.{col}, T.{col})"
+                elif agg in {"replace", "ignore"}:
+                    return f"S.{col}" if agg == "replace" else f"T.{col}"
+                return f"{agg}({col})"
+            return prefix + ", ".join([f"T.{col} = {render(col, agg)}" for col, agg in matched.items()])
+        return prefix + str(matched)
+
+    def _compose_merge_not_matched(
+            self,
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
+            target_table: str = str(),
+        ) -> str:
+        """MERGE 문의 WHEN NOT MATCHED THEN INSERT 절을 생성한다."""
+        prefix = "WHEN NOT MATCHED THEN "
+        if not_matched == ":insert_all:":
+            return self._compose_merge_not_matched(self.get_columns(target_table))
+        elif not_matched == ":do_nothing:":
+            return None
+        elif isinstance(not_matched, str):
+            return prefix + not_matched
+        elif isinstance(not_matched, Sequence):
+            return prefix + "INSERT ({}) VALUES ({})".format(", ".join(not_matched), "S."+", S.".join(not_matched))
+        return prefix + str(not_matched)
+
+    ########################## Load and Merge #########################
+
+    def merge_into_table_from_file(
+            self,
+            target_table: str,
+            source_file: IO[bytes],
+            source_format: Literal["avro", "csv", "json", "orc", "parquet"],
+            on_conflict: str | Sequence[str],
+            matched: Clause
+                | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
+                | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
+            where_clause: Clause | None = None,
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            cleanup_staging_table: bool = True,
+        ) -> LoadJob | None:
+        """파일을 스테이징 테이블에 적재한 후 타겟 테이블에 MERGE한다.
+
+        **NOTE** WHERE 문에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
+        """
+        staging_table = None
+        try:
+            staging_table = self._prepare_staging_table(target_table)
+            self.load_table_from_file(staging_table, source_file, source_format, schema)
+            query = self._compose_merge_query(staging_table, target_table, on_conflict, matched, not_matched, where_clause)
+            return self.execute_job(query)
+        finally:
+            if cleanup_staging_table and staging_table:
+                self.execute_job(f"DROP TABLE IF EXISTS `{self.project_id}.{staging_table}`;")
+
+    def _prepare_staging_table(
+            self,
+            target_table: str,
+            staging_table: str | None = None,
+        ) -> BigQueryTable:
+        """대상 테이블 스키마를 복제하여 빈 스테이징 테이블을 생성한다."""
+        staging_table = staging_table or build_staging_table_name(target_table)
+        while self.table_exists(staging_table):
+            staging_table = build_staging_table_name(target_table)
+        self.copy_table(target_table, staging_table, limit=0, option="replace")
+        return staging_table
+
+    ############################## DuckDB #############################
+
+    def load_table_from_duckdb(
+            self,
+            connection: DuckDBConnection,
+            source_table: DuckDBTable,
+            target_table: BigQueryTable,
+            columns: Sequence[str] = list(),
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
+            if_source_table_empty: Literal["break", "continue"] | None = "break",
+            if_target_table_not_found: Literal["break", "raise"] = "raise",
+        ) -> bool:
+        """DuckDB 테이블을 BigQuery 테이블에 적재한다."""
+        from io import BytesIO
+
+        if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
+            return True
+
+        if (not self.table_exists(target_table)) and (if_target_table_not_found == "break"):
+            return False
+
+        columns = ", ".join(columns) if columns else '*'
+        table_schema = self._auto_detect_schema(target_table, schema)
+        file_obj = BytesIO(connection.fetch_all_to_parquet(f"SELECT {columns} FROM {source_table}"))
+        self.load_table_from_file(target_table, file_obj, "parquet", table_schema, write, "raise")
+        return True
+
+    def load_table_from_duckdb_by_partition(
+            self,
+            connection: DuckDBConnection,
+            source_table: DuckDBTable,
+            target_table: BigQueryTable,
+            partition_by: PartitionOptions,
+            columns: Sequence[str] = list(),
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
+            if_source_table_empty: Literal["break", "continue"] | None = "break",
+            if_target_table_not_found: Literal["break", "raise"] = "raise",
+            progress: bool = True,
+        ) -> tuple[bool, int]:
+        """DuckDB 테이블을 BigQuery 테이블에 파티션 단위로 나눠서 적재한다. 성공 여부와 성공한 파티션 개수를 반환한다."""
+        from linkmerce.common.load import DuckDBIterator
+        from linkmerce.utils.progress import import_tqdm
+        from io import BytesIO
+        tqdm = import_tqdm()
+
+        if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
+            return True, 0
+
+        if (not self.table_exists(target_table)) and (if_target_table_not_found == "break"):
+            return False, 0
+
+        iterator = (DuckDBIterator(connection, format="parquet")
+                    .from_table(source_table)
+                    .with_columns(columns)
+                    .partition_by(**partition_by))
+
+        step = 0
+        table_schema = self._auto_detect_schema(target_table, schema)
+        for partition in tqdm(iterator, desc=f"Uploading data to '{target_table}'", disable=(not progress)):
+            write_ = write if step == 0 else "append"
+            job = self.load_table_from_file(target_table, BytesIO(partition), "parquet", table_schema, write_, "raise")
+            if job is None:
+                return False, step
+            step += 1
+        return True, step
+
+    def overwrite_table_from_duckdb(
+            self,
+            connection: DuckDBConnection,
+            source_table: DuckDBTable,
+            target_table: BigQueryTable,
+            columns: Sequence[str] = list(),
+            where_clause: Clause | None = "TRUE",
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            if_source_table_empty: Literal["break", "continue"] | None = "break",
+            if_target_table_not_found: Literal["break", "raise"] = "raise",
+            cleanup_staging_table: bool = True,
+        ) -> bool:
+        """DuckDB 테이블을 스테이징 테이블에 적재한 후, BigQuery 테이블의 기존 데이터를 삭제하고 스테이징 테이블 행을 덮어쓴다.
+
+        **NOTE** 삭제(DELETE) 및 적재(INSERT) 쿼리 실행 앞뒤로 트랜잭션 시작과 커밋을 실행하며,   
+        쿼리가 실패하면 직전 시점으로 롤백한다.
+        """
+        if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
+            return True
+
+        common = (connection, source_table, target_table, columns, schema)
+        if not self.table_has_rows(target_table, where_clause):
+            return self.load_table_from_duckdb(*common, "append", None, if_target_table_not_found)
+
+        staging_table = None
+        try:
+            staging_table = self._prepare_staging_table_from_duckdb(*common)
+            project_table = f"`{self.project_id}.{target_table}`"
+
+            if where_clause is None:
+                delete_clause = f"TRUNCATE TABLE {project_table};"
+            else:
+                delete_clause = concat_sql("DELETE FROM", project_table, where(where_clause))
+
+            insert_clause = f"INSERT INTO {project_table} SELECT * FROM `{self.project_id}.{staging_table}`;"
+            query = f"BEGIN TRANSACTION; {delete_clause} {insert_clause} COMMIT TRANSACTION;"
+            self.execute_job(query)
+            return True
+        finally:
+            if cleanup_staging_table and staging_table:
+                self.execute_job(f"DROP TABLE IF EXISTS `{self.project_id}.{staging_table}`;")
+
+    def merge_into_table_from_duckdb(
+            self,
+            connection: DuckDBConnection,
+            source_table: DuckDBTable,
+            target_table: BigQueryTable,
+            columns: Sequence[str] = list(),
+            where_clause: Clause | None = None,
+            on_conflict: str | Sequence[str] = list(),
+            matched: Clause
+                | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
+                | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            if_source_table_empty: Literal["break", "continue"] | None = "break",
+            if_target_table_not_found: Literal["break", "raise"] = "raise",
+            cleanup_staging_table: bool = True,
+        ) -> bool:
+        """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 BigQuery 테이블에 MERGE 한다.
+
+        **NOTE** WHERE 문에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
+        """
+        if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
+            return True
+
+        import re
+        common = (connection, source_table, target_table, columns, schema)
+        unalias_where = re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause) if where_clause else None
+        if not self.table_has_rows(target_table, unalias_where):
+            return self.load_table_from_duckdb(*common, "append", None, if_target_table_not_found)
+
+        staging_table = None
+        try:
+            staging_table = self._prepare_staging_table_from_duckdb(*common)
+            query = self._compose_merge_query(staging_table, target_table, on_conflict, matched, not_matched, where_clause)
+            self.execute_job(query)
+            return True
+        finally:
+            if cleanup_staging_table and staging_table:
+                self.execute_job(f"DROP TABLE IF EXISTS `{self.project_id}.{staging_table}`;")
+
+    def _is_duckdb_table_empty(
+            self,
+            connection: DuckDBConnection,
+            source_table: str,
+            if_source_table_empty: Literal["break", "continue"] | None = "break",
+        ) -> bool:
+        """`if_source_table_empty` 값에 따라 DuckDB 테이블을 검증한다.
+            - `"break"`: 테이블 행이 없는지 여부를 반환한다.
+            - `"continue"`: 테이블이 없는지 여부를 반환한다.
+            - `None`: 테이블을 검증하지 않는다.
+        """
+        if if_source_table_empty == "break":
+            return not connection.table_has_rows(source_table)
+        elif if_source_table_empty == "continue":
+            return not connection.table_exists(source_table)
+        return False
+
+    def _prepare_staging_table_from_duckdb(
+            self,
+            connection: DuckDBConnection,
+            source_table: DuckDBTable,
+            target_table: BigQueryTable,
+            columns: Sequence[str] = list(),
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+        ) -> BigQueryTable:
+        """DuckDB 소스 테이블 행을 적재할 빈 스테이징 테이블을 생성하고 적재한다."""
+        staging_table = self._prepare_staging_table(target_table)
+        self.load_table_from_duckdb(connection, source_table, staging_table, columns, schema,
+            write="append", if_source_table_empty=None, if_target_table_not_found="raise")
+        return staging_table
+
+    ############################ Expression ###########################
+
+    def expr_cast(self, value: Any | None, type: str, alias: str = str(), safe: bool = False) -> str:
+        """`CAST` 또는 `SAFE_CAST` SQL 표현식을 생성한다."""
+        cast = "SAFE_CAST" if safe else "CAST"
+        alias = f" AS {alias}" if alias else str()
+        return f"{cast}({self.expr_value(value)} AS {type.upper()})" + alias
+
+    def expr_interval(expr: str, days: int | None = None, time: bool = True) -> str:
+        """`DATE_ADD` 또는 `DATE_SUB` 날짜 간격 SQL 표현식을 생성한다."""
+        if isinstance(days, int):
+            func = ("DATE{}_SUB" if days < 0 else "DATE{}_ADD").format("TIME" if time else str())
+            return f"{func}({expr}, INTERVAL {abs(days)} DAY)"
+        return expr
+
+    def expr_now(
+            self,
+            type: Literal["DATETIME", "STRING"] = "DATETIME",
+            format: str | None = "%Y-%m-%d %H:%M:%S",
+            interval: str | int | None = None,
+            tzinfo: str | None = None,
+        ) -> str:
+        """`CURRENT_DATETIME` SQL 표현식을 생성한다."""
+        expr = "CURRENT_DATETIME({})".format(f"'{tzinfo}'" if tzinfo else str())
+        expr = self.expr_interval(expr, interval, time=True)
+        if format:
+            expr = f"FORMAT_DATE('{format}', {expr})"
+            if type.upper() == "DATETIME":
+                return f"CAST({expr} AS DATETIME)"
+        return expr if type.upper() == "DATETIME" else "NULL"
+
+    def expr_today(
+            self,
+            type: Literal["DATE", "STRING"] = "DATE",
+            format: str | None = "%Y-%m-%d",
+            interval: str | int | None = None,
+            tzinfo: str | None = None,
+        ) -> str:
+        """`CURRENT_DATE` SQL 표현식을 생성한다."""
+        expr = "CURRENT_DATE({})".format(f"'{tzinfo}'" if tzinfo else str())
+        expr = self.expr_interval(expr, interval, time=False)
+        if (type.upper() == "STRING") and format:
+            return f"FORMAT_DATE('{format}', {expr})"
+        return expr if type.upper() == "DATE" else "NULL"
+
+    ############################## Helper #############################
 
     def table_exists(self, table: str) -> bool:
         """테이블 존재 여부를 확인한다."""
@@ -229,362 +702,3 @@ class BigQueryClient(Connection):
     def get_columns(self, table: str) -> list[str]:
         """테이블의 칼럼명 리스트를 반환한다."""
         return [field.name for field in self.get_schema(table)]
-
-    ############################# Load Job ############################
-
-    def load_table_from_json(
-            self,
-            table: str,
-            values: list[dict] | str | Path,
-            serialize: bool = True,
-            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
-            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
-            if_not_found: Literal["create", "errors", "ignore"] = "errors",
-        ) -> LoadJob:
-        """JSON 형식의 딕셔너리 리스트 데이터를 BigQuery 테이블에 적재한다."""
-        schema = self._auto_detect_schema(table, schema)
-        if self._find_table(table, schema, if_not_found):
-            if serialize:
-                import json
-                values = json.loads(json.dumps(values, ensure_ascii=False, default=str))
-            job_config = self.build_load_job_config(schema, write_disposition=write.upper())
-            return self.conn.load_table_from_json(values, f"{self.project_id}.{table}", job_config=job_config).result()
-
-    def load_table_from_file(
-            self,
-            table: str,
-            file_obj: IO[bytes],
-            format: Literal["avgo", "csv", "json", "orc", "parquet"],
-            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
-            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
-            if_not_found: Literal["create", "errors", "ignore"] = "errors",
-        ) -> LoadJob:
-        """지정된 형식의 바이너리 파일을 BigQuery 테이블에 적재한다."""
-        schema = self._auto_detect_schema(table, schema)
-        if self._find_table(table, schema, if_not_found):
-            job_config = self.build_load_job_config(schema, source_format=format.upper(), write_disposition=write.upper())
-            return self.conn.load_table_from_file(file_obj, f"{self.project_id}.{table}", job_config=job_config).result()
-
-    def build_load_job_config(
-            self,
-            schema: Sequence[dict | SchemaField] | None = None,
-            source_format: Literal["AVRO", "CSV", "JSON", "ORC", "PARQUET"] | None = None,
-            write_disposition: Literal["APPEND", "EMPTY", "TRUNCATE", "TRUNCATE_DATA"] | None = None,
-            **kwargs
-        ) -> LoadJobConfig:
-        """스키마, 파일 포맷, 쓰기 모드 설정을 적용한 `LoadJobConfig` 객체를 생성한다."""
-        from google.cloud.bigquery.job import LoadJobConfig
-        if schema is not None:
-            kwargs["schema"] = self.build_schema(schema)
-        if source_format is not None:
-            kwargs["source_format"] = "NEWLINE_DELIMITED_JSON" if source_format == "JSON" else source_format
-        if write_disposition is not None:
-            kwargs["write_disposition"] = f"WRITE_{write_disposition}"
-        return LoadJobConfig(**kwargs)
-
-    def build_schema(self, fields: Sequence[dict | SchemaField]) -> list[SchemaField]:
-        """딕셔너리 리스트를 `SchemaField` 리스트로 변환한다."""
-        from google.cloud.bigquery import SchemaField
-        def build(type: str | None = None, **kwargs) -> SchemaField:
-            if type is not None:
-                kwargs["field_type"] = type
-            return SchemaField(**kwargs)
-        return [field if isinstance(field, SchemaField) else build(**field) for field in fields]
-
-    def _auto_detect_schema(
-            self,
-            table: str,
-            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
-        ) -> list[dict | SchemaField]:
-        """스키마가 `auto`라면 기존 테이블에서 스키마를 자동 감지한다."""
-        if isinstance(schema, str):
-            return self.get_schema(table if schema == "auto" else schema)
-        else:
-            return schema
-
-    def _find_table(
-            self,
-            table: str,
-            schema: list[dict | SchemaField],
-            if_not_found: Literal["create", "errors", "ignore"] = "errors",
-        ) -> bool:
-        """테이블 존재 여부를 확인하고, 없으면 `if_not_found` 옵션에 따라 생성하거나 무시한다."""
-        if if_not_found == "create":
-            if not self.table_exists(table):
-                self.create_table(table, schema)
-        elif if_not_found == "ignore":
-            return self.table_exists(table)
-        return True
-
-    ############################## Merge ##############################
-
-    def merge_into_table(
-            self,
-            source_table: str,
-            target_table: str,
-            on: str | Sequence[str],
-            matched: Clause | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]] | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
-            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
-            where_clause: Clause | None = None,
-        ) -> LoadJob:
-        """MERGE 문으로 소스 테이블을 타겟 테이블에 병합한다.
-
-        where_clause에서 타겟 테이블 칼럼은 "T.", 소스 테이블 칼럼은 "S."로 참조한다."""
-        where = [where_clause] if where_clause else list()
-        on = " AND ".join([f"T.{col} = S.{col}" for col in ([on] if isinstance(on, str) else on)]+where)
-        query = f"MERGE INTO `{self.project_id}.{target_table}` AS T USING `{self.project_id}.{source_table}` AS S ON {on}"
-        query = concat_sql(query, self._merge_update(matched, target_table, on), self._merge_insert(not_matched, target_table))
-        return self.execute_job(query)
-
-    def _merge_update(
-            self,
-            matched: Clause | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]] | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
-            target_table: str = str(),
-            on: str | Sequence[str] = list(),
-        ) -> str:
-        """MERGE 문의 WHEN MATCHED THEN UPDATE SET 절을 생성한다."""
-        prefix = "WHEN MATCHED THEN UPDATE SET "
-        if matched == ":replace_all:":
-            on = [on] if isinstance(on, str) else on
-            return self._merge_update({col: "replace" for col in self.get_columns(target_table) if col not in on})
-        elif matched == ":do_nothing:":
-            return None
-        elif isinstance(matched, dict):
-            def render(col: str, agg: str) -> str:
-                if agg in {"source_first","target_first"}:
-                    kwargs = dict(zip(["left", "right"], ('S','T') if agg == "source_first" else ('T','S')))
-                    return "COALESCE({left}.{col}, {right}.{col})".format(col=col, **kwargs)
-                elif agg in {"greatest","least"}:
-                    return f"{agg.upper()}(S.{col}, T.{col})"
-                elif agg in {"replace","ignore"}:
-                    return f"S.{col}" if agg == "replace" else f"T.{col}"
-                else:
-                    return f"{agg}({col})"
-            return prefix + ", ".join([f"T.{col} = {render(col, agg)}" for col, agg in matched.items()])
-        else:
-            return prefix + str(matched)
-
-    def _merge_insert(self, not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:", target_table: str = str()) -> str:
-        """MERGE 문의 WHEN NOT MATCHED THEN INSERT 절을 생성한다."""
-        prefix = "WHEN NOT MATCHED THEN "
-        if not_matched == ":insert_all:":
-            return self._merge_insert(self.get_columns(target_table))
-        elif not_matched == ":do_nothing:":
-            return None
-        elif isinstance(not_matched, str):
-            return prefix + not_matched
-        elif isinstance(not_matched, Sequence):
-            return prefix + "INSERT ({}) VALUES ({})".format(", ".join(not_matched), "S."+", S.".join(not_matched))
-        else:
-            return prefix + str(not_matched)
-
-    ########################## Load and Merge #########################
-
-    def merge_into_table_from_file(
-            self,
-            stage_table: str,
-            target_table: str,
-            source_file: IO[bytes],
-            source_format: Literal["avgo", "csv", "json", "orc", "parquet"],
-            on: str | Sequence[str],
-            matched: Clause | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]] | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
-            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
-            where_clause: Clause | None = None,
-            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
-            write: Literal["append", "empty", "truncate", "truncate_data"] = "truncate",
-            if_not_found: Literal["create", "errors", "ignore"] = "errors",
-            table_lock_wait_interval: float | int | None = None,
-            table_lock_wait_timeout: float | int | None = 60.,
-            drop_stage_after_merge: bool = True,
-        ) -> LoadJob:
-        """파일을 스테이징 테이블에 적재한 후 타겟 테이블에 MERGE한다.
-
-        WHERE 문에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다."""
-        try:
-            self._wait_until_table_not_found(stage_table, table_lock_wait_interval, table_lock_wait_timeout)
-            self.load_table_from_file(source_file, stage_table, source_format, schema, write, if_not_found)
-            return self.merge_into_table(stage_table, target_table, on, matched, not_matched, where_clause)
-        finally:
-            if drop_stage_after_merge and self.table_exists(stage_table):
-                self.execute_job(f"DROP TABLE `{self.project_id}.{stage_table}`")
-
-    def _wait_until_table_not_found(self, table: str, interval: float | int | None = 1., timeout: float | int | None = 60.):
-        """테이블이 삭제될 때까지 폴링하며 대기한다."""
-        has_interval, has_timeout = isinstance(interval, (float,int)), isinstance(timeout, (float,int))
-        if has_interval:
-            import time
-            total = 0
-            while self.table_exists(table):
-                if has_timeout and (total > timeout):
-                    raise TimeoutError("Timed out waiting until the table does not exist.")
-                total += interval
-                time.sleep(interval)
-
-    ############################ Expression ###########################
-
-    def expr_cast(self, value: Any | None, type: str, alias: str = str(), safe: bool = False) -> str:
-        """`CAST` 또는 `SAFE_CAST` SQL 표현식을 생성한다."""
-        cast = "SAFE_CAST" if safe else "CAST"
-        alias = f" AS {alias}" if alias else str()
-        return f"{cast}({self.expr_value(value)} AS {type.upper()})" + alias
-
-    def expr_interval(expr: str, days: int | None = None, time: bool = True) -> str:
-        """`DATE_ADD` 또는 `DATE_SUB` 날짜 간격 SQL 표현식을 생성한다."""
-        if isinstance(days, int):
-            func = ("DATE{}_SUB" if days < 0 else "DATE{}_ADD").format("TIME" if time else str())
-            return f"{func}({expr}, INTERVAL {abs(days)} DAY)"
-        else:
-            return expr
-
-    def expr_now(
-            self,
-            type: Literal["DATETIME", "STRING"] = "DATETIME",
-            format: str | None = "%Y-%m-%d %H:%M:%S",
-            interval: str | int | None = None,
-            tzinfo: str | None = None,
-        ) -> str:
-        """`CURRENT_DATETIME` SQL 표현식을 생성한다."""
-        expr = "CURRENT_DATETIME({})".format(f"'{tzinfo}'" if tzinfo else str())
-        expr = self.expr_interval(expr, interval, time=True)
-        if format:
-            expr = f"FORMAT_DATE('{format}', {expr})"
-            if type.upper() == "DATETIME":
-                return f"CAST({expr} AS DATETIME)"
-        return expr if type.upper() == "DATETIME" else "NULL"
-
-    def expr_today(
-            self,
-            type: Literal["DATE", "STRING"] = "DATE",
-            format: str | None = "%Y-%m-%d",
-            interval: str | int | None = None,
-            tzinfo: str | None = None,
-        ) -> str:
-        """`CURRENT_DATE` SQL 표현식을 생성한다."""
-        expr = "CURRENT_DATE({})".format(f"'{tzinfo}'" if tzinfo else str())
-        expr = self.expr_interval(expr, interval, time=False)
-        if (type.upper() == "STRING") and format:
-            return f"FORMAT_DATE('{format}', {expr})"
-        return expr if type.upper() == "DATE" else "NULL"
-
-    ############################## DuckDB #############################
-
-    def load_table_from_duckdb(
-            self,
-            connection: DuckDBConnection,
-            source_table: DuckDBTable,
-            target_table: BigQueryTable,
-            partition_by: PartitionOptions = dict(),
-            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
-            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
-            if_not_found: Literal["create", "errors", "ignore"] = "errors",
-            progress: bool = True,
-            if_source_table_empty: Literal["break", "continue"] = "break",
-        ) -> bool:
-        """DuckDB 테이블을 BigQuery 테이블에 적재한다. 파티션을 지정하면 파티션 단위로 나눠서 적재할 수 있다."""
-        from linkmerce.common.load import DuckDBIterator
-        from linkmerce.utils.progress import import_tqdm
-        from io import BytesIO
-
-        if not (connection.table_has_rows(source_table) if if_source_table_empty == "break" else connection.table_exists(source_table)):
-            return True
-        schema = self._auto_detect_schema(target_table, schema)
-
-        iterator = DuckDBIterator(connection, format="parquet").from_table(source_table)
-        if partition_by:
-            iterator = iterator.partition_by(**partition_by)
-
-        tqdm = import_tqdm()
-        for bytes_ in tqdm(iterator, desc=f"Uploading data to '{target_table}'", disable=(not progress)):
-            self.load_table_from_file(target_table, BytesIO(bytes_), "parquet", schema, write, if_not_found)
-        return True
-
-    def overwrite_table_from_duckdb(
-            self,
-            connection: DuckDBConnection,
-            source_table: DuckDBTable,
-            target_table: BigQueryTable,
-            where_clause: Clause = "TRUE",
-            partition_by: PartitionOptions = dict(),
-            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
-            if_not_found: Literal["create", "errors", "ignore"] = "errors",
-            progress: bool = True,
-            backup_table: DuckDBTable | None = TEMP_TABLE,
-            if_source_table_empty: Literal["break", "continue"] = "break",
-            if_backup_table_exists: Literal["errors", "ignore", "replace"] = "replace",
-            truncate_target_table: bool = False,
-        ) -> bool:
-        """BigQuery 테이블의 기존 데이터를 삭제한 후 DuckDB 테이블에서 새 데이터를 적재한다."""
-        if not (connection.table_has_rows(source_table) if if_source_table_empty == "break" else connection.table_exists(source_table)):
-            return True
-        elif not self.table_has_rows(target_table, where_clause):
-            return self.load_table_from_duckdb(connection, source_table, target_table, partition_by, schema, "append", if_not_found, progress)
-
-        success = False
-        project_table = f"`{self.project_id}.{target_table}`"
-        from_clause = concat_sql(f"FROM {project_table}", where(where_clause))
-
-        existing_values = self.fetch_all_to_json(concat_sql("SELECT *", from_clause))
-        self.conn.query(concat_sql("TRUNCATE TABLE", project_table) if truncate_target_table else concat_sql("DELETE", from_clause))
-
-        try:
-            success = self.load_table_from_duckdb(connection, source_table, target_table, partition_by, schema, "append", if_not_found, progress)
-            return success
-        finally:
-            if (not success) and (backup_table is not None) and existing_values:
-                create_option = self._raise_error_if_table_exists(if_backup_table_exists)
-                connection.copy_table(source_table, backup_table, option=create_option, temp=True)
-                connection.insert_into_table_from_json(backup_table, existing_values)
-
-    def merge_into_table_from_duckdb(
-            self,
-            connection: DuckDBConnection,
-            source_table: DuckDBTable,
-            staging_table: BigQueryTable,
-            target_table: BigQueryTable,
-            on: str | Sequence[str],
-            matched: Clause | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]] | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
-            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
-            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
-            where_clause: Clause | None = None,
-            if_not_found: Literal["create", "errors", "ignore"] = "errors",
-            progress: bool = True,
-            table_lock_wait_interval: float | int | None = None,
-            table_lock_wait_timeout: float | int | None = 60.,
-            if_source_table_empty: Literal["break", "continue"] = "break",
-            if_staging_table_exists: Literal["errors", "ignore", "replace"] = "replace",
-            drop_stage_after_merge: bool = True,
-        ) -> bool:
-        """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 BigQuery 타겟 테이블에 MERGE한다.
-
-        WHERE 문에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다."""
-        import re
-        if not (connection.table_has_rows(source_table) if if_source_table_empty == "break" else connection.table_exists(source_table)):
-            return True
-        elif not self.table_has_rows(target_table, (re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause) if where_clause else None)):
-            return self.load_table_from_duckdb(connection, source_table, target_table, dict(), schema, "append", if_not_found, progress)
-
-        try:
-            self._wait_until_table_not_found(staging_table, table_lock_wait_interval, table_lock_wait_timeout)
-            create_option = self._raise_error_if_table_exists(if_staging_table_exists)
-            self.copy_table(target_table, staging_table, option=create_option)
-            self.load_table_from_duckdb(connection, source_table, staging_table, dict(), schema, "append", if_not_found, progress)
-            self.merge_into_table(staging_table, target_table, on, matched, not_matched, where_clause)
-            return True
-        finally:
-            if drop_stage_after_merge and self.table_exists(staging_table):
-                self.execute_job(f"DROP TABLE `{self.project_id}.{staging_table}`;")
-
-    def _raise_error_if_table_exists(
-            self,
-            table: BigQueryTable,
-            option: Literal["errors", "ignore", "replace"] = "replace"
-        ) -> Literal["ignore", "replace"]:
-        """테이블이 존재할 때 `option`에 따라 예외를 발생시키거나 무시한다."""
-        if option == "errors":
-            if self.table_exists(table):
-                from google.api_core.exceptions import AlreadyExists
-                raise AlreadyExists(f"Error: Table '{table}' already exists.")
-            else:
-                return "replace"
-        else:
-            return option

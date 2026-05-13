@@ -89,15 +89,12 @@ with DAG(
                             connection = conn,
                             source_table = source,
                             target_table = tables["table"],
-                            progress = False,
                         ),
                         "now": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = source,
-                            staging_table = tables["temp_now"],
                             target_table = tables["now"],
                             **merge["now"],
-                            progress = False,
                         ),
                     },
                 }

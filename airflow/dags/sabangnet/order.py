@@ -136,11 +136,9 @@ with DAG(
                         download_type: (client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = source,
-                            staging_table = tables[f"temp_{download_type}"],
                             target_table = tables[download_type],
                             **merge[download_type],
                             where_clause = (conn.expr_date_range(date_column, date_array) if date_column else None),
-                            progress = False,
                         ) if (not date_column) or date_array else True),
                     },
                 }

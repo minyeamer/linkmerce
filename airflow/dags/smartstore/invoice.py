@@ -103,11 +103,9 @@ with DAG(
                         "table": (client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = source,
-                            staging_table = f'{tables["temp_table"]}_{channel_seq}',
                             target_table = tables["table"],
                             **merge["table"],
                             where_clause = conn.expr_date_range("DATE(T.payment_dt)", date_array),
-                            progress = False,
                         ) if date_array else True),
                     },
                 }

@@ -103,10 +103,8 @@ with DAG(
                         "table": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = source,
-                            staging_table = "{}_{}" .format(tables[f"temp_{ad_level}"], customer_id),
                             target_table = tables[ad_level],
                             **merge[ad_level],
-                            progress = False,
                         ),
                     },
                 }
@@ -157,7 +155,6 @@ with DAG(
                             connection = conn,
                             source_table = source,
                             target_table = tables["insight"],
-                            progress = False,
                         ),
                     },
                 }

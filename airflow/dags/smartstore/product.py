@@ -97,18 +97,14 @@ with DAG(
                         "product": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["product"],
-                            staging_table = f'{tables["temp_product"]}_{channel_seq}',
                             target_table = tables["product"],
                             **merge["product"],
-                            progress = False,
                         ),
                         "option": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["option"],
-                            staging_table = f'{tables["temp_option"]}_{channel_seq}',
                             target_table = tables["option"],
                             **merge["option"],
-                            progress = False,
                         ),
                     },
                 }

@@ -113,26 +113,22 @@ with DAG(
                         "sales": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["sales"],
-                            staging_table = tables["temp_sales"],
                             target_table = tables["sales"],
                             **merge["sales"],
                             where_clause = "({sales_date}) AND (T.vendor_id = '{vendor_id}')".format(
                                 sales_date = conn.expr_date_range("T.sales_date", date_array["sales"]),
                                 vendor_id = vendor_id,
                             ),
-                            progress = False,
                         ),
                         "shipping": client.merge_into_table_from_duckdb(
                             connection = conn,
                             source_table = sources["shipping"],
-                            staging_table = tables["temp_shipping"],
                             target_table = tables["shipping"],
                             **merge["shipping"],
                             where_clause = "({sales_date}) AND (T.vendor_id = '{vendor_id}')".format(
                                 sales_date = conn.expr_date_range("T.sales_date", date_array["shipping"]),
                                 vendor_id = vendor_id,
                             ),
-                            progress = False,
                         ),
                     },
                 }

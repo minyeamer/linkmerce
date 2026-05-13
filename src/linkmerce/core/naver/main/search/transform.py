@@ -639,7 +639,7 @@ class Search(DuckDBTransformer):
         import json
         json_str = json.dumps(sections, ensure_ascii=False, separators=(',', ':'))
         table = self.tables["sections"]
-        return self.conn.execute(f"INSERT INTO {table} (query, sections) VALUES (?, ?)", params=(query, json_str))
+        return self.conn.execute_batch(f"INSERT INTO {table} (query, sections) VALUES (?, ?)", params=(query, json_str))
 
     def summarize_sections(self, query: str, sections: list[list[dict]], sep: str = '\n') -> list[dict]:
         """각 섹션별 하위 블럭을 요약하여 리스트로 반환한다."""
