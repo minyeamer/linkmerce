@@ -40,11 +40,9 @@ def build_staging_table_name(table: str, max_name_length: int | None = 62) -> st
     import time
 
     schema, table_name = split_table(table)
-    hash = hashlib.sha1(f"{table}:{time.time_ns()}".encode("utf-8")).hexdigest()
-    length = min(max(0, max_name_length - len(table)), 8) if isinstance(max_name_length, int) else 8
-    suffix = re.sub(r"[^A-Za-z0-9_]", "_", hash)[:length]
-
-    staging_table = f"{table_name}_{suffix}"
+    value = hashlib.sha1(f"{table}:{time.time_ns()}".encode("utf-8")).hexdigest()
+    suffix = re.sub(r"[^A-Za-z0-9_]", "_", value)[:8]
+    staging_table = f"{table_name}_{suffix}"[:max_name_length]
     return f"{schema}.{staging_table}" if schema else staging_table
 
 
@@ -196,9 +194,9 @@ class PostgresClient(Connection):
             *,
             cursor: PgCursor | None = None,
         ) -> Any:
-        """SQL 쿼리를 실행하여 값 하나를 가져온다."""
+        """SQL 쿼리를 실행하여 값 하나를 가져온다. 결과 행이 없다면 `TypeError`가 발생한다."""
         cursor.execute(query, params)
-        return cursor.fetchall()[0][index]
+        return cursor.fetchone()[index]
 
     @ensure_cursor(return_cursor=False, pass_commit=False)
     def fetch_values(
@@ -213,7 +211,7 @@ class PostgresClient(Connection):
         cursor.execute(query, params)
         if axis == 1:
             return tuple(row[0] for row in cursor.fetchall())
-        return cursor.fetchall()[0]
+        return cursor.fetchone()
 
     def fetch_all(
             self,
@@ -308,16 +306,22 @@ class PostgresClient(Connection):
             commit: bool = False,
             close: bool = False,
         ) -> PgCursor | None:
-        """소스 테이블 조회 결과를 새 테이블로 복사한다."""
+        """소스 테이블의 제약조건 등 모든 속성을 복사한 새 테이블을 생성하고,
+        소스 테이블 조회 결과를 새 테이블로 복사한다.
+        """
         query = concat_sql(
             (f"DROP TABLE IF EXISTS {target_table};" if option == "replace" else None),
             "CREATE TABLE",
             ("IF NOT EXISTS" if option == "ignore" else None),
-            f"{target_table} AS",
-            f"SELECT * FROM {source_table}",
-            where(where_clause),
-            (f"LIMIT {limit}" if isinstance(limit, int) else None),
+            f"{target_table} (LIKE {source_table} INCLUDING ALL)",
         )
+        if limit != 0:
+            query = concat_sql(
+                query,
+                f"INSERT INTO {target_table} SELECT * FROM {source_table}",
+                where(where_clause),
+                (f"LIMIT {limit}" if isinstance(limit, int) else None),
+            )
         cursor.execute(query)
 
     ############################## Upsert #############################
@@ -431,12 +435,11 @@ class PostgresClient(Connection):
             connection.execute("INSTALL postgres;")
         connection.execute("LOAD postgres;")
 
-        rows = connection.execute(
-            f"SELECT readonly FROM duckdb_databases() WHERE database_name = '{database}'"
-        ).fetchall()
-        if not rows:
+        query = f"SELECT readonly FROM duckdb_databases() WHERE database_name = '{database}'"
+        result = connection.execute(query).fetchone()
+        if not result:
             connection.execute(f"ATTACH '{dsn}' AS {database} ({options});")
-        elif rows[0][0] != read_only:
+        elif result[0] != read_only:
             connection.execute(f"DETACH {database};")
             connection.execute(f"ATTACH '{dsn}' AS {database} ({options});")
 
@@ -701,7 +704,12 @@ class PostgresClient(Connection):
         """테이블이 존재하고 데이터가 있는지 확인한다."""
         if not self.table_exists(table):
             return False
-        query = concat_sql(f"SELECT EXISTS (SELECT 1 FROM {table}", where(where_clause), ")")
+        query = concat_sql(f"SELECT EXISTS (SELECT 1 FROM {table}", where(where_clause), "LIMIT 1)")
+        return self.fetch_one(query)
+
+    def count_table(self, table: str, where_clause: str | None = None) -> int:
+        """테이블의 행 수를 집계한다."""
+        query = concat_sql(f"SELECT COUNT(*) FROM {table}", where(where_clause))
         return self.fetch_one(query)
 
     def get_columns(self, table: str) -> list[str]:

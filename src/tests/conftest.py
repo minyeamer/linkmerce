@@ -2,33 +2,37 @@ from __future__ import annotations
 
 import pytest
 
-from typing import TYPE_CHECKING
+from typing import TypedDict, TYPE_CHECKING
 from pathlib import Path
 from ruamel.yaml import YAML
 import datetime as dt
 import json
 import os
-import sys
 import unicodedata
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Literal
-    from _pytest.config import Config as PytestConfig
+    from typing import Any, Callable, Generator, Literal
+    from types import TracebackType
+    from pytest import FixtureRequest
     from linkmerce.common.extract import Extractor, JsonObject
     from linkmerce.common.load import DuckDBConnection
     from linkmerce.common.transform import Transformer, DuckDBTransformer
+    from linkmerce.extensions.bigquery import BigQueryClient
+    from linkmerce.extensions.postgres import PostgresClient
     from linkmerce.utils.nested import KeyPath
 
 
 TEST_DIR = Path(__file__).parent
 SRC_DIR = TEST_DIR.parent
 ENV_DIR = SRC_DIR / "env"
+DATA_DIR = TEST_DIR / "data"
 RESULTS_DIR = TEST_DIR / "results"
 
 DIRS = {
     "$test": str(TEST_DIR),
     "$src": str(SRC_DIR),
     "$env": str(ENV_DIR),
+    "$data": str(DATA_DIR),
     "$results": str(RESULTS_DIR),
 }
 
@@ -44,9 +48,9 @@ CYAN = "\033[96m"
 RESET = "\033[0m"
 
 
-def pytest_configure(config: PytestConfig):
-    config.addinivalue_line("markers", "extract: 데이터 추출(Extract) 테스트")
-    config.addinivalue_line("markers", "transform: 데이터 변환(Transform) 테스트")
+def has_marked_items(request: FixtureRequest, marker: str) -> bool:
+    """선택된 테스트 중 `transform` 마커를 가진 항목이 있는지 확인한다."""
+    return any(item.get_closest_marker(marker) for item in request.session.items)
 
 
 ###################################################################
@@ -104,6 +108,17 @@ def credentials_full() -> dict:
 
 
 @pytest.fixture(scope="session")
+def cookies_dir(credentials_full: dict) -> str:
+    """`credentials.yaml`에서 `cookies.local` 경로를 읽어 반환한다."""
+    from linkmerce.utils.nested import hier_get
+
+    dir_path = hier_get(credentials_full, "cookies.local", on_missing="raise")
+    if not (isinstance(dir_path, str) and dir_path):
+        pytest.skip("Missing cookies path: 'cookies.local' not found in `credentials.yaml`")
+    return dir_path
+
+
+@pytest.fixture(scope="session")
 def credentials(credentials_full: dict, cookies_dir: str) -> Callable[[KeyPath], dict]:
     """`credentials.yaml`에서 특정 `key_path`에 해당하는 설정을 조회하는 함수를 반환한다."""
     from linkmerce.utils.nested import hier_get
@@ -116,17 +131,6 @@ def credentials(credentials_full: dict, cookies_dir: str) -> Callable[[KeyPath],
         return {key: _read_path(value, {"$cookies": cookies_dir}) for key, value in items.items()}
 
     return _get_credentials
-
-
-@pytest.fixture(scope="session")
-def cookies_dir(credentials_full: dict) -> str:
-    """`credentials.yaml`에서 `cookies.local` 경로를 읽어 반환한다."""
-    from linkmerce.utils.nested import hier_get
-
-    dir_path = hier_get(credentials_full, "cookies.local", on_missing="raise")
-    if not (isinstance(dir_path, str) and dir_path):
-        pytest.skip(f"Missing cookies path: 'cookies.local' not found in `credentials.yaml`")
-    return dir_path
 
 
 @pytest.fixture(scope="session")
@@ -365,17 +369,248 @@ class TransformerHarness:
         return getattr(self._transformer, name)
 
 
-@pytest.fixture(scope="function")
-def db_conn():
-    """`DuckDBTransformer` 개별 테스트 시작 시 DuckDB 연결을 생성하고 종료 시 닫는다."""
-    from linkmerce.common.load import DuckDBConnection
-    with DuckDBConnection() as conn:
-        yield conn
+@pytest.fixture(scope="session")
+def duckdb_conn(request: FixtureRequest) -> Generator[DuckDBConnection | None, None, None]:
+    """변환 또는 적재 테스트 시작 시 DuckDB 연결을 생성하고 종료 시 닫는다."""
+    if has_marked_items(request, "transform") or has_marked_items(request, "load"):
+        from linkmerce.common.load import DuckDBConnection
+        with DuckDBConnection() as conn:
+            yield conn
+    else:
+        yield None
 
 
 @pytest.fixture(scope="function")
-def transformer_harness(db_conn: DuckDBConnection) -> Callable[[type[DuckDBTransformer]], TransformerHarness]:
+def transformer_harness(
+        duckdb_conn: DuckDBConnection | None,
+    ) -> Callable[[type[DuckDBTransformer]], TransformerHarness]:
     """`DuckDBTransformer` 클래스를 하네스 객체로 초기화하여 반환하는 팩토리 함수."""
     def _init(transformer: type[DuckDBTransformer], *args, **kwargs) -> TransformerHarness:
-        return TransformerHarness(transformer(db_info={"conn": db_conn}, *args, **kwargs))
+        if duckdb_conn is None:
+            pytest.skip(f"Missing DuckDB connection.")
+        return TransformerHarness(transformer(db_info={"conn": duckdb_conn}, *args, **kwargs))
+    return _init
+
+
+###################################################################
+############################## Load ###############################
+###################################################################
+
+class SourceConnOptions(TypedDict):
+    """DuckDB 소스 테이블 연결 설정"""
+    duckdb_table: str
+    file_path: str | Path
+    file_format: Literal["csv", "json", "parquet"]
+
+class TargetConnOptions(TypedDict):
+    """외부 저장소 연결 설정"""
+    base_table: str
+    test_table: str
+    primary_key: str
+
+class BigQueryConnOptions(TargetConnOptions):
+    """BigQuery 타겟 테이블 연결 설정"""
+    service_account: dict
+    base_table: str
+    test_table: str
+    primary_key: str
+
+class PostgresConnOptions(TargetConnOptions):
+    """PostgreSQL 타겟 테이블 연결 설정"""
+    dsn: str
+    base_table: str
+    test_table: str
+    primary_key: str
+
+class LoadTestSpec(TypedDict):
+    """적재 테스트 설정"""
+    select_columns: dict
+    rename_columns: dict
+    invalid_values: dict
+    where_clauses: list[str]
+    conflict_actions: list[dict]
+    update_rules: dict
+
+POSTGRES_DATABASE = "db"
+
+
+class LoaderHarness:
+    """DuckDB -> 외부 저장소 적재 테스트 실행을 보조하는 하네스 클래스."""
+
+    def __init__(
+            self,
+            backend: Literal["bigquery", "postgres"],
+            connections: dict,
+            client: BigQueryClient | PostgresClient,
+            duckdb_conn: DuckDBConnection,
+        ):
+        """외부 저장소 연결 설정을 읽고 소스/타겟 테이블을 생성한다."""
+        self.backend = backend # 연결 설정을 읽는 과정에서 "bigquery" 또는 "postgres" 값으로 보장된다.
+        self.source: SourceConnOptions = connections["source"]
+        self.target: TargetConnOptions = connections["target"]
+        self.spec: LoadTestSpec = connections["spec"]
+        self.client = client
+        self.duckdb = duckdb_conn
+        self.pg_database = POSTGRES_DATABASE
+        self.columns: list[str] = list()
+        self.total: int = None
+        self.source_table = self.create_source_table()
+        self.target_table = self.create_target_table()
+
+    @property
+    def target_ref(self) -> str:
+        return self.table_ref(self.target_table)
+
+    def table_ref(self, table: str) -> str:
+        """테이블명에 대해 DB 백엔드별 알맞은 테이블 참조를 반환한다."""
+        if self.backend == "bigquery":
+            return f"`{self.client.project_id}.{table}`"
+        return table
+
+    def create_source_table(self) -> str:
+        """DuckDB 테이블을 생성하면서 소스 파일을 적재한다. 이미 DuckDB 테이블이 있다면 무시한다.
+
+        소스 테이블에 대해 테스트 시점의 칼럼 목록을 수집하고 행 수를 집계하여 속성으로 저장한다.
+        """
+        if not self.duckdb.table_exists(source_table := self.source["duckdb_table"]):
+            self.duckdb.create_table(source_table, self.source["file_path"], self.source["file_format"])
+
+        self.columns = self.duckdb.get_columns(source_table)
+        self.total = self.duckdb.count_table(source_table)
+
+        return source_table
+
+    def create_target_table(self) -> str:
+        """외부 저장소에서 `base_table`의 스키마를 복제해 `test_table`을 생성한다.   
+        `base_table`이 없다면 테스트가 종료되고, 이미 `test_table`이 있다면 삭제하고 다시 생성한다.
+
+        PostgreSQL 클라이언트를 사용한다면 타겟 테이블을 최초 생성할 때   
+        DuckDB 연결에 PostgreSQL을 `self.pg_database`로 붙인다.
+        """
+        if not self.client.table_exists(base_table := self.target["base_table"]):
+            pytest.skip(f"Missing {self.backend} table: '{base_table}' does not exist.")
+        from textwrap import dedent
+
+        target_table = self.target["test_table"]
+        if self.backend == "bigquery":
+            query = dedent(f"""
+                CREATE OR REPLACE TABLE {self.table_ref(target_table)} AS
+                SELECT * FROM {self.table_ref(base_table)} LIMIT 0;
+                """).strip()
+            self.client.execute_job(query)
+        elif self.backend == "postgres":
+            query = dedent(f"""
+                DROP TABLE IF EXISTS {target_table};
+                CREATE TABLE {target_table} (LIKE {base_table} INCLUDING ALL);
+                """).strip()
+            self.client.execute(query, commit=True, close=True)
+        return target_table
+
+    def execute(self, query: str):
+        """타겟 테이블을 대상으로 쿼리를 실행한다. 타겟 테이블이 존재하지 않으면 참조 오류가 발생한다."""
+        if self.backend == "bigquery":
+            self.client.execute_job(query)
+        elif self.backend == "postgres":
+            self.client.execute(query, commit=True, close=True)
+        return
+
+    def load_table_from_duckdb(self, **kwargs) -> bool:
+        """소스 테이블을 타겟 테이블에 적재하고 성공 여부를 반환한다."""
+        return self.client.load_table_from_duckdb(
+            connection = self.duckdb,
+            source_table = self.source_table,
+            target_table = self.target_table,
+            **kwargs
+        )
+
+    def overwrite_table_from_duckdb(self, where_clause: str | None = None, **kwargs) -> bool:
+        """소스 테이블을 타겟 테이블에 덮어쓰기하고 성공 여부를 반환한다."""
+        return self.client.overwrite_table_from_duckdb(
+            connection = self.duckdb,
+            source_table = self.source_table,
+            target_table = self.target_table,
+            where_clause = where_clause,
+            **kwargs
+        )
+
+
+@pytest.fixture(scope="session")
+def connections(configs_full: dict) -> Callable[[str], dict]:
+    """`fixtures.yaml`에서 특정 DB 백엔드에 해당하는 연결 설정을 조회하는 함수를 반환한다."""
+    from linkmerce.utils.nested import hier_get
+
+    def _get_connections(backend: str) -> dict:
+        items = hier_get(configs_full, backend, on_missing="raise")
+        if not (isinstance(items, dict) and items):
+            pytest.skip(f"Missing required config: '{backend}' not found in `fixtures.yaml`")
+
+        file_path = str(items["source"]["file_path"]).format(**DIRS)
+        items["source"]["file_path"] = Path(file_path)
+        items["source"]["file_format"] = os.path.splitext(file_path)[1][1:]
+        return items
+
+    return _get_connections
+
+
+@pytest.fixture(scope="session")
+def bigquery_client(
+        request: FixtureRequest,
+        connections: Callable[[str], dict],
+        service_account: dict,
+    ) -> Generator[BigQueryClient | None, None, None]:
+    """적재 테스트 시작 시 BigQuery 클라이언트를 생성하고 종료 시 닫는다."""
+    if has_marked_items(request, "load"):
+        from linkmerce.extensions.bigquery import BigQueryClient
+        with BigQueryClient(service_account) as client:
+            yield client
+
+            target_table = connections("bigquery")["target"]["test_table"]
+            client.execute_job(f"DROP TABLE IF EXISTS `{client.project_id}.{target_table}`;")
+    else:
+        yield None
+
+
+@pytest.fixture(scope="session")
+def postgres_client(
+        request: FixtureRequest,
+        connections: Callable[[str], dict],
+        duckdb_conn: DuckDBConnection | None,
+    ) -> Generator[PostgresClient | None, None, None]:
+    """적재 테스트 시작 시 PostgreSQL 클라이언트를 생성하고 종료 시 닫는다."""
+    if has_marked_items(request, "load"):
+        if duckdb_conn is None:
+            pytest.skip(f"Missing DuckDB connection.")
+
+        from linkmerce.extensions.postgres import PostgresClient
+        with PostgresClient(connections("postgres")["target"]["dsn"]) as client:
+            client.attach_postgres_to_duckdb(duckdb_conn, POSTGRES_DATABASE, read_only=False)
+            yield client
+
+            target_table = connections("bigquery")["target"]["test_table"]
+            with client.conn.cursor() as cursor:
+                client.execute(f"DROP TABLE IF EXISTS {target_table};", cursor=cursor, commit=True)
+    else:
+        yield None
+
+
+@pytest.fixture(scope="function")
+def loader_harness(
+        connections: Callable[[str], dict],
+        duckdb_conn: DuckDBConnection | None,
+        bigquery_client: BigQueryClient | None,
+        postgres_client: PostgresClient | None,
+    ) -> Callable[[Literal["bigquery", "postgres"]], LoaderHarness]:
+    """DB 백엔드별 `LoaderHarness` 객체를 생성하는 팩토리 함수."""
+    def _select_client(backend: Literal["bigquery", "postgres"]) -> BigQueryClient | PostgresClient:
+        if duckdb_conn is None:
+            pytest.skip(f"Missing DuckDB connection.")
+        elif (backend == "bigquery") and (bigquery_client is not None):
+            return bigquery_client
+        elif (backend == "postgres") and (postgres_client is not None):
+            return postgres_client
+        else:
+            pytest.skip(f"Missing '{backend}' backend or connection.")
+
+    def _init(backend: Literal["bigquery", "postgres"]) -> LoaderHarness:
+        return LoaderHarness(backend, connections(backend), _select_client(backend), duckdb_conn)
     return _init

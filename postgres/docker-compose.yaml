@@ -2,6 +2,7 @@
 services:
   postgres:
     image: ${POSTGRES_IMAGE_NAME:-custom/postgres:13}
+    container_name: linkmerce-postgres
     env_file:
       - .env
     environment:

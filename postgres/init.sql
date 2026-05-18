@@ -20,6 +20,7 @@ CREATE SCHEMA IF NOT EXISTS searchad; -- sad
 CREATE SCHEMA IF NOT EXISTS smartstore; -- smt
 CREATE SCHEMA IF NOT EXISTS ss_hcenter; -- ssh
 CREATE SCHEMA IF NOT EXISTS partman; -- pg_partman
+CREATE SCHEMA IF NOT EXISTS test;
 
 -- ============================================================
 -- pg_partman 확장 및 초기 파티션 설정
@@ -144,7 +145,7 @@ CREATE TABLE IF NOT EXISTS coupang.option (
   , stock_quantity INTEGER -- 재고수량
   , register_dt TIMESTAMP -- 생성일시
   , modify_dt TIMESTAMP -- 수정일시
-  , PRIMARY KEY (option_id)
+  , PRIMARY KEY (vendor_inventory_item_id)
 );
 
 -- [쿠팡 로켓그로스 재고현황]
@@ -340,7 +341,6 @@ CREATE TABLE IF NOT EXISTS ecount.cost (
   , end_date DATE NOT NULL -- 종료일
   , PRIMARY KEY (end_date, id)
 ) PARTITION BY RANGE (end_date);
-CREATE TABLE IF NOT EXISTS ecount.cost_default PARTITION OF ecount.cost DEFAULT;
 
 -- ============================================================
 -- google_ads (구글 광고)
@@ -959,7 +959,6 @@ CREATE TABLE IF NOT EXISTS searchad.contract (
   , cancel_date DATE -- 취소일
   , PRIMARY KEY (contract_end_date, contract_id)
 ) PARTITION BY RANGE (contract_end_date);
-CREATE TABLE IF NOT EXISTS searchad.contract_default PARTITION OF searchad.contract DEFAULT;
 
 -- [네이버 검색광고 노출 순위]
 CREATE TABLE IF NOT EXISTS searchad.rank (
@@ -1231,66 +1230,94 @@ CREATE TABLE IF NOT EXISTS ss_hcenter.stock (
 
 -- 테이블별 시작일은 아래 VALUES 블록에서 조정한다.
 -- 시작일(start_partition)로부터 (현재 + premake) 시점까지 초기 파티션을 일괄 생성한다.
-DO $$
+CREATE OR REPLACE FUNCTION public.bootstrap_daily_partitions(
+    p_parent_table TEXT,
+    p_control_column TEXT,
+    p_start_partition TEXT,
+    p_premake_days INTEGER
+) RETURNS VOID AS $$
 DECLARE
-  partition_set RECORD;
+  has_partitions BOOLEAN;
+  start_partition_ts TIMESTAMP;
+  safe_start_partition_ts TIMESTAMP;
+  end_partition_ts TIMESTAMP;
 BEGIN
-  FOR partition_set IN
-    SELECT *
-    FROM (
-      VALUES
-        ('cj_eflexs.invoice', 'pickup_date', '2023-05-01', 35),
-        ('cj_eflexs.invoice_order', 'order_date', '2023-05-01', 35),
-        ('cj_loisparcel.invoice', 'register_date', '2025-08-01', 35),
-        ('coupang.rocket_sales', 'sales_date', '2023-08-07', 35),
-        ('coupang.rocket_shipping', 'sales_date', '2023-08-04', 35),
-        ('coupang_ads.report_pa', 'ymd', '2023-10-31', 35),
-        ('coupang_ads.report_nca', 'ymd', '2025-01-07', 35),
-        ('ecount.cost', 'end_date', '2025-01-13', 35),
-        ('google_ads.insight', 'ymd', '2023-09-06', 35),
-        ('meta_ads.insights', 'ymd', '2024-05-20', 35),
-        ('naver_shp.rank', 'created_at', '2025-08-15 00:00:00', 35),
-        ('sabangnet.order', 'order_dt', '2024-11-04 00:00:00', 35),
-        ('sabangnet.order_invoice', 'order_dt', '2024-11-04 00:00:00', 35),
-        ('sabangnet.order_dispatch', 'register_dt', '2023-12-12 00:00:00', 35),
-        ('sabangnet.order_status', 'order_date', '2025-04-03', 35),
-        ('searchad.report_sad', 'ymd', '2025-04-03', 35),
-        ('searchad.report_gfa', 'ymd', '2024-06-25', 35),
-        ('searchad.contract', 'contract_end_date', '2022-06-23', 35),
-        ('searchad.rank', 'created_at', '2025-08-15 00:00:00', 35),
-        ('smartstore.order', 'payment_dt', '2022-04-07 00:00:00', 35),
-        ('smartstore.order_detail', 'payment_dt', '2022-04-07 00:00:00', 35),
-        ('smartstore.order_delivery', 'payment_dt', '2022-04-07 00:00:00', 35),
-        ('smartstore.order_status', 'payment_dt', '2022-03-28 00:00:00', 35),
-        ('smartstore.marketing_channel', 'ymd', '2024-06-09', 35),
-        ('ss_hcenter.pid_cid', 'created_at', '2025-08-15 00:00:00', 35),
-        ('ss_hcenter.pageview', 'ymd', '2023-12-13', 35),
-        ('ss_hcenter.price', 'created_at', '2025-07-19 00:00:00', 35),
-        ('ss_hcenter.sales', 'payment_date', '2023-07-20', 35),
-        ('ss_hcenter.stock', 'created_at', '2026-03-07 00:00:00', 35)
-    ) AS config(parent_table, control_column, start_partition, premake_days)
-  LOOP
-    IF NOT EXISTS (
-      SELECT 1
-      FROM partman.part_config
-      WHERE parent_table = partition_set.parent_table
-    ) THEN
-      PERFORM partman.create_parent(
-        p_parent_table := partition_set.parent_table,
-        p_control := partition_set.control_column,
-        p_type := 'native',
-        p_interval := 'daily',
-        p_premake := partition_set.premake_days,
-        p_start_partition := partition_set.start_partition,
-        p_automatic_maintenance := 'on',
-        p_jobmon := false
-      );
-    END IF;
+  start_partition_ts := p_start_partition::TIMESTAMP;
+  safe_start_partition_ts := GREATEST(start_partition_ts, (CURRENT_DATE - INTERVAL '30 days')::TIMESTAMP);
+  end_partition_ts := (CURRENT_DATE + p_premake_days)::TIMESTAMP;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_inherits i
+    JOIN pg_class p ON p.oid = i.inhparent
+    JOIN pg_namespace n ON n.oid = p.relnamespace
+    WHERE n.nspname || '.' || p.relname = p_parent_table
+  ) INTO has_partitions;
+
+  IF NOT has_partitions THEN
+    DELETE FROM partman.part_config
+    WHERE parent_table = p_parent_table;
+
+    PERFORM partman.create_parent(
+      p_parent_table := p_parent_table,
+      p_control := p_control_column,
+      p_type := 'native',
+      p_interval := 'daily',
+      p_premake := p_premake_days,
+      p_start_partition := safe_start_partition_ts::TEXT,
+      p_automatic_maintenance := 'on',
+      p_jobmon := false
+    );
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM partman.part_config
+    WHERE parent_table = p_parent_table
+  ) THEN
+    PERFORM partman.create_partition_time(
+      p_parent_table := p_parent_table,
+      p_partition_times := ARRAY(
+        SELECT generate_series(start_partition_ts, end_partition_ts, INTERVAL '1 day')
+      ),
+      p_analyze := false
+    );
 
     UPDATE partman.part_config
-      SET premake = partition_set.premake_days,
+      SET premake = p_premake_days,
           automatic_maintenance = 'on',
           infinite_time_partitions = true
-    WHERE parent_table = partition_set.parent_table;
-  END LOOP;
-END $$;
+    WHERE parent_table = p_parent_table;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice', 'pickup_date', '2023-05-01', 35);
+SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order', 'order_date', '2023-05-01', 35);
+SELECT public.bootstrap_daily_partitions('cj_loisparcel.invoice', 'register_date', '2025-08-01', 35);
+SELECT public.bootstrap_daily_partitions('coupang.rocket_sales', 'sales_date', '2023-08-07', 35);
+SELECT public.bootstrap_daily_partitions('coupang.rocket_shipping', 'sales_date', '2023-08-04', 35);
+SELECT public.bootstrap_daily_partitions('coupang_ads.report_pa', 'ymd', '2023-10-31', 35);
+SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca', 'ymd', '2025-01-07', 35);
+SELECT public.bootstrap_daily_partitions('ecount.cost', 'end_date', '2025-01-13', 35);
+SELECT public.bootstrap_daily_partitions('google_ads.insight', 'ymd', '2023-09-06', 35);
+SELECT public.bootstrap_daily_partitions('meta_ads.insights', 'ymd', '2024-05-20', 35);
+SELECT public.bootstrap_daily_partitions('naver_shp.rank', 'created_at', '2025-08-15 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('sabangnet.order', 'order_dt', '2024-11-04 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('sabangnet.order_invoice', 'order_dt', '2024-11-04 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('sabangnet.order_dispatch', 'register_dt', '2023-12-12 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('sabangnet.order_status', 'order_date', '2025-04-03', 35);
+SELECT public.bootstrap_daily_partitions('searchad.report_sad', 'ymd', '2025-04-03', 35);
+SELECT public.bootstrap_daily_partitions('searchad.report_gfa', 'ymd', '2024-06-25', 35);
+SELECT public.bootstrap_daily_partitions('searchad.contract', 'contract_end_date', '2022-06-23', 35);
+SELECT public.bootstrap_daily_partitions('searchad.rank', 'created_at', '2025-08-15 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('smartstore.order', 'payment_dt', '2022-04-07 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('smartstore.order_detail', 'payment_dt', '2022-04-07 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('smartstore.order_delivery', 'payment_dt', '2022-04-07 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('smartstore.order_status', 'payment_dt', '2022-03-28 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('smartstore.marketing_channel', 'ymd', '2024-06-09', 35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.pid_cid', 'created_at', '2025-08-15 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.pageview', 'ymd', '2023-12-13', 35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.price', 'created_at', '2025-07-19 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.sales', 'payment_date', '2023-07-20', 35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.stock', 'created_at', '2026-03-07 00:00:00', 35);

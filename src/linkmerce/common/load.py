@@ -16,16 +16,16 @@ if TYPE_CHECKING:
 NAME, TYPE = 0, 0
 
 
-def concat_sql(*statement: str, drop_empty: bool = True, sep=' ', terminate: bool = True) -> str:
+def concat_sql(*statement: str | None, drop_empty: bool = True, sep=' ', terminate: bool = True) -> str:
     """SQL 문장들을 하나로 연결한다."""
     query = sep.join(filter(None, statement) if drop_empty else statement)
     return query + ';' if terminate and not query.endswith(';') else query
 
 
-def where(where_clause: str | None = None, default: str | None = None) -> str:
+def where(where_clause: str | None = None, default: str | None = None) -> str | None:
     """WHERE 절을 구성한다."""
     if not (where_clause or default):
-        return str()
+        return None
     return f"WHERE {where_clause or default}"
 
 
@@ -350,7 +350,7 @@ class DuckDBConnection(Connection):
         ) -> DuckDBPyConnection:
         """CSV 파일 또는 튜플 리스트를 SELECT 쿼리로 조회하고 결과를 반환한다."""
         if isinstance(values, (str, Path)):
-            query = f"SELECT * FROM execute_with_csv('{values}')"
+            query = f"SELECT * FROM read_csv('{values}')"
         else:
             query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
             params = (params or dict()) | {"values": csv_to_json(values)}
@@ -365,7 +365,7 @@ class DuckDBConnection(Connection):
         ) -> DuckDBPyConnection:
         """JSON 파일 또는 딕셔너리 리스트를 SELECT 쿼리로 조회하고 결과를 반환한다."""
         if isinstance(values, (str, Path)):
-            query = f"SELECT * FROM execute_with_json_auto('{values}')"
+            query = f"SELECT * FROM read_json_auto('{values}')"
         else:
             query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
             params = (params or dict()) | {"values": values}
@@ -380,27 +380,27 @@ class DuckDBConnection(Connection):
         ) -> DuckDBPyConnection:
         """Parquet 파일 또는 Parquet 바이너리를 SELECT 쿼리로 조회하고 결과를 반환한다."""
         if isinstance(values, (str, Path)):
-            query = f"SELECT * FROM execute_with_parquet('{values}')"
+            query = f"SELECT * FROM read_parquet('{values}')"
             return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
         else:
             def create_table(temp_file: str) -> DuckDBPyConnection:
-                query = concat_sql(prefix, f"SELECT * FROM execute_with_parquet('{temp_file}')", suffix)
+                query = concat_sql(prefix, f"SELECT * FROM read_parquet('{temp_file}')", suffix)
                 return self.conn.execute(query, parameters=params)
             return run_with_tempfile(create_table, values, mode="w+b", suffix=".parquet")
 
     ############################## Fetch ##############################
 
     def fetch_one(self, query: str, index: int = 0, params: object | None = None) -> Any:
-        """SQL 쿼리를 실행하여 값 하나를 가져온다."""
+        """SQL 쿼리를 실행하여 값 하나를 가져온다. 결과 행이 없다면 `TypeError`가 발생한다."""
         relation = self.conn.execute(query, parameters=params)
-        return relation.fetchall()[0][index]
+        return relation.fetchone()[index]
 
     def fetch_values(self, query: str, params: object | None = None, axis: int = 0) -> tuple[Any, ...]:
         """SQL 쿼리 실행 결과를 1차원 리스트로 반환한다. `axis=0`은 첫 번째 행, `axis=1`은 첫 번째 열을 반환한다."""
         relation = self.conn.execute(query, parameters=params)
         if axis == 1:
             return tuple(row[0] for row in relation.fetchall())
-        return relation.fetchall()[0]
+        return relation.fetchone()
 
     def fetch_all(
             self,
@@ -520,8 +520,10 @@ class DuckDBConnection(Connection):
         ) -> DuckDBPyConnection:
         """기존 테이블을 복사하여 새 테이블을 생성한다."""
         columns_ = ", ".join(columns) if isinstance(columns, list) else columns
-        limit_ = f"LIMIT {limit}" if isinstance(limit, int) else None
-        query = concat_sql(f"{self.expr_create(option, temp)} {target_table} AS SELECT {columns_} FROM {source_table}", limit_)
+        query = concat_sql(
+            f"{self.expr_create(option, temp)} {target_table} AS SELECT {columns_} FROM {source_table}",
+            (f"LIMIT {limit}" if isinstance(limit, int) else None),
+        )
         return self.conn.execute(query)
 
     ############################## Insert #############################
@@ -585,9 +587,11 @@ class DuckDBConnection(Connection):
         ) -> DuckDBPyRelation:
         """지정된 칼럼을 기준으로 그룹 집계를 수행한다."""
         by = [by] if isinstance(by, str) else by
-        where = "WHERE " + " AND ".join([f"{col} IS NOT NULL" for col in by]) if dropna else None
-        groupby = "GROUP BY {}".format(", ".join(by))
-        query = concat_sql(f"SELECT {', '.join(by)}, {self.agg(agg)} FROM {source}", where, groupby)
+        query = concat_sql(
+            f"SELECT {', '.join(by)}, {self.agg(agg)} FROM {source}",
+            where(" AND ".join([f"{col} IS NOT NULL" for col in by]) if dropna else None),
+            "GROUP BY {}".format(", ".join(by))
+        )
         return self.conn.sql(query, params=params)
 
     def agg(self, func: str | dict[str, Literal["count", "sum", "avg", "min", "max", "first", "last", "list"]]) -> str:
@@ -608,19 +612,20 @@ class DuckDBConnection(Connection):
 
     def table_exists(self, table: str) -> bool:
         """테이블 존재 여부를 확인한다."""
-        query = f"SELECT 1 FROM information_schema.tables WHERE table_name = '{table}' LIMIT 1"
-        return bool(self.conn.execute(query).fetchone())
+        query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table}')"
+        return self.conn.execute(query).fetchone()[0]
 
-    def table_has_rows(self, table: str) -> bool:
+    def table_has_rows(self, table: str, where_clause: str | None = None) -> bool:
         """테이블이 존재하고 데이터가 있는지 확인한다."""
         if self.table_exists(table):
-            query = f"SELECT 1 FROM {table} LIMIT 1"
-            return bool(self.conn.execute(query).fetchone())
+            query = concat_sql(f"SELECT EXISTS (SELECT 1 FROM {table}", where(where_clause), "LIMIT 1)")
+            return self.conn.execute(query).fetchone()[0]
         return False
 
-    def count_table(self, table: str) -> int:
-        """테이블의 데이터 행 수를 카운트한다."""
-        return self.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchall()[0][0]
+    def count_table(self, table: str, where_clause: str | None = None) -> int:
+        """테이블의 데이터 행 수를 집계한다."""
+        query = concat_sql(f"SELECT COUNT(*) FROM {table}", where(where_clause))
+        return self.conn.execute(query).fetchone()[0]
 
     def show_tables(self) -> list[str]:
         """현재 연결에 존재하는 모든 테이블 이름을 반환한다."""
@@ -640,9 +645,11 @@ class DuckDBConnection(Connection):
 
     def unique(self, table: str, expr: str, ascending: bool | None = None, where_clause: str | None = None) -> list:
         """테이블에서 특정 표현식으로 조회했을 때 고유한 값 목록을 반환한다."""
-        select = f"SELECT DISTINCT {expr} AS expr FROM {table}"
-        order_by = "ORDER BY expr {}".format({True:"ASC", False:"DESC"}[ascending]) if isinstance(ascending, bool) else None
-        query = concat_sql(select, where(where_clause), order_by)
+        query = concat_sql(
+            f"SELECT DISTINCT {expr} AS expr FROM {table}",
+            where(where_clause),
+            ("ORDER BY expr {}".format({True:"ASC", False:"DESC"}[ascending]) if isinstance(ascending, bool) else None),
+        )
         return [row[0] for row in self.conn.execute(query).fetchall()]
 
 
@@ -712,9 +719,11 @@ class DuckDBIterator(Task):
         """`partitions` 속성을 순회하면서, 각 파티션 값을 WHERE 절로 치환하여 조회한 결과를 반환한다."""
         if self.index >= len(self):
             raise StopIteration
-        map_partition = self.partitions[self.index]
-        where_clause = " AND ".join([f"{expr} = {self.conn.expr_value(value)}" for expr, value in map_partition.items()])
-        query = concat_sql(f"SELECT {self.columns} FROM {self.table}", where(where_clause))
+        items = self.partitions[self.index].items()
+        query = concat_sql(
+            f"SELECT {self.columns} FROM {self.table}",
+            where(" AND ".join([f"{expr} = {self.conn.expr_value(value)}" for expr, value in items])),
+        )
         results = self.conn.fetch_all(self.format, query)
         self.index += 1
         return results

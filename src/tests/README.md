@@ -2,23 +2,31 @@
 
 해당 테스트는 `linkmerce` 패키지의 `Extractor`와 `DuckDBTransformer`의 동작을 검증하는 테스트 모음이다.
 
-아래 2가지 테스트를 실행할 수 있다.
+아래 3가지 테스트를 실행할 수 있다.
 1. `test_extract.py` - `Extractor.extract()` 결과를 저장한다.
 2. `test_transform.py` - `DuckDBTransformer.transform()` 결과를 저장한다.
+3. `test_load.py` - DuckDB 소스 테이블을 BigQuery/PostgreSQL 타겟 테이블에 적재한다.
 
-## 실행
+## 테스트 실행
 
 1. `pytest src/tests/test_extract.py -m extract -v -s`
 2. `pytest src/tests/test_transform.py -m transform -v -s`
+3. `pytest src/tests/test_load.py -m load -v -s`
 
 특정 도메인만 실행할 때는 마커를 조합한다.
 > 예시: `pytest src/tests/test_transform.py -m "transform and smartstore_api" -v -s`
 
+적재 테스트는 백엔드별 마커로 분리할 수 있다.
+1. `pytest src/tests/test_load.py -m "load and load_bigquery" -v -s`
+2. `pytest src/tests/test_load.py -m "load and load_postgres" -v -s`
+
 ⚠️ `test_transform.py` 테스트를 실행하기 위해선 `test_extract.py` 실행 결과가 먼저 저장되어야 한다.
 
-## 결과
+⚠️ `test_load.py` 테스트는 Extract/Transform 결과에 의존하지 않는 독립적인 테스트다.
 
-모든 결과는 `src/tests/results/` 경로 아래에 `linkmerce.core` 모듈명 및 클래스명 경로로 조합한 위치에 저장한다.
+## Extract/Transform 테스트
+
+모든 테스트 실행 결과는 `src/tests/results/` 경로 아래에 `linkmerce.core` 모듈명 및 클래스명 경로로 조합한 위치에 저장한다.
 1. `test_extract.py` 테스트 실행 시 `{module}/{Extractor}/` 하위 경로를 생성한다.   
     테스트 실행 결과는 해당 하위 경로에 `extract.{ext}` 파일로 저장한다.
 2. `test_transform.py` 테스트 실행 시 상위 `{module}/{Extractor}/{DuckDBTransformer}` 하위 경로를 생성한다.   
@@ -38,6 +46,14 @@
 5. 그 외엔 확장자 없이 `mode="wb"` 옵션으로 저장한다.
 
 💡 하나의 테스트가 여러 개의 실행 결과를 저장해야 하는 경우 `extract_{index}.{ext}` 형식으로 구분한다.
+
+## Load 테스트
+
+적재 테스트는 [소스 데이터, 소스 테이블, 타겟 테이블]에 대한 연결 정보를 설정에서 읽어 다음 흐름을 검증한다.
+1. 소스 데이터 파일을 DuckDB의 소스 테이블로 적재한다.
+2. 원본 테이블 스키마를 기준으로 타겟 테이블 또는 타겟 임시 테이블을 생성한다.
+3. `*_table_from_duckdb` 시나리오를 실행한다.
+4. 테스트가 끝나면 생성한 타겟 테이블과 임시 테이블을 정리한다.
 
 ## 패키지 구조
 
