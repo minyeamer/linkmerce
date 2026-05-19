@@ -311,6 +311,7 @@ airflow/extensions/
 airflow/dags/_private/
 docs/captures/
 docs/draft/
+src/tests/data/
 src/tests/results/
 src/tests/fixtures.yaml
 !chat.log

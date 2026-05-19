@@ -24,7 +24,8 @@ pytestmark = pytest.mark.extract
 
 class TestCjLogistics:
     """CJ대한통운 eFLEXs 데이터 추출 테스트.
-    - cj.eflexs.stock.Stock"""
+    - cj.eflexs.stock.Stock
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("cjlogistics.eflexs")
@@ -59,7 +60,8 @@ class TestCoupangAds:
     - coupang.advertising.adreport.Campaign
     - coupang.advertising.adreport.Creative
     - coupang.advertising.adreport.ProductAdReport
-    - coupang.advertising.adreport.NewCustomerAdReport"""
+    - coupang.advertising.adreport.NewCustomerAdReport
+    """
 
     def cookies(self, reader: YamlReader) -> str:
         return reader("coupang.advertising.0")["cookies"]
@@ -139,7 +141,8 @@ class TestCoupangWing:
     - coupang.wing.product.ProductDownload
     - coupang.wing.product.RocketInventory
     - coupang.wing.settlement.RocketSettlement
-    - coupang.wing.settlement.RocketSettlementDownload"""
+    - coupang.wing.settlement.RocketSettlementDownload
+    """
 
     def cookies(self, reader: YamlReader) -> str:
         return reader("coupang.wing.0")["cookies"]
@@ -236,7 +239,8 @@ class TestCoupangWing:
 class TestEcount:
     """이카운트 API 데이터 추출 테스트.
     - ecount.api.inventory.Inventory
-    - ecount.api.product.Product"""
+    - ecount.api.product.Product
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("ecount.api")
@@ -289,7 +293,8 @@ class TestGoogleAds:
     - google.api.ads.Ad
     - google.api.ads.Insight
     - google.api.ads.Asset
-    - google.api.ads.AssetView"""
+    - google.api.ads.AssetView
+    """
 
     def credentials(self, reader: YamlReader, service_account: dict) -> dict:
         _credentials = reader("google.ads_api.0")
@@ -399,7 +404,8 @@ class TestMetaAds:
     - meta.api.ads.Campaigns
     - meta.api.ads.Adsets
     - meta.api.ads.Ads
-    - meta.api.ads.Insights"""
+    - meta.api.ads.Insights
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("meta.marketing_api.0")
@@ -480,7 +486,8 @@ class TestNaverSearch:
     """네이버 검색 결과 추출 테스트.
     - naver.main.search.Search
     - naver.main.search.SearchTab
-    - naver.main.search.CafeArticle"""
+    - naver.main.search.CafeArticle
+    """
 
     @pytest.mark.skip
     @pytest.mark.naver_search
@@ -536,7 +543,8 @@ class TestNaverOpenApi:
     - naver.openapi.search.CafeSearch
     - naver.openapi.search.KiNSearch
     - naver.openapi.search.ImageSearch
-    - naver.openapi.search.ShopSearch"""
+    - naver.openapi.search.ShopSearch
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("naver.openapi.0")
@@ -667,7 +675,8 @@ class TestSabangnet:
     - sabangnet.admin.product.Option
     - sabangnet.admin.product.OptionDownload
     - sabangnet.admin.product.AddProductGroup
-    - sabangnet.admin.product.AddProduct"""
+    - sabangnet.admin.product.AddProduct
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("sabangnet.admin")
@@ -854,7 +863,8 @@ class TestSearchAdApi:
     - searchad.api.adreport.AdvancedReport
     - searchad.api.contract.TimeContract
     - searchad.api.contract.BrandNewContract
-    - searchad.api.keyword.Keyword"""
+    - searchad.api.keyword.Keyword
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("searchad.api.0")
@@ -978,7 +988,8 @@ class TestSearchAdApi:
 class TestSearchAdCenter:
     """네이버 광고주센터 데이터 추출 테스트.
     - searchad.center.adreport.DailyReport
-    - searchad.center.exposure.ExposureDiagnosis"""
+    - searchad.center.exposure.ExposureDiagnosis
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("searchad.center.0")
@@ -1031,7 +1042,8 @@ class TestSearchAdGfa:
     - searchad.gfa.adreport.Campaign
     - searchad.gfa.adreport.AdSet
     - searchad.gfa.adreport.Creative
-    - searchad.gfa.adreport.PerformanceReport"""
+    - searchad.gfa.adreport.PerformanceReport
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("searchad.gfa.0")
@@ -1124,7 +1136,8 @@ class TestSmartstoreApi:
     - smartstore.api.product.Product
     - smartstore.api.product.Option
     - smartstore.api.order.Order
-    - smartstore.api.order.OrderStatus"""
+    - smartstore.api.order.OrderStatus
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("smartstore.api.0")
@@ -1205,7 +1218,8 @@ class TestSmartstoreApi:
 
 class TestSmartstoreBizdataApi:
     """스마트스토어 API데이터솔루션(통계) 데이터 추출 테스트.
-    - smartstore.api.bizdata.MarketingChannel"""
+    - smartstore.api.bizdata.MarketingChannel
+    """
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("smartstore.bizdata.0")
@@ -1245,7 +1259,8 @@ class TestShoppingPartnerCenter:
     - smartstore.hcenter.pageview.PageViewByUrl
     - smartstore.hcenter.sales.StoreSales
     - smartstore.hcenter.sales.CategorySales
-    - smartstore.hcenter.sales.ProductSales"""
+    - smartstore.hcenter.sales.ProductSales
+    """
 
     eol_date = dt.date(2026, 2, 26)
 

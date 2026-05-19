@@ -1,7 +1,7 @@
 from __future__ import annotations
 import functools
 
-from linkmerce.common.load import Connection, concat_sql, where
+from linkmerce.common.load import Connection, concat_sql, where, build_temp_table_name
 
 from typing import Sequence, TYPE_CHECKING
 
@@ -31,21 +31,6 @@ def split_table(table: str) -> tuple[str, str]:
         schema, table_name = table.rsplit(".", 1)
         return schema, table_name
     return "public", table
-
-
-def build_staging_table_name(table: str, max_name_length: int | None = 62) -> str:
-    """테이블명을 기준으로 충돌 가능성이 낮은 스테이징 테이블명을 생성한다."""
-    import hashlib
-    import re
-    import time
-
-    schema, table_name = split_table(table)
-    hash = hashlib.sha1(f"{table}:{time.time_ns()}".encode("utf-8")).hexdigest()
-    length = min(max(0, max_name_length - len(table)), 8) if isinstance(max_name_length, int) else 8
-    suffix = re.sub(r"[^A-Za-z0-9_]", "_", hash)[:length]
-
-    staging_table = f"{table_name}_{suffix}"
-    return f"{schema}.{staging_table}" if schema else staging_table
 
 
 def ensure_cursor(return_cursor: bool = True, rollback_on_error: bool = True, pass_commit: bool = True):
@@ -196,9 +181,9 @@ class PostgresClient(Connection):
             *,
             cursor: PgCursor | None = None,
         ) -> Any:
-        """SQL 쿼리를 실행하여 값 하나를 가져온다."""
+        """SQL 쿼리를 실행하여 값 하나를 가져온다. 결과 행이 없다면 `TypeError`가 발생한다."""
         cursor.execute(query, params)
-        return cursor.fetchall()[0][index]
+        return cursor.fetchone()[index]
 
     @ensure_cursor(return_cursor=False, pass_commit=False)
     def fetch_values(
@@ -213,7 +198,7 @@ class PostgresClient(Connection):
         cursor.execute(query, params)
         if axis == 1:
             return tuple(row[0] for row in cursor.fetchall())
-        return cursor.fetchall()[0]
+        return cursor.fetchone()
 
     def fetch_all(
             self,
@@ -308,16 +293,22 @@ class PostgresClient(Connection):
             commit: bool = False,
             close: bool = False,
         ) -> PgCursor | None:
-        """소스 테이블 조회 결과를 새 테이블로 복사한다."""
+        """소스 테이블의 제약조건 등 모든 속성을 복사한 새 테이블을 생성하고,
+        소스 테이블 조회 결과를 새 테이블로 복사한다.
+        """
         query = concat_sql(
             (f"DROP TABLE IF EXISTS {target_table};" if option == "replace" else None),
             "CREATE TABLE",
             ("IF NOT EXISTS" if option == "ignore" else None),
-            f"{target_table} AS",
-            f"SELECT * FROM {source_table}",
-            where(where_clause),
-            (f"LIMIT {limit}" if isinstance(limit, int) else None),
+            f"{target_table} (LIKE {source_table} INCLUDING ALL)",
         )
+        if limit != 0:
+            query = concat_sql(
+                query,
+                f"INSERT INTO {target_table} SELECT * FROM {source_table}",
+                where(where_clause),
+                (f"LIMIT {limit}" if isinstance(limit, int) else None),
+            )
         cursor.execute(query)
 
     ############################## Upsert #############################
@@ -339,7 +330,7 @@ class PostgresClient(Connection):
         ) -> PgCursor | None:
         """소스 테이블을 타겟 테이블에 `INSERT ... ON CONFLICT` 병합한다.
 
-        **NOTE** WHERE 문에서 소스 테이블 칼럼은 `S.`로 참조한다.
+        **NOTE** WHERE 절에서 소스 테이블 칼럼은 `S.`로 참조한다.
         """
         on_conflict = [on_conflict] if isinstance(on_conflict, str) else list(on_conflict)
         columns = self.get_description(source_table, cursor)
@@ -431,12 +422,11 @@ class PostgresClient(Connection):
             connection.execute("INSTALL postgres;")
         connection.execute("LOAD postgres;")
 
-        rows = connection.execute(
-            f"SELECT readonly FROM duckdb_databases() WHERE database_name = '{database}'"
-        ).fetchall()
-        if not rows:
+        query = f"SELECT readonly FROM duckdb_databases() WHERE database_name = '{database}'"
+        result = connection.execute(query).fetchone()
+        if not result:
             connection.execute(f"ATTACH '{dsn}' AS {database} ({options});")
-        elif rows[0][0] != read_only:
+        elif result[0] != read_only:
             connection.execute(f"DETACH {database};")
             connection.execute(f"ATTACH '{dsn}' AS {database} ({options});")
 
@@ -503,7 +493,7 @@ class PostgresClient(Connection):
             return True
 
         common = (connection, source_table, target_table, columns)
-        if not self.table_has_rows(target_table, where_clause):
+        if not self.table_has_rows(target_table):
             return self.load_table_from_duckdb(*common, None, if_target_table_not_found, install_extension)
 
         with self.conn.cursor() as cursor:
@@ -544,16 +534,20 @@ class PostgresClient(Connection):
         ) -> bool:
         """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 BigQuery 테이블에 UPESRT 한다.
 
-        **NOTE** WHERE 문에서 소스 테이블 칼럼은 `S.`로 참조한다.
+        **NOTE** WHERE 절에서 소스 테이블 칼럼은 `S.`로 참조한다.
         """
         if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
             return True
 
         import re
         common = (connection, source_table, target_table, columns)
-        unalias_where = re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause) if where_clause else None
-        if not self.table_has_rows(target_table, unalias_where):
+        if not self.table_has_rows(target_table):
             return self.load_table_from_duckdb(*common, None, if_target_table_not_found, install_extension)
+
+        if where_clause is not None:
+            unalias_where = re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause)
+            if not self.table_has_rows(target_table, unalias_where):
+                return self.load_table_from_duckdb(*common, None, if_target_table_not_found, install_extension)
 
         with self.conn.cursor() as cursor:
             staging_table = None
@@ -600,9 +594,9 @@ class PostgresClient(Connection):
             close: bool = False,
         ) -> PgTable:
         """DuckDB 소스 테이블 행을 적재할 빈 스테이징 테이블을 생성하고 적재한다."""
-        staging_table = build_staging_table_name(target_table)
+        staging_table = build_temp_table_name(target_table, max_name_length=62)
         while self.table_exists(staging_table):
-            staging_table = build_staging_table_name(target_table)
+            staging_table = build_temp_table_name(target_table, max_name_length=62)
         self.copy_table(target_table, staging_table, limit=0, option="replace", cursor=cursor, commit=True)
 
         self.load_table_from_duckdb(connection, source_table, staging_table, columns,
@@ -701,7 +695,12 @@ class PostgresClient(Connection):
         """테이블이 존재하고 데이터가 있는지 확인한다."""
         if not self.table_exists(table):
             return False
-        query = concat_sql(f"SELECT EXISTS (SELECT 1 FROM {table}", where(where_clause), ")")
+        query = concat_sql(f"SELECT EXISTS (SELECT 1 FROM {table}", where(where_clause), "LIMIT 1)")
+        return self.fetch_one(query)
+
+    def count_table(self, table: str, where_clause: str | None = None) -> int:
+        """테이블의 행 수를 집계한다."""
+        query = concat_sql(f"SELECT COUNT(*) FROM {table}", where(where_clause))
         return self.fetch_one(query)
 
     def get_columns(self, table: str) -> list[str]:

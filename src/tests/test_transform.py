@@ -27,7 +27,8 @@ pytestmark = pytest.mark.transform
 
 class TestCjLogistics:
     """CJ대한통운 eFLEXs 데이터 변환 테스트.
-    - cj.eflexs.stock.Stock"""
+    - cj.eflexs.stock.Stock
+    """
 
     @pytest.mark.skip
     @pytest.mark.cj_logistics
@@ -46,7 +47,8 @@ class TestCoupangAds:
     - coupang.advertising.adreport.Campaign
     - coupang.advertising.adreport.Creative
     - coupang.advertising.adreport.ProductAdReport
-    - coupang.advertising.adreport.NewCustomerAdReport"""
+    - coupang.advertising.adreport.NewCustomerAdReport
+    """
 
     def vendor_id(self, reader: YamlReader) -> str:
         return reader("coupang.advertising.0")["vendor_id"]
@@ -99,7 +101,8 @@ class TestCoupangWing:
     - coupang.wing.product.RocketInventory
     - coupang.wing.product.RocketOption
     - coupang.wing.settlement.RocketSettlement
-    - coupang.wing.settlement.RocketSettlementDownload"""
+    - coupang.wing.settlement.RocketSettlementDownload
+    """
 
     def vendor_id(self, reader: YamlReader) -> str:
         return reader("coupang.advertising.0")["vendor_id"]
@@ -179,7 +182,8 @@ class TestCoupangWing:
 class TestEcount:
     """이카운트 데이터 변환 테스트.
     - ecount.api.inventory.Inventory
-    - ecount.api.product.Product"""
+    - ecount.api.product.Product
+    """
 
     @pytest.mark.ecount
     def test_inventory(self, transformer_harness: Harness):
@@ -205,7 +209,8 @@ class TestGoogleAds:
     - google.api.ads.Ad
     - google.api.ads.Insight
     - google.api.ads.Asset
-    - google.api.ads.AssetView"""
+    - google.api.ads.AssetView
+    """
 
     def customer_id(self, reader: YamlReader) -> str:
         return reader("google.ads_api.0")["customer_id"]
@@ -268,7 +273,8 @@ class TestMetaAds:
     - meta.api.ads.Campaigns
     - meta.api.ads.Adsets
     - meta.api.ads.Ads
-    - meta.api.ads.Insights"""
+    - meta.api.ads.Insights
+    """
 
     def account_id(self, reader: YamlReader) -> str:
         return reader("meta.api.campaigns")["account_ids"][0]
@@ -314,7 +320,8 @@ class TestNaverSearch:
     """네이버 검색 결과 변환 테스트.
     - naver.main.search.Search
     - naver.main.search.CafeTab
-    - naver.main.search.CafeArticle"""
+    - naver.main.search.CafeArticle
+    """
 
     @pytest.mark.skip
     @pytest.mark.naver_search
@@ -368,7 +375,8 @@ class TestNaverOpenApi:
     - naver.openapi.search.KiNSearch
     - naver.openapi.search.ImageSearch
     - naver.openapi.search.ShopSearch
-    - naver.openapi.search.ShopRank"""
+    - naver.openapi.search.ShopRank
+    """
 
     @pytest.mark.naver_open_api
     def test_blog_search(self, transformer_harness: Harness, configs: YamlReader):
@@ -474,7 +482,8 @@ class TestSabangNet:
     - sabangnet.admin.product.Option
     - sabangnet.admin.product.OptionDownload
     - sabangnet.admin.product.AddProductGroup
-    - sabangnet.admin.product.AddProduct"""
+    - sabangnet.admin.product.AddProduct
+    """
 
     @pytest.mark.sabangnet
     def test_order(self, transformer_harness: Harness):
@@ -580,7 +589,8 @@ class TestSearchAdApi:
     - searchad.api.adreport.AdvancedReport
     - searchad.api.contract.TimeContract
     - searchad.api.contract.BrandNewContract
-    - searchad.api.keyword.Keyword"""
+    - searchad.api.keyword.Keyword
+    """
 
     def customer_id(self, reader: YamlReader):
         return reader("searchad.api.0")["customer_id"]
@@ -684,7 +694,8 @@ class TestSearchAdCenter:
     """네이버 광고주센터 데이터 변환 테스트.
     - searchad.center.adreport.DailyReport
     - searchad.center.exposure.ExposureDiagnosis
-    - searchad.center.exposure.ExposureRank"""
+    - searchad.center.exposure.ExposureRank
+    """
 
     def customer_id(self, reader: YamlReader):
         return reader("searchad.center.0")["customer_id"]
@@ -730,7 +741,8 @@ class TestSearchAdGfa:
     - searchad.gfa.adreport.AdSet
     - searchad.gfa.adreport.Creative
     - searchad.gfa.adreport.CampaignReport
-    - searchad.gfa.adreport.CreativeReport"""
+    - searchad.gfa.adreport.CreativeReport
+    """
 
     def account_no(self, reader: YamlReader):
         return reader("searchad.gfa.0")["account_no"]
@@ -793,7 +805,8 @@ class TestSmartstoreApi:
     - smartstore.api.product.Option
     - smartstore.api.order.Order
     - smartstore.api.order.OrderTime
-    - smartstore.api.order.OrderStatus"""
+    - smartstore.api.order.OrderStatus
+    """
 
     def channel_seq(self, reader: YamlReader):
         return reader("smartstore.api.0")["channel_seq"]
@@ -846,7 +859,8 @@ class TestSmartstoreApi:
 
 class TestSmartstoreBizdataApi:
     """스마트스토어 API데이터솔루션(통계) 데이터 변환 테스트.
-    - smartstore.api.bizdata.MarketingChannel"""
+    - smartstore.api.bizdata.MarketingChannel
+    """
 
     def channel_seq(self, reader: YamlReader):
         return reader("smartstore.bizdata.0")["channel_seq"]
@@ -877,7 +891,8 @@ class TestShoppingPartnerCenter:
     - smartstore.hcenter.sales.StoreSales
     - smartstore.hcenter.sales.CategorySales
     - smartstore.hcenter.sales.ProductSales
-    - smartstore.hcenter.sales.AggregatedSales"""
+    - smartstore.hcenter.sales.AggregatedSales
+    """
 
     eol_date = dt.date(2026, 2, 26)
 

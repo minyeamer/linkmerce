@@ -1,12 +1,12 @@
 from __future__ import annotations
 import functools
 
-from linkmerce.common.load import Connection, concat_sql, where
+from linkmerce.common.load import Connection, concat_sql, where, build_temp_table_name
 
 from typing import Sequence, TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, IO, Literal, TypeVar
+    from typing import Any, IO, Iterator, Literal, TypeVar
     from types import TracebackType
     JsonString = TypeVar("JsonString", str)
     Path = TypeVar("Path", str)
@@ -53,21 +53,6 @@ class PartitionOptions(TypedDict, total=False):
     ascending: bool | None
     where_clause: str | None
     if_errors: Literal["ignore", "raise"]
-
-
-def build_staging_table_name(table: str, max_name_length: int | None = None) -> str:
-    """테이블명을 기준으로 충돌 가능성이 낮은 스테이징 테이블명을 생성한다."""
-    import hashlib
-    import re
-    import time
-
-    dataset, table_name = table.rsplit(".", 1) if "." in table else (str(), table)
-    hash = hashlib.sha1(f"{table}:{time.time_ns()}".encode("utf-8")).hexdigest()
-    length = min(max(0, max_name_length - len(table)), 8) if isinstance(max_name_length, int) else 8
-    suffix = re.sub(r"[^A-Za-z0-9_]", "_", hash)[:length]
-
-    staging_table = f"{table_name}_{suffix}"
-    return f"{dataset}.{staging_table}" if dataset else staging_table
 
 
 ###################################################################
@@ -143,11 +128,24 @@ class BigQueryClient(Connection):
         return self.conn.query(query, **kwargs)
 
     @retry_on_concurrent_update(max_retries=5, random_delay=(1,3))
-    def execute_job(self, query: str, **kwargs) -> RowIterator:
+    def execute_job(self, query: str, **kwargs) -> RowIterator | Iterator[Row]:
         """SQL 쿼리를 실행하고 결과가 준비될 때까지 대기한다."""
         return self.conn.query_and_wait(query, **kwargs)
 
     ############################## Fetch ##############################
+
+    def fetch_one(self, query: str, index: int = 0) -> Any:
+        """SQL 쿼리를 실행하여 값 하나를 가져온다."""
+        for row in self.execute_job(query):
+            return list(row.values())[index]
+
+    def fetch_values(self, query: str, axis: int = 0) -> tuple[Any, ...]:
+        """SQL 쿼리 실행 결과를 1차원 리스트로 반환한다. `axis=0`은 첫 번째 행, `axis=1`은 첫 번째 열을 반환한다."""
+        if axis == 1:
+            return tuple(list(row.values())[0] for row in self.execute_job(query))
+        else:
+            for row in self.execute_job(query):
+                return tuple(row.values())
 
     def fetch_all(self, format: Literal["csv", "json"], query: str) -> list[dict]:
         """SQL 쿼리를 실행하고 결과를 지정한 형식(`csv` 또는 `json`)으로 반환한다."""
@@ -324,7 +322,7 @@ class BigQueryClient(Connection):
         ) -> LoadJob:
         """MERGE 문으로 소스 테이블을 타겟 테이블에 병합한다.
 
-        **NOTE** WHERE 문에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
+        **NOTE** WHERE 절에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
         """
         query = self._compose_merge_query(source_table, target_table, on_conflict, matched, not_matched, where_clause)
         return self.execute_job(query)
@@ -413,7 +411,7 @@ class BigQueryClient(Connection):
         ) -> LoadJob | None:
         """파일을 스테이징 테이블에 적재한 후 타겟 테이블에 MERGE한다.
 
-        **NOTE** WHERE 문에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
+        **NOTE** WHERE 절에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
         """
         staging_table = None
         try:
@@ -431,9 +429,9 @@ class BigQueryClient(Connection):
             staging_table: str | None = None,
         ) -> BigQueryTable:
         """대상 테이블 스키마를 복제하여 빈 스테이징 테이블을 생성한다."""
-        staging_table = staging_table or build_staging_table_name(target_table)
+        staging_table = staging_table or build_temp_table_name(target_table)
         while self.table_exists(staging_table):
-            staging_table = build_staging_table_name(target_table)
+            staging_table = build_temp_table_name(target_table)
         self.copy_table(target_table, staging_table, limit=0, option="replace")
         return staging_table
 
@@ -456,13 +454,13 @@ class BigQueryClient(Connection):
         if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
             return True
 
-        if (not self.table_exists(target_table)) and (if_target_table_not_found == "break"):
+        if not self._validate_table_exists(target_table, if_target_table_not_found):
             return False
 
         columns = ", ".join(columns) if columns else '*'
         table_schema = self._auto_detect_schema(target_table, schema)
         file_obj = BytesIO(connection.fetch_all_to_parquet(f"SELECT {columns} FROM {source_table}"))
-        self.load_table_from_file(target_table, file_obj, "parquet", table_schema, write, "raise")
+        self.load_table_from_file(target_table, file_obj, "parquet", table_schema, write)
         return True
 
     def load_table_from_duckdb_by_partition(
@@ -487,7 +485,7 @@ class BigQueryClient(Connection):
         if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
             return True, 0
 
-        if (not self.table_exists(target_table)) and (if_target_table_not_found == "break"):
+        if not self._validate_table_exists(target_table, if_target_table_not_found):
             return False, 0
 
         iterator = (DuckDBIterator(connection, format="parquet")
@@ -499,7 +497,7 @@ class BigQueryClient(Connection):
         table_schema = self._auto_detect_schema(target_table, schema)
         for partition in tqdm(iterator, desc=f"Uploading data to '{target_table}'", disable=(not progress)):
             write_ = write if step == 0 else "append"
-            job = self.load_table_from_file(target_table, BytesIO(partition), "parquet", table_schema, write_, "raise")
+            job = self.load_table_from_file(target_table, BytesIO(partition), "parquet", table_schema, write_)
             if job is None:
                 return False, step
             step += 1
@@ -526,7 +524,7 @@ class BigQueryClient(Connection):
             return True
 
         common = (connection, source_table, target_table, columns, schema)
-        if not self.table_has_rows(target_table, where_clause):
+        if not self.table_has_rows(target_table):
             return self.load_table_from_duckdb(*common, "append", None, if_target_table_not_found)
 
         staging_table = None
@@ -566,15 +564,18 @@ class BigQueryClient(Connection):
         ) -> bool:
         """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 BigQuery 테이블에 MERGE 한다.
 
-        **NOTE** WHERE 문에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
+        **NOTE** WHERE 절에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
         """
         if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
             return True
 
         import re
         common = (connection, source_table, target_table, columns, schema)
+        if not self.table_has_rows(target_table):
+            return self.load_table_from_duckdb(*common, "append", None, if_target_table_not_found)
+
         unalias_where = re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause) if where_clause else None
-        if not self.table_has_rows(target_table, unalias_where):
+        if (where_clause is None) and (not self.table_has_rows(target_table, unalias_where)):
             return self.load_table_from_duckdb(*common, "append", None, if_target_table_not_found)
 
         staging_table = None
@@ -677,10 +678,18 @@ class BigQueryClient(Connection):
     def table_has_rows(self, table: str, where_clause: str | None = None) -> bool:
         """테이블이 존재하고 데이터가 있는지 확인한다."""
         if self.table_exists(table):
-            query = concat_sql(f"SELECT COUNT(*) FROM `{self.project_id}.{table}`", where(where_clause))
-            rows = list(self.execute_job(query))
-            return bool(list(rows[0].values())[0])
+            query = concat_sql(
+                f"SELECT EXISTS (SELECT 1 FROM `{self.project_id}.{table}`",
+                where(where_clause),
+                "LIMIT 1)",
+            )
+            return self.fetch_one(query)
         return False
+
+    def count_table(self, table: str, where_clause: str | None = None) -> int:
+        """테이블의 행 수를 집계한다."""
+        query = concat_sql(f"SELECT COUNT(*) FROM `{self.project_id}.{table}`", where(where_clause))
+        return self.fetch_one(query)
 
     def get_table(self, table: str) -> Table:
         """BigQuery `Table` 객체를 반환한다."""
