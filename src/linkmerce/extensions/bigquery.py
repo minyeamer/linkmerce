@@ -524,7 +524,7 @@ class BigQueryClient(Connection):
             return True
 
         common = (connection, source_table, target_table, columns, schema)
-        if not self.table_has_rows(target_table):
+        if not self.table_has_rows(target_table, where_clause):
             return self.load_table_from_duckdb(*common, "append", None, if_target_table_not_found)
 
         staging_table = None
@@ -569,13 +569,14 @@ class BigQueryClient(Connection):
         if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
             return True
 
-        import re
         common = (connection, source_table, target_table, columns, schema)
-        if not self.table_has_rows(target_table):
-            return self.load_table_from_duckdb(*common, "append", None, if_target_table_not_found)
+        if where_clause is not None:
+            import re
+            unalias_where = re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause)
+        else:
+            unalias_where = "TRUE"
 
-        unalias_where = re.sub(r"(^|[^A-Za-z0-9_])(T|S)\.", r"\1", where_clause) if where_clause else None
-        if (where_clause is None) and (not self.table_has_rows(target_table, unalias_where)):
+        if not self.table_has_rows(target_table, unalias_where):
             return self.load_table_from_duckdb(*common, "append", None, if_target_table_not_found)
 
         staging_table = None
