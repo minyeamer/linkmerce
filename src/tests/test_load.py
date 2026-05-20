@@ -86,7 +86,7 @@ class TestLoadTable:
         harness.execute(f"DROP TABLE IF EXISTS {harness.target_ref};")
 
         # 타겟 테이블이 존재하지 않으면 `False` 반환
-        assert harness.load_table_from_duckdb(if_target_table_not_found="break")
+        assert not harness.load_table_from_duckdb(if_target_table_not_found="break")
 
         # 타겟 테이블이 존재하지 않으면 오류 발생
         errors = {"bigquery": NotFound, "postgres": UndefinedTable}
