@@ -167,7 +167,7 @@ with DAG(
             # [TRANSFORM] JSON 값으로 검색 결과를 적재한 테이블을 조회해, 한글 칼럼명 적용과 함께 파이썬 객체로 변환한다.
             import json
             raw_data = [[query, json.loads(sections)]
-                for query, sections in conn.sql("SELECT * FROM naver_search_sections")[0].fetchall()]
+                for query, sections in conn.execute("SELECT * FROM naver_search_sections").fetchall()]
             contents = select_contents(raw_data)
 
             # [SAVE] 네이버 모바일 통합검색 결과를 로컬에 JSON 파일로 저장한다.

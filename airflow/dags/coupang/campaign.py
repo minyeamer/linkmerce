@@ -92,7 +92,7 @@ with DAG(
                     )
 
             query = "SELECT campaign_id FROM coupang_campaign WHERE goal_type = 1"
-            nca_campaign_ids = [row[0] for row in conn.sql(query)[0].fetchall()]
+            nca_campaign_ids = conn.fetch_values(query, axis=1)
 
             if nca_campaign_ids:
                 creative(
