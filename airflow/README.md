@@ -24,8 +24,8 @@ DAG은 공통적으로 다음 흐름을 따른다.
 
 ## 한눈에 보기
 
-- **베이스 이미지**: `apache/airflow:3.1.8-python3.12`
-- **핵심 의존성**: `linkmerce`, `gspread`, `google-cloud-bigquery`, `playwright`
+- **베이스 이미지**: `apache/airflow:3.2.1-python3.12`
+- **핵심 의존성**: `linkmerce`, `gspread`, `google-cloud-bigquery`, `psycopg2-binary`, `playwright==1.60.0`
 - **Providers**: `apache-airflow-providers-slack`
 
 ## 디렉터리 구조

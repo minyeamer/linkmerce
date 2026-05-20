@@ -1,4 +1,4 @@
-FROM apache/airflow:3.1.8-python3.12
+FROM apache/airflow:3.2.1-python3.12
 
 # Set Korean locale to ensure proper handling of Korean text in HTTP responses
 USER root
@@ -14,12 +14,12 @@ COPY pyproject.toml ./
 RUN uv pip compile pyproject.toml -o requirements.txt
 
 # Append extensions' dependencies to requirements.txt
-RUN echo "psycopg2>=2.9.12" >> requirements.txt
+RUN echo "psycopg2-binary>=2.9.12" >> requirements.txt
 RUN echo "apache-airflow-providers-slack>=9.6.0" >> requirements.txt
 RUN echo "gspread>=6.2.1" >> requirements.txt
 RUN echo "google-cloud-bigquery>=3.35.0" >> requirements.txt
 RUN echo "pyarrow>=21.0.0" >> requirements.txt
-RUN echo "playwright==1.56.0" >> requirements.txt
+RUN echo "playwright==1.60.0" >> requirements.txt
 
 # Install dependencies based on the requirements.txt file
 RUN pip install -r requirements.txt
