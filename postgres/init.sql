@@ -565,22 +565,6 @@ CREATE TABLE IF NOT EXISTS relation.ad_id_to_cat_id (
   , PRIMARY KEY (ad_id, ad_type, platform_name)
 );
 
--- [CJ대한통운 eFLEXs 품목 - 이카운트 품목 관계]
-CREATE TABLE IF NOT EXISTS relation.cje_itm_to_eco_cod (
-    item_code TEXT NOT NULL -- 품목코드(풀필먼트)
-  , validate_date DATE NOT NULL -- 유효일자(풀필먼트)
-  , product_code TEXT NOT NULL -- 품목코드(이카운트)
-  , PRIMARY KEY (item_code, validate_date)
-);
-
--- [쿠팡 로켓그로스 옵션 - 이카운트 품목 관계]
-CREATE TABLE IF NOT EXISTS relation.cpg_opt_to_eco_cod (
-    option_id BIGINT NOT NULL -- 옵션ID
-  , product_code TEXT NOT NULL -- 품목코드
-  , product_quantity INTEGER NOT NULL -- 실수량
-  , PRIMARY KEY (option_id)
-);
-
 -- [쿠팡 옵션 - 사방넷 묶음상품 관계]
 CREATE TABLE IF NOT EXISTS relation.cpg_opt_to_sbn_ids (
     option_id BIGINT NOT NULL -- 옵션ID
@@ -636,9 +620,9 @@ CREATE TABLE IF NOT EXISTS sabangnet.account (
 CREATE TABLE IF NOT EXISTS sabangnet.model (
     category_id TEXT NOT NULL -- 분류코드
   , category_seq BIGINT -- 순번
+  , product_id TEXT -- 품목코드
   , model_code TEXT -- 대표코드
   , model_id TEXT -- 식별코드
-  , product_id TEXT -- 품목코드
   , brand_name TEXT -- 브랜드
   , category_name1 TEXT -- 대분류
   , category_name2 TEXT -- 중분류
@@ -652,6 +636,7 @@ CREATE TABLE IF NOT EXISTS sabangnet.model (
   , sales_team TEXT -- 영업팀
   , delivery_group TEXT -- 배송그룹
   , delivery_fee INTEGER -- 배송비
+  , eflexs_item_code TEXT -- 풀필먼트코드
   , org_price INTEGER -- 원가/공급가
   , wrap_price INTEGER -- OPP/에어캡
   , extra_cost INTEGER -- 기타부자재
