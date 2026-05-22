@@ -405,7 +405,7 @@ with DAG(
                 ("remarks_name", (None, "아이인리치코드")),
                 ("product_code", (f"판매량 기준: {date_sales[0]} ~ {date_sales[1]}", "품목코드")),
                 ("product_name", (None, "품목명")),
-                ("expiration_date", (None, "유통기한")),
+                ("expiration_date", (None, "소비기한")),
                 ("ecount_quantity", ("본사창고", "본사재고")),
                 ("sabangnet_sold_30d", (None, "총 판매량\n(최근 30일)")),
                 ("sabangnet_avg_sold_30d", (None, "일 평균 판매량\n(최근 30일)")),
@@ -480,7 +480,7 @@ with DAG(
                     else:
                         column_styles[col_idx] = {"number_format": "#,##0;-#,##0;-"}
                     column_width[col_idx] = 13.5
-                elif column in ("브랜드", "유통기한", "예상 소진일"):
+                elif column in ("브랜드", "소비기한", "예상 소진일"):
                     column_styles[col_idx] = {"alignment": {"horizontal": "center"}}
 
                 if col_idx not in column_width:
