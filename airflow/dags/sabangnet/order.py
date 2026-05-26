@@ -52,10 +52,10 @@ with DAG(
             fmt: str = "YYYYMMDDHHmmss",
             **kwargs
         ) -> dict[str, str]:
-        from airflow_utils import format_date
+        from airflow_utils import in_timezone
         return {
-            "start_date": format_date(data_interval_start, fmt),
-            "end_date": format_date(data_interval_end, fmt),
+            "start_date": in_timezone(data_interval_start).format(fmt),
+            "end_date": in_timezone(data_interval_end).format(fmt),
         }
 
 

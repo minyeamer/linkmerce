@@ -42,21 +42,21 @@ with DAG(
 
     @task(task_id="etl_sabangnet_product", pool="sabangnet_pool")
     def etl_sabangnet_product(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
+        from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_product(product_type="product", end_date=get_execution_date(kwargs), **configs)
+        return main_product(product_type="product", end_date=format_datetime(kwargs), **configs)
 
     @task(task_id="etl_sabangnet_option", pool="sabangnet_pool")
     def etl_sabangnet_option(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
+        from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_product(product_type="option", end_date=get_execution_date(kwargs), **configs)
+        return main_product(product_type="option", end_date=format_datetime(kwargs), **configs)
 
     @task(task_id="etl_sabangnet_add_product", pool="sabangnet_pool")
     def etl_sabangnet_add_product(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
+        from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_product(product_type="add_product", end_date=get_execution_date(kwargs), **configs)
+        return main_product(product_type="add_product", end_date=format_datetime(kwargs), **configs)
 
     def main_product(
             userid: str,
@@ -115,9 +115,9 @@ with DAG(
 
     @task(task_id="etl_sabangnet_mapping", pool="sabangnet_pool")
     def etl_sabangnet_mapping(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
+        from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_mapping(end_date=get_execution_date(kwargs), **configs)
+        return main_mapping(end_date=format_datetime(kwargs), **configs)
 
     def main_mapping(
             userid: str,

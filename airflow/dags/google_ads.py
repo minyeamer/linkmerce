@@ -112,8 +112,8 @@ with DAG(
 
     @task(task_id="etl_google_insight", map_index_template="{{ credentials['customer_id'] }}")
     def etl_google_insight(credentials: dict, configs: dict, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        return main_insight(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
+        from airflow_utils import format_datetime
+        return main_insight(**credentials, date=format_datetime(kwargs, subdays=1), **configs)
 
     def main_insight(
             customer_id: int | str,

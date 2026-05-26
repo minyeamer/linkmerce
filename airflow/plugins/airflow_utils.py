@@ -18,7 +18,8 @@ def in_timezone(
     ) -> pendulum.DateTime:
     """`pendulum.DateTime` 객체의 시간대를 지정하고, `delta`를 더하거나 빼는 연산을 한다.
 
-    별도로 시간대를 지정하지 않았다면 기본으로 한국표준시(KST)를 설정한다."""
+    별도로 시간대를 지정하지 않았다면 기본으로 한국표준시(KST)를 설정한다.
+    """
     from linkmerce.utils.date import in_timezone
     tz = ":default:" if tz == "KST" else tz
     return in_timezone(datetime, tz, add, subtract, subdays)
@@ -34,20 +35,18 @@ def today(
     return in_timezone(pendulum.DateTime.today(), tz, add, subtract, subdays)
 
 
-def format_date(
-        datetime: pendulum.DateTime,
-        fmt: str = "YYYY-MM-DD",
-        locale: str = "ko",
+def get_datetime(
+        kwargs: dict,
         add: dict | None = None,
         subtract: dict | None = None,
         subdays: int | None = None,
         tz: str | Timezone | FixedTimezone | Literal["KST"] | None = "KST",
-    ) -> str:
-    """`pendulum.DateTime` 객체에 대해 `in_timezone` 연산 후 `fmt` 형식의 문자열로 변환한다."""
-    return in_timezone(datetime, tz, add, subtract, subdays).format(fmt, locale)
+    ) -> pendulum.DateTime:
+    """키워드 인자에서 `data_interval_end` 값을 추출하고, 시간대 적용 및 `delta` 연산한 결과를 반환한다."""
+    return in_timezone(kwargs["data_interval_end"], tz, add, subtract, subdays)
 
 
-def get_execution_date(
+def format_datetime(
         kwargs: dict,
         fmt: str = "YYYY-MM-DD",
         locale: str = "ko",
@@ -57,7 +56,7 @@ def get_execution_date(
         tz: str | Timezone | FixedTimezone | Literal["KST"] | None = "KST",
     ) -> str:
     """키워드 인자에서 `data_interval_end` 값을 추출하고, `fmt` 형식의 문자열로 변환한다."""
-    return format_date(kwargs["data_interval_end"], fmt, locale, add, subtract, subdays, tz)
+    return in_timezone(kwargs["data_interval_end"], tz, add, subtract, subdays).format(fmt, locale)
 
 
 def read_config(

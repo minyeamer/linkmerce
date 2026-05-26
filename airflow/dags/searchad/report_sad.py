@@ -47,8 +47,8 @@ with DAG(
 
     @task(task_id="etl_searchad_report_sad", map_index_template="{{ credentials['customer_id'] }}")
     def etl_searchad_report_sad(credentials: dict, configs: dict, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        return main_searchad(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
+        from airflow_utils import format_datetime
+        return main_searchad(**credentials, date=format_datetime(kwargs, subdays=1), **configs)
 
     def main_searchad(
             api_key: str,

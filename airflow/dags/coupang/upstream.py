@@ -103,20 +103,16 @@ with DAG(
         return list()
 
     @task(task_id="etl_coupang_integration")
-    def etl_coupang_integration(
-            credentials: list,
-            dag_run: DagRun,
-            data_interval_end: pendulum.DateTime,
-            **kwargs
-        ) -> dict:
+    def etl_coupang_integration(credentials: list, dag_run: DagRun, **kwargs) -> dict:
         from airflow_api import authenticate, trigger_dagrun, wait_for_completion
+        from airflow_utils import get_datetime
         from pw_actions import login_coupang
         import logging
         import time
 
         logger = logging.getLogger(__name__)
         start_time = time.time()
-        data_interval_end = data_interval_end.in_timezone("Asia/Seoul")
+        data_interval_end = get_datetime(kwargs)
 
         # 1. 스케줄 실행 여부 확인 및 실행할 SubDag 목록 결정
         if dag_run.run_id.startswith("scheduled__"):

@@ -46,15 +46,16 @@ with DAG(
     def etl_loisparcel_invoice(ti: TaskInstance, **kwargs) -> dict:
         configs = ti.xcom_pull(task_ids="read_configs")
         if "query_dates" not in configs:
-            configs["query_dates"] = generate_query_range(**kwargs)
+            from airflow_utils import get_datetime
+            configs["query_dates"] = generate_query_range(get_datetime(kwargs))
         return main(**configs)
 
-    def generate_query_range(data_interval_end: pendulum.DateTime = None, **kwargs) -> dict[str, str]:
+    def generate_query_range(data_interval_end: pendulum.DateTime) -> dict:
         """날짜 기준에 따른 조회 기간을 정의한다."""
-        from airflow_utils import format_date
-        yesterday = format_date(data_interval_end, subdays=1)
+        yesterday = data_interval_end.subtract(days=1).format("YYYY-MM-DD")
+        subdays_3 = data_interval_end.subtract(days=3).format("YYYY-MM-DD")
         return {
-            "접수일자": {"start_date": format_date(data_interval_end, subdays=3), "end_date": yesterday},
+            "접수일자": {"start_date": subdays_3, "end_date": yesterday},
             "집화일자": {"start_date": yesterday, "end_date": yesterday},
             "배송완료일자": {"start_date": yesterday, "end_date": yesterday},
         }

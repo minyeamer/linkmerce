@@ -46,8 +46,8 @@ with DAG(
 
     @task(task_id="etl_searchad_report_gfa", map_index_template="{{ credentials['account_no'] }}")
     def etl_searchad_report_gfa(credentials: dict, configs: dict, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        return main(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
+        from airflow_utils import format_datetime
+        return main(**credentials, date=format_datetime(kwargs, subdays=1), **configs)
 
     def main(
             account_no: int | str,

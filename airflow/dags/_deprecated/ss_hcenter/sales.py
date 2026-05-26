@@ -52,10 +52,10 @@ with DAG(
 
     @task(task_id="etl_naver_brand_sales")
     def etl_naver_brand_sales(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        delta = LAST_2_DAYS if get_execution_date(kwargs, fmt="HH:mm") == FIRST_SCHEDULE else YESTERDAY
-        start_date = get_execution_date(kwargs, subdays=delta)
-        end_date = get_execution_date(kwargs, subdays=YESTERDAY)
+        from airflow_utils import format_datetime
+        delta = LAST_2_DAYS if format_datetime(kwargs, fmt="HH:mm") == FIRST_SCHEDULE else YESTERDAY
+        start_date = format_datetime(kwargs, subdays=delta)
+        end_date = format_datetime(kwargs, subdays=YESTERDAY)
         return main(start_date=start_date, end_date=end_date, **ti.xcom_pull(task_ids="read_configs"))
 
     def main(

@@ -52,9 +52,9 @@ with DAG(
 
     @task(task_id="etl_smartstore_invoice", map_index_template="{{ credentials['channel_seq'] }}")
     def etl_smartstore_invoice(credentials: dict, configs: dict, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        range_type = "DISPATCHED_DATETIME" if get_execution_date(kwargs, fmt="HH:mm") == FIRST_SCHEDULE else "PAYED_DATETIME"
-        return main(**credentials, date=get_execution_date(kwargs, subdays=1), range_type=range_type, **configs)
+        from airflow_utils import format_datetime
+        range_type = "DISPATCHED_DATETIME" if format_datetime(kwargs, fmt="HH:mm") == FIRST_SCHEDULE else "PAYED_DATETIME"
+        return main(**credentials, date=format_datetime(kwargs, subdays=1), range_type=range_type, **configs)
 
     def main(
             client_id: str,

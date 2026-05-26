@@ -56,8 +56,8 @@ with DAG(
 
         인증 정보에 `nca=True` 설정된 업체는 신규 구매 고객 확보 광고 보고서(NCA)를 추가로 다운로드한다.
         """
-        from airflow_utils import get_execution_date
-        date = get_execution_date(kwargs, subdays=1)
+        from airflow_utils import format_datetime
+        date = format_datetime(kwargs, subdays=1)
         if credentials.get("nca"):
             return {
                 "pa": main(**credentials, report_type="pa", date=date, **configs),

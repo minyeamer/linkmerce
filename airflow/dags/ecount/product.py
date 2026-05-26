@@ -39,8 +39,8 @@ with DAG(
 
     @task(task_id="etl_ecount_product")
     def etl_ecount_product(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        return main(base_date=get_execution_date(kwargs), **ti.xcom_pull(task_ids="read_configs"))
+        from airflow_utils import format_datetime
+        return main(base_date=format_datetime(kwargs), **ti.xcom_pull(task_ids="read_configs"))
 
     def main(
             com_code: int | str,

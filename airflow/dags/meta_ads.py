@@ -112,9 +112,9 @@ with DAG(
     @task(task_id="etl_meta_insights", map_index_template="{{ credentials['app_id'] }}")
     def etl_meta_insights(credentials: dict, configs: dict, **kwargs) -> dict:
         """앱 ID별 Meta 광고 일별 인사이트 지표를 수집하여 BigQuery에 적재한다."""
-        from airflow_utils import get_execution_date
+        from airflow_utils import format_datetime
         configs = configs | {"merge": configs["merge"]["insights"]}
-        return main_insights(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
+        return main_insights(**credentials, date=format_datetime(kwargs, subdays=1), **configs)
 
     def main_insights(
             access_token: str,

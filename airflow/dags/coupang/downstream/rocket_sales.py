@@ -54,16 +54,16 @@ with DAG(
 
     @task(task_id="etl_coupang_rocket_sales", map_index_template="{{ credentials['vendor_id'] }}")
     def etl_coupang_rocket_sales(credentials: dict, configs: dict, **kwargs) -> dict:
-        dates = dict(zip(["start_date", "end_date"], generate_sales_date(**kwargs)))
+        from airflow_utils import get_datetime
+        dates = dict(zip(["start_date", "end_date"], generate_sales_date(get_datetime(kwargs))))
         return main(**credentials, **dates, **configs)
 
-    def generate_sales_date(data_interval_end: pendulum.DateTime = None, **kwargs) -> tuple[str, str]:
+    def generate_sales_date(data_interval_end: pendulum.DateTime) -> tuple[str, str]:
         """실행 시점(data_interval_end)이 포함된 월요일-일요일 주간을 계산하고, 주의 시작일과 종료일을 반환한다."""
-        from airflow_utils import in_timezone
         def get_last_monday(datetime: pendulum.DateTime) -> pendulum.DateTime:
             weekday = datetime.day_of_week # Monday: 0 - Sunday: 6
             return datetime if weekday == 0 else datetime.subtract(days=weekday)
-        start_date = get_last_monday(in_timezone(data_interval_end, subdays=1))
+        start_date = get_last_monday(data_interval_end.subtract(days=1))
         end_date = start_date.add(days=6)
         return start_date.format("YYYY-MM-DD"), end_date.format("YYYY-MM-DD")
 

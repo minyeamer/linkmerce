@@ -49,8 +49,8 @@ with DAG(
 
     @task(task_id="etl_smartstore_order", map_index_template="{{ credentials['channel_seq'] }}")
     def etl_smartstore_order(credentials: dict, configs: dict, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        return main(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
+        from airflow_utils import format_datetime
+        return main(**credentials, date=format_datetime(kwargs, subdays=1), **configs)
 
     def main(
             client_id: str,

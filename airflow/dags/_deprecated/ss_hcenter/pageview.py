@@ -46,15 +46,15 @@ with DAG(
 
     @task(task_id="etl_naver_pageview_by_device")
     def etl_naver_pageview_by_device(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        date = get_execution_date(kwargs, subdays=1)
-        return main(aggregate_by="device", date=date, **ti.xcom_pull(task_ids="read_configs"))
+        from airflow_utils import format_datetime
+        configs = ti.xcom_pull(task_ids="read_configs")
+        return main(aggregate_by="device", date=format_datetime(kwargs, subdays=1), **configs)
 
     @task(task_id="etl_naver_pageview_by_product")
     def etl_naver_pageview_by_product(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        date = get_execution_date(kwargs, subdays=1)
-        return main(aggregate_by="product", date=date, **ti.xcom_pull(task_ids="read_configs"))
+        from airflow_utils import format_datetime
+        configs = ti.xcom_pull(task_ids="read_configs")
+        return main(aggregate_by="product", date=format_datetime(kwargs, subdays=1), **configs)
 
     def main(
             cookies: str,

@@ -56,8 +56,8 @@ with DAG(
 
         @task(task_id="etl_searchad_report", map_index_template="{{ queries['customer_id'] }}")
         def etl_searchad_report(queries: dict, configs: dict, **kwargs) -> dict:
-            from airflow_utils import get_execution_date
-            return main_searchad(**queries, date=get_execution_date(kwargs, subdays=1), **configs)
+            from airflow_utils import format_datetime
+            return main_searchad(**queries, date=format_datetime(kwargs, subdays=1), **configs)
 
         def main_searchad(
                 customer_id: int | str,
@@ -132,8 +132,8 @@ with DAG(
         @task(task_id="etl_gfa_report", map_index_template="{{ credentials['account_no'] }}")
         def etl_gfa_report(credentials: dict, configs: dict, **kwargs) -> dict:
             """계정별 GFA 캠페인/소재 일별 성과 보고서를 병합하여 BigQuery에 적재한다."""
-            from airflow_utils import get_execution_date
-            return main_gfa(**credentials, date=get_execution_date(kwargs, subdays=1), **configs)
+            from airflow_utils import format_datetime
+            return main_gfa(**credentials, date=format_datetime(kwargs, subdays=1), **configs)
 
         def main_gfa(
                 account_no: int | str,

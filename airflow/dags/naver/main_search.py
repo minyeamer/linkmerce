@@ -92,17 +92,17 @@ with DAG(
 
 
     @task(task_id="etl_naver_main_search", pool="nsearch_pool")
-    def etl_naver_main_search(ti: TaskInstance, data_interval_end: pendulum.DateTime, **kwargs) -> dict:
-        from airflow_utils import in_timezone, format_date
+    def etl_naver_main_search(ti: TaskInstance, **kwargs) -> dict:
+        from airflow_utils import get_datetime
         configs = ti.xcom_pull(task_ids="set_cookies")
 
         if configs["records"] and configs["cookies"]:
-            return main(datetime=in_timezone(data_interval_end), **configs)
+            return main(datetime=get_datetime(kwargs), **configs)
         else:
             return {
                 "params": {
                     "channel_id": configs["channel_id"],
-                    "timestamp": format_date(in_timezone(data_interval_end), "YYYY-MM-DDTHH:mm:ss"),
+                    "timestamp": get_datetime(kwargs).format("YYYY-MM-DDTHH:mm:ss"),
                     "mobile": True,
                     "max_rank": configs["max_rank"],
                     "query_group": 'X',
@@ -538,16 +538,15 @@ with DAG(
             counts: dict[str, int],
         ) -> dict:
         """Slack에 보낼 메시지를 구성하고, 엑셀 파일과 함께 지정된 채널에 업로드한다."""
-        from airflow_utils import format_date
         import os
         slack_hook = SlackHook(slack_conn_id=slack_conn_id)
 
         message = (
-            f">{format_date(datetime, 'YY년 MM월 DD일 HH시 mm분 (dd)')}\n"
+            ">{}\n".format(datetime.format("YY년 MM월 DD일 HH시 mm분 (dd)", locale="ko"))
             + f"*{query_group}* 그룹 - {total}개 키워드 검색\n"
             + '\n'.join([f"• {product} : {count}개 키워드" for product, count in counts.items()]))
 
-        ymd_hm = format_date(datetime, "YYMMDD_HHmm")
+        ymd_hm = datetime.format("YYMMDD_HHmm")
         products = '+'.join([product.replace(' ', '') for product in counts.keys()])
 
         try:
@@ -567,7 +566,7 @@ with DAG(
             return {
                 "params": {
                     "channel_id": channel_id,
-                    "timestamp": format_date(datetime, 'YYYY-MM-DDTHH:mm:ss'),
+                    "timestamp": datetime.format("YYYY-MM-DDTHH:mm:ss"),
                     "mobile": True,
                     "max_rank": max_rank,
                     "query_group": query_group,

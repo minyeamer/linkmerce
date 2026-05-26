@@ -45,8 +45,8 @@ with DAG(
 
     @task(task_id="etl_eflexs_stock")
     def etl_eflexs_stock(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import get_execution_date
-        start_date, end_date = get_execution_date(kwargs, subdays=7), get_execution_date(kwargs)
+        from airflow_utils import format_datetime
+        start_date, end_date = format_datetime(kwargs, subdays=7), format_datetime(kwargs)
         configs = ti.xcom_pull(task_ids="read_configs")
         return main_eflexs(start_date=start_date, end_date=end_date, **configs)
 
