@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "skills": {
+    "airflow": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/airflow/SKILL.md",
+      "computedHash": "84f34ee8e3075f554c95f5fdfbbb16e4745aabdcdf8c0a5cf55d3e90e1c66148"
+    },
+    "airflow-plugins": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/airflow-plugins/SKILL.md",
+      "computedHash": "5384d8cae2cfea6d98c38f209bec60fa2a17d96f5940025549d4cd54cd005569"
+    },
+    "analyzing-data": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/analyzing-data/SKILL.md",
+      "computedHash": "c40e927699d0d303158d4e1800882dac8f8f68ca1ee31207c0c135bddb46ee6e"
+    },
+    "annotating-task-lineage": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/annotating-task-lineage/SKILL.md",
+      "computedHash": "28e5ac5bf8715a1d75c198115c623b72e24e7fc280dea61e21b06e17dc4cdd8f"
+    },
+    "authoring-dags": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/authoring-dags/SKILL.md",
+      "computedHash": "6b4ee322011103d7b9c2fc1311f1e5c5f08fd7524364774ac61eb21d8567cfe3"
+    },
+    "cosmos-dbt-core": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/cosmos-dbt-core/SKILL.md",
+      "computedHash": "d1ad185ba3e37df51facf7dab8fcde628b85d65a9ca4657a53da7b5f4a3b8c2e"
+    },
+    "cosmos-dbt-fusion": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/cosmos-dbt-fusion/SKILL.md",
+      "computedHash": "8a7420eed14a060ee91ceab05354d7b454c11d3575393b6de08b0da7ea02868a"
+    },
+    "dag-factory": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/dag-factory/SKILL.md",
+      "computedHash": "fcca8f13da08cea26fe18586da113c3adc6e57f8b51166454d599a354be9525f"
+    },
+    "debugging-dags": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/debugging-dags/SKILL.md",
+      "computedHash": "e91c738be65dd40bb0f6a3a2d993b0198161e1613fe043d67b8e8d6018e527e2"
+    },
+    "profiling-tables": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/profiling-tables/SKILL.md",
+      "computedHash": "a999e9c1c5d16267372ffe216229839ae9ebaef3cae37ce673a8c0a8af796ea3"
+    },
+    "testing-dags": {
+      "source": "astronomer/agents",
+      "sourceType": "github",
+      "skillPath": "skills/testing-dags/SKILL.md",
+      "computedHash": "2ff0806048ec771e5ae99046e7be4d6d237c8dc2e93f5d86705e34a6b9c48a90"
+    }
+  }
+}
