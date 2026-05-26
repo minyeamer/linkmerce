@@ -10,6 +10,7 @@ CREATE SCHEMA IF NOT EXISTS cj_eflexs; -- cje
 CREATE SCHEMA IF NOT EXISTS cj_loisparcel; -- cjl
 CREATE SCHEMA IF NOT EXISTS coupang; -- cpg
 CREATE SCHEMA IF NOT EXISTS coupang_ads; -- cpa
+CREATE SCHEMA IF NOT EXISTS coupang_rfm; -- cpr
 CREATE SCHEMA IF NOT EXISTS ecount; -- eco
 CREATE SCHEMA IF NOT EXISTS google_ads; -- ggl
 CREATE SCHEMA IF NOT EXISTS meta_ads; -- met
@@ -84,8 +85,8 @@ CREATE TABLE IF NOT EXISTS cj_eflexs.stock (
   , remain_days INTEGER -- 잔여재고일
   , validate_date DATE -- 유효일자
   , inbound_date DATE -- 입고확정일자
-  , updated_at TIMESTAMP -- 갱신일시
-);
+  , updated_at TIMESTAMP NOT NULL -- 갱신일시
+) PARTITION BY RANGE (updated_at);
 
 -- ============================================================
 -- cj_loisparcel (CJ대한통운 로이스파셀)
@@ -147,67 +148,6 @@ CREATE TABLE IF NOT EXISTS coupang.option (
   , modify_dt TIMESTAMP -- 수정일시
   , PRIMARY KEY (vendor_inventory_item_id)
 );
-
--- [쿠팡 로켓그로스 재고현황]
-CREATE TABLE IF NOT EXISTS coupang.inventory (
-    vendor_inventory_id BIGINT NOT NULL -- 등록상품ID
-  , vendor_inventory_item_id BIGINT -- 등록옵션ID
-  , product_id BIGINT NOT NULL -- 노출상품ID
-  , option_id BIGINT NOT NULL -- 노출옵션ID
-  , sku_id BIGINT -- SKU ID
-  , vendor_id TEXT NOT NULL -- 업체코드
-  , stock_quantity INTEGER -- 판매가능재고
-  , inprogress_quantity INTEGER -- 입고예정재고
-  , sales_amount_7d INTEGER -- 최근매출 (지난7일)
-  , sales_amount_30d INTEGER -- 최근매출 (지난30일)
-  , unit_sold_7d INTEGER -- 최근판매수량 (지난7일)
-  , unit_sold_30d INTEGER -- 최근판매수량 (지난30일)
-  , days_of_cover INTEGER -- 재고예상소진일
-  , fee_amount INTEGER -- 이번달 누적보관료
-  , updated_at TIMESTAMP -- 갱신일시
-  , PRIMARY KEY (option_id)
-);
-
--- [쿠팡 로켓그로스 정산현황 - 판매 수수료 리포트]
-CREATE TABLE IF NOT EXISTS coupang.rocket_sales (
-    order_id BIGINT NOT NULL -- 주문ID
-  , vendor_id TEXT NOT NULL -- 업체코드
-  , product_id BIGINT NOT NULL -- 등록상품 ID
-  , option_id BIGINT NOT NULL -- 옵션ID
-  , sku_id BIGINT -- SKU ID
-  , category_id INTEGER -- 카테고리ID
-  , settlement_type SMALLINT NOT NULL -- 거래유형
-  , period_type SMALLINT NOT NULL -- 정산유형
-  , unit_price INTEGER -- 판매가
-  , order_quantity INTEGER -- 판매수량
-  , coupang_discount INTEGER -- 쿠팡지원할인
-  , seller_discount INTEGER -- 판매자할인쿠폰
-  , settlement_amount INTEGER -- 정산대상액
-  , sales_date DATE NOT NULL -- 매출인식일
-  , settlement_date DATE -- 정산종료일
-  , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
-) PARTITION BY RANGE (sales_date);
-CREATE INDEX IF NOT EXISTS cpg_sales__vendor_idx ON coupang.rocket_sales (vendor_id);
-
--- [쿠팡 로켓그로스 정산현황 - 입출고비/배송비 리포트]
-CREATE TABLE IF NOT EXISTS coupang.rocket_shipping (
-    order_id BIGINT NOT NULL -- 주문ID
-  , invoice_no BIGINT NOT NULL -- 배송ID
-  , vendor_id TEXT NOT NULL -- 업체코드
-  , product_id BIGINT NOT NULL -- 등록상품 ID
-  , option_id BIGINT NOT NULL -- 옵션ID
-  , sku_id BIGINT -- SKU ID
-  , settlement_type SMALLINT NOT NULL -- 거래유형
-  , period_type SMALLINT NOT NULL -- 정산유형
-  , warehousing_fee INTEGER -- 발생비용
-  , discount_amount INTEGER -- 할인가
-  , extra_fee INTEGER -- 추가비용
-  , sales_date DATE NOT NULL -- 주문일
-  , shipping_date DATE -- 매출인식일
-  , settlement_date DATE -- 정산종료일
-  , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
-) PARTITION BY RANGE (sales_date);
-CREATE INDEX IF NOT EXISTS cpg_shipping__vendor_idx ON coupang.rocket_shipping (vendor_id);
 
 -- [쿠팡 업체]
 CREATE TABLE IF NOT EXISTS coupang.vendor (
@@ -303,6 +243,71 @@ CREATE TABLE IF NOT EXISTS coupang_ads.report_nca (
 CREATE INDEX IF NOT EXISTS cpa_report__creative_idx ON coupang_ads.report_nca (creative_id);
 
 -- ============================================================
+-- coupang_rfm (쿠팡 로켓그로스)
+-- ============================================================
+
+-- [쿠팡 로켓그로스 재고현황]
+CREATE TABLE IF NOT EXISTS coupang_rfm.inventory (
+    vendor_inventory_id BIGINT NOT NULL -- 등록상품ID
+  , vendor_inventory_item_id BIGINT -- 등록옵션ID
+  , product_id BIGINT NOT NULL -- 노출상품ID
+  , option_id BIGINT NOT NULL -- 노출옵션ID
+  , sku_id BIGINT -- SKU ID
+  , vendor_id TEXT NOT NULL -- 업체코드
+  , stock_quantity INTEGER -- 판매가능재고
+  , inprogress_quantity INTEGER -- 입고예정재고
+  , sales_amount_7d INTEGER -- 최근매출 (지난7일)
+  , sales_amount_30d INTEGER -- 최근매출 (지난30일)
+  , unit_sold_7d INTEGER -- 최근판매수량 (지난7일)
+  , unit_sold_30d INTEGER -- 최근판매수량 (지난30일)
+  , days_of_cover INTEGER -- 재고예상소진일
+  , fee_amount INTEGER -- 이번달 누적보관료
+  , updated_at TIMESTAMP NOT NULL -- 갱신일시
+  , PRIMARY KEY (updated_at, option_id)
+) PARTITION BY RANGE (updated_at);
+
+-- [쿠팡 로켓그로스 정산현황 - 판매 수수료 리포트]
+CREATE TABLE IF NOT EXISTS coupang_rfm.sales (
+    order_id BIGINT NOT NULL -- 주문ID
+  , vendor_id TEXT NOT NULL -- 업체코드
+  , product_id BIGINT NOT NULL -- 등록상품 ID
+  , option_id BIGINT NOT NULL -- 옵션ID
+  , sku_id BIGINT -- SKU ID
+  , category_id INTEGER -- 카테고리ID
+  , settlement_type SMALLINT NOT NULL -- 거래유형
+  , period_type SMALLINT NOT NULL -- 정산유형
+  , unit_price INTEGER -- 판매가
+  , order_quantity INTEGER -- 판매수량
+  , coupang_discount INTEGER -- 쿠팡지원할인
+  , seller_discount INTEGER -- 판매자할인쿠폰
+  , settlement_amount INTEGER -- 정산대상액
+  , sales_date DATE NOT NULL -- 매출인식일
+  , settlement_date DATE -- 정산종료일
+  , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
+) PARTITION BY RANGE (sales_date);
+CREATE INDEX IF NOT EXISTS cpg_sales__vendor_idx ON coupang.rocket_sales (vendor_id);
+
+-- [쿠팡 로켓그로스 정산현황 - 입출고비/배송비 리포트]
+CREATE TABLE IF NOT EXISTS coupang_rfm.shipping (
+    order_id BIGINT NOT NULL -- 주문ID
+  , invoice_no BIGINT NOT NULL -- 배송ID
+  , vendor_id TEXT NOT NULL -- 업체코드
+  , product_id BIGINT NOT NULL -- 등록상품 ID
+  , option_id BIGINT NOT NULL -- 옵션ID
+  , sku_id BIGINT -- SKU ID
+  , settlement_type SMALLINT NOT NULL -- 거래유형
+  , period_type SMALLINT NOT NULL -- 정산유형
+  , warehousing_fee INTEGER -- 발생비용
+  , discount_amount INTEGER -- 할인가
+  , extra_fee INTEGER -- 추가비용
+  , sales_date DATE NOT NULL -- 주문일
+  , shipping_date DATE -- 매출인식일
+  , settlement_date DATE -- 정산종료일
+  , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
+) PARTITION BY RANGE (sales_date);
+CREATE INDEX IF NOT EXISTS cpg_shipping__vendor_idx ON coupang.rocket_shipping (vendor_id);
+
+-- ============================================================
 -- ecount (이카운트)
 -- ============================================================
 
@@ -310,9 +315,9 @@ CREATE INDEX IF NOT EXISTS cpa_report__creative_idx ON coupang_ads.report_nca (c
 CREATE TABLE IF NOT EXISTS ecount.inventory (
     product_code TEXT NOT NULL -- 품목코드
   , quantity INTEGER -- 재고수량
-  , updated_at TIMESTAMP -- 갱신일시
-  , PRIMARY KEY (product_code)
-);
+  , updated_at TIMESTAMP NOT NULL -- 갱신일시
+  , PRIMARY KEY (updated_at, product_code)
+) PARTITION BY RANGE (updated_at);
 
 -- [이카운트 품목등록 리스트]
 CREATE TABLE IF NOT EXISTS ecount.product (
@@ -1279,12 +1284,15 @@ $$ LANGUAGE plpgsql;
 
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice', 'pickup_date', '2023-05-01', 35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order', 'order_date', '2023-05-01', 35);
+SELECT public.bootstrap_daily_partitions('cj_eflexs.stock', 'updated_at', '2026-05-27 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('cj_loisparcel.invoice', 'register_date', '2025-08-01', 35);
-SELECT public.bootstrap_daily_partitions('coupang.rocket_sales', 'sales_date', '2023-08-07', 35);
-SELECT public.bootstrap_daily_partitions('coupang.rocket_shipping', 'sales_date', '2023-08-04', 35);
 SELECT public.bootstrap_daily_partitions('coupang_ads.report_pa', 'ymd', '2023-10-31', 35);
 SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca', 'ymd', '2025-01-07', 35);
+SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory', 'updated_at', '2026-05-27 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('coupang_rfm.sales', 'sales_date', '2023-08-07', 35);
+SELECT public.bootstrap_daily_partitions('coupang_rfm.shipping', 'sales_date', '2023-08-04', 35);
 SELECT public.bootstrap_daily_partitions('ecount.cost', 'end_date', '2025-01-13', 35);
+SELECT public.bootstrap_daily_partitions('ecount.inventory', 'updated_at', '2026-05-27 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('google_ads.insight', 'ymd', '2023-09-06', 35);
 SELECT public.bootstrap_daily_partitions('meta_ads.insights', 'ymd', '2024-05-20', 35);
 SELECT public.bootstrap_daily_partitions('naver_shp.rank', 'created_at', '2025-08-15 00:00:00', 35);

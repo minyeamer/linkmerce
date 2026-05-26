@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , remain_days INTEGER
   , validate_date DATE
   , inbound_date DATE
-  , updated_at TIMESTAMP
+  , updated_at TIMESTAMP NOT NULL
 );
 
 -- Stock: bulk_insert

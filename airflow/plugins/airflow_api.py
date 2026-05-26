@@ -50,6 +50,39 @@ def request(
     return requests.request(method, url, timeout=timeout, **message)
 
 
+def list_dagruns(
+        dag_id: str,
+        access_token: str,
+        logical_date_gte: pendulum.DateTime | None = None,
+        logical_date_lte: pendulum.DateTime | None = None,
+        limit: int = 100,
+        timeout: int = 30,
+    ) -> list[dict]:
+    """특정 시간대의 DAG run 목록을 조회한다.
+
+    Args:
+        dag_id: 조회할 DAG ID.
+        access_token: Airflow REST API JWT 액세스 토큰.
+        logical_date_gte: 조회 시작 시각 (logical_date >=).
+        logical_date_lte: 조회 종료 시각 (logical_date <=).
+        limit: 최대 조회 건수.
+        timeout: HTTP 요청 타임아웃(초).
+
+    Returns:
+        DAG run 정보 dict의 목록. 각 항목은 `dag_run_id`, `state`, `logical_date` 등을 포함한다.
+    """
+    params = {"limit": limit}
+    if logical_date_gte is not None:
+        params["logical_date_gte"] = logical_date_gte.isoformat()
+    if logical_date_lte is not None:
+        params["logical_date_lte"] = logical_date_lte.isoformat()
+
+    response = request("GET", f"/dags/{dag_id}/dagRuns", access_token, params=params, timeout=timeout)
+    response.raise_for_status()
+    try: return response.json()["dag_runs"]
+    except: return list()
+
+
 def trigger_dagrun(
         dag_id: str,
         run_id: str,

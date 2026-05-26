@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , unit_sold_30d INTEGER
   , days_of_cover INTEGER
   , fee_amount INTEGER
-  , updated_at TIMESTAMP
+  , updated_at TIMESTAMP NOT NULL
   , PRIMARY KEY (option_id)
 );
 

@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS {{ table }} (
     product_code VARCHAR NOT NULL
   , quantity INTEGER
-  , updated_at TIMESTAMP
+  , updated_at TIMESTAMP NOT NULL
   , PRIMARY KEY (product_code)
 );
 

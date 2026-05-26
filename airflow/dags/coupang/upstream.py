@@ -8,55 +8,57 @@ import pendulum
 
 with DAG(
     dag_id = "coupang",
-    schedule = "20 8 * * *",
+    schedule = "0 9,17,23 * * *",
     start_date = pendulum.datetime(2026, 4, 9, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1), # Airflow 액세스 토큰의 기본 유효 기간만큼 동작
     catchup = False,
     tags = [
         "priority:high", "coupang:adreport", "coupang:campaign", "coupang:option", "coupang:sales",
-        "login:coupang", "schedule:daily", "time:morning"
+        "login:coupang", "schedule:daily", "time:morning", "time:afternoon", "time:night"
     ],
     doc_md = dedent("""
         # 쿠팡 Wing/광고 통합 ETL 파이프라인
 
         ## 동작 방식
-        쿠팡 계정 목록을 순회하면서 한 번에 하나씩 [로그인 >> 4개의 SubDAG 순차 실행] 사이클을 반복한다.
-        로그인은 쿠팡 Wing 인증 후 광고센터 탭으로 전환하여 윙/광고에 대한 쿠키를 한번에 수집한다.
+        쿠팡 계정 목록을 순회하면서 한 번에 하나씩 [로그인 >> 5개의 SubDag 순차 실행] 사이클을 반복한다.
+        (단, Dag ID가 'scheduled__'로 시작하는 Dag run은 실행 시간에 따라 일부 Dag만 선택적으로 실행된다.)
+        로그인은 쿠팡 Wing 인증 후 광고센터 탭으로 전환하여 Wing/광고에 대한 쿠키를 한번에 수집한다.
 
         ## 주의 사항
         쿠팡 로그인 정책 강화로 인해 한 번에 하나의 판매자 계정만 로그인 가능하다.
         따라서, 기존에 쿠키를 저장해두고 병렬로 실행하던 동작을 폐기하고 엄격한 직렬 실행 방식으로 전환했다.
 
         ## 예외 처리
-        - 로그인 실패 시: 해당 업체의 전체 SubDAG을 건너뛰고 다음 업체를 시도한다.
-        - SubDAG 실패 시: 해당 SubDAG의 오류를 기록하고 나머지 SubDAG은 계속 실행한다.
+        - 로그인 실패 시: 해당 업체의 전체 SubDag을 건너뛰고 다음 업체를 시도한다.
+        - SubDag 실패 시: 해당 SubDag의 오류를 기록하고 나머지 SubDag은 계속 실행한다.
 
-        ## 트리거 대상 DAG
-        1. 'coupang_rocket_sales' (윙)
-        2. 'coupang_adreport' (광고)
-        3. 'coupang_product_option' (윙)
-        4. 'coupang_campaign' (광고)
+        ## 트리거 대상 Dag
+        1. 'coupang_adreport' (광고)
+        2. 'coupang_campaign' (광고)
+        3. 'coupang_inventory' (Wing)
+        4. 'coupang_product_option' (Wing)
+        5. 'coupang_rocket_sales' (Wing)
 
         ## Manual 실행 시 필터 설정
-        Airflow UI에서 DAG을 트리거할 때 {vendor_id: dag_ids} 형식의 Configuration JSON을 전달해
-        특정 판매자 계정이나 특정 SubDAG만 선택적으로 실행할 수 있다.
+        Airflow UI에서 Dag을 트리거할 때 {vendor_id: dag_ids} 형식의 Configuration JSON을 전달해
+        특정 판매자 계정이나 특정 SubDag만 선택적으로 실행할 수 있다.
         (설정이 비어있으면 필터하지 않는다.)
 
         ### 키-값 설명
         - 'vendor_id' (str): 실행할 판매자 계정의 업체코드.
-            "*"를 키로 사용하면 모든 계정을 대상으로 동일한 DAG 필터를 적용할 수 있다.
-        - 'dag_ids' (list): 실행할 DAG ID 목록.
-            "*" 값을 포함하면 모든 DAG을 실행한다.
+            "*"를 키로 사용하면 모든 계정을 대상으로 동일한 Dag 필터를 적용할 수 있다.
+        - 'dag_ids' (list): 실행할 Dag ID 목록.
+            "*" 값을 포함하면 모든 Dag을 실행한다.
 
         ### 사용 예시
         ```json
-        // 특정 판매자 계정만 전체 SubDAG 실행
+        // 특정 판매자 계정만 전체 SubDag 실행
         { "filters": { "A00000001": ["*"] } }
 
-        // 특정 판매자 계정의 특정 SubDAG만 실행
+        // 특정 판매자 계정의 특정 SubDag만 실행
         { "filters": { "A00000001": ["coupang_rocket_sales"] } }
 
-        // 모든 판매자 계정의 특정 SubDAG만 실행
+        // 모든 판매자 계정의 특정 SubDag만 실행
         { "filters": { "*": ["coupang_rocket_sales"] } }
         ```
     """).strip(),
@@ -71,11 +73,20 @@ with DAG(
 
 
     SUB_DAGS = [
+        # Wing
         ("coupang_rocket_sales", 10), # 평균 15초 소요
-        ("coupang_adreport", 10), # 평균 15초 소요
+        ("coupang_inventory", 10), # 평균 10초 소요
         ("coupang_product_option", 30), # 상품 수에 비례 (20초 ~ 2분+)
+        # 광고
+        ("coupang_adreport", 10), # 평균 15초 소요
         ("coupang_campaign", 10), # 평균 10초 소요
     ]
+
+    SCHEDULES = {
+        9: ["coupang_rocket_sales", "coupang_inventory", "coupang_adreport"],
+        17: ["coupang_inventory"],
+        23: ["coupang_product_option", "coupang_campaign"],
+    }
 
     def filter_subdag_ids(vendor_id: str, filters: dict) -> list[tuple[str, int]]:
         DAG_ID = 0
@@ -103,11 +114,19 @@ with DAG(
         import logging
         import time
 
-        filters = dag_run.conf.get("filters") or dict() # vendor-DAG 필터
         logger = logging.getLogger(__name__)
         start_time = time.time()
+        data_interval_end = data_interval_end.in_timezone("Asia/Seoul")
 
-        # 1. Airflow API 사용을 위한 액세스 토큰 발급 (유효 기간 1시간)
+        # 1. 스케줄 실행 여부 확인 및 실행할 SubDag 목록 결정
+        if dag_run.run_id.startswith("scheduled__"):
+            hour = data_interval_end.hour
+            filters = {"*": SCHEDULES[hour]} # `SCHEDULES`에 없는 시각은 KeyError 발생
+            logger.info(f"Scheduled run at {hour}h: {', '.join(SCHEDULES[hour])}")
+        else:
+            filters = dag_run.conf.get("filters") or dict()
+
+        # 2. Airflow API 사용을 위한 액세스 토큰 발급 (유효 기간 1시간)
         try:
             access_token = authenticate()
             logger.info("Successfully authenticated with Airflow API")
@@ -131,7 +150,7 @@ with DAG(
             exec_info = {"vendor_id": vendor_id, "cookies": dict(), "login": None, "subdags": dict()}
             user_info = (creds["userid"], creds["passwd"])
 
-            # 2. 쿠팡 Wing/광고 로그인 (최대 3회 재시도)
+            # 3. 쿠팡 Wing/광고 로그인 (최대 3회 재시도)
             login_error_flag = False
             for _ in range(3):
                 try:
@@ -150,7 +169,7 @@ with DAG(
                 result[vendor_id] = exec_info
                 continue
 
-            # 3. 전체 SubDAG 흐름 제어
+            # 4. 전체 SubDag 흐름 제어
             conf = {
                 "vendor_id": vendor_id,
                 "cookies": exec_info["cookies"],
@@ -158,21 +177,21 @@ with DAG(
             }
 
             for dag_id, poke_interval in subdag_ids:
-                # 4. 개별 SubDAG 실행 (REST API로 트리거)
+                # 5. 개별 SubDag 실행 (REST API로 트리거)
                 elapsed_seconds = int(time.time() - start_time)
                 logical_date = data_interval_end.add(seconds=elapsed_seconds)
                 run_id = f"expanded__{i}__{logical_date.isoformat()}"
 
                 trigger_dagrun(dag_id, run_id, access_token, logical_date, conf)
                 state = wait_for_completion(dag_id, run_id, access_token, poke_interval, timeout=(poke_interval*20))
-                logger.info(f"[{vendor_id}] DAG run {state}: /dags/{dag_id}/runs/{run_id}")
+                logger.info(f"[{vendor_id}] Dag run {state}: /dags/{dag_id}/runs/{run_id}")
                 exec_info["subdags"][dag_id] = state
                 dag_error_flag |= (state == "failed")
 
             result[vendor_id] = exec_info
 
         if dag_error_flag:
-            message = "One or more SubDAGs failed during execution. Check the 'result' or logs for details."
+            message = "One or more SubDags failed during execution. Check the 'result' or logs for details."
             raise AirflowException(message)
 
         return result
