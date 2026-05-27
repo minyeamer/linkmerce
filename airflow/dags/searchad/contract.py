@@ -6,7 +6,7 @@ import pendulum
 
 with DAG(
     dag_id = "searchad_contract",
-    schedule = "30 5 * * *",
+    schedule = "30 5 * * 1-5",
     start_date = pendulum.datetime(2025, 10, 30, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=5),
     catchup = False,
