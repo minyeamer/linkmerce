@@ -142,7 +142,7 @@ with DAG(
 
                 state = dag_run.get("state")
                 if state == "failed":
-                    raise AirflowException(f"'{dag_id}' failed before 'stock_report' could start.")
+                    raise AirflowException(f"'{dag_id}' failed before 'stock_report' could start")
                 elif state == "success":
                     return True
                 else:
@@ -169,7 +169,7 @@ with DAG(
                     dag_id_i, state = f"{downstream_dag_id}[{i}]", dag_run.get("state")
 
                     if state == "failed":
-                        raise AirflowException(f"'{dag_id_i}' failed before 'stock_report' could start.")
+                        raise AirflowException(f"'{dag_id_i}' failed before 'stock_report' could start")
                     elif state == "success":
                         success_count += 1
                     else:
@@ -214,13 +214,16 @@ with DAG(
         def send_stock_report(ti: TaskInstance, **kwargs) -> dict:
             from airflow_utils import get_datetime
             config = ti.xcom_pull(task_ids="report_group.read_configs")
+            config["sensor_states"] = ti.xcom_pull(task_ids="external_task_sensor.init_sensor_states")
             return main(datetime=get_datetime(kwargs), **config)
 
         def main(
-                table_function: str,
+                report_query: str,
+                uptime_query: str,
                 slack_conn_id: str,
                 channel_id: str,
                 datetime: pendulum.DateTime,
+                sensor_states: dict,
                 service_account: dict,
                 max_fetch_retries: int = 10,
                 delay_increment: float = 10.,
@@ -228,27 +231,42 @@ with DAG(
             ) -> dict:
             from linkmerce.extensions.bigquery import BigQueryClient
             from linkmerce.utils.excel import csv2excel, save_excel_to_tempfile
+            import datetime as dt
             import time
 
+            # [SET DATE] BigQuery에서 실행할 쿼리에 조회할 칼럼 및 재고/판매량 기간을 동적으로 포맷팅한다.
+            query_dates, rows = make_query_dates(sensor_states), list()
+            report_query = report_query.format(
+                COLUMNS = ', '.join([header[0] for header in expected_headers()]),
+                STOCK_START_DATE = query_dates["stock"]["start_time"].format("YYYY-MM-DD HH:mm:ss"),
+                STOCK_END_DATE = query_dates["stock"]["end_time"].format("YYYY-MM-DD HH:mm:ss"),
+                ORDER_START_DATE = query_dates["order"]["start_time"].format("YYYY-MM-DD HH:mm:ss"),
+                ORDER_END_DATE = query_dates["order"]["end_time"].format("YYYY-MM-DD HH:mm:ss"),
+            )
+
             # [LOAD DATA] BigQuery 테이블에 업로드된 3가지 플랫폼의 재고 내역을 테이블 함수로 병합해 가져온다.
-            headers, rows = expected_headers(datetime), list()
             with BigQueryClient(service_account) as client:
-                columns = ', '.join([header[0] for header in headers])
-                query = f"SELECT {columns} FROM {table_function}('{datetime.date()}');"
-                for i in range(1, max_fetch_retries+1):
-                    rows = client.fetch_all_to_csv(query, header=True)
+                for i in range(1, max_fetch_retries+1): # CJ eFLEXs 재고 수량 반영이 늦어 최대 n회 재시도
+                    rows = client.fetch_all_to_csv(report_query, header=True)
                     if sum_eflexs_quantity(rows) > 0:
                         break
                     time.sleep(delay_increment * i)
-            if not rows:
-                raise AirflowException(
-                    f"No rows returned from {table_function}('{datetime.date()}') "
-                    f"after {max_fetch_retries} fetch attempts."
+
+                if not rows:
+                    raise AirflowException(f"No rows returned after {max_fetch_retries} fetch attempts")
+
+                # [UPDATE DATE] 조회 기간 내 재고 내역에서 마지막 업데이트 시간을 추출 및 반영한다.
+                uptime_query = uptime_query.format(
+                    STOCK_START_DATE = query_dates["stock"]["start_time"].format("YYYY-MM-DD HH:mm:ss"),
+                    STOCK_END_DATE = query_dates["stock"]["end_time"].format("YYYY-MM-DD HH:mm:ss"),
                 )
+                uptime: dt.datetime | None = client.fetch_one(uptime_query)
+                stock_end_time = pendulum.instance(uptime, tz="Asia/Seoul") if uptime else datetime
+                query_dates["stock"]["end_time"] = stock_end_time
 
             # [PARSE DATA] 조회한 데이터에서 영어 헤더를 2단계 한글 헤더로 변경한다.
             headers0, headers1 = list(), list()
-            for header, (expected, (header0, header1)) in zip(rows[0], headers):
+            for header, (expected, (header0, header1)) in zip(rows[0], expected_headers(query_dates)):
                 if header != expected:
                     raise ValueError(f"Expected header '{expected}' do not match actual column '{header}'")
                 headers0.append(header0)
@@ -278,21 +296,43 @@ with DAG(
                 slack_conn_id = slack_conn_id,
                 channel_id = channel_id,
                 file = save_excel_to_tempfile(wb),
-                datetime = datetime,
+                datetime = stock_end_time,
                 total = (len(rows) - 1),
                 counts = count_by_brand(rows),
             )
 
 
-        def expected_headers(datetime: pendulum.DateTime) -> list[tuple[str, tuple[str, str]]]:
+        def make_query_dates(sensor_states: dict) -> dict[str, dict[str, pendulum.DateTime]]:
+            """재고 수집 이벤트 범위로부터 재고/판매량 조회 기간을 생성한다."""
+            return {
+                "stock": {
+                    "start_time": (start_time := pendulum.parse(sensor_states["start_time"])),
+                    "end_time": (end_time := pendulum.parse(sensor_states["end_time"])),
+                },
+                "order": {
+                    "start_time": start_time.start_of("day").subtract(days=30),
+                    "end_time": end_time.end_of("day").subtract(days=1),
+                }
+            }
+
+
+        def make_header_dates(query_dates: dict[str, dict[str, pendulum.DateTime]]) -> dict[str, str]:
+            """재고/판매량 조회 기간을 헤더에 삽입할 날짜 문자열로 변환한다."""
+            return {
+                "stock_end_time": query_dates["stock"]["end_time"].format("YYYY-MM-DD(dd) HH:mm", locale="ko"),
+                "order_start_time": query_dates["order"]["start_time"].format("YYYY-MM-DD(dd)", locale="ko"),
+                "order_end_time": query_dates["order"]["end_time"].format("YYYY-MM-DD(dd)", locale="ko"),
+            }
+
+        def expected_headers(query_dates: dict | None = None) -> list[tuple[str, tuple[str, str]]]:
             """테이블 함수 조회 결과의 전체 열 목록을 검증하고 2단계 한글 헤더로 변경하기 위한 자료구조를 생성한다."""
-            datetime_stock = datetime.format("YYYY-MM-DD(dd) HH:mm")
-            date_sales = tuple(datetime.subtract(days=delta).format("YYYY-MM-DD(dd)", locale="ko") for delta in [30, 1])
+            header_dates = make_header_dates(query_dates) if query_dates else dict()
+            order_dates = (header_dates.get("order_start_time"), header_dates.get("order_end_time"))
             return [
-                ("brand_name", (f"재고 기준: {datetime_stock}", "브랜드")),
+                ("brand_name", ("재고 기준: {}".format(header_dates.get("stock_end_time")), "브랜드")),
                 ("option_id", (None, "사방넷\n품번코드")),
                 ("remarks_name", (None, "아이인리치코드")),
-                ("product_code", (f"판매량 기준: {date_sales[0]} ~ {date_sales[1]}", "품목코드")),
+                ("product_code", ("판매량 기준: {} ~ {}".format(*order_dates), "품목코드")),
                 ("product_name", (None, "품목명")),
                 ("expiration_date", (None, "소비기한")),
                 ("ecount_quantity", ("본사창고", "본사재고")),
@@ -349,7 +389,7 @@ with DAG(
 
         def value_styles() -> tuple[dict, dict]:
             """열 명칭에 따라 가운데 정렬, 숫자 서식, 열 너비 등의 서식 설정을 생성한다."""
-            headers = [column for _, (_, column) in expected_headers(pendulum.DateTime.now())]
+            headers = [column for _, (_, column) in expected_headers()]
             column_styles, column_width = dict(), dict()
 
             for col_idx, column in enumerate(headers, start=1):
@@ -439,7 +479,7 @@ with DAG(
 
             message = (
                 "안녕하세요\n"
-                + "{} 브랜드별 재고-소비기한 현황 공유드립니다\n\n".format(datetime.format("M/D(dd)", locale="ko"))
+                + "{} 브랜드별 재고-소비기한 현황 공유드립니다\n\n".format(datetime.format("M/D(dd) A h시", locale="ko"))
                 + "전체 {:,}개 이카운트 상품에 대한 브랜드별 요약:".format(total))
 
             WARN, INFO = ":small_red_triangle:", ":small_blue_diamond:"
@@ -457,14 +497,14 @@ with DAG(
                     file_uploads = [{
                         "file": file,
                         "filename": "재고_소비기한_{}.xlsx".format(datetime.format("YYMMDD_HHmm")),
-                        "title": "재고-소비기한 ({})".format(datetime.format("YYMMDD")),
+                        "title": "재고-소비기한 ({})".format(datetime.format("YYMMDD_HHmm")),
                     }],
                     initial_comment = message,
                 )
                 return {
                     "params": {
                         "channel_id": channel_id,
-                        "timestamp": datetime.format("YYYY-MM-DDTHH:mm:ss"),
+                        "last_updated_at": datetime.format("YYYY-MM-DDTHH:mm:ss"),
                     },
                     "counts": {
                         "total": total,
