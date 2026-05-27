@@ -8,7 +8,7 @@ import pendulum
 with DAG(
     dag_id = "cj_eflexs_stock",
     schedule = "0 9,17 * * *",
-    start_date = pendulum.datetime(2026, 5, 26, tz="Asia/Seoul"),
+    start_date = pendulum.datetime(2026, 5, 27, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
     tags = [

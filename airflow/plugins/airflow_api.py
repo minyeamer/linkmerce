@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import IO, Union
+    from typing import IO, Literal, Union
     import pendulum
     import requests
     JsonSerialize = Union[dict, list, bytes, IO]
@@ -63,13 +63,37 @@ def list_dagruns(
     Args:
         dag_id: 조회할 DAG ID.
         access_token: Airflow REST API JWT 액세스 토큰.
-        logical_date_gte: 조회 시작 시각 (logical_date >=).
-        logical_date_lte: 조회 종료 시각 (logical_date <=).
+        logical_date_gte: 조회 시작 시각. (logical_date >=)
+        logical_date_lte: 조회 종료 시각. (logical_date <=)
         limit: 최대 조회 건수.
         timeout: HTTP 요청 타임아웃(초).
 
-    Returns:
-        DAG run 정보 dict의 목록. 각 항목은 `dag_run_id`, `state`, `logical_date` 등을 포함한다.
+    Returns: list[dict]
+    ```python
+    [{
+        "dag_run_id": str,
+        "dag_id": str,
+        "logical_date": "YYYY-MM-DDTHH:mm:ss[Z]",
+        "queued_at": "YYYY-MM-DDTHH:mm:ss.SSSSSS[Z]",
+        "start_date": "YYYY-MM-DDTHH:mm:ss.SSSSSS[Z]",
+        "end_date": "YYYY-MM-DDTHH:mm:ss.SSSSSS[Z]",
+        "duration": float,
+        "data_interval_start": "YYYY-MM-DDTHH:mm:ss[Z]",
+        "data_interval_end": "YYYY-MM-DDTHH:mm:ss[Z]",
+        "run_after": "YYYY-MM-DDTHH:mm:ss[Z]",
+        "last_scheduling_decision": "YYYY-MM-DDTHH:mm:ss.SSSSSS[Z]",
+        "run_type": ["scheduled" | "manual" | "backfill" | "dataset_triggered"],
+        "state": ["scheduled" | "pending" | "queued" | "running" | "success" | "failed"],
+        "triggered_by": str,
+        "triggering_user_name": str,
+        "conf": dict,
+        "note": str,
+        "dag_versions": list[dict],
+        "bundle_version": str,
+        "dag_display_name": str,
+        "partition_key": str,
+    }]
+    ```
     """
     params = {"limit": limit}
     if logical_date_gte is not None:
@@ -79,8 +103,10 @@ def list_dagruns(
 
     response = request("GET", f"/dags/{dag_id}/dagRuns", access_token, params=params, timeout=timeout)
     response.raise_for_status()
-    try: return response.json()["dag_runs"]
-    except: return list()
+    try:
+        return response.json()["dag_runs"]
+    except:
+        return list()
 
 
 def trigger_dagrun(

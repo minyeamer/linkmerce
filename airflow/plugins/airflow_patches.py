@@ -25,7 +25,7 @@ def _apply_test_mode_patches() -> None:
 
     import logging
     logger = logging.getLogger(__name__)
-    logger.warning("[TEST-MODE] BigQuery uploads and Slack notifications are disabled.")
+    logger.warning("[TEST-MODE] BigQuery uploads and Slack notifications are disabled")
 
     def _simulate_gbq_upload(self, connection: DuckDBConnection, source_table: str, *args, **kwargs) -> list[dict]:
         return connection.fetch_all_to_json(f"SELECT * FROM {source_table} LIMIT 5")
@@ -35,7 +35,7 @@ def _apply_test_mode_patches() -> None:
         BigQueryClient.load_table_from_duckdb = _simulate_gbq_upload
         BigQueryClient.overwrite_table_from_duckdb = _simulate_gbq_upload
         BigQueryClient.merge_into_table_from_duckdb = _simulate_gbq_upload
-        logger.warning("[TEST-MODE] BigQueryClient patched successfully.")
+        logger.warning("[TEST-MODE] BigQueryClient patched successfully")
     except ImportError:
         pass
 
@@ -55,7 +55,7 @@ def _apply_test_mode_patches() -> None:
     try:
         from airflow.providers.slack.hooks.slack import SlackHook
         SlackHook.send_file_v2 = _simulate_slack_upload
-        logger.warning("[TEST-MODE] SlackHook patched successfully.")
+        logger.warning("[TEST-MODE] SlackHook patched successfully")
     except ImportError:
         pass
 
