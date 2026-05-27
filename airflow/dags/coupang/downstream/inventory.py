@@ -36,6 +36,7 @@ with DAG(
 ) as dag:
 
     PATH = "coupang.wing.inventory"
+    RETRY_OPTIONS = {"retries": 3, "retry_delay": timedelta(seconds=10)}
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
@@ -50,7 +51,7 @@ with DAG(
         }
 
 
-    @task(task_id="etl_coupang_inventory", map_index_template="{{ credentials['vendor_id'] }}")
+    @task(task_id="etl_coupang_inventory", map_index_template="{{ credentials['vendor_id'] }}", **RETRY_OPTIONS)
     def etl_coupang_inventory(credentials: dict, configs: dict, **kwargs) -> dict:
         return main(**credentials, **configs)
 

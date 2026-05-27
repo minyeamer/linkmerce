@@ -35,6 +35,7 @@ with DAG(
 ) as dag:
 
     PATH = "coupang.advertising.adreport"
+    RETRY_OPTIONS = {"retries": 3, "retry_delay": timedelta(seconds=10)}
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
@@ -50,7 +51,7 @@ with DAG(
         }
 
 
-    @task(task_id="etl_coupang_adreport", map_index_template="{{ credentials['vendor_id'] }}")
+    @task(task_id="etl_coupang_adreport", map_index_template="{{ credentials['vendor_id'] }}", **RETRY_OPTIONS)
     def etl_coupang_adreport(credentials: dict, configs: dict, **kwargs) -> dict:
         """기본으로 매출 성장 광고 보고서(PA)를 가져온다.
 

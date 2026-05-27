@@ -38,6 +38,7 @@ with DAG(
 ) as dag:
 
     PATH = "coupang.wing.rocket_sales"
+    RETRY_OPTIONS = {"retries": 3, "retry_delay": timedelta(seconds=10)}
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
@@ -52,7 +53,7 @@ with DAG(
         }
 
 
-    @task(task_id="etl_coupang_rocket_sales", map_index_template="{{ credentials['vendor_id'] }}")
+    @task(task_id="etl_coupang_rocket_sales", map_index_template="{{ credentials['vendor_id'] }}", **RETRY_OPTIONS)
     def etl_coupang_rocket_sales(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import get_datetime
         dates = dict(zip(["start_date", "end_date"], generate_sales_date(get_datetime(kwargs))))
