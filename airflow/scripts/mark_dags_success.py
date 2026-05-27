@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import argparse
 from croniter import croniter
 import datetime as dt
 import os
 import pendulum
 import requests
+import sys
 import time
 
 
@@ -124,9 +126,28 @@ def mark_dag_success(dag_id: str, logical_date: str, headers: dict[str, str]):
     return
 
 
+def parse_args() -> argparse.Namespace:
+    """부분 실행할 `dag-ids`를 인자로 입력받는다."""
+    parser = argparse.ArgumentParser(
+        description="Trigger scheduled DAG runs and immediately mark them as success."
+    )
+    parser.add_argument(
+        "--dag-ids",
+        help="Comma-separated DAG IDs to process. Defaults to all scheduled DAGs.",
+        default = str(),
+        type = str,
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    headers = build_auth_headers()
+    args = parse_args()
+    dag_ids = set(args.dag_ids.split(',') or SCHEDULED_DAGS.keys())
+
+    count, headers = 0, build_auth_headers()
     for dag_id, last_date in SCHEDULED_DAGS.items():
-        mark_dag_success(dag_id, last_date, headers)
-        time.sleep(0.5)
-    print(f"\n{GREEN}--- {len(SCHEDULED_DAGS)} scheduled DAGs have been processed ---{RESET}")
+        if (not dag_ids) or (dag_id in dag_ids):
+            mark_dag_success(dag_id, last_date, headers)
+            count += 1
+            time.sleep(0.5)
+    print(f"\n{GREEN}--- {count} scheduled DAGs have been processed ---{RESET}")
