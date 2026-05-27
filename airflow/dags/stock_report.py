@@ -153,7 +153,7 @@ with DAG(
                 """이벤트 범위 내 `ecount_inventory` Dag 실행 내역을 조회하고 다음 조건에 따라 순차적으로 분기한다.
                 1. Dag(upstream) run이 없으면 INFO 로그와 함께 `False`를 반환한다.
                 2. 성공한 Dag(downstream) runs 개수가 `credentials`의 `vendor_id` 개수 이상이면 `True`를 반환한다.
-                3. Dag(downstream) runs 중에서 하나라도 실패하면 `AirflowException`을 발생시킨다.
+                3. 실패한 Dag(downstream) run이 있다면 `AirflowException`을 발생시킨다.
                 4. Dag(upstream) run이 이미 종료되었다면 `AirflowException`을 발생시킨다.
                 5. 그 외 경우는 `False`를 반환한다.
                 """
@@ -163,22 +163,25 @@ with DAG(
                     logger.info(f"[{upstream_dag_id}] Waiting for Dag run")
                     return False
 
-                success_count = 0
+                success_ids, failed_ids = set(), set()
                 for dag_run in list_dagruns(downstream_dag_id, **params):
-                    i = regexp_extract(r"^expanded__(\d+)", dag_run.get("dag_run_id") or str())
+                    if not (i := regexp_extract(r"^expanded__(\d+)", dag_run.get("dag_run_id") or str())):
+                        continue
                     dag_id_i, state = f"{downstream_dag_id}[{i}]", dag_run.get("state")
 
-                    if state == "failed":
-                        raise AirflowException(f"'{dag_id_i}' failed before 'stock_report' could start")
-                    elif state == "success":
-                        success_count += 1
+                    if state == "success":
+                        success_ids.add(i)
+                    elif state == "failed":
+                        failed_ids.add(i)
                     else:
                         logger.info(f"[{dag_id_i}] Current state: {state}")
 
-                if success_count >= states["expected_coupang_dag_runs"]:
+                if len(success_ids) >= states["expected_coupang_dag_runs"]:
                     return True
+                elif len(failed_ids) > 0:
+                    raise AirflowException(f"'{dag_id_i}' failed before 'stock_report' could start")
 
-                count = "{}/{}".format(success_count, states["expected_coupang_dag_runs"])
+                count = "{}/{}".format(len(success_ids), states["expected_coupang_dag_runs"])
                 if upstream.get("state") in ("success", "failed"):
                     message = f"[{upstream_dag_id}] Finished with only {count} '{downstream_dag_id}' runs completed"
                     raise AirflowException(message)
@@ -477,9 +480,10 @@ with DAG(
             import os
             slack_hook = SlackHook(slack_conn_id=slack_conn_id)
 
+            datetime_ko = datetime.format("M/D(dd) A h시", locale="ko")
             message = (
                 "안녕하세요\n"
-                + "{} 브랜드별 재고-소비기한 현황 공유드립니다\n\n".format(datetime.format("M/D(dd) A h시", locale="ko"))
+                + f"{datetime_ko} · 브랜드별 재고-소비기한 현황 공유드립니다\n\n"
                 + "전체 {:,}개 이카운트 상품에 대한 브랜드별 요약:".format(total))
 
             WARN, INFO = ":small_red_triangle:", ":small_blue_diamond:"
