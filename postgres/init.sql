@@ -303,7 +303,7 @@ CREATE TABLE IF NOT EXISTS coupang_rfm.sales (
   , settlement_date DATE -- 정산종료일
   , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
 ) PARTITION BY RANGE (sales_date);
-CREATE INDEX IF NOT EXISTS cpg_sales__vendor_idx ON coupang.rocket_sales (vendor_id);
+CREATE INDEX IF NOT EXISTS cpr_sales__vendor_idx ON coupang_rfm.sales (vendor_id);
 
 -- [쿠팡 로켓그로스 정산현황 - 입출고비/배송비 리포트]
 CREATE TABLE IF NOT EXISTS coupang_rfm.shipping (
@@ -323,7 +323,7 @@ CREATE TABLE IF NOT EXISTS coupang_rfm.shipping (
   , settlement_date DATE -- 정산종료일
   , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
 ) PARTITION BY RANGE (sales_date);
-CREATE INDEX IF NOT EXISTS cpg_shipping__vendor_idx ON coupang.rocket_shipping (vendor_id);
+CREATE INDEX IF NOT EXISTS cpr_shipping__vendor_idx ON coupang_rfm.shipping (vendor_id);
 
 -- ============================================================
 -- ecount (이카운트)

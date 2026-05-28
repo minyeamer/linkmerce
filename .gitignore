@@ -311,6 +311,7 @@ airflow/extensions/
 airflow/dags/_private/
 docs/captures/
 docs/draft/
+postgres/data/
 src/tests/data/
 src/tests/results/
 src/tests/fixtures.yaml
