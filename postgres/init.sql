@@ -557,6 +557,19 @@ CREATE TABLE IF NOT EXISTS naver_shp.rank (
 CREATE INDEX IF NOT EXISTS nsh_rank__keyword_idx ON naver_shp.rank (keyword);
 CREATE INDEX IF NOT EXISTS nsh_rank__item_idx ON naver_shp.rank (nv_mid);
 
+-- [네이버 쇼핑 상품 순위 (최신)]
+CREATE TABLE IF NOT EXISTS naver_shp.rank_now (
+    keyword TEXT NOT NULL -- 키워드
+  , nv_mid BIGINT NOT NULL -- 쇼핑상품ID
+  , product_id BIGINT -- 상품코드
+  , product_type SMALLINT -- 상품종류
+  , display_rank SMALLINT NOT NULL -- 노출순위
+  , created_at TIMESTAMP NOT NULL -- 수집일시
+  , PRIMARY KEY (keyword, display_rank)
+);
+CREATE INDEX IF NOT EXISTS nsh_rank_now__keyword_idx ON naver_shp.rank_now (keyword);
+CREATE INDEX IF NOT EXISTS nsh_rank_now__item_idx ON naver_shp.rank_now (nv_mid);
+
 -- ============================================================
 -- relation
 -- ============================================================
@@ -958,6 +971,15 @@ CREATE TABLE IF NOT EXISTS searchad.rank (
   , created_at TIMESTAMP NOT NULL -- 수집일시
   , PRIMARY KEY (created_at, keyword, display_rank)
 ) PARTITION BY RANGE (created_at);
+
+-- [네이버 검색광고 노출 순위 (최신)]
+CREATE TABLE IF NOT EXISTS searchad.rank_now (
+    keyword TEXT NOT NULL -- 키워드
+  , nv_mid BIGINT NOT NULL -- 쇼핑상품ID
+  , display_rank SMALLINT NOT NULL -- 노출순위
+  , created_at TIMESTAMP NOT NULL -- 수집일시
+  , PRIMARY KEY (keyword, display_rank)
+);
 
 -- ============================================================
 -- smartstore (네이버 스마트스토어)
