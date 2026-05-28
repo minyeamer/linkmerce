@@ -24,19 +24,18 @@ def load_table_from_duckdb(
         source_table: DuckDBTable,
         target_table: PgTable,
         columns: Sequence[str] = list(),
+        extra_metadata: dict | None = None,
         **kwargs
     ) -> LoadResult:
     """DuckDB 테이블 행을 BigQuery/PostgreSQL 테이블에 적재한다."""
     common = (connection, source_table, target_table, columns)
-    result = {"src_count": connection.count_table(source_table)}
-
-    try: result["bq_success"] = load_bq_table_from_duckdb(*common, **kwargs)
-    except: result["bq_success"] = False
-
-    try: result["pg_success"] = load_pg_table_from_duckdb(*common, **kwargs)
-    except: result["pg_success"] = False
-
-    return result
+    return {
+        "src_count": connection.count_table(source_table),
+        **(extra_metadata if isinstance(extra_metadata, dict) else dict()),
+        # 제약 조건이 엄격한 PostgreSQL에 먼저 적재하여 데이터 유효성을 검증한다.
+        "pg_success": load_pg_table_from_duckdb(*common, **kwargs),
+        "bq_success": load_bq_table_from_duckdb(*common, **kwargs),
+    }
 
 
 def overwrite_table_from_duckdb(
@@ -45,6 +44,7 @@ def overwrite_table_from_duckdb(
         target_table: PgTable,
         columns: Sequence[str] = list(),
         where_clause: str | None = None,
+        extra_metadata: dict | None = None,
         **kwargs
     ) -> LoadResult:
     """DuckDB 테이블을 스테이징 테이블에 적재한 후,
@@ -54,15 +54,13 @@ def overwrite_table_from_duckdb(
     쿼리가 실패하면 직전 시점으로 롤백한다.
     """
     common = (connection, source_table, target_table, columns, where_clause)
-    result = {"src_count": connection.count_table(source_table)}
-
-    try: result["bq_success"] = overwrite_bq_table_from_duckdb(*common, **kwargs)
-    except: result["bq_success"] = False
-
-    try: result["pg_success"] = overwrite_pg_table_from_duckdb(*common, **kwargs)
-    except: result["pg_success"] = False
-
-    return result
+    return {
+        "src_count": connection.count_table(source_table),
+        **(extra_metadata if isinstance(extra_metadata, dict) else dict()),
+        # 제약 조건이 엄격한 PostgreSQL에 먼저 적재하여 데이터 유효성을 검증한다.
+        "pg_success": overwrite_pg_table_from_duckdb(*common, **kwargs),
+        "bq_success": overwrite_bq_table_from_duckdb(*common, **kwargs),
+    }
 
 
 def upsert_table_from_duckdb(
@@ -75,6 +73,7 @@ def upsert_table_from_duckdb(
         do_action: str
             | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
             | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+        extra_metadata: dict | None = None,
         **kwargs
     ) -> LoadResult:
     """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 BigQuery 테이블에 UPESRT 한다.
@@ -82,15 +81,13 @@ def upsert_table_from_duckdb(
     **NOTE** WHERE 절에서 소스 테이블 칼럼은 `S.`로 참조한다.
     """
     common = (connection, source_table, target_table, columns, where_clause, on_conflict, do_action)
-    result = {"src_count": connection.count_table(source_table)}
-
-    try: result["bq_success"] = merge_into_bq_table_from_duckdb(*common, **kwargs)
-    except: result["bq_success"] = False
-
-    try: result["pg_success"] = upsert_pg_table_from_duckdb(*common, **kwargs)
-    except: result["pg_success"] = False
-
-    return result
+    return {
+        "src_count": connection.count_table(source_table),
+        **(extra_metadata if isinstance(extra_metadata, dict) else dict()),
+        # 제약 조건이 엄격한 PostgreSQL에 먼저 적재하여 데이터 유효성을 검증한다.
+        "pg_success": upsert_pg_table_from_duckdb(*common, **kwargs),
+        "bq_success": merge_into_bq_table_from_duckdb(*common, **kwargs),
+    }
 
 
 ###################################################################
@@ -98,13 +95,20 @@ def upsert_table_from_duckdb(
 ###################################################################
 
 def bigquery_client(func):
+    """`BigQueryClient`를 생성하여 데이터를 적재하고, 실행이 끝나면 연결을 닫는 데코레이터.
+
+    적재 실패 시 `BadRequest` 예외를 발생시킨다.
+    """
     @wraps(func)
     def wrapper(*args, bigquery_conn_id: str = "bigquery", **kwargs):
         from linkmerce.extensions.bigquery import BigQueryClient
 
         service_account = _read_google_service_account(bigquery_conn_id)
         with BigQueryClient(service_account) as client:
-            return func(*args, **kwargs, client=client)
+            if not (success := func(*args, **kwargs, client=client)):
+                from google.api_core.exceptions import BadRequest
+                raise BadRequest("BigQuery load job failed due to an unknown error.")
+            return success
     return wrapper
 
 
@@ -196,13 +200,20 @@ def merge_into_bq_table_from_duckdb(
 ###################################################################
 
 def postgres_client(func):
+    """`PostgresClient`를 생성하여 데이터를 적재하고, 실행이 끝나면 연결을 닫는 데코레이터.
+
+    적재 실패 시 `InternalError` 에러를 발생시킨다.
+    """
     @wraps(func)
     def wrapper(*args, postgres_conn_id: str = "postgres", **kwargs):
         from linkmerce.extensions.postgres import PostgresClient
 
         connection_fields = _read_postgres_dsn(postgres_conn_id)
         with PostgresClient("", **connection_fields) as client:
-            return func(*args, **kwargs, client=client)
+            if not (success := func(*args, **kwargs, client=client)):
+                from psycopg2.errors import InternalError
+                raise InternalError("PostgreSQL table load failed due to an unknown error.")
+            return success
     return wrapper
 
 
