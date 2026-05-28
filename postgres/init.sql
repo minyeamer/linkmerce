@@ -6,6 +6,7 @@
 -- 스키마 생성
 -- ============================================================
 
+CREATE SCHEMA IF NOT EXISTS analytics; -- anl
 CREATE SCHEMA IF NOT EXISTS cj_eflexs; -- cje
 CREATE SCHEMA IF NOT EXISTS cj_loisparcel; -- cjl
 CREATE SCHEMA IF NOT EXISTS coupang; -- cpg
@@ -28,6 +29,23 @@ CREATE SCHEMA IF NOT EXISTS test;
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pg_partman WITH SCHEMA partman;
+
+-- ============================================================
+-- analytics (통합/분석용)
+-- ============================================================
+
+-- [마케팅비용]
+CREATE TABLE IF NOT EXISTS analytics.cost (
+    id BIGINT NOT NULL -- 순번
+  , name TEXT -- 마케팅
+  , sales_team TEXT -- 영업팀
+  , brand_name TEXT -- 브랜드
+  , cost_type TEXT NOT NULL -- 유형
+  , cost BIGINT -- 비용
+  , start_date DATE -- 시작일
+  , end_date DATE NOT NULL -- 종료일
+  , PRIMARY KEY (end_date, id)
+) PARTITION BY RANGE (end_date);
 
 -- ============================================================
 -- cj_eflexs (CJ대한통운 eFLEXs)
@@ -334,19 +352,6 @@ CREATE TABLE IF NOT EXISTS ecount.product (
   , PRIMARY KEY (product_code)
 );
 
--- [마케팅비용]
-CREATE TABLE IF NOT EXISTS ecount.cost (
-    id BIGINT NOT NULL -- 순번
-  , name TEXT -- 마케팅
-  , sales_team TEXT -- 영업팀
-  , brand_name TEXT -- 브랜드
-  , cost_type TEXT NOT NULL -- 유형
-  , cost BIGINT -- 비용
-  , start_date DATE -- 시작일
-  , end_date DATE NOT NULL -- 종료일
-  , PRIMARY KEY (end_date, id)
-) PARTITION BY RANGE (end_date);
-
 -- ============================================================
 -- google_ads (구글 광고)
 -- ============================================================
@@ -426,7 +431,7 @@ CREATE TABLE IF NOT EXISTS google_ads.asset (
 -- ============================================================
 
 -- [메타 광고 계정]
-CREATE TABLE IF NOT EXISTS meta_ads.accounts (
+CREATE TABLE IF NOT EXISTS meta_ads.account (
     account_id TEXT NOT NULL -- 계정ID
   , account_name TEXT -- 계정명
   , account_group TEXT -- 계정그룹
@@ -435,7 +440,7 @@ CREATE TABLE IF NOT EXISTS meta_ads.accounts (
 );
 
 -- [메타 광고 캠페인 보고서]
-CREATE TABLE IF NOT EXISTS meta_ads.campaigns (
+CREATE TABLE IF NOT EXISTS meta_ads.campaign (
     campaign_id TEXT NOT NULL -- 캠페인ID
   , campaign_name TEXT -- 캠페인명
   , account_id TEXT NOT NULL -- 계정ID
@@ -446,7 +451,7 @@ CREATE TABLE IF NOT EXISTS meta_ads.campaigns (
 );
 
 -- [메타 광고세트 보고서]
-CREATE TABLE IF NOT EXISTS meta_ads.adsets (
+CREATE TABLE IF NOT EXISTS meta_ads.adset (
     adset_id TEXT NOT NULL -- 광고세트ID
   , adset_name TEXT -- 광고세트명
   , account_id TEXT NOT NULL -- 계정ID
@@ -458,7 +463,7 @@ CREATE TABLE IF NOT EXISTS meta_ads.adsets (
 );
 
 -- [메타 광고 광고 보고서]
-CREATE TABLE IF NOT EXISTS meta_ads.ads (
+CREATE TABLE IF NOT EXISTS meta_ads.ad (
     ad_id TEXT NOT NULL -- 광고ID
   , ad_name TEXT -- 광고명
   , account_id TEXT NOT NULL -- 계정ID
@@ -470,7 +475,7 @@ CREATE TABLE IF NOT EXISTS meta_ads.ads (
 );
 
 -- [메타 광고 광고 성과 보고서]
-CREATE TABLE IF NOT EXISTS meta_ads.insights (
+CREATE TABLE IF NOT EXISTS meta_ads.insight (
     account_id TEXT NOT NULL -- 계정ID
   , campaign_id TEXT NOT NULL -- 캠페인ID
   , adset_id TEXT NOT NULL -- 광고세트ID
@@ -483,7 +488,7 @@ CREATE TABLE IF NOT EXISTS meta_ads.insights (
   , ymd DATE NOT NULL -- 날짜
   , PRIMARY KEY (ymd, account_id, campaign_id, adset_id, ad_id)
 ) PARTITION BY RANGE (ymd);
-CREATE INDEX IF NOT EXISTS met_ads__ad_idx ON meta_ads.insights (ymd, ad_id);
+CREATE INDEX IF NOT EXISTS met_ads__ad_idx ON meta_ads.insight (ymd, ad_id);
 
 -- ============================================================
 -- naver_shp (네이버 쇼핑)
@@ -522,13 +527,6 @@ CREATE TABLE IF NOT EXISTS naver_shp.keyword (
   , PRIMARY KEY (keyword)
 );
 
--- [네이버 쇼핑 상품-키워드 매칭]
-CREATE TABLE IF NOT EXISTS naver_shp.kwd_pid (
-    keyword TEXT NOT NULL -- 키워드
-  , product_id BIGINT NOT NULL -- 상품코드
-  , PRIMARY KEY (keyword, product_id)
-);
-
 -- [네이버 쇼핑 상품 목록]
 CREATE TABLE IF NOT EXISTS naver_shp.product (
     nv_mid BIGINT NOT NULL -- 쇼핑상품ID
@@ -544,7 +542,7 @@ CREATE TABLE IF NOT EXISTS naver_shp.product (
   , PRIMARY KEY (nv_mid)
 );
 
--- [네이버 쇼핑 상품 순위]
+-- [네이버 쇼핑 상품 순위 (시간별)]
 CREATE TABLE IF NOT EXISTS naver_shp.rank (
     keyword TEXT NOT NULL -- 키워드
   , nv_mid BIGINT NOT NULL -- 쇼핑상품ID
@@ -588,6 +586,21 @@ CREATE TABLE IF NOT EXISTS relation.cpg_opt_to_sbn_ids (
     option_id BIGINT NOT NULL -- 옵션ID
   , bundle_option_ids TEXT NOT NULL -- 연결상품코드
   , PRIMARY KEY (option_id)
+);
+
+-- [네이버 쇼핑 키워드 - 상품 관계]
+CREATE TABLE IF NOT EXISTS relation.nsh_kwd_to_prd_id (
+    keyword TEXT NOT NULL -- 키워드
+  , product_id BIGINT NOT NULL -- 상품코드
+  , PRIMARY KEY (keyword, product_id)
+);
+
+-- [네이버 쇼핑 상품 - 카탈로그 관계 (최신)]
+CREATE TABLE IF NOT EXISTS relation.nsh_prd_to_ctl_id (
+    product_id BIGINT NOT NULL -- 상품코드
+  , catalog_id BIGINT NOT NULL -- 카탈로그코드
+  , created_at TIMESTAMP NOT NULL -- 수집일시
+  , PRIMARY KEY (created_at, product_id)
 );
 
 -- [스마트스토어 옵션 - 사방넷 묶음상품 관계]
@@ -963,7 +976,7 @@ CREATE TABLE IF NOT EXISTS searchad.contract (
   , PRIMARY KEY (contract_end_date, contract_id)
 ) PARTITION BY RANGE (contract_end_date);
 
--- [네이버 검색광고 노출 순위]
+-- [네이버 검색광고 노출 순위 (시간별)]
 CREATE TABLE IF NOT EXISTS searchad.rank (
     keyword TEXT NOT NULL -- 키워드
   , nv_mid BIGINT NOT NULL -- 쇼핑상품ID
@@ -1192,8 +1205,8 @@ CREATE TABLE IF NOT EXISTS ss_hcenter.price (
 ) PARTITION BY RANGE (created_at);
 CREATE INDEX IF NOT EXISTS ssh_price__mall_idx ON ss_hcenter.price (mall_seq);
 
--- [네이버 쇼핑 상품 - 카탈로그 관계]
-CREATE TABLE IF NOT EXISTS ss_hcenter.pid_cid (
+-- [네이버 쇼핑 상품 - 카탈로그 관계 (시간별)]
+CREATE TABLE IF NOT EXISTS ss_hcenter.product_catalog (
     product_id BIGINT NOT NULL -- 상품코드
   , catalog_id BIGINT NOT NULL -- 카탈로그코드
   , created_at TIMESTAMP NOT NULL -- 수집일시
@@ -1304,6 +1317,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+SELECT public.bootstrap_daily_partitions('analytics.cost', 'end_date', '2025-01-13', 35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice', 'pickup_date', '2023-05-01', 35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order', 'order_date', '2023-05-01', 35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.stock', 'updated_at', '2026-05-27 00:00:00', 35);
@@ -1313,10 +1327,9 @@ SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca', 'ymd', '2025-
 SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory', 'updated_at', '2026-05-27 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.sales', 'sales_date', '2023-08-07', 35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.shipping', 'sales_date', '2023-08-04', 35);
-SELECT public.bootstrap_daily_partitions('ecount.cost', 'end_date', '2025-01-13', 35);
 SELECT public.bootstrap_daily_partitions('ecount.inventory', 'updated_at', '2026-05-27 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('google_ads.insight', 'ymd', '2023-09-06', 35);
-SELECT public.bootstrap_daily_partitions('meta_ads.insights', 'ymd', '2024-05-20', 35);
+SELECT public.bootstrap_daily_partitions('meta_ads.insight', 'ymd', '2024-05-20', 35);
 SELECT public.bootstrap_daily_partitions('naver_shp.rank', 'created_at', '2025-08-15 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('sabangnet.order', 'order_dt', '2024-11-04 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('sabangnet.order_invoice', 'order_dt', '2024-11-04 00:00:00', 35);
@@ -1331,7 +1344,7 @@ SELECT public.bootstrap_daily_partitions('smartstore.order_detail', 'payment_dt'
 SELECT public.bootstrap_daily_partitions('smartstore.order_delivery', 'payment_dt', '2022-04-07 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('smartstore.order_status', 'payment_dt', '2022-03-28 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('smartstore.marketing_channel', 'ymd', '2024-06-09', 35);
-SELECT public.bootstrap_daily_partitions('ss_hcenter.pid_cid', 'created_at', '2025-08-15 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.product_catalog', 'created_at', '2025-08-15 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('ss_hcenter.pageview', 'ymd', '2023-12-13', 35);
 SELECT public.bootstrap_daily_partitions('ss_hcenter.price', 'created_at', '2025-07-19 00:00:00', 35);
 SELECT public.bootstrap_daily_partitions('ss_hcenter.sales', 'payment_date', '2023-07-20', 35);
