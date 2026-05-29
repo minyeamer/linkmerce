@@ -25,9 +25,10 @@ CREATE SCHEMA IF NOT EXISTS partman; -- pg_partman
 CREATE SCHEMA IF NOT EXISTS test;
 
 -- ============================================================
--- pg_partman 확장 및 초기 파티션 설정
+-- parquet_io / pg_partman 확장 및 초기 파티션 설정
 -- ============================================================
 
+CREATE EXTENSION IF NOT EXISTS parquet_io;
 CREATE EXTENSION IF NOT EXISTS pg_partman WITH SCHEMA partman;
 
 -- ============================================================
@@ -1259,6 +1260,7 @@ CREATE OR REPLACE FUNCTION public.bootstrap_daily_partitions(
     p_parent_table TEXT,
     p_control_column TEXT,
     p_start_partition TEXT,
+    p_interval TEXT,
     p_premake_days INTEGER
 ) RETURNS VOID AS $$
 DECLARE
@@ -1286,8 +1288,8 @@ BEGIN
     PERFORM partman.create_parent(
       p_parent_table := p_parent_table,
       p_control := p_control_column,
-      p_type := 'native',
-      p_interval := 'daily',
+      p_type := 'range',
+      p_interval := p_interval,
       p_premake := p_premake_days,
       p_start_partition := safe_start_partition_ts::TEXT,
       p_automatic_maintenance := 'on',
@@ -1303,9 +1305,8 @@ BEGIN
     PERFORM partman.create_partition_time(
       p_parent_table := p_parent_table,
       p_partition_times := ARRAY(
-        SELECT generate_series(start_partition_ts, end_partition_ts, INTERVAL '1 day')
-      ),
-      p_analyze := false
+        SELECT generate_series(start_partition_ts, end_partition_ts, p_interval::interval)
+      )::timestamptz[]
     );
 
     UPDATE partman.part_config
@@ -1317,35 +1318,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-SELECT public.bootstrap_daily_partitions('analytics.cost', 'end_date', '2025-01-13', 35);
-SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice', 'pickup_date', '2023-05-01', 35);
-SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order', 'order_date', '2023-05-01', 35);
-SELECT public.bootstrap_daily_partitions('cj_eflexs.stock', 'updated_at', '2026-05-27 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('cj_loisparcel.invoice', 'register_date', '2025-08-01', 35);
-SELECT public.bootstrap_daily_partitions('coupang_ads.report_pa', 'ymd', '2023-10-31', 35);
-SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca', 'ymd', '2025-01-07', 35);
-SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory', 'updated_at', '2026-05-27 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('coupang_rfm.sales', 'sales_date', '2023-08-07', 35);
-SELECT public.bootstrap_daily_partitions('coupang_rfm.shipping', 'sales_date', '2023-08-04', 35);
-SELECT public.bootstrap_daily_partitions('ecount.inventory', 'updated_at', '2026-05-27 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('google_ads.insight', 'ymd', '2023-09-06', 35);
-SELECT public.bootstrap_daily_partitions('meta_ads.insight', 'ymd', '2024-05-20', 35);
-SELECT public.bootstrap_daily_partitions('naver_shp.rank', 'created_at', '2025-08-15 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('sabangnet.order', 'order_dt', '2024-11-04 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('sabangnet.order_invoice', 'order_dt', '2024-11-04 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('sabangnet.order_dispatch', 'register_dt', '2023-12-12 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('sabangnet.order_status', 'order_date', '2025-04-03', 35);
-SELECT public.bootstrap_daily_partitions('searchad.report_sad', 'ymd', '2025-04-03', 35);
-SELECT public.bootstrap_daily_partitions('searchad.report_gfa', 'ymd', '2024-06-25', 35);
-SELECT public.bootstrap_daily_partitions('searchad.contract', 'contract_end_date', '2022-06-23', 35);
-SELECT public.bootstrap_daily_partitions('searchad.rank', 'created_at', '2025-08-15 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('smartstore.order', 'payment_dt', '2022-04-07 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('smartstore.order_detail', 'payment_dt', '2022-04-07 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('smartstore.order_delivery', 'payment_dt', '2022-04-07 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('smartstore.order_status', 'payment_dt', '2022-03-28 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('smartstore.marketing_channel', 'ymd', '2024-06-09', 35);
-SELECT public.bootstrap_daily_partitions('ss_hcenter.product_catalog', 'created_at', '2025-08-15 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('ss_hcenter.pageview', 'ymd', '2023-12-13', 35);
-SELECT public.bootstrap_daily_partitions('ss_hcenter.price', 'created_at', '2025-07-19 00:00:00', 35);
-SELECT public.bootstrap_daily_partitions('ss_hcenter.sales', 'payment_date', '2023-07-20', 35);
-SELECT public.bootstrap_daily_partitions('ss_hcenter.stock', 'created_at', '2026-03-07 00:00:00', 35);
+SELECT public.bootstrap_daily_partitions('analytics.cost',				        'end_date',			      '2025-01-13',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice',			        'pickup_date',			  '2023-05-01',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order',		    'order_date',			    '2023-05-01',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('cj_eflexs.stock',				        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
+SELECT public.bootstrap_daily_partitions('cj_loisparcel.invoice',		      'register_date',		  '2025-08-01',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang_ads.report_pa',		      'ymd',				        '2023-10-31',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca',		    'ymd',				        '2025-01-07',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory',		      'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang_rfm.sales',			        'sales_date',			    '2023-08-07',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang_rfm.shipping',		      'sales_date',			    '2023-08-04',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('ecount.inventory',			        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
+SELECT public.bootstrap_daily_partitions('google_ads.insight',			      'ymd',				        '2023-09-06',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('meta_ads.insight',			        'ymd',				        '2024-05-20',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('naver_shp.rank',				        'created_at',			    '2025-08-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('sabangnet.order',				        'order_dt',			      '2024-11-04 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('sabangnet.order_invoice',		    'order_dt',			      '2024-11-04 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('sabangnet.order_dispatch',		  'register_dt',			  '2023-12-12 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('sabangnet.order_status',		    'order_date',			    '2025-04-03',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('searchad.report_sad',			      'ymd',				        '2025-04-03',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('searchad.report_gfa',			      'ymd',				        '2024-06-25',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('searchad.contract',			        'contract_end_date',  '2022-06-23',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('searchad.rank',				          'created_at',			    '2025-08-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('smartstore.order',			        'payment_dt',			    '2022-04-07 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('smartstore.order_detail',		    'payment_dt',			    '2022-04-07 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('smartstore.order_delivery',		  'payment_dt',			    '2022-04-07 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('smartstore.order_status',	      'payment_dt',			    '2022-03-28 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('smartstore.marketing_channel',  'ymd',				        '2024-06-09',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.product_catalog',		'created_at',			    '2025-08-15 00:00:00',	'1 day',  35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.pageview',			      'ymd',				        '2023-12-13',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.price',			        'created_at',			    '2025-07-19 00:00:00',	'1 day',  35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.sales',			        'payment_date',			  '2023-07-20',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('ss_hcenter.stock',			        'created_at',			    '2026-03-07 00:00:00',	'1 day',  35);
