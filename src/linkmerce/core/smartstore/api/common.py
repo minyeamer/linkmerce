@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from linkmerce.common.extract import Extractor
-import functools
+from functools import wraps
 
 from typing import TYPE_CHECKING
 
@@ -36,7 +36,7 @@ class SmartstoreApi(Extractor):
 
     def with_token(func):
         """API 요청 전 `client_id`와 `client_secret`를 사용해 OAuth 토큰을 발급받는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(self: SmartstoreApi, *args, **kwargs):
             authorization = self.authorize(self.get_config("client_id"), self.get_config("client_secret"))
             self.set_request_headers(headers={"Authorization": f"Bearer {authorization}"})

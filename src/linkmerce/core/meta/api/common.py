@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from linkmerce.common.extract import Extractor
-import functools
+from functools import wraps
 
 from typing import TYPE_CHECKING
 
@@ -43,7 +43,7 @@ class MetaApi(Extractor):
 
     def auto_refresh_token(func):
         """`access_token`이 만료되어 `OAuthException`이 발생하면 토큰 자동 갱신을 시도하는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(self: MetaApi, *args, **kwargs):
             try:
                 return func(self, *args, **kwargs)

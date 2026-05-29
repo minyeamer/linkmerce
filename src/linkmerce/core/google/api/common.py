@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from linkmerce.common.extract import Extractor
-import functools
+from functools import wraps
 
 from typing import TYPE_CHECKING
 
@@ -48,7 +48,7 @@ class GoogleApi(Extractor):
 
     def with_token(func):
         """API 요청 전 액세스 토큰을 발급받는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(self: GoogleApi, *args, **kwargs):
             self.set_access_token()
             return func(self, *args, **kwargs)

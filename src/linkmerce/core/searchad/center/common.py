@@ -197,7 +197,7 @@ class NaverAdLogin(LoginHandler):
 
 #     def with_token(func):
 #         """네이버 로그인 쿠키와 `customer_id`를 사용하여 `access_token`을 발급받는 데코레이터."""
-#         @functools.wraps(func)
+#         @wraps(func)
 #         def wrapper(self: SearchAdCenter, *args, **kwargs):
 #             self.authenticate()
 #             self.authorize()

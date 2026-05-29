@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from linkmerce.common.extract import Extractor, LoginHandler
-import functools
+from functools import wraps
 
 from typing import TYPE_CHECKING
 
@@ -45,7 +45,7 @@ class SabangnetAdmin(Extractor):
 
     def with_token(func):
         """데이터 요청 전 로그인하고 `access_token`을 발급받는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(self: SabangnetAdmin, *args, **kwargs):
             data = self.login_begin()
             self.set_token(**data)

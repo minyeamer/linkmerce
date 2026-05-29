@@ -94,7 +94,7 @@ class SearchAdGfa(Extractor):
 
 #     def with_token(func):
 #         """네이버 로그인 쿠키와 `account_no`를 사용하여 `XSRF-TOKEN`을 발급받는 데코레이터."""
-#         @functools.wraps(func)
+#         @wraps(func)
 #         def wrapper(self: SearchAdGfa, *args, **kwargs):
 #             self.authenticate()
 #             self.authorize()

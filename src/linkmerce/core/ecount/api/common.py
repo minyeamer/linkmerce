@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from linkmerce.common.extract import Extractor
-import functools
+from functools import wraps
 
 from typing import TYPE_CHECKING
 
@@ -42,7 +42,7 @@ class EcountApi(Extractor):
 
     def with_oapi(func):
         """오픈 API 요청 전 세션 ID를 발급받는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(self: EcountApi, *args, **kwargs):
             self.zone = self.oapi_zone(self.get_config("com_code"))
             self.session_id = self.oapi_login(**self.get_configs())

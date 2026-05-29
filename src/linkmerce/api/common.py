@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TypeVar, TYPE_CHECKING
-import functools
+from functools import wraps
 
 if TYPE_CHECKING:
     from typing import Any, Literal
@@ -80,7 +80,7 @@ def with_duckdb_connection(tables: dict | None = None, table: str | None = None)
     tables = {"table": table} if table else tables
 
     def decorator(func):
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(
                 *args,
                 connection: DuckDBConnection | None = None,

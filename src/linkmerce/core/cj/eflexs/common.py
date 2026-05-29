@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from linkmerce.common.extract import Extractor
-import functools
+from functools import wraps
 
 
 class CjEflexs(Extractor):
@@ -36,7 +36,7 @@ class CjEflexs(Extractor):
 
     def with_auth_info(func):
         """데이터 수집 전에 로그인 및 2단계 인증을 처리하는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(self: CjEflexs, *args, **kwargs):
             self.login(**self.get_configs())
             return func(self, *args, **kwargs)

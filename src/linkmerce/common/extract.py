@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-import functools
+from functools import wraps
 
 from typing import Any, Callable, Hashable, IO, TypeVar, Union, overload, TYPE_CHECKING
 
@@ -325,7 +325,7 @@ class RequestSessionClient(BaseSessionClient):
 
     def with_session(func):
         """HTTP 세션을 `per_request`로 설정했을 경우, 요청을 수행할 때마다 세션을 생성하고 종료하는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(self: RequestSessionClient, *args, **kwargs):
             if self.get_session() == "per_request":
                 try:
@@ -420,7 +420,7 @@ class AiohttpSessionClient(BaseSessionClient):
 
     def async_with_session(func):
         """HTTP 세션을 `per_request`로 설정했을 경우, 요청을 수행할 때마다 비동기 세션을 생성하고 종료하는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         async def wrapper(self: AiohttpSessionClient, *args, **kwargs):
             if self.get_session() == "per_request":
                 try:
@@ -1010,7 +1010,7 @@ class LoginHandler(Extractor):
 
     def with_session(func):
         """HTTP 세션을 `per_request`로 설정했을 경우, 요청을 수행할 때마다 세션을 생성하고 종료하는 데코레이터."""
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(self: LoginHandler, *args, **kwargs):
             if self.get_session() == "per_request":
                 try:
