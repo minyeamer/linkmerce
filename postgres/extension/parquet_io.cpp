@@ -4,9 +4,12 @@
  * PostgreSQL extension providing SQL-level read/write for local Parquet files.
  * Uses Apache Arrow / Parquet C++ library.
  *
- *   parquet_create_table(source_path TEXT, target_table TEXT, if_exists TEXT) -> BIGINT
+ *   parquet_create(source_path TEXT, target_table TEXT, if_exists TEXT) -> BIGINT
+ *   parquet_create(source_data BYTEA, target_table TEXT, if_exists TEXT) -> BIGINT
  *   parquet_read(source_path TEXT, target_table TEXT) -> BIGINT
+ *   parquet_read(source_data BYTEA, target_table TEXT) -> BIGINT
  *   parquet_write(source_query TEXT, target_path TEXT) -> BIGINT
+ *   parquet_write(source_query TEXT) -> BYTEA
  */
 
 /* PostgreSQL headers must be wrapped in extern "C" */
@@ -30,6 +33,7 @@ PG_MODULE_MAGIC;
 
 #include <arrow/api.h>
 #include <arrow/io/file.h>
+#include <arrow/io/memory.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/arrow/writer.h>
 #include <parquet/exception.h>
@@ -79,6 +83,25 @@ quote_literal_sql(const std::string& value)
     }
     quoted += "'";
     return quoted;
+}
+
+static std::unique_ptr<parquet::arrow::FileReader>
+open_parquet_reader(const std::shared_ptr<arrow::io::RandomAccessFile>& infile)
+{
+    auto reader_result =
+        parquet::arrow::OpenFile(infile, arrow::default_memory_pool());
+    if (!reader_result.ok())
+        throw std::runtime_error(reader_result.status().ToString());
+    return std::move(reader_result).ValueOrDie();
+}
+
+static std::shared_ptr<arrow::io::BufferReader>
+open_parquet_buffer(bytea* source_data)
+{
+    auto buffer = arrow::Buffer::Wrap(
+        reinterpret_cast<const uint8_t*>(VARDATA_ANY(source_data)),
+        VARSIZE_ANY_EXHDR(source_data));
+    return std::make_shared<arrow::io::BufferReader>(buffer);
 }
 
 static std::string
@@ -343,24 +366,16 @@ datum_to_arrow(arrow::ArrayBuilder* builder,
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * parquet_create_table: Parquet schema -> PostgreSQL table
+ * parquet_create: Parquet schema -> PostgreSQL table
  * ───────────────────────────────────────────────────────────────────────────── */
 
 static int64_t
-do_parquet_create_table(
-    const char* source_path,
+do_parquet_create(
+    const std::shared_ptr<arrow::io::RandomAccessFile>& infile,
     const char* target_table_str,
     const char* if_exists)
 {
-    std::shared_ptr<arrow::io::ReadableFile> infile;
-    PARQUET_ASSIGN_OR_THROW(infile, arrow::io::ReadableFile::Open(source_path));
-
-    auto reader_result =
-        parquet::arrow::OpenFile(infile, arrow::default_memory_pool());
-    if (!reader_result.ok())
-        throw std::runtime_error(reader_result.status().ToString());
-    std::unique_ptr<parquet::arrow::FileReader> reader =
-        std::move(reader_result).ValueOrDie();
+    std::unique_ptr<parquet::arrow::FileReader> reader = open_parquet_reader(infile);
 
     std::shared_ptr<arrow::Schema> parquet_schema;
     PARQUET_THROW_NOT_OK(reader->GetSchema(&parquet_schema));
@@ -429,9 +444,9 @@ do_parquet_create_table(
 }
 
 extern "C" {
-PG_FUNCTION_INFO_V1(parquet_create_table);
+PG_FUNCTION_INFO_V1(parquet_create_file);
 Datum
-parquet_create_table(PG_FUNCTION_ARGS)
+parquet_create_file(PG_FUNCTION_ARGS)
 {
     char* source_path = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char* target_table = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -441,12 +456,45 @@ parquet_create_table(PG_FUNCTION_ARGS)
     SPI_connect();
     PG_TRY(); {
         try {
-            column_count = do_parquet_create_table(source_path, target_table, if_exists);
+            std::shared_ptr<arrow::io::ReadableFile> infile;
+            PARQUET_ASSIGN_OR_THROW(infile, arrow::io::ReadableFile::Open(source_path));
+            column_count = do_parquet_create(infile, target_table, if_exists);
         } catch (const std::exception& e) {
             SPI_finish();
             ereport(ERROR,
                 (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
-                errmsg("parquet_create_table: %s", e.what())));
+                errmsg("parquet_create: %s", e.what())));
+        }
+        SPI_finish();
+    } PG_CATCH(); {
+        SPI_finish();
+        PG_RE_THROW();
+    } PG_END_TRY();
+
+    PG_RETURN_INT64(column_count);
+}
+}  /* extern "C" */
+
+extern "C" {
+PG_FUNCTION_INFO_V1(parquet_create_byte);
+Datum
+parquet_create_byte(PG_FUNCTION_ARGS)
+{
+    bytea* source_data = PG_GETARG_BYTEA_PP(0);
+    char* target_table = text_to_cstring(PG_GETARG_TEXT_PP(1));
+    char* if_exists = text_to_cstring(PG_GETARG_TEXT_PP(2));
+    int64_t column_count = 0;
+
+    SPI_connect();
+    PG_TRY(); {
+        try {
+            column_count = do_parquet_create(
+                open_parquet_buffer(source_data), target_table, if_exists);
+        } catch (const std::exception& e) {
+            SPI_finish();
+            ereport(ERROR,
+                (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
+                errmsg("parquet_create: %s", e.what())));
         }
         SPI_finish();
     } PG_CATCH(); {
@@ -463,18 +511,11 @@ parquet_create_table(PG_FUNCTION_ARGS)
  * ───────────────────────────────────────────────────────────────────────────── */
 
 static int64_t
-do_parquet_read(const char* source_path, const char* target_table_str)
+do_parquet_read(
+    const std::shared_ptr<arrow::io::RandomAccessFile>& infile,
+    const char* target_table_str)
 {
-    /* Open parquet file ---------------------------------------------------- */
-    std::shared_ptr<arrow::io::ReadableFile> infile;
-    PARQUET_ASSIGN_OR_THROW(infile, arrow::io::ReadableFile::Open(source_path));
-
-    auto reader_result =
-        parquet::arrow::OpenFile(infile, arrow::default_memory_pool());
-    if (!reader_result.ok())
-        throw std::runtime_error(reader_result.status().ToString());
-    std::unique_ptr<parquet::arrow::FileReader> reader =
-        std::move(reader_result).ValueOrDie();
+    std::unique_ptr<parquet::arrow::FileReader> reader = open_parquet_reader(infile);
 
     std::shared_ptr<arrow::Schema> parquet_schema;
     PARQUET_THROW_NOT_OK(reader->GetSchema(&parquet_schema));
@@ -512,9 +553,11 @@ do_parquet_read(const char* source_path, const char* target_table_str)
         HeapTuple tup   = SPI_tuptable->vals[r];
         TupleDesc tdesc = SPI_tuptable->tupdesc;
         bool isnull;
-        pg_names.push_back(
-            std::string(TextDatumGetCString(
-                SPI_getbinval(tup, tdesc, 1, &isnull))));
+        char* attname = SPI_getvalue(tup, tdesc, 1);
+        if (attname == nullptr)
+            throw std::runtime_error("Failed to read target column name");
+        pg_names.push_back(std::string(attname));
+        pfree(attname);
         pg_oids.push_back(
             (Oid)DatumGetObjectId(
                 SPI_getbinval(tup, tdesc, 2, &isnull)));
@@ -594,9 +637,9 @@ do_parquet_read(const char* source_path, const char* target_table_str)
 }
 
 extern "C" {
-PG_FUNCTION_INFO_V1(parquet_read);
+PG_FUNCTION_INFO_V1(parquet_read_file);
 Datum
-parquet_read(PG_FUNCTION_ARGS)
+parquet_read_file(PG_FUNCTION_ARGS)
 {
     char*   source_path  = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char*   target_table = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -605,7 +648,38 @@ parquet_read(PG_FUNCTION_ARGS)
     SPI_connect();
     PG_TRY(); {
         try {
-            row_count = do_parquet_read(source_path, target_table);
+            std::shared_ptr<arrow::io::ReadableFile> infile;
+            PARQUET_ASSIGN_OR_THROW(infile, arrow::io::ReadableFile::Open(source_path));
+            row_count = do_parquet_read(infile, target_table);
+        } catch (const std::exception& e) {
+            SPI_finish();
+            ereport(ERROR,
+                (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
+                errmsg("parquet_read: %s", e.what())));
+        }
+        SPI_finish();
+    } PG_CATCH(); {
+        SPI_finish();
+        PG_RE_THROW();
+    } PG_END_TRY();
+
+    PG_RETURN_INT64(row_count);
+}
+}  /* extern "C" */
+
+extern "C" {
+PG_FUNCTION_INFO_V1(parquet_read_byte);
+Datum
+parquet_read_byte(PG_FUNCTION_ARGS)
+{
+    bytea* source_data = PG_GETARG_BYTEA_PP(0);
+    char* target_table = text_to_cstring(PG_GETARG_TEXT_PP(1));
+    int64_t row_count = 0;
+
+    SPI_connect();
+    PG_TRY(); {
+        try {
+            row_count = do_parquet_read(open_parquet_buffer(source_data), target_table);
         } catch (const std::exception& e) {
             SPI_finish();
             ereport(ERROR,
@@ -627,7 +701,9 @@ parquet_read(PG_FUNCTION_ARGS)
  * ───────────────────────────────────────────────────────────────────────────── */
 
 static int64_t
-do_parquet_write(const char* source_query, const char* target_path)
+do_parquet_write(
+    const char* source_query,
+    const std::shared_ptr<arrow::io::OutputStream>& outfile)
 {
     const int BATCH_SIZE = 65536;
 
@@ -662,10 +738,6 @@ do_parquet_write(const char* source_query, const char* target_path)
     }
     int ncols = (int)att_nums.size();
     auto schema = arrow::schema(fields);
-
-    /* Open Parquet file writer --------------------------------------------- */
-    std::shared_ptr<arrow::io::FileOutputStream> outfile;
-    PARQUET_ASSIGN_OR_THROW(outfile, arrow::io::FileOutputStream::Open(target_path));
 
     auto writer_props =
         parquet::WriterProperties::Builder()
@@ -737,15 +809,13 @@ do_parquet_write(const char* source_query, const char* target_path)
     SPI_cursor_close(portal);
 
     PARQUET_THROW_NOT_OK(writer->Close());
-    PARQUET_THROW_NOT_OK(outfile->Close());
-
     return total;
 }
 
 extern "C" {
-PG_FUNCTION_INFO_V1(parquet_write);
+PG_FUNCTION_INFO_V1(parquet_write_file);
 Datum
-parquet_write(PG_FUNCTION_ARGS)
+parquet_write_file(PG_FUNCTION_ARGS)
 {
     char*   source_query = text_to_cstring(PG_GETARG_TEXT_PP(0));
     char*   target_path  = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -754,7 +824,10 @@ parquet_write(PG_FUNCTION_ARGS)
     SPI_connect();
     PG_TRY(); {
         try {
-            row_count = do_parquet_write(source_query, target_path);
+            std::shared_ptr<arrow::io::FileOutputStream> outfile;
+            PARQUET_ASSIGN_OR_THROW(outfile, arrow::io::FileOutputStream::Open(target_path));
+            row_count = do_parquet_write(source_query, outfile);
+            PARQUET_THROW_NOT_OK(outfile->Close());
         } catch (const std::exception& e) {
             SPI_finish();
             ereport(ERROR,
@@ -768,5 +841,47 @@ parquet_write(PG_FUNCTION_ARGS)
     } PG_END_TRY();
 
     PG_RETURN_INT64(row_count);
+}
+}  /* extern "C" */
+
+extern "C" {
+PG_FUNCTION_INFO_V1(parquet_write_byte);
+Datum
+parquet_write_byte(PG_FUNCTION_ARGS)
+{
+    char* source_query = text_to_cstring(PG_GETARG_TEXT_PP(0));
+    std::shared_ptr<arrow::Buffer> buffer;
+
+    SPI_connect();
+    PG_TRY(); {
+        try {
+            auto outfile_result = arrow::io::BufferOutputStream::Create();
+            if (!outfile_result.ok())
+                throw std::runtime_error(outfile_result.status().ToString());
+            std::shared_ptr<arrow::io::BufferOutputStream> outfile =
+                std::move(outfile_result).ValueOrDie();
+
+            do_parquet_write(source_query, outfile);
+
+            auto buffer_result = outfile->Finish();
+            if (!buffer_result.ok())
+                throw std::runtime_error(buffer_result.status().ToString());
+            buffer = std::move(buffer_result).ValueOrDie();
+        } catch (const std::exception& e) {
+            SPI_finish();
+            ereport(ERROR,
+                (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
+                errmsg("parquet_write: %s", e.what())));
+        }
+        SPI_finish();
+    } PG_CATCH(); {
+        SPI_finish();
+        PG_RE_THROW();
+    } PG_END_TRY();
+
+    bytea* result = (bytea*)palloc(VARHDRSZ + buffer->size());
+    SET_VARSIZE(result, VARHDRSZ + buffer->size());
+    memcpy(VARDATA(result), buffer->data(), buffer->size());
+    PG_RETURN_BYTEA_P(result);
 }
 }  /* extern "C" */

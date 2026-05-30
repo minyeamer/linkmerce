@@ -1,12 +1,12 @@
 from __future__ import annotations
-import functools
 
-from linkmerce.common.load import Connection, concat_sql, where, build_temp_table_name
+from linkmerce.common.load import Connection, concat_sql, where
 
 from typing import Sequence, TYPE_CHECKING
+from functools import wraps
 
 if TYPE_CHECKING:
-    from typing import Any, Literal, TypeVar
+    from typing import Any, Callable, Literal, TypeVar
     from types import TracebackType
     from pathlib import Path
 
@@ -57,7 +57,7 @@ def ensure_cursor(return_cursor: bool = True, rollback_on_error: bool = True, pa
         함수 실행 후 커서 종료 여부. 기본값은 `False`
     """
     def decorator(func):
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(
                 self: PostgresClient,
                 *args,
@@ -153,7 +153,7 @@ class PostgresClient(Connection):
             close: bool = False,
         ) -> PgCursor | None:
         """SQL 쿼리를 실행한다. 커서를 생략하면 자동으로 생성하고 커서를 반환한다."""
-        cursor.execute(query, params)
+        return cursor.execute(query, params)
 
     @ensure_cursor(return_cursor=True)
     def execute_batch(
@@ -168,7 +168,7 @@ class PostgresClient(Connection):
         ) -> PgCursor | None:
         """여러 매개변수 목록에 대해 SQL 쿼리를 배치 실행한다. 커서를 생략하면 자동으로 생성하고 커서를 반환한다."""
         from psycopg2.extras import execute_batch
-        execute_batch(cursor, query, params_seq, page_size=page_size)
+        return execute_batch(cursor, query, params_seq, page_size=page_size)
 
     ############################## Fetch ##############################
 
@@ -211,8 +211,6 @@ class PostgresClient(Connection):
         ) -> list[tuple] | list[dict] | bytes | None:
         """SQL 쿼리를 실행하고, 결과를 지정한 형식(`csv`, `json`, `parquet`)으로 반환하거나 파일로 저장한다."""
         try:
-            if format == "parquet":
-                return self.fetch_all_to_parquet(query, params, save_to)
             return getattr(self, f"fetch_all_to_{format}")(query, params, save_to, cursor=cursor)
         except AttributeError:
             raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
@@ -254,31 +252,127 @@ class PostgresClient(Connection):
             return save_to_json(results, save_to, indent=2, ensure_ascii=False, default=str)
         return results
 
+    @ensure_cursor(return_cursor=False, pass_commit=False)
     def fetch_all_to_parquet(
             self,
             query: str,
             params: object | None = None,
             save_to: str | Path | None = None,
+            *,
+            cursor: PgCursor | None = None,
         ) -> bytes | None:
-        """SQL 쿼리를 실행하고, 결과를 Parquet 바이너리로 반환하거나 Parquet 파일로 저장한다.
+        """SQL 쿼리 결과를 `local_parquet` 확장으로 Parquet 바이너리로 반환하거나 파일로 저장한다."""
+        source_query = query.strip().rstrip(';')
+        if params is not None:
+            source_query = cursor.mogrify(source_query, params).decode("utf-8")
 
-        **NOTE** DuckDB 엔진과 `postgres` 확장을 사용하며, 현재 연결 정보를 그대로 재사용한다.
-        쿼리에서는 PostgreSQL 테이블을 `db.{schema}.{table}` 형식으로 참조해야 한다.
-        """
-        import duckdb
-        with duckdb.connect() as conn:
-            if save_to:
-                query = f"COPY ({query}) TO '{save_to}' (FORMAT PARQUET);"
-                self.execute_with_duckdb(conn, query, params, database="db", install_extension=True)
-                return None
-            else:
-                from linkmerce.common.load import write_tempfile
-                def to_parquet(temp_file: str):
-                    query = f"COPY ({query}) TO '{temp_file}' (FORMAT PARQUET);"
-                    self.execute_with_duckdb(conn, query, params, database="db", install_extension=True)
-                return write_tempfile(to_parquet, mode="w+b", suffix=".parquet")
+        cursor.execute("SELECT parquet_write(%s)", (source_query,))
+        result = bytes(cursor.fetchone()[0])
+        if save_to:
+            from pathlib import Path
+            Path(save_to).write_bytes(result)
+            return None
+        return result
 
     ############################## Create #############################
+
+    def create_table(
+            self,
+            table: str,
+            values: list[tuple] | list[dict] | bytes | str | Path,
+            format: Literal["csv", "json", "parquet"],
+            schema: list[str] | None = None,
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+            infer_options: dict | None = None,
+            *,
+            cursor: PgCursor | None = None,
+            commit: bool = False,
+            close: bool = False,
+        ) -> PgCursor | None:
+        """지정된 포맷의 데이터를 조회하고 새 테이블을 생성한다."""
+        try:
+            kwargs = {"cursor": cursor, "commit": commit, "close": close}
+            if format == "parquet":
+                return self.create_table_from_parquet(table, values, option, **kwargs)
+            return getattr(self, f"create_table_from_{format}")(
+                table, values, schema, option, temp, infer_options, **kwargs)
+        except AttributeError:
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
+
+    @ensure_cursor(return_cursor=True)
+    def create_table_from_csv(
+            self,
+            table: str,
+            values: list[tuple] | str | Path,
+            schema: list[str] | None = None,
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+            infer_options: dict | None = None,
+            *,
+            cursor: PgCursor | None = None,
+            commit: bool = False,
+            close: bool = False,
+        ) -> PgCursor | None:
+        """CSV 파일 또는 튜플 리스트를 조회하고 새 테이블을 생성한다."""
+        rows, schema = _csv_to_postgres_rows(values, schema, **(infer_options or dict()))
+        column_defs = schema[:-1] if schema[-1].upper().startswith("PRIMARY KEY") else schema
+
+        query = concat_sql(
+            f"{self.expr_create(table, option, temp)} ({', '.join(schema)});",
+            f"INSERT INTO {table}",
+            "({})".format(", ".join([column_def.split(' ')[0] for column_def in column_defs])),
+            "VALUES",
+            ", ".join(["({})".format(", ".join(row)) for row in rows]),
+        )
+        return cursor.execute(query)
+
+    @ensure_cursor(return_cursor=True)
+    def create_table_from_json(
+            self,
+            table: str,
+            values: list[dict] | str | Path,
+            schema: list[str] | None = None,
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+            infer_options: dict | None = None,
+            *,
+            cursor: PgCursor | None = None,
+            commit: bool = False,
+            close: bool = False,
+        ) -> PgCursor | None:
+        """JSON 파일 또는 딕셔너리 리스트를 조회하고 새 테이블을 생성한다."""
+        rows, schema = _json_to_postgres_rows(values, schema, **(infer_options or dict()))
+        column_defs = schema[:-1] if schema[-1].upper().startswith("PRIMARY KEY") else schema
+
+        query = concat_sql(
+            f"{self.expr_create(table, option, temp)} ({', '.join(schema)});",
+            f"INSERT INTO {table}",
+            "({})".format(", ".join([column_def.split(' ')[0] for column_def in column_defs])),
+            "VALUES",
+            ", ".join(["({})".format(", ".join(row)) for row in rows]),
+        )
+        return cursor.execute(query)
+
+    @ensure_cursor(return_cursor=True)
+    def create_table_from_parquet(
+            self,
+            table: str,
+            values: bytes | str | Path,
+            option: Literal["replace", "ignore"] | None = None,
+            *,
+            cursor: PgCursor | None = None,
+            commit: bool = False,
+            close: bool = False,
+        ) -> PgCursor | None:
+        """Parquet 파일 또는 Parquet 바이너리를 조회하고 새 테이블을 생성한다."""
+        from pathlib import Path
+        if_exists = option or "error"
+
+        if isinstance(values, (str, Path)):
+            values = Path(values).read_bytes()
+        cursor.execute("SELECT parquet_create(%s, %s, %s)", (values, table, if_exists))
+        return cursor.execute("SELECT parquet_read(%s, %s)", (values, table))
 
     @ensure_cursor(return_cursor=True)
     def copy_table(
@@ -297,9 +391,7 @@ class PostgresClient(Connection):
         소스 테이블 조회 결과를 새 테이블로 복사한다.
         """
         query = concat_sql(
-            (f"DROP TABLE IF EXISTS {target_table};" if option == "replace" else None),
-            "CREATE TABLE",
-            ("IF NOT EXISTS" if option == "ignore" else None),
+            self.expr_create(target_table, option),
             f"{target_table} (LIKE {source_table} INCLUDING ALL)",
         )
         if limit != 0:
@@ -310,6 +402,108 @@ class PostgresClient(Connection):
                 (f"LIMIT {limit}" if isinstance(limit, int) else None),
             )
         cursor.execute(query)
+
+    def expr_create(
+            self,
+            table: str,
+            option: Literal["replace", "ignore"] | None = None,
+            temp: bool = False,
+        ) -> str:
+        """CREATE TABLE 표현식을 생성한다."""
+        temp = "TEMP" if temp else str()
+        if option == "replace":
+            return f"DROP TABLE IF EXISTS {table}; CREATE {temp} TABLE {table}"
+        if option == "ignore":
+            return f"CREATE {temp} TABLE IF NOT EXISTS {table}"
+        if option == "replace":
+            return f"CREATE {temp} TABLE {table}"
+
+    ############################## Insert #############################
+
+    def insert_into_table(
+            self,
+            table: str,
+            values: list[tuple] | list[dict] | bytes | str | Path,
+            format: Literal["csv", "json", "parquet"],
+            on_conflict: str | None = None,
+            *,
+            cursor: PgCursor | None = None,
+            commit: bool = False,
+            close: bool = False,
+        ) -> PgCursor | bool:
+        """지정된 포맷의 데이터를 조회하여 기존 테이블에 삽입한다."""
+        try:
+            kwargs = {"cursor": cursor, "commit": commit, "close": close}
+            if format == "parquet":
+                return self.insert_into_table_from_parquet(table, values, **kwargs)
+            return getattr(self, f"insert_into_table_from_{format}")(table, values, on_conflict, **kwargs)
+        except AttributeError:
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
+
+    @ensure_cursor(return_cursor=True)
+    def insert_into_table_from_csv(
+            self,
+            table: str,
+            values: list[tuple] | str | Path,
+            on_conflict: str | None = None,
+            *,
+            cursor: PgCursor | None = None,
+            commit: bool = False,
+            close: bool = False,
+        ) -> PgCursor | None:
+        """CSV 파일 또는 튜플 리스트를 조회하여 기존 테이블에 삽입한다."""
+        rows, schema = _csv_to_postgres_rows(values)
+        column_defs = schema[:-1] if schema[-1].upper().startswith("PRIMARY KEY") else schema
+
+        query = concat_sql(
+            f"INSERT INTO {table}",
+            "({})".format(", ".join([column_def.split(' ')[0] for column_def in column_defs])),
+            "VALUES",
+            ", ".join(["({})".format(", ".join(row)) for row in rows]),
+            (f"ON CONFLICT {on_conflict}" if on_conflict else None),
+        )
+        return cursor.execute(query)
+
+    @ensure_cursor(return_cursor=True)
+    def insert_into_table_from_json(
+            self,
+            table: str,
+            values: list[dict] | str | Path,
+            on_conflict: str | None = None,
+            *,
+            cursor: PgCursor | None = None,
+            commit: bool = False,
+            close: bool = False,
+        ) -> PgCursor | None:
+        """JSON 파일 또는 딕셔너리 리스트를 조회하여 기존 테이블에 삽입한다."""
+        rows, schema = _json_to_postgres_rows(values)
+        column_defs = schema[:-1] if schema[-1].upper().startswith("PRIMARY KEY") else schema
+
+        query = concat_sql(
+            f"INSERT INTO {table}",
+            "({})".format(", ".join([column_def.split(' ')[0] for column_def in column_defs])),
+            "VALUES",
+            ", ".join(["({})".format(", ".join(row)) for row in rows]),
+            (f"ON CONFLICT {on_conflict}" if on_conflict else None),
+        )
+        return cursor.execute(query)
+
+    @ensure_cursor(return_cursor=True)
+    def insert_into_table_from_parquet(
+            self,
+            table: str,
+            values: bytes | str | Path,
+            *,
+            cursor: PgCursor | None = None,
+            commit: bool = False,
+            close: bool = False,
+        ) -> PgCursor | None:
+        """Parquet 파일 또는 Parquet 바이너리를 조회하여 기존 테이블에 삽입한다."""
+        from pathlib import Path
+
+        if isinstance(values, (str, Path)):
+            values = Path(values).read_bytes()
+        return cursor.execute("SELECT parquet_read(%s, %s)", (values, table))
 
     ############################## Upsert #############################
 
@@ -594,6 +788,8 @@ class PostgresClient(Connection):
             close: bool = False,
         ) -> PgTable:
         """DuckDB 소스 테이블 행을 적재할 빈 스테이징 테이블을 생성하고 적재한다."""
+        from linkmerce.common.load import build_temp_table_name
+
         staging_table = build_temp_table_name(target_table, max_name_length=62)
         while self.table_exists(staging_table):
             staging_table = build_temp_table_name(target_table, max_name_length=62)
@@ -718,3 +914,287 @@ class PostgresClient(Connection):
         """현재 커서에서 접근 가능한 테이블 칼럼명 리스트를 반환한다."""
         cursor.execute(f"SELECT * FROM {table} LIMIT 0;")
         return [column[0] for column in (cursor.description or list())]
+
+
+###################################################################
+########################### Infer Schema ##########################
+###################################################################
+
+def infer_schema(
+        values: list[tuple],
+        how: Literal["auto", "numericise", "stringfy"] = "auto",
+        constraint: dict[str, str] | None = None,
+        primary_key: str | None = None,
+        optimize: bool = False,
+    ) -> list[str]:
+    """테이블 행이 주어지면 칼럼별 데이터 타입을 추정하여 각 칼럼을 정의한 문자열 리스트를 반환한다.
+
+    Parameters
+    ----------
+    values: list[tuple]
+        첫 번째 항목엔 칼럼명 목록을, 나머지 항목엔 데이터 행을 리스트로 묶어서 입력한다.
+    how: str
+        - `"auto"`: 모든 열의 데이터 타입을 추정한다.
+        - `"numericise"`: 첫 번째 행의 값이 숫자인 경우만 데이터 타입을 추정한다.
+        - `"stringfy"`: 모든 열을 TEXT 타입으로 처리한다.
+    constraint: dict | None
+        칼럼 정의에 추가할 제약조건을 `{칼럼명: 조건_문자열}` 딕셔너리 형식으로 입력한다.
+    primary_key: str | None
+        기본 키를 `"PRIMARY KEY (col1, col2)"` 문자열 형식으로 입력한다.
+    optimize: bool
+        숫자 데이터 타입 추정을 범위를 고려하여 엄격하게 할지(`True`) 가장 큰 타입을 적용할지(`False`) 지정한다.
+
+    Returns
+    -------
+    list[str]
+        `"{칼럼명} {타입} {제약조건}"` 형식의 칼럼 정의 문자열 리스트를 반환한다.
+    """
+    schema, constraint = list(), (constraint or dict())
+
+    for i, column in enumerate(values[0]):
+        if how == "numericise":
+            if isinstance(values[1][i], (float, int)):
+                column_type = _infer_values_type([row[i] for row in values[1:]], optimize)
+            elif str(values[1][i]).replace('.', '').isdigit():
+                column_type = _infer_values_type([row[i] for row in values[1:]], optimize)
+            else:
+                column_type = "TEXT"
+        elif how == "stringfy":
+            column_type = "TEXT"
+        else:
+            column_type =_infer_values_type([row[i] for row in values[1:]], optimize)
+        schema.append(f"{column} {column_type} {constraint.get(column, str())}".strip())
+
+    if primary_key:
+        schema.append(primary_key)
+    return schema
+
+
+def _infer_values_type(values: Sequence[Any], optimize: bool = False) -> str:
+    """하나의 열에 대한 값 목록이 주어지면 해당 열의 데이터 타입을 추정한다."""
+    if not values:
+        return "TEXT"
+
+    import datetime as dt
+    import re
+    NUMBER, MAX_INT4 = True, 2**31
+
+    def _infer_type(value: Any) -> tuple[str, bool]:
+        # 객체 타입으로부터 데이터 타입 추정
+        if isinstance(value, bool):
+            return "BOOLEAN", (not NUMBER)
+        elif isinstance(value, int):
+            if optimize and (abs(value) < MAX_INT4):
+                return "INTEGER", NUMBER
+            return "BIGINT", NUMBER
+        elif isinstance(value, float):
+            if optimize and (len(str(value).replace('.', '')) < 7):
+                return "REAL", NUMBER
+            return "DOUBLE PRECISION", NUMBER
+        elif isinstance(value, dt.datetime):
+            return "TIMESTAMP", (not NUMBER)
+        elif isinstance(value, dt.date):
+            return "DATE", (not NUMBER)
+
+        # 알 수 없는 타입의 객체는 TEXT 타입으로 추정
+        elif not isinstance(value, str):
+            return "TEXT", (not NUMBER)
+
+        # 문자열의 형식으로부터 데이터 타입 추정
+        elif value.upper() in ("TRUE", "FALSE"):
+            return "BOOLEAN", (not NUMBER)
+        elif value.isdigit():
+            return _infer_type(int(value))
+        elif re.match(r"^\d+\.{,1}\d*$", value):
+            return _infer_type(float(value))
+        elif re.match(r"^\d{4}-\d{2}-\d{2}$", value):
+            return _infer_type(dt.datetime.strptime(value, "%Y-%m-%d").date())
+
+        # 알 수 없는 형식의 문자열은 TEXT 타입으로 추정
+        try:
+            datetime = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+            datetime.tzinfo = None
+            return _infer_type(datetime)
+        except:
+            return "TEXT", (not NUMBER)
+
+    column_type, is_number_column = _infer_type(values[0])
+    for value in values[1:]:
+        value_type, is_number = _infer_type(value)
+        if column_type == value_type:
+            continue
+
+        # 하나의 열에 서로 다른 숫자 타입이 확인되면 우선순위가 높은 타입으로 교체
+        elif is_number_column and is_number:
+            if column_type in ("REAL", "DOUBLE PRECISION"):
+                column_type = "DOUBLE PRECISION"
+            elif value_type in ("REAL", "DOUBLE PRECISION"):
+                column_type = "DOUBLE PRECISION"
+            else:
+                column_type = "BIGINT"
+
+        # 하나의 열에 서로 다른 타입이 확인되면 TEXT 타입으로 추정
+        else:
+            return "TEXT"
+
+    return column_type
+
+
+def _build_pg_value_formatter(data_type: str) -> Callable[[Any], str]:
+    """파이썬 객체를 PostgreSQL 데이터 타입에 호환되는 형태로 변환하는 함수를 제공한다."""
+    type_ = data_type.strip().upper()
+
+    # Text Types
+    if type_ in {"TEXT", "CHAR", "CHARACTER", "VARCHAR", "CHARACTER VARYING"}:
+        def _format_text(value: Any) -> str:
+            if value is not None:
+                return "'{}'".format(str(value).replace("\'", "\'\'"))
+            return "NULL"
+        return _format_text
+
+    # Integer Types
+    elif type_ in {
+        "SMALLINT", "INTEGER", "BIGINT", "INT", "INT2", "INT4", "INT8",
+        "SMALLSERIAL", "SERIAL", "BIGSERIAL",
+    }:
+        def _format_integer(value: Any) -> str:
+            if isinstance(value, int):
+                return str(value)
+            elif isinstance(value, (str, bool)):
+                try: return _format_integer(int(value))
+                except: return "NULL"
+            return "NULL"
+        return _format_integer
+
+    # Numeric Types
+    elif type_ in {
+        "NUMERIC", "DECIMAL", "REAL", "DOUBLE", "DOUBLE PRECISION",
+        "FLOAT", "FLOAT4", "FLOAT8",
+    }:
+        from decimal import Decimal
+        def _format_numeric(value: Any) -> str:
+            if isinstance(value, (float, int, Decimal)):
+                return str(value)
+            elif isinstance(value, (str, bool)):
+                try: return _format_integer(float(value))
+                except: return "NULL"
+            return "NULL"
+        return _format_numeric
+
+    # Boolean Type
+    elif type_ in {"BOOLEAN", "BOOL"}:
+        def _format_boolean(value: Any) -> str:
+            if isinstance(value, bool):
+                return "TRUE" if value else "FALSE"
+            elif isinstance(value, str):
+                string = value.strip().upper()
+                if string in {"TRUE", "T", "1", "YES", "Y"}:
+                    return "TRUE"
+                elif string in {"FALSE", "F", "0", "NO", "N"}:
+                    return "FALSE"
+            elif isinstance(value, (float, int)):
+                return "FALSE" if not value else ("TRUE" if value > 0 else "NULL")
+            return "NULL"
+        return _format_boolean
+
+    # Date Type
+    elif type_ == "DATE":
+        import datetime as dt
+        def _format_date(value: Any) -> str:
+            if isinstance(value, dt.datetime):
+                return _format_date(value.date())
+            elif isinstance(value, dt.date):
+                return f"'{value}'"
+            elif isinstance(value, str):
+                from linkmerce.utils.regex import regexp_extract
+                string = regexp_extract(r"^(\d{4}-\d{2}-\d{2})", value)
+                return "'{}'".format(string) if string else "NULL"
+            return "NULL"
+        return _format_date
+
+    # Timestamp Types
+    elif type_ in {"TIMESTAMP", "TIMESTAMP WITHOUT TIME ZONE", "TIMESTAMP WITH TIME ZONE"}:
+        def _format_timestamp(value: Any) -> str:
+            import datetime as dt
+            if isinstance(value, dt.datetime):
+                return "'{}'".format(value.strftime("%Y-%m-%d %H:%M:%S"))
+            elif isinstance(value, dt.date):
+                return _format_timestamp(dt.datetime(value.year, value.month, value.day))
+            elif isinstance(value, str):
+                from linkmerce.utils.regex import regexp_extract
+                string = regexp_extract(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})", value)
+                return "'{}'".format(string) if string else "NULL"
+            return "NULL"
+        return _format_timestamp
+
+    # Time Types
+    elif type_ in {"TIME", "TIME WITHOUT TIME ZONE", "TIME WITH TIME ZONE"}:
+        def _format_time(value: Any) -> str:
+            import datetime as dt
+            if isinstance(value, dt.time):
+                return f"'{value}'"
+            elif isinstance(value, dt.datetime):
+                return "'{}'".format(value.strftime("%H:%M:%S"))
+            elif isinstance(value, dt.date):
+                return "'00:00:00'"
+            elif isinstance(value, str):
+                from linkmerce.utils.regex import regexp_extract
+                string = regexp_extract(r"^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2}:\d{2})", value)
+                return "'{}'".format(string) if string else "NULL"
+            return "NULL"
+        return _format_time
+
+    # Serialize Unknown Types
+    else:
+        return lambda x: str(x)
+
+
+def _csv_to_postgres_rows(
+        values: list[tuple] | str | Path,
+        schema: list[str] | None = None,
+        how: Literal["auto", "numericise", "stringfy"] = "auto",
+        constraint: dict[str, str] | None = None,
+        primary_key: str | None = None,
+        optimize: bool = False,
+    ) -> tuple[list[tuple[str]], list[str]]:
+    """CSV 파일 또는 튜플 리스트의 스키마를 추정하고 PostgreSQL에 호환되는 형태로 변환한다."""
+    from pathlib import Path
+    import csv
+
+    if isinstance(values, (str, Path)):
+        with open(values, 'r', encoding="utf-8") as file:
+            values = list(csv.reader(file))
+    if not (isinstance(values, list) and values):
+        raise ValueError("Cannot read empty CSV data.")
+
+    if not schema:
+        schema = infer_schema(values, how, constraint, primary_key, optimize)
+    column_defs = schema[:-1] if schema[-1].upper().startswith("PRIMARY KEY") else schema
+    formatter = [_build_pg_value_formatter(column_def.split()[1]) for column_def in column_defs]
+
+    rows = list()
+    for row in values[1:]:
+        rows.append(tuple(formatter[i](value) for i, value in enumerate(row)))
+    return rows, schema
+
+
+def _json_to_postgres_rows(
+        values: list[tuple] | str | Path,
+        schema: list[str] | None = None,
+        how: Literal["auto", "numericise", "stringfy"] = "auto",
+        constraint: dict[str, str] | None = None,
+        primary_key: str | None = None,
+        optimize: bool = False,
+    ) -> tuple[list[tuple[str]], list[str]]:
+    """JSON 파일 또는 딕셔너리 리스트의 스키마를 추정하고 PostgreSQL에 호환되는 형태로 변환한다."""
+    from linkmerce.common.load import json_to_csv
+    from pathlib import Path
+    import json
+
+    if isinstance(values, (str, Path)):
+        with open(values, "r", encoding="utf-8") as file:
+            values = json.load(file)
+    if not (isinstance(values, list) and values):
+        raise ValueError("Cannot read empty JSON data.")
+
+    return _csv_to_postgres_rows(json_to_csv(values), schema, how, constraint, primary_key, optimize)

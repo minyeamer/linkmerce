@@ -1,15 +1,15 @@
 from __future__ import annotations
-import functools
 
-from linkmerce.common.load import Connection, concat_sql, where, build_temp_table_name
+from linkmerce.common.load import Connection, concat_sql, where
 
 from typing import Sequence, TypedDict, TYPE_CHECKING
+from functools import wraps
 
 if TYPE_CHECKING:
     from typing import Any, IO, Iterator, Literal, TypeVar
     from types import TracebackType
+    from pathlib import Path
     JsonString = TypeVar("JsonString", str)
-    Path = TypeVar("Path", str)
     TableId = TypeVar("TableId", str)
 
     from google.cloud.bigquery import Client
@@ -102,7 +102,7 @@ class BigQueryClient(Connection):
         # BadRequest: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/{{ project-id }}/queries? \
         # prettyPrint=false:Could not serialize access to table {{ project-id }}:{{ table }} due to concurrent update
         def decorator(func):
-            @functools.wraps(func)
+            @wraps(func)
             def wrapper(self, *args, **kwargs):
                 from google.api_core.exceptions import BadRequest
                 import time
@@ -147,33 +147,74 @@ class BigQueryClient(Connection):
             for row in self.execute_job(query):
                 return tuple(row.values())
 
-    def fetch_all(self, format: Literal["csv", "json"], query: str) -> list[dict]:
-        """SQL 쿼리를 실행하고 결과를 지정한 형식(`csv` 또는 `json`)으로 반환한다."""
+    def fetch_all(
+            self,
+            format: Literal["csv", "json", "parquet"],
+            query: str,
+            save_to: str | Path | None = None,
+        ) -> list[tuple] | list[dict] | bytes | None:
+        """SQL 쿼리를 실행하고 결과를 지정한 형식(`csv`, `json`, `parquet`)으로 반환하거나 파일로 저장한다."""
         try:
-            return getattr(self, f"fetch_all_to_{format}")(query)
+            return getattr(self, f"fetch_all_to_{format}")(query, save_to)
         except AttributeError:
-            raise ValueError("Invalid value for data format. Supported formats are: csv, json.")
+            raise ValueError("Invalid value for data format. Supported formats are: csv, json, parquet.")
 
-    def fetch_all_to_csv(self, query: str, header: bool = True) -> list[tuple]:
-        """SQL 쿼리를 실행하고 결과를 CSV 형식의 튜플 리스트로 반환한다."""
+    def fetch_all_to_csv(
+            self,
+            query: str,
+            save_to: str | Path | None = None,
+            header: bool = True,
+        ) -> list[tuple] | None:
+        """SQL 쿼리를 실행하고, 결과를 CSV 형식의 튜플 리스트로 반환하거나 CSV 파일로 저장한다."""
         def row_keys(row: Row) -> tuple:
             return tuple(row.keys())
         def row_values(row: Row) -> tuple:
             return tuple(row.values())
+
         rows = list()
         for row in self.execute_job(query):
             if header and (not rows):
                 rows.append(row_keys(row))
             rows.append(row_values(row))
+
+        if save_to:
+            from linkmerce.common.load import save_to_csv
+            return save_to_csv(rows, save_to, delimiter=',')
         return rows
 
-    def fetch_all_to_json(self, query: str) -> list[dict]:
-        """SQL 쿼리를 실행하고 결과를 JSON 형식으로 반환한다."""
+    def fetch_all_to_json(
+            self,
+            query: str,
+            save_to: str | Path | None = None,
+        ) -> list[dict] | None:
+        """SQL 쿼리를 실행하고, 결과를 JSON 형식의 딕셔너리 리스트로 반환하거나 JSON 파일로 저장한다."""
         def row_to_dict(row: Row) -> dict[str, Any]:
             return dict(row.items())
-        return [row_to_dict(row) for row in self.execute_job(query)]
+        rows = [row_to_dict(row) for row in self.execute_job(query)]
 
-    ############################### CRUD ##############################
+        if save_to:
+            from linkmerce.common.load import save_to_json
+            return save_to_json(rows, save_to, indent=2, ensure_ascii=False, default=str)
+        return rows
+
+    def fetch_all_to_parquet(
+            self,
+            query: str,
+            save_to: str | Path | None = None,
+        ) -> bytes | None:
+        """SQL 쿼리를 실행하고, 결과를 Parquet 바이너리로 반환하거나 Parquet 파일로 저장한다."""
+        import pyarrow.parquet as pq
+
+        table = self.execute_job(query).to_arrow()
+        if save_to:
+            return pq.write_table(table, save_to)
+        else:
+            from io import BytesIO
+            output = BytesIO()
+            pq.write_table(table, output)
+            return output.getvalue()
+
+    ############################## Create #############################
 
     def create_table(
             self,
@@ -203,20 +244,50 @@ class BigQueryClient(Connection):
         )
         return self.execute_job(query)
 
-    def delete_table(self, table: str, where: str = "TRUE") -> RowIterator:
-        """WHERE 조건에 맞는 행을 삭제한다."""
-        return self.execute_job(f"DELETE FROM `{self.project_id}.{table}` WHERE {where};")
-
-    def select_table_to_json(self, table: str) -> list[dict]:
-        """테이블의 모든 행을 JSON 형태로 조회한다."""
-        return self.fetch_all_to_json(f"SELECT * FROM `{self.project_id}.{table}`;")
-
     ############################# Load Job ############################
+
+    def load_table(
+            self,
+            table: str,
+            values: list[tuple] | list[dict] | bytes | IO[bytes] | str | Path,
+            format: Literal["csv", "json", "parquet", "avro", "orc"],
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
+            if_table_not_found: Literal["break", "raise"] = "raise",
+        ) -> list[tuple] | list[dict] | bytes | None:
+        """지정된 형식의 데이터를 BigQuery 테이블에 적재한다."""
+        try:
+            common = (schema, write, if_table_not_found)
+            if (format == "json") and (not isinstance(values, list)):
+                return self.load_table_from_file(table, values, format, *common)
+            elif format in ("avro", "orc"):
+                return self.load_table_from_file(table, values, format, *common)
+            return getattr(self, f"load_table_from_{format}")(table, values, *common)
+        except AttributeError:
+            formats = "csv, json, parquet, avro, orc"
+            raise ValueError(f"Invalid value for data format. Supported formats are: {formats}.")
+
+    def load_table_from_csv(
+            self,
+            table: str,
+            values: list[tuple],
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
+            if_table_not_found: Literal["break", "raise"] = "raise",
+        ) -> LoadJob | None:
+        """CSV 형식의 `list[tuple]` 데이터를 BigQuery 테이블에 적재한다."""
+        from io import BytesIO, StringIO
+        import csv
+
+        text_buffer = StringIO(newline='')
+        csv.writer(text_buffer).writerows(values)
+        file_obj = BytesIO(text_buffer.getvalue().encode("utf-8"))
+        return self.load_table_from_file(table, file_obj, "csv", schema, write, if_table_not_found)
 
     def load_table_from_json(
             self,
             table: str,
-            values: list[dict] | str | Path,
+            values: list[dict],
             serialize: bool = True,
             schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
             write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
@@ -235,6 +306,25 @@ class BigQueryClient(Connection):
         job_option = {"write_disposition": write.upper()}
         job_config = self._build_load_job_config(table_schema, **job_option)
         return self.conn.load_table_from_json(values, project_table, job_config=job_config).result()
+
+    def load_table_from_parquet(
+            self,
+            table: str,
+            values: bytes | str | Path,
+            schema: Literal["auto"] | TableId | Sequence[dict | SchemaField] = "auto",
+            write: Literal["append", "empty", "truncate", "truncate_data"] = "append",
+            if_table_not_found: Literal["break", "raise"] = "raise",
+        ) -> LoadJob | None:
+        """Parquet 바이너리, 파일 스트림, 또는 로컬 파일을 BigQuery 테이블에 적재한다."""
+        from pathlib import Path
+        common = (schema, write, if_table_not_found)
+        if isinstance(values, (str, Path)):
+            with open(values, "rb") as file:
+                return self.load_table_from_file(table, file, "parquet", *common)
+        else:
+            from io import BytesIO
+            file_obj = BytesIO(values) if isinstance(values, bytes) else values
+            return self.load_table_from_file(table, file_obj, "parquet", *common)
 
     def load_table_from_file(
             self,
@@ -429,6 +519,8 @@ class BigQueryClient(Connection):
             staging_table: str | None = None,
         ) -> BigQueryTable:
         """대상 테이블 스키마를 복제하여 빈 스테이징 테이블을 생성한다."""
+        from linkmerce.common.load import build_temp_table_name
+
         staging_table = staging_table or build_temp_table_name(target_table)
         while self.table_exists(staging_table):
             staging_table = build_temp_table_name(target_table)
