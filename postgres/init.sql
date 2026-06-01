@@ -601,7 +601,7 @@ CREATE TABLE IF NOT EXISTS relation.nsh_prd_to_ctl_id (
     product_id BIGINT NOT NULL -- 상품코드
   , catalog_id BIGINT NOT NULL -- 카탈로그코드
   , created_at TIMESTAMP NOT NULL -- 수집일시
-  , PRIMARY KEY (created_at, product_id)
+  , PRIMARY KEY (product_id)
 );
 
 -- [스마트스토어 옵션 - 사방넷 묶음상품 관계]
@@ -952,7 +952,7 @@ CREATE TABLE IF NOT EXISTS searchad.report_gfa (
   , conv_count INTEGER -- 전환수
   , conv_amount INTEGER -- 전환매출액(원)
   , ymd DATE NOT NULL -- 일별
-  , PRIMARY KEY (ymd, creative_no)
+  , PRIMARY KEY (ymd, campaign_no, creative_no)
 ) PARTITION BY RANGE (ymd);
 
 -- [네이버 검색광고 계약기간]
@@ -1036,8 +1036,8 @@ CREATE TABLE IF NOT EXISTS smartstore.product (
 
 -- [스마트스토어 옵션]
 CREATE TABLE IF NOT EXISTS smartstore.option (
-    option_id BIGINT NOT NULL -- 옵션코드
-  , product_id BIGINT NOT NULL -- 상품코드
+    product_id BIGINT NOT NULL -- 상품코드
+  , option_id BIGINT NOT NULL -- 옵션코드
   , channel_seq BIGINT NOT NULL -- 채널번호
   , product_type SMALLINT -- 상품종류
   , option_group1 TEXT -- 옵션그룹1
@@ -1051,7 +1051,7 @@ CREATE TABLE IF NOT EXISTS smartstore.option (
   , option_price INTEGER -- 옵션가
   , stock_quantity INTEGER -- 재고수량
   , register_order INTEGER -- 등록순서
-  , PRIMARY KEY (option_id)
+  , PRIMARY KEY (product_id, option_id)
 );
 
 -- [스마트스토어 주문]
@@ -1123,7 +1123,7 @@ CREATE TABLE IF NOT EXISTS smartstore.order_option (
   , sales_price INTEGER -- 판매가
   , option_price INTEGER -- 옵션가
   , update_date DATE -- 갱신일자
-  , PRIMARY KEY (option_id)
+  , PRIMARY KEY (product_id, option_id)
 );
 CREATE INDEX IF NOT EXISTS smt_order_option__channel_idx ON smartstore.order_option (channel_seq);
 
@@ -1133,6 +1133,7 @@ CREATE TABLE IF NOT EXISTS smartstore.order_status (
   , order_id BIGINT NOT NULL -- 주문번호
   , channel_seq BIGINT NOT NULL -- 채널번호
   , order_status SMALLINT NOT NULL -- 주문상태
+  , claim_status SMALLINT -- 클레임상태
   , payment_dt TIMESTAMP NOT NULL -- 결제일시
   , updated_dt TIMESTAMP NOT NULL -- 변경일시
   , PRIMARY KEY (payment_dt, product_order_id, order_status)

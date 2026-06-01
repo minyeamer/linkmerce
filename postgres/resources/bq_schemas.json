@@ -341,7 +341,7 @@
     "CLUSTER BY customer_id",
     "< google.asset"
   ],
-  "meta_ads.accounts": [
+  "meta_ads.account": [
     {"name": "account_id", "type": "STRING", "description": "계정ID", "mode": "REQUIRED"},
     {"name": "account_name", "type": "STRING", "description": "계정명"},
     {"name": "account_group", "type": "STRING", "description": "계정그룹"},
@@ -847,8 +847,8 @@
     "CLUSTER BY channel_seq"
   ],
   "smartstore.option": [
-    {"name": "option_id", "type": "INTEGER", "description": "옵션코드", "mode": "REQUIRED"},
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
+    {"name": "option_id", "type": "INTEGER", "description": "옵션코드", "mode": "REQUIRED"},
     {"name": "channel_seq", "type": "INTEGER", "description": "채널번호", "mode": "REQUIRED"},
     {"name": "product_type", "type": "INTEGER", "description": "상품종류"},
     {"name": "option_group1", "type": "STRING", "description": "옵션그룹1"},
@@ -931,6 +931,7 @@
     {"name": "order_id", "type": "INTEGER", "description": "주문번호", "mode": "REQUIRED"},
     {"name": "channel_seq", "type": "INTEGER", "description": "채널번호", "mode": "REQUIRED"},
     {"name": "order_status", "type": "INTEGER", "description": "주문상태", "mode": "REQUIRED"},
+    {"name": "claim_status", "type": "INTEGER", "description": "클레임상태"},
     {"name": "payment_dt", "type": "DATETIME", "description": "결제일시", "mode": "REQUIRED"},
     {"name": "updated_dt", "type": "DATETIME", "description": "변경일시", "mode": "REQUIRED"},
     "PARTITION BY DATE(payment_dt)",
@@ -1032,7 +1033,7 @@
     {"name": "sales_price", "type": "INTEGER", "description": "할인가"},
     {"name": "stock_quantity", "type": "INTEGER", "description": "재고수량"},
     {"name": "review_count", "type": "INTEGER", "description": "리뷰수"},
-    {"name": "review_score", "type": "NUMERIC", "description": "평점"},
+    {"name": "review_score", "type": "FLOAT", "description": "평점"},
     {"name": "soldout", "type": "BOOLEAN", "description": "품절여부"},
     {"name": "created_at", "type": "DATETIME", "description": "수집일시", "mode": "REQUIRED"},
     "PARTITION BY DATE(created_at)",

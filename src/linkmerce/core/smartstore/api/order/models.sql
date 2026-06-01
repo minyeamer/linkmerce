@@ -262,6 +262,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , order_id BIGINT NOT NULL
   , channel_seq BIGINT NOT NULL
   , order_status TINYINT NOT NULL -- OrderStatus: order_status
+  , claim_status TINYINT NULL -- OrderStatus: claim_status
   , payment_dt TIMESTAMP NOT NULL
   , updated_dt TIMESTAMP NOT NULL
   , PRIMARY KEY (product_order_id, order_status)
@@ -283,6 +284,7 @@ FROM (
         WHEN dt_column = 'cancel_complete_dt' THEN 6
         WHEN dt_column = 'return_complete_dt' THEN 7
         ELSE NULL END) AS order_status
+    , NULL AS claim_status
     , payment_dt
     , updated_dt
   FROM (
@@ -328,7 +330,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   -- , last_changed_type TINYINT -- OrderStatus: last_changed_type
   , order_status TINYINT NOT NULL -- OrderStatus: order_status
   -- , claim_type TINYINT -- OrderStatus: claim_type
-  -- , claim_status TINYINT -- OrderStatus: claim_status
+  , claim_status TINYINT -- OrderStatus: claim_status
   -- , is_address_changed BOOLEAN
   -- , gift_receiving_status TINYINT -- OrderStatus: gift_receiving_status
   , payment_dt TIMESTAMP NOT NULL
@@ -358,7 +360,29 @@ FROM (
         ELSE -1 END
       ) AS order_status
     -- , claimType AS claim_type
-    -- , claimStatus AS claim_status
+    , (CASE
+        WHEN claimStatus IS NULL THEN NULL
+        WHEN claimStatus = 'CANCEL_REQUEST' THEN 0
+        WHEN claimStatus = 'CANCELING' THEN 1
+        WHEN claimStatus = 'CANCEL_DONE' THEN 2
+        WHEN claimStatus = 'CANCEL_REJECT' THEN 3
+        WHEN claimStatus = 'RETURN_REQUEST' THEN 4
+        WHEN claimStatus = 'EXCHANGE_REQUEST' THEN 5
+        WHEN claimStatus = 'COLLECTING' THEN 6
+        WHEN claimStatus = 'COLLECT_DONE' THEN 7
+        WHEN claimStatus = 'EXCHANGE_REDELIVERING' THEN 8
+        WHEN claimStatus = 'RETURN_DONE' THEN 9
+        WHEN claimStatus = 'EXCHANGE_DONE' THEN 10
+        WHEN claimStatus = 'RETURN_REJECT' THEN 11
+        WHEN claimStatus = 'EXCHANGE_REJECT' THEN 12
+        WHEN claimStatus = 'PURCHASE_DECISION_HOLDBACK' THEN 13
+        WHEN claimStatus = 'PURCHASE_DECISION_REQUEST' THEN 14
+        WHEN claimStatus = 'PURCHASE_DECISION_HOLDBACK_RELEASE' THEN 15
+        WHEN claimStatus = 'ADMIN_CANCELING' THEN 16
+        WHEN claimStatus = 'ADMIN_CANCEL_DONE' THEN 17
+        WHEN claimStatus = 'ADMIN_CANCEL_REJECT' THEN 18
+        ELSE -1 END
+      ) AS claim_status
     -- , receiverAddressChanged AS is_address_changed
     -- , giftReceivingStatus AS gift_receiving_status
     , TRY_STRPTIME(SUBSTR(paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt

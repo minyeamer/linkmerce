@@ -94,8 +94,8 @@ FROM UNNEST([
 
 -- Option: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    option_id BIGINT NOT NULL
-  , product_id BIGINT NOT NULL
+    product_id BIGINT NOT NULL
+  , option_id BIGINT NOT NULL
   , channel_seq BIGINT NOT NULL
   , product_type TINYINT -- {0: '옵션상품(단독형)', 1: '옵션상품(조합형)', 2: '추가상품'}
   , option_group1 VARCHAR
@@ -114,8 +114,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 
 -- Option: bulk_insert
 INSERT INTO {{ table }} (
-    option_id
-  , product_id
+    product_id
+  , option_id
   , channel_seq
   , product_type
   , option_group1
@@ -126,8 +126,8 @@ INSERT INTO {{ table }} (
   , register_order
 )
 SELECT
-    id AS option_id
-  , $product_id AS product_id
+    $product_id AS product_id
+  , id AS option_id
   , $channel_seq AS channel_seq
   , 0 AS product_type
   , groupName AS option_group1
@@ -140,8 +140,8 @@ FROM {{ option_simple_rows }}
 ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ table }} (
-    option_id
-  , product_id
+    product_id
+  , option_id
   , channel_seq
   , product_type
   , option_group1
@@ -157,8 +157,8 @@ INSERT INTO {{ table }} (
   , register_order
 )
 SELECT
-    id AS option_id
-  , $product_id AS product_id
+    $product_id AS product_id
+  , id AS option_id
   , $channel_seq AS channel_seq
   , 1 AS product_type
   , optionGroupName1 AS option_group1
@@ -176,8 +176,8 @@ FROM {{ option_comb_rows }}
 ON CONFLICT DO NOTHING;
 
 INSERT INTO {{ table }} (
-    option_id
-  , product_id
+    product_id
+  , option_id
   , channel_seq
   , product_type
   , option_group1
@@ -189,8 +189,8 @@ INSERT INTO {{ table }} (
   , register_order
 )
 SELECT
-    id AS option_id
-  , $product_id AS product_id
+    $product_id AS product_id
+  , id AS option_id
   , $channel_seq AS channel_seq
   , 2 AS product_type
   , groupName AS option_group1

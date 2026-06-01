@@ -125,9 +125,8 @@ CREATE TABLE IF NOT EXISTS {{ campaigns }} (
     campaign_id VARCHAR NOT NULL
   , campaign_name VARCHAR
   , account_id VARCHAR NOT NULL
-  , is_active BOOLEAN NULL -- Placeholder
-  , is_deleted BOOLEAN NULL -- Placeholder
   , objective VARCHAR NULL -- Placeholder
+  , effective_status VARCHAR NULL -- Placeholder
   , created_at TIMESTAMP NULL -- Placeholder
   , PRIMARY KEY (account_id, campaign_id)
 );
@@ -137,8 +136,7 @@ CREATE TABLE IF NOT EXISTS {{ adsets }} (
   , adset_name VARCHAR
   , account_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
-  , is_active BOOLEAN NULL -- Placeholder
-  , is_deleted BOOLEAN NULL -- Placeholder
+  , effective_status VARCHAR NULL -- Placeholder
   , daily_budget INTEGER NULL -- Placeholder
   , created_at TIMESTAMP NULL -- Placeholder
   , PRIMARY KEY (account_id, campaign_id, adset_id)
@@ -150,8 +148,7 @@ CREATE TABLE IF NOT EXISTS {{ ads }} (
   , account_id VARCHAR NOT NULL
   , campaign_id VARCHAR NOT NULL
   , adset_id VARCHAR NOT NULL
-  , is_active BOOLEAN NULL -- Placeholder
-  , is_deleted BOOLEAN NULL -- Placeholder
+  , effective_status VARCHAR NULL -- Placeholder
   , created_at TIMESTAMP NULL -- Placeholder
   , PRIMARY KEY (account_id, campaign_id, adset_id, ad_id)
 );
@@ -176,9 +173,8 @@ SELECT
     campaign_id
   , campaign_name
   , $account_id AS account_id
-  , NULL AS is_active
-  , NULL AS is_deleted
   , NULL AS objective
+  , NULL AS effective_status
   , NULL AS created_at
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
@@ -189,8 +185,7 @@ SELECT
   , adset_name
   , $account_id AS account_id
   , campaign_id
-  , NULL AS is_active
-  , NULL AS is_deleted
+  , NULL AS effective_status
   , NULL AS daily_budget
   , NULL AS created_at
 FROM {{ rows }}
@@ -203,8 +198,7 @@ SELECT
   , $account_id AS account_id
   , campaign_id
   , adset_id
-  , NULL AS is_active
-  , NULL AS is_deleted
+  , NULL AS effective_status
   , NULL AS created_at
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
