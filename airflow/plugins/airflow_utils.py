@@ -85,11 +85,9 @@ def read_config(
         key_path = key_path,
         format = format,
         credentials_path = (Variable.get("credentials") if credentials else None),
-        schemas_path = (Variable.get("schemas") if tables else None),
         service_account = (Variable.get("service_account") if sheets or service_account else None),
         path_strings = ({"$cookies": Variable.get("cookies")} if credentials else None),
         skip_subpath = False,
-        with_table_schema = False,
         read_google_sheets = sheets,
     )
 

@@ -35,7 +35,7 @@ with DAG(
 
         ## 적재(Load)
         상품 옵션 목록과 로켓 옵션 목록을 통합한 하나의 테이블을
-        기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -45,7 +45,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_credentials")
     def read_credentials(dag_run: DagRun) -> dict:
@@ -62,14 +62,13 @@ with DAG(
     def main(
             cookies: str,
             vendor_id: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.wing import product_option, rocket_option
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         sources = {"table": "coupang_product", "rfm": "coupang_rocket_option"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -97,26 +96,21 @@ with DAG(
             if conn.table_has_rows(sources["rfm"]):
                 conn.execute(insert_rocket_options(**sources))
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "vendor_id": vendor_id,
-                        "is_deleted": [False, True],
-                        "see_more": True,
-                    },
-                    "counts": {
-                        "table": conn.count_table(sources["table"]),
-                        "rfm": conn.count_table(sources["rfm"]),
-                    },
-                    "status": {
-                        "table": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["table"],
-                            target_table = tables["table"],
-                            **merge["table"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "vendor_id": vendor_id,
+                    "is_deleted": [False, True],
+                    "see_more": True,
+                },
+                "results": {
+                    tables["table"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["table"],
+                        target_table = tables["table"],
+                        **merge["table"],
+                    )
                 }
+            }
 
     def insert_rocket_options(table: str, rfm: str) -> str:
         return dedent(f"""

@@ -27,9 +27,9 @@ with DAG(
         그리고 성과 보고서에 대한 각각의 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        각각의 캠페인, 광고세트, 광고 테이블을 기존 BigQuery 테이블과
+        각각의 캠페인, 광고세트, 광고 테이블을 기존 BigQuery/Postgres 테이블과
         MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-        성과 보고서 테이블은 대응되는 BigQuery 테이블 끝에 추가한다.
+        성과 보고서 테이블은 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
     """).strip(),
 ) as dag:
 
@@ -38,7 +38,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:
@@ -66,14 +66,13 @@ with DAG(
             access_token: str,
             app_id: str,
             app_secret: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             account_ids: list[str] = list(),
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         from importlib import import_module
         extract = getattr(import_module("linkmerce.api.meta.api"), ad_level)
         source = f"meta_{ad_level}"
@@ -89,24 +88,20 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "ad_level": ad_level,
-                        "account_ids": account_ids,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "status": {
-                        "table": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables[ad_level],
-                            **merge[ad_level],
-                        ),
-                    },
+            return {
+                "params": {
+                    "ad_level": ad_level,
+                    "account_ids": account_ids,
+                },
+                "results": {
+                    tables[ad_level]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables[ad_level],
+                        **merge[ad_level],
+                    )
                 }
+            }
 
 
     @task(task_id="etl_meta_insights", map_index_template="{{ credentials['app_id'] }}")
@@ -121,7 +116,6 @@ with DAG(
             app_id: str,
             app_secret: str,
             date: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             account_ids: list[str] = list(),
@@ -129,7 +123,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.meta.api import insights
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb, upsert_table_from_duckdb
         sources = {
             "campaigns": "meta_campaigns",
             "adsets": "meta_adsets",
@@ -152,46 +146,39 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "ad_level": "ad",
-                        "date": date,
-                        "date_type": "daily",
-                        "account_ids": account_ids,
-                    },
-                    "counts": {
-                        "campaigns": conn.count_table(sources["campaigns"]),
-                        "adsets": conn.count_table(sources["adsets"]),
-                        "ads": conn.count_table(sources["ads"]),
-                        "insights": conn.count_table(sources["insights"]),
-                    },
-                    "status": {
-                        "campaigns": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["campaigns"],
-                            target_table = tables["campaigns"],
-                            **merge["campaigns"],
-                        ),
-                        "adsets": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["adsets"],
-                            target_table = tables["adsets"],
-                            **merge["adsets"],
-                        ),
-                        "ads": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["ads"],
-                            target_table = tables["ads"],
-                            **merge["ads"],
-                        ),
-                        "insights": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["insights"],
-                            target_table = tables["insights"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "ad_level": "ad",
+                    "date": date,
+                    "date_type": "daily",
+                    "account_ids": account_ids,
+                },
+                "results": {
+                    tables["campaigns"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["campaigns"],
+                        target_table = tables["campaigns"],
+                        **merge["campaigns"],
+                    ),
+                    tables["adsets"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["adsets"],
+                        target_table = tables["adsets"],
+                        **merge["adsets"],
+                    ),
+                    tables["ads"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["ads"],
+                        target_table = tables["ads"],
+                        **merge["ads"],
+                    ),
+                    tables["insights"]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["insights"],
+                        target_table = tables["insights"],
+                    )
                 }
+            }
 
 
     configs = read_configs()

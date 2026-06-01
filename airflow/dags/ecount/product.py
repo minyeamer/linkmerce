@@ -25,7 +25,7 @@ with DAG(
         JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -34,7 +34,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True)
 
 
     @task(task_id="etl_ecount_product")
@@ -46,14 +46,13 @@ with DAG(
             com_code: int | str,
             userid: str,
             api_key: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.ecount.api import product
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         source = "ecount_product"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -66,24 +65,20 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "com_code": com_code,
-                        "comma_yn": True,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "status": {
-                        "table": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables["table"],
-                            **merge["table"],
-                        )
-                    },
+            return {
+                "params": {
+                    "com_code": com_code,
+                    "comma_yn": True,
+                },
+                "results": {
+                    tables["table"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables["table"],
+                        **merge["table"],
+                    )
                 }
+            }
 
 
     read_configs() >> etl_ecount_product()

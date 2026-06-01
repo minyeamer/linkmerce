@@ -28,7 +28,7 @@ with DAG(
         JSON 또는 엑셀 바이너리 형식의 각각의 데이터를 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        Task마다 대응되는 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        Task마다 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -37,7 +37,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True)
 
 
     @task(task_id="etl_sabangnet_product", pool="sabangnet_pool")
@@ -64,13 +64,12 @@ with DAG(
             domain: int,
             end_date: str,
             product_type: Literal["product", "option", "add_product"],
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         from importlib import import_module
         modules = {"product": "product", "option": "option_download", "add_product": "add_product"}
         extract = getattr(import_module("linkmerce.api.sabangnet.admin"), modules[product_type])
@@ -92,25 +91,21 @@ with DAG(
                     return_type = "none",
                 )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "start_date": "2000-01-01",
-                        "end_date": end_date,
-                        **({"is_deleted": [False, True]} if include_deleted else dict()),
-                    },
-                    "count": {
-                        product_type: conn.count_table(source),
-                    },
-                    "status": {
-                        product_type: client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables[product_type],
-                            **merge[product_type],
-                        ),
-                    },
+            return {
+                "params": {
+                    "start_date": "2000-01-01",
+                    "end_date": end_date,
+                    **({"is_deleted": [False, True]} if include_deleted else dict()),
+                },
+                "results": {
+                    tables[product_type]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables[product_type],
+                        **merge[product_type],
+                    )
                 }
+            }
 
 
     @task(task_id="etl_sabangnet_mapping", pool="sabangnet_pool")
@@ -124,14 +119,13 @@ with DAG(
             passwd: str,
             domain: int,
             end_date: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.sabangnet.admin import option_mapping
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         sources = {"product": "sabangnet_product_mapping", "sku": "sabangnet_sku_mapping"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -146,31 +140,26 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "start_date": "2000-01-01",
-                        "end_date": end_date,
-                    },
-                    "counts": {
-                        "product": conn.count_table(sources["product"]),
-                        "sku": conn.count_table(sources["sku"]),
-                    },
-                    "status": {
-                        "product": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["product"],
-                            target_table = tables["mapping_product"],
-                            **merge["mapping_product"],
-                        ),
-                        "sku": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["sku"],
-                            target_table = tables["mapping_sku"],
-                            **merge["mapping_sku"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "start_date": "2000-01-01",
+                    "end_date": end_date,
+                },
+                "results": {
+                    tables["mapping_product"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["product"],
+                        target_table = tables["mapping_product"],
+                        **merge["mapping_product"],
+                    ),
+                    tables["mapping_sku"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["sku"],
+                        target_table = tables["mapping_sku"],
+                        **merge["mapping_sku"],
+                    )
                 }
+            }
 
 
     read_configs() >> [

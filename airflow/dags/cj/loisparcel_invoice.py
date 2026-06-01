@@ -30,16 +30,16 @@ with DAG(
         하나의 DuckDB 테이블에 중복 없이 적재한다.
 
         ## 적재(Load)
-        기존 BigQuery 테이블과 MERGE 문으로 병합해 중복 없이 적재한다.
+        기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 중복 없이 적재한다.
     """).strip(),
 ) as dag:
 
-    PATH = "cjlogistics.loisparcel.invoice"
+    PATH = "cj.loisparcel.invoice"
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True)
 
 
     @task(task_id="etl_loisparcel_invoice")
@@ -65,14 +65,13 @@ with DAG(
             passwd: str,
             mail_info: dict[str, str],
             query_dates: dict[str, dict[str, str]],
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
-        """Playwright 브라우저로 기업고객일별배송상세 데이터를 다운로드 받고 BigQuery 테이블에 맞게 변환 및 적재한다."""
+        """Playwright 브라우저로 기업고객일별배송상세 데이터를 다운로드 받고 BigQuery/PostgreSQL 테이블에 맞게 변환 및 적재한다."""
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         date_by = {"접수일자": "by_register", "집화일자": "by_pickup", "배송완료일자": "by_delivery"}
         query_dates = {date_type: query_dates[date_type] for date_type in date_by.keys() if date_type in query_dates}
         if not query_dates:
@@ -89,30 +88,23 @@ with DAG(
                     conn.execute(insert_query, params={"rows": results[date_type]})
             date_array = conn.unique(source_table, "register_date")
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "userid": userid,
-                        **{"2fa_email": mail_info["email"]},
-                        **{date_by[date_type]: params for date_type, params in query_dates.items()},
-                    },
-                    "counts": {
-                        "total": conn.count_table(source_table),
-                        **{date_by[date_type]: len(values) for date_type, values in results.items()},
-                    },
-                    "dates": {
-                        "invoice": sorted(map(str, date_array)),
-                    },
-                    "status": {
-                        "table": (client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source_table,
-                            target_table = tables["table"],
-                            **merge["table"],
-                            where_clause = conn.expr_date_range("T.register_date", date_array),
-                        ) if date_array else True),
-                    },
+            return {
+                "params": {
+                    "userid": userid,
+                    **{"2fa_email": mail_info["email"]},
+                    **{date_by[date_type]: params for date_type, params in query_dates.items()},
+                },
+                "results": {
+                    tables["table"]: (upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source_table,
+                        target_table = tables["table"],
+                        **merge["table"],
+                        where_clause = conn.expr_date_range("T.register_date", date_array),
+                        extra_metadata = {"dates": sorted(map(str, date_array))},
+                    ) if date_array else dict()),
                 }
+            }
 
 
     def extract(

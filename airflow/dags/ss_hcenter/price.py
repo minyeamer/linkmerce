@@ -28,8 +28,8 @@ with DAG(
         브랜드 상품 데이터로부터 브랜드 상품 가격과 브랜드 상품 정보를 각각의 테이블로 분리해 적재한다.
 
         ## 적재(Load)
-        - 브랜드 상품 가격 테이블은 BigQuery 테이블 끝에 추가한다.
-        - 브랜드 상품 정보 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        - 브랜드 상품 가격 테이블은 BigQuery/Postgres 테이블 끝에 추가한다.
+        - 브랜드 상품 정보 테이블은 기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -38,7 +38,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True, sheets=True)
 
 
     @task(task_id="etl_naver_brand_price")
@@ -49,14 +49,13 @@ with DAG(
             brand_ids: list[str],
             mall_seq: list[int],
             cookies: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.hcenter import brand_price
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb, upsert_table_from_duckdb
         sources = {"price": "naver_price_history", "product": "naver_product"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -72,31 +71,26 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "brand_ids": len(brand_ids),
-                        "sort_type": "recent",
-                        "page": None,
-                    },
-                    "counts": {
-                        "price": conn.count_table(sources["price"]),
-                        "product": conn.count_table(sources["product"]),
-                    },
-                    "status": {
-                        "price": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["price"],
-                            target_table = tables["price"],
-                        ),
-                        "product": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["product"],
-                            target_table = tables["product"],
-                            **merge["product"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "brand_ids": len(brand_ids),
+                    "sort_type": "recent",
+                    "page": None,
+                },
+                "results": {
+                    tables["price"]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["price"],
+                        target_table = tables["price"],
+                    ),
+                    tables["product"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["product"],
+                        target_table = tables["product"],
+                        **merge["product"],
+                    )
                 }
+            }
 
 
     read_configs() >> etl_naver_brand_price()

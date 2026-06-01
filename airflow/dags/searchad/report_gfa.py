@@ -22,12 +22,11 @@ with DAG(
         계정별 캠페인/소재 성과 보고서를 다운로드한다.
 
         ## 변환(Transform)
-        엑셀 바이너리 형식의 보고서를 JSON 형식으로 변환하고
-        BigQuery 테이블에 대응되는 DuckDB 테이블에 적재한다.
+        엑셀 바이너리 형식의 보고서를 JSON 형식으로 변환하고 보고서 유형별 DuckDB 테이블에 적재한다.
         소재 성과 보고서에서 누락된 캠페인 성과 보고서를 INSERT 문으로 추가한다.
 
         ## 적재(Load)
-        보고서 데이터를 BigQuery 테이블 끝에 추가한다.
+        보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
     """).strip(),
 ) as dag:
 
@@ -36,7 +35,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:
@@ -53,13 +52,12 @@ with DAG(
             account_no: int | str,
             cookies: str,
             date: str,
-            service_account: dict,
             tables: dict[str, str],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.searchad.gfa import campaign_report, creative_report
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb
         sources = {
             "campaign": "searchad_campaign_report",
             "creative": "searchad_creative_report",
@@ -92,26 +90,20 @@ with DAG(
             conn.copy_table(sources["creative"], sources["merged"])
             conn.execute(merge_into_query(sources["campaign"], sources["merged"]))
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "account_no": account_no,
-                        "date": date,
-                        "date_type": "DAY",
-                    },
-                    "counts": {
-                        "campaign": conn.count_table(sources["campaign"]),
-                        "creative": conn.count_table(sources["creative"]),
-                        "merged": conn.count_table(sources["merged"]),
-                    },
-                    "status": {
-                        "merged": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["merged"],
-                            target_table = tables["table"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "account_no": account_no,
+                    "date": date,
+                    "date_type": "DAY",
+                },
+                tables["table"]: {
+                    tables["table"]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["merged"],
+                        target_table = tables["table"],
+                    )
                 }
+            }
 
     def merge_into_query(source_table: str, target_table: str) -> str:
         return dedent(f"""

@@ -64,7 +64,7 @@ with DAG(
     """).strip(),
 ) as dag:
 
-    PATH = "coupang.users"
+    PATH = "coupang.vendor"
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:

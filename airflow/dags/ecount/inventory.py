@@ -25,7 +25,7 @@ with DAG(
         JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        데이터를 BigQuery 테이블의 끝에 추가한다.
+        데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
     """).strip(),
 ) as dag:
 
@@ -34,7 +34,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True)
 
 
     @task(task_id="etl_ecount_inventory")
@@ -47,13 +47,12 @@ with DAG(
             userid: str,
             api_key: str,
             base_date: str,
-            service_account: dict,
             tables: dict[str, str],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.ecount.api import inventory
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb
         source = "ecount_inventory"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -67,24 +66,20 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "com_code": com_code,
-                        "base_date": base_date,
-                        "zero_yn": True,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "status": {
-                        "table": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables["table"],
-                        )
-                    },
+            return {
+                "params": {
+                    "com_code": com_code,
+                    "base_date": base_date,
+                    "zero_yn": True,
+                },
+                "results": {
+                    tables["table"]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables["table"],
+                    )
                 }
+            }
 
 
     read_configs() >> etl_ecount_inventory()

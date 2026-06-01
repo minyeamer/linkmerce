@@ -27,9 +27,9 @@ with DAG(
         그리고 성과 데이터에 대한 각각의 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        각각의 캠페인, 광고그룹, 소재, 애셋 테이블을 기존 BigQuery 테이블과
+        각각의 캠페인, 광고그룹, 소재, 애셋 테이블을 기존 BigQuery/Postgres 테이블과
         MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-        소재 성과 테이블은 대응되는 BigQuery 테이블 끝에 추가한다.
+        소재 성과 테이블은 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
     """).strip(),
 ) as dag:
 
@@ -73,7 +73,7 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         from importlib import import_module
         extract = getattr(import_module("linkmerce.api.google.api"), ad_level)
         date_range = dict() if ad_level == "asset" else {"date_range": "LAST_30_DAYS"}
@@ -90,24 +90,20 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "ad_level": ad_level,
-                        **date_range,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "status": {
-                        "table": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables[ad_level],
-                            **merge[ad_level],
-                        ),
-                    },
+            return {
+                "params": {
+                    "ad_level": ad_level,
+                    **date_range,
+                },
+                "results": {
+                    tables[ad_level]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables[ad_level],
+                        **merge[ad_level],
+                    )
                 }
+            }
 
 
     @task(task_id="etl_google_insight", map_index_template="{{ credentials['customer_id'] }}")
@@ -126,7 +122,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.google.api import insight
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb
         source = "google_insight"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -142,22 +138,18 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "date": date,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "status": {
-                        "table": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables["insight"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "date": date,
+                },
+                "results": {
+                    "table": load_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables["insight"],
+                    )
                 }
+            }
 
 
     configs = read_configs()

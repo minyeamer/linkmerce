@@ -30,8 +30,8 @@ with DAG(
         카탈로그-상품 매핑 내역을 정리하여 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        - 현재 시간이 포함된 매핑 테이블을 일별 BigQuery 테이블에 끝에 추가해 누적한다.
-        - 동일한 매핑 데이터를 최신 데이터만 기록하는 BigQuery 테이블에 MERGE 문으로 덮어쓴다.
+        - 현재 시간이 포함된 매핑 테이블을 일별 BigQuery/Postgres 테이블에 끝에 추가해 누적한다.
+        - 동일한 매핑 데이터를 최신 데이터만 기록하는 BigQuery/Postgres 테이블에 MERGE 문으로 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -40,7 +40,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, sheets=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True, sheets=True)
 
 
     @task(task_id="etl_product_catalog", retries=3, retry_delay=timedelta(minutes=1))
@@ -51,14 +51,13 @@ with DAG(
             brand_ids: list[str],
             mall_seq: list[int],
             cookies: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.hcenter import product_catalog
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb, upsert_table_from_duckdb
         source = "naver_catalog_product"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -74,30 +73,26 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "brand_ids": len(brand_ids),
-                        "sort_type": "recent",
-                        "page": None,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "status": {
-                        "table": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables["table"],
-                        ),
-                        "now": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables["now"],
-                            **merge["now"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "brand_ids": len(brand_ids),
+                    "sort_type": "recent",
+                    "page": None,
+                },
+                "results": {
+                    tables["table"]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables["table"],
+                    ),
+                    tables["now"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables["now"],
+                        **merge["now"],
+                    ),
                 }
+            }
 
 
     read_configs() >> etl_product_catalog()

@@ -208,8 +208,8 @@ def postgres_client(func):
     def wrapper(*args, postgres_conn_id: str = "postgres", **kwargs):
         from linkmerce.extensions.postgres import PostgresClient
 
-        connection_fields = _read_postgres_dsn(postgres_conn_id)
-        with PostgresClient("", **connection_fields) as client:
+        dsn = _read_postgres_dsn(postgres_conn_id)
+        with PostgresClient(dsn) as client:
             if not (success := func(*args, **kwargs, client=client)):
                 from psycopg2.errors import InternalError
                 raise InternalError("PostgreSQL table load failed due to an unknown error.")
@@ -275,6 +275,7 @@ def overwrite_pg_table_from_duckdb(
     )
 
 
+@postgres_client
 def upsert_pg_table_from_duckdb(
         connection: DuckDBConnection,
         source_table: DuckDBTable,

@@ -35,7 +35,7 @@ with DAG(
         - 이름, 주소 등을 포함하는 발송 내역을 DuckDB 발송 테이블에 적재한다.
 
         ## 적재(Load)
-        각각의 테이블을 대응되는 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        각각의 테이블을 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -44,7 +44,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True)
 
     def get_order_date_pair(
             data_interval_start: pendulum.DateTime,
@@ -85,7 +85,6 @@ with DAG(
             download_type: str,
             start_date: str,
             end_date: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             date_type: str = "reg_dm",
@@ -93,7 +92,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.sabangnet.admin import order_download
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         source = f"sabangnet_{download_type}"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -117,31 +116,25 @@ with DAG(
             else:
                 date_column, date_array = None, None
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "date_type": date_type,
-                        "download_no": download_no[download_type],
-                        "download_type": download_type,
-                    },
-                    "counts": {
-                        download_type: conn.count_table(source),
-                    },
-                    **({"dates": {
-                        download_type: sorted(map(str, date_array))
-                    }} if date_column else dict()),
-                    "status": {
-                        download_type: (client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables[download_type],
-                            **merge[download_type],
-                            where_clause = (conn.expr_date_range(date_column, date_array) if date_column else None),
-                        ) if (not date_column) or date_array else True),
-                    },
+            return {
+                "params": {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "date_type": date_type,
+                    "download_no": download_no[download_type],
+                    "download_type": download_type,
+                },
+                "results": {
+                    tables[download_type]: (upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables[download_type],
+                        **merge[download_type],
+                        where_clause = (conn.expr_date_range(date_column, date_array) if date_column else None),
+                        extra_metadata = ({"dates": sorted(map(str, date_array))} if date_column else dict())
+                    ) if (not date_column) or date_array else dict()),
                 }
+            }
 
 
     def branch_condition(ti: TaskInstance, **kwargs) -> str | None:

@@ -31,16 +31,16 @@ with DAG(
         JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        데이터를 BigQuery 테이블의 끝에 추가한다.
+        데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
     """).strip(),
 ) as dag:
 
-    PATH = "cjlogistics.eflexs.stock"
+    PATH = "cj.eflexs.stock"
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True)
 
 
     @task(task_id="etl_eflexs_stock")
@@ -57,13 +57,12 @@ with DAG(
             customer_id: list[int],
             start_date: str,
             end_date: str,
-            service_account: dict,
             tables: dict[str, str],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.cj.eflexs import stock
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb
         source = "eflexs_stock"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -79,24 +78,20 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "customer_id": customer_id,
-                        "start_date": start_date,
-                        "end_date": end_date,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "status": {
-                        "table": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables["table"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "customer_id": customer_id,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                },
+                "results": {
+                    tables["table"]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables["table"],
+                    )
                 }
+            }
 
 
     read_configs() >> etl_eflexs_stock()

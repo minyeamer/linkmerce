@@ -26,11 +26,10 @@ with DAG(
         매출 성장 광고 보고서(PA) 및 신규 구매 고객 확보 광고 보고서(NCA)를 다운로드한다.
 
         ## 변환(Transform)
-        엑셀 바이너리 형식의 광고 보고서를 JSON 형식으로 변환하고
-        BigQuery 테이블에 대응되는 DuckDB 테이블에 적재한다.
+        엑셀 바이너리 형식의 광고 보고서를 JSON 형식으로 변환하고 보고서 유형별 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        각각의 광고 보고서를 대응되는 BigQuery 테이블의 끝에 추가한다.
+        각각의 광고 보고서를 대응되는 BigQuery/Postgres 테이블의 끝에 추가한다.
     """).strip(),
 ) as dag:
 
@@ -40,7 +39,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_credentials")
     def read_credentials(dag_run: DagRun) -> dict:
@@ -71,12 +70,11 @@ with DAG(
             vendor_id: str,
             report_type: str,
             date: str,
-            service_account: dict,
             tables: dict[str, str],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb
         from importlib import import_module
         extract = getattr(import_module("linkmerce.api.coupang.advertising"), f"adreport_{report_type}")
         report_level = "creative" if report_type == "nca" else "vendorItem"
@@ -94,26 +92,22 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "vendor_id": vendor_id,
-                        "report_type": report_type,
-                        "date": date,
-                        "date_type": "daily",
-                        "report_level": report_level,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "status": {
-                        "table": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables[report_type],
-                        ),
-                    }
+            return {
+                "params": {
+                    "vendor_id": vendor_id,
+                    "report_type": report_type,
+                    "date": date,
+                    "date_type": "daily",
+                    "report_level": report_level,
+                },
+                "results": {
+                    tables[report_type]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables[report_type],
+                    )
                 }
+            }
 
 
     etl_coupang_adreport(

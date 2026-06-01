@@ -45,7 +45,7 @@ with DAG(
 
     PATH = "public.stock_report"
     AM_PM_CUTOFF_HOUR = 17
-    COUPANG_CREDENTIALS = "coupang.users"
+    COUPANG_CREDENTIALS = "coupang.vendor"
 
     SENSOR_POKE_INTERVAL = 30
     SENSOR_TIMEOUT = int(timedelta(minutes=59).total_seconds())

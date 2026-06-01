@@ -25,7 +25,7 @@ with DAG(
         UNION ALL로 하나의 테이블로 병합한다.
 
         ## 적재(Load)
-        병합된 테이블의 데이터를 기존 BigQuery 테이블을 지우고 덮어쓴다.
+        병합된 테이블의 데이터를 기존 BigQuery/Postgres 테이블을 지우고 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -34,7 +34,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:
@@ -50,13 +50,12 @@ with DAG(
             api_key: str,
             secret_key: str,
             customer_id: int | str,
-            service_account: dict,
             tables: dict[str, str],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.searchad.api import time_contract, brand_new_contract
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import overwrite_table_from_duckdb
         sources = {
             "time": "searchad_contract",
             "brand_new": "searchad_contract_new",
@@ -87,24 +86,19 @@ with DAG(
                 SELECT * FROM {sources['brand_new']}
                 """).strip())
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "customer_id": customer_id,
-                    },
-                    "counts": {
-                        "time": conn.count_table(sources["time"]),
-                        "brand_new": conn.count_table(sources["brand_new"]),
-                    },
-                    "status": {
-                        "contract": client.overwrite_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["contract"],
-                            target_table = tables["table"],
-                            where_clause = f"(contract_end_date > '2000-01-01') AND (customer_id = {customer_id})",
-                        ),
-                    },
+            return {
+                "params": {
+                    "customer_id": customer_id,
+                },
+                "results": {
+                    tables["table"]: overwrite_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["contract"],
+                        target_table = tables["table"],
+                        where_clause = f"(contract_end_date > '2000-01-01') AND (customer_id = {customer_id})",
+                    )
                 }
+            }
 
 
     (etl_searchad_contract

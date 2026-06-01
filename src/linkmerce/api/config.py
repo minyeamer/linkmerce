@@ -144,11 +144,9 @@ def read_config(
         key_path: KeyPath | None = None,
         format: Literal["auto", "json", "yaml"] = "auto",
         credentials_path: str | Path | None = None,
-        schemas_path: str | Path | None = None,
         service_account: ServiceAccount | None = None,
         path_strings: dict[str, str] | None = None,
         skip_subpath: bool = False,
-        with_table_schema: bool | None = False,
         read_google_sheets: bool = True,
     ) -> dict:
     """설정 파일을 읽고 인증 정보, 테이블 스키마, 구글 시트 데이터를 통합하여 반환한다.
@@ -158,19 +156,17 @@ def read_config(
         `key_path`: 설정 파일 내 하위 설정 경로. (딕셔너리 키)
         `format`: 설정 파일 형식. (`json`, `yaml`)
         `credentials_path`: 인증 정보 파일 경로.
-        `schemas_path`: 테이블 스키마 파일 경로.
         `service_account`: GCP 서비스 계정 객체 또는 파일 경로.
         `path_strings`: `Path()` 참조 문자열에 대해 포맷팅할 경로.
         `skip_subpath`: `Path()` 참조 무시. (쿠키 등 읽어오지 않음)
-        `with_table_schema`: 테이블 스키마를 읽어올지 여부.
         `read_google_sheets`: `sheets` 키값으로부터 구글 시트를 읽어올지 여부."""
     config = read_check(file_path, key_path, format, dtype=dict)
     if ("credentials" in config) and (credentials_path is not None):
         if path_exists(credentials_path, "credentials_path"):
             args = (credentials_path, config["credentials"], format, path_strings, skip_subpath)
             config["credentials"] = read_credentials(*args)
-    if ("tables" in config) and isinstance(with_table_schema, bool):
-        config["tables"] = parse_tables(config["tables"], schemas_path, with_table_schema)
+    if "tables" in config:
+        config["tables"] = config["tables"]
     if ("sheets" in config) and read_google_sheets and (service_account is not None):
         config.update(parse_sheets(service_account, config["sheets"]))
     return config

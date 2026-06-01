@@ -34,7 +34,7 @@ with DAG(
         운송장 번호를 포함한 발주 내역을 추출해 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -43,7 +43,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials="expand", tables=True, service_account=True)
+        return read_config(PATH, credentials="expand", tables=True)
 
 
     LAST_SCHEDULE = "23:50"
@@ -67,14 +67,13 @@ with DAG(
             start_date: str,
             end_date: str,
             date_type: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.sabangnet.admin import order_download
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         source = "sabangnet_invoice"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -93,31 +92,25 @@ with DAG(
 
             date_array = conn.unique("sabangnet_invoice", "DATE(order_dt)")
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "date_type": date_type,
-                        "download_no": download_no,
-                        "download_type": "invoice",
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "dates": {
-                        "table": sorted(map(str, date_array)),
-                    },
-                    "status": {
-                        "table": (client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables["table"],
-                            **merge["table"],
-                            where_clause = conn.expr_date_range("DATE(T.order_dt)", date_array),
-                        ) if date_array else True),
-                    },
+            return {
+                "params": {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "date_type": date_type,
+                    "download_no": download_no,
+                    "download_type": "invoice",
+                },
+                "results": {
+                    tables["table"]: (upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables["table"],
+                        **merge["table"],
+                        where_clause = conn.expr_date_range("DATE(T.order_dt)", date_array),
+                        extra_metadata = {"dates": sorted(map(str, date_array))},
+                    ) if date_array else dict()),
                 }
+            }
 
 
     read_configs() >> etl_sabangnet_invoice()

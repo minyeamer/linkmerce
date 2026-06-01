@@ -29,9 +29,9 @@ with DAG(
         쇼핑 검색 결과로부터 상품 순위와 상품 정보를 각각의 테이블로 분리해 적재한다.
 
         ## 적재(Load)
-        - 상품 순위 테이블은 BigQuery 테이블 끝에 추가한다.
-        - 동일한 순위 데이터를 최신 데이터만 기록하는 BigQuery 테이블에 MERGE 문으로 덮어쓴다.
-        - 상품 정보 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        - 상품 순위 테이블은 BigQuery/Postgres 테이블 끝에 추가한다.
+        - 동일한 순위 데이터를 최신 데이터만 기록하는 BigQuery/Postgres 테이블에 MERGE 문으로 덮어쓴다.
+        - 상품 정보 테이블은 기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -40,7 +40,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_queries", retries=3, retry_delay=timedelta(minutes=1))
     def read_queries() -> list:
@@ -60,15 +60,13 @@ with DAG(
             client_id: str,
             client_secret: str,
             keyword: list[str],
-            seq: int,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.naver.openapi import shop_rank
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb, upsert_table_from_duckdb
         sources = {"rank": "naver_shop_rank", "product": "naver_shop_product"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -84,37 +82,32 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "query": len(keyword),
-                        "start": [1, 101, 201],
-                        "sort": "sim",
-                    },
-                    "counts": {
-                        "rank": conn.count_table(sources["rank"]),
-                        "product": conn.count_table(sources["product"]),
-                    },
-                    "status": {
-                        "rank": client.load_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["rank"],
-                            target_table = tables["rank"],
-                        ),
-                        "now": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["rank"],
-                            target_table = tables["now"],
-                            **merge["now"],
-                        ),
-                        "product": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["product"],
-                            target_table = tables["product"],
-                            **merge["product"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "query": len(keyword),
+                    "start": [1, 101, 201],
+                    "sort": "sim",
+                },
+                "results": {
+                    tables["rank"]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["rank"],
+                        target_table = tables["rank"],
+                    ),
+                    tables["now"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["rank"],
+                        target_table = tables["now"],
+                        **merge["now"],
+                    ),
+                    tables["product"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["product"],
+                        target_table = tables["product"],
+                        **merge["product"],
+                    ),
                 }
+            }
 
 
     trigger_naver_product_catalog = TriggerDagRunOperator(

@@ -26,7 +26,7 @@ with DAG(
         각각의 상품 상세 정보로부터 옵션 및 추가상품 목록을 추출하여 하나의 옵션 테이블에 적재한다.
 
         ## 적재(Load)
-        각각의 상품, 옵션 테이블을 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        각각의 상품, 옵션 테이블을 기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -35,7 +35,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:
@@ -51,7 +51,6 @@ with DAG(
             client_id: str,
             client_secret: str,
             channel_seq: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
@@ -59,7 +58,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.api import product
         from linkmerce.api.smartstore.api import option
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         sources = {"product": "smartstore_product", "option": "smartstore_option"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -83,31 +82,26 @@ with DAG(
                 return_type = "none",
             )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "channel_seq": channel_seq,
-                        "status_type": ["ALL"],
-                    },
-                    "counts": {
-                        "product": conn.count_table(sources["product"]),
-                        "option": conn.count_table(sources["option"]),
-                    },
-                    "status": {
-                        "product": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["product"],
-                            target_table = tables["product"],
-                            **merge["product"],
-                        ),
-                        "option": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["option"],
-                            target_table = tables["option"],
-                            **merge["option"],
-                        ),
-                    },
+            return {
+                "params": {
+                    "channel_seq": channel_seq,
+                    "status_type": ["ALL"],
+                },
+                "results": {
+                    tables["product"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["product"],
+                        target_table = tables["product"],
+                        **merge["product"],
+                    ),
+                    tables["option"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["option"],
+                        target_table = tables["option"],
+                        **merge["option"],
+                    ),
                 }
+            }
 
 
     (etl_smartstore_product

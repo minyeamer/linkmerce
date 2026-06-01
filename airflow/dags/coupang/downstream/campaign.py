@@ -31,7 +31,7 @@ with DAG(
         각각의 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        각각의 캠페인, 광고그룹, 소재 테이블을 기존 BigQuery 테이블과
+        각각의 캠페인, 광고그룹, 소재 테이블을 BigQuery/Postgres 테이블과
         MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
@@ -42,7 +42,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_credentials")
     def read_credentials(dag_run: DagRun) -> dict:
@@ -64,7 +64,6 @@ with DAG(
             cookies: str,
             vendor_id: str,
             goal_types: list[str],
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
@@ -72,7 +71,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.advertising import campaign
         from linkmerce.api.coupang.advertising import creative
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         sources = {
             "campaign": "coupang_campaign",
             "adgroup": "coupang_adgroup",
@@ -105,39 +104,33 @@ with DAG(
                     return_type = "none",
                 )
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "vendor_id": vendor_id,
-                        "goal_type": goal_type,
-                        "is_deleted": [False, True],
-                    },
-                    "counts": {
-                        "campaign": conn.count_table(sources["campaign"]),
-                        "adgroup": conn.count_table(sources["adgroup"]),
-                        "creative": (conn.count_table(sources["creative"]) if nca_campaign_ids else None),
-                    },
-                    "status": {
-                        "campaign": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["campaign"],
-                            target_table = tables["campaign"],
-                            **merge["campaign"],
-                        ),
-                        "adgroup": client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["adgroup"],
-                            target_table = tables["adgroup"],
-                            **merge["adgroup"],
-                        ),
-                        "creative": (client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = sources["creative"],
-                            target_table = tables["creative"],
-                            **merge["creative"],
-                        ) if nca_campaign_ids else None),
-                    },
+            return {
+                "params": {
+                    "vendor_id": vendor_id,
+                    "goal_type": goal_type,
+                    "is_deleted": [False, True],
+                },
+                "results": {
+                    tables["campaign"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["campaign"],
+                        target_table = tables["campaign"],
+                        **merge["campaign"],
+                    ),
+                    tables["adgroup"]: upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["adgroup"],
+                        target_table = tables["adgroup"],
+                        **merge["adgroup"],
+                    ),
+                    tables["creative"]: (upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = sources["creative"],
+                        target_table = tables["creative"],
+                        **merge["creative"],
+                    ) if nca_campaign_ids else None),
                 }
+            }
 
 
     etl_coupang_campaign(
