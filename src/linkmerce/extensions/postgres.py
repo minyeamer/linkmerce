@@ -266,7 +266,7 @@ class PostgresClient(Connection):
         if params is not None:
             source_query = cursor.mogrify(source_query, params).decode("utf-8")
 
-        cursor.execute("SELECT parquet_write(%s)", (source_query,))
+        cursor.execute("SELECT parquet_write(%s::TEXT)", (source_query,))
         result = bytes(cursor.fetchone()[0])
         if save_to:
             from pathlib import Path
@@ -371,8 +371,8 @@ class PostgresClient(Connection):
 
         if isinstance(values, (str, Path)):
             values = Path(values).read_bytes()
-        cursor.execute("SELECT parquet_create(%s, %s, %s)", (values, table, if_exists))
-        return cursor.execute("SELECT parquet_read(%s, %s)", (values, table))
+        cursor.execute("SELECT parquet_create(%s::BYTEA, %s::TEXT, %s::TEXT)", (values, table, if_exists))
+        return cursor.execute("SELECT parquet_read(%s::BYTEA, %s::TEXT)", (values, table))
 
     @ensure_cursor(return_cursor=True)
     def copy_table(
@@ -392,7 +392,7 @@ class PostgresClient(Connection):
         """
         query = concat_sql(
             self.expr_create(target_table, option),
-            f"{target_table} (LIKE {source_table} INCLUDING ALL)",
+            f"(LIKE {source_table} INCLUDING ALL)",
         )
         if limit != 0:
             query = concat_sql(
@@ -503,7 +503,7 @@ class PostgresClient(Connection):
 
         if isinstance(values, (str, Path)):
             values = Path(values).read_bytes()
-        return cursor.execute("SELECT parquet_read(%s, %s)", (values, table))
+        return cursor.execute("SELECT parquet_read(%s::BYTEA, %s::TEXT)", (values, table))
 
     ############################## Upsert #############################
 
@@ -550,9 +550,9 @@ class PostgresClient(Connection):
             f"INSERT INTO {target_table} AS T ({', '.join(columns)})",
             "SELECT {}".format(', '.join(f"S.{column}" for column in columns)),
             f"FROM {source_table} AS S",
-            where(where_clause),
             f"ON CONFLICT ({', '.join(on_conflict)})",
             self._compose_upsert_action(do_action, columns, on_conflict),
+            where(where_clause),
         )
 
     def _compose_upsert_action(
