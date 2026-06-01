@@ -28,7 +28,7 @@ class TestCjLogistics:
     """
 
     def credentials(self, reader: YamlReader) -> dict:
-        _credentials = reader("cjlogistics.eflexs")
+        _credentials = reader("cj.eflexs")
         return {
             "userid": _credentials["userid"],
             "passwd": _credentials["passwd"],
@@ -40,7 +40,7 @@ class TestCjLogistics:
     def test_stock(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역을 조회하는 테스트."""
         from linkmerce.core.cj.eflexs.stock.extract import Stock
-        _configs = configs("cjlogistics.eflexs.stock")
+        _configs = configs("cj.eflexs.stock")
         Stock(
             configs = self.credentials(credentials),
             parser = dump_extract(Stock, format="json"),

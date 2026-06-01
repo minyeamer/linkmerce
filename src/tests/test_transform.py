@@ -105,7 +105,7 @@ class TestCoupangWing:
     """
 
     def vendor_id(self, reader: YamlReader) -> str:
-        return reader("coupang.advertising.0")["vendor_id"]
+        return reader("coupang.wing.0")["vendor_id"]
 
     @pytest.mark.coupang_wing
     def test_product_option(self, transformer_harness: Harness, options: YamlReader):
