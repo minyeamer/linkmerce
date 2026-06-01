@@ -44,7 +44,7 @@ def get_browser_cookies(
 ############################# Coupang #############################
 ###################################################################
 
-def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True) -> dict:
+def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True, timeout: float = 60) -> dict:
     """Playwright 브라우저로 쿠팡 Wing/광고 로그인을 수행하고 `{wing: "...", ads: "..."}` 형태의 쿠키를 반환한다.
 
     주의) Playwright 브라우저가 `headless=False` 옵션 또는 가상 렌더링을 지원하지 않으면   
@@ -58,12 +58,12 @@ def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True) -> dic
         """쿠팡 Wing 판매자센터로 이동하여 로그인을 수행한다."""
         page.goto("https://wing.coupang.com/", wait_until="domcontentloaded")
 
-        page.wait_for_selector("input#username", timeout=60_000)
+        page.wait_for_selector("input#username", timeout=(timeout*1000))
         page.locator("input#username").type(userid, delay=110)
         page.locator("input#password").type(passwd, delay=110)
         page.locator("input[type='submit'], button[type='submit']").first.click()
 
-        page.wait_for_url("https://wing.coupang.com/**", timeout=60_000)
+        page.wait_for_url("https://wing.coupang.com/**", timeout=(timeout*1000))
         page.wait_for_load_state("domcontentloaded", timeout=30_000)
 
 
@@ -80,7 +80,7 @@ def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True) -> dic
             page.locator(selector).first.click()
 
         ad_page = new_page_info.value
-        ad_page.wait_for_url("https://advertising.coupang.com/**", timeout=60_000)
+        ad_page.wait_for_url("https://advertising.coupang.com/**", timeout=(timeout*1000))
         ad_page.wait_for_load_state("domcontentloaded", timeout=30_000)
 
 

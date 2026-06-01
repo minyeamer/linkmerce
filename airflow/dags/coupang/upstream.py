@@ -146,11 +146,11 @@ with DAG(
             exec_info = {"vendor_id": vendor_id, "cookies": dict(), "login": None, "subdags": dict()}
             user_info = (creds["userid"], creds["passwd"])
 
-            # 3. 쿠팡 Wing/광고 로그인 (최대 3회 재시도)
+            # 3. 쿠팡 Wing/광고 로그인 (최대 10회 재시도)
             login_error_flag = False
-            for _ in range(3):
+            for retry in range(1, 10+1):
                 try:
-                    exec_info["cookies"] = login_coupang(*user_info, navigate_to_ads=True)
+                    exec_info["cookies"] = login_coupang(*user_info, navigate_to_ads=True, timeout=(30*retry))
                     exec_info["login"] = "success"
                     logger.info(f"[{vendor_id}] Login succeeded")
                     login_error_flag = False
@@ -159,7 +159,7 @@ with DAG(
                     login_error_flag = True
                     logger.error(f"[{vendor_id}] Login failed: {exception}")
                     exec_info["login"] = f"failed: {exception}"
-                    time.sleep(60)
+                    time.sleep(1)
             if login_error_flag:
                 dag_error_flag |= True
                 result[vendor_id] = exec_info
