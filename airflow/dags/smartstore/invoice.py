@@ -31,7 +31,7 @@ with DAG(
         JSON 형식의 응답 본문에서 주문 배송 정보를 추출해 DuckDB 테이블에 적재한다.
 
         ## 적재(Load)
-        기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+        기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
     """).strip(),
 ) as dag:
 
@@ -40,7 +40,7 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
     def read_credentials() -> list:
@@ -62,14 +62,13 @@ with DAG(
             channel_seq: str,
             date: str,
             range_type: str,
-            service_account: dict,
             tables: dict[str, str],
             merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.api import order as smartstore_order
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import upsert_table_from_duckdb
         source = "smartstore_delivery"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -86,29 +85,23 @@ with DAG(
 
             date_array = conn.unique(source, "DATE(payment_dt)")
 
-            with BigQueryClient(service_account) as client:
-                return {
-                    "params": {
-                        "channel_seq": channel_seq,
-                        "date": date,
-                        "range_type": range_type,
-                    },
-                    "counts": {
-                        "table": conn.count_table(source),
-                    },
-                    "dates": {
-                        "table": sorted(map(str, date_array)),
-                    },
-                    "status": {
-                        "table": (client.merge_into_table_from_duckdb(
-                            connection = conn,
-                            source_table = source,
-                            target_table = tables["table"],
-                            **merge["table"],
-                            where_clause = conn.expr_date_range("DATE(T.payment_dt)", date_array),
-                        ) if date_array else True),
-                    },
+            return {
+                "params": {
+                    "channel_seq": channel_seq,
+                    "date": date,
+                    "range_type": range_type,
+                },
+                "results": {
+                    tables["table"]: (upsert_table_from_duckdb(
+                        connection = conn,
+                        source_table = source,
+                        target_table = tables["table"],
+                        **merge["table"],
+                        where_clause = conn.expr_datetime_range("T.payment_dt", date_array),
+                        extra_metadata = {"dates": sorted(map(str, date_array))},
+                    ) if date_array else dict())
                 }
+            }
 
 
     (etl_smartstore_invoice

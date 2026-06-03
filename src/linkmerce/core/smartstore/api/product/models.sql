@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , option_price INTEGER
   , stock_quantity INTEGER
   , register_order INTEGER
-  , PRIMARY KEY (option_id)
+  , PRIMARY KEY (product_id, option_id)
 );
 
 -- Option: bulk_insert

@@ -110,9 +110,9 @@ with DAG(
             )
 
             if download_type == "order":
-                date_column, date_array = "DATE(T.order_dt)", conn.unique(source, "DATE(order_dt)")
+                date_column, date_array = "T.order_dt", conn.unique(source, "DATE(order_dt)")
             elif download_type == "dispatch":
-                date_column, date_array = "DATE(T.register_dt)", conn.unique(source, "DATE(register_dt)")
+                date_column, date_array = "T.register_dt", conn.unique(source, "DATE(register_dt)")
             else:
                 date_column, date_array = None, None
 
@@ -130,7 +130,7 @@ with DAG(
                         source_table = source,
                         target_table = tables[download_type],
                         **merge[download_type],
-                        where_clause = (conn.expr_date_range(date_column, date_array) if date_column else None),
+                        where_clause = (conn.expr_datetime_range(date_column, date_array) if date_column else None),
                         extra_metadata = ({"dates": sorted(map(str, date_array))} if date_column else dict())
                     ) if (not date_column) or date_array else dict()),
                 }

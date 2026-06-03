@@ -106,7 +106,7 @@ with DAG(
                         source_table = source,
                         target_table = tables["table"],
                         **merge["table"],
-                        where_clause = conn.expr_date_range("DATE(T.order_dt)", date_array),
+                        where_clause = conn.expr_datetime_range("T.order_dt", date_array),
                         extra_metadata = {"dates": sorted(map(str, date_array))},
                     ) if date_array else dict()),
                 }

@@ -1062,7 +1062,7 @@ CREATE TABLE IF NOT EXISTS smartstore.order (
   , payment_location SMALLINT -- 결제위치
   , order_dt TIMESTAMP -- 주문일시
   , payment_dt TIMESTAMP NOT NULL -- 결제일시
-  , PRIMARY KEY (payment_dt, order_id)
+  , PRIMARY KEY (payment_dt, order_id, channel_seq)
 ) PARTITION BY RANGE (payment_dt);
 CREATE INDEX IF NOT EXISTS smt_order__channel_idx ON smartstore.order (channel_seq);
 

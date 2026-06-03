@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS {{ order }} (
   , payment_location TINYINT
   , order_dt TIMESTAMP
   , payment_dt TIMESTAMP NOT NULL
-  , PRIMARY KEY (order_id)
+  , PRIMARY KEY (order_id, channel_seq)
 );
 
 CREATE TABLE IF NOT EXISTS {{ product_order }} (
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS {{ option }} (
   , sales_price INTEGER
   , option_price INTEGER
   , update_date DATE
-  , PRIMARY KEY (option_id)
+  , PRIMARY KEY (product_id, option_id)
 );
 
 -- Order: bulk_insert

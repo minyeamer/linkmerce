@@ -229,8 +229,17 @@ class Connection(metaclass=ABCMeta):
         else:
             return str()
 
-    def expr_date_range(self, date_column: str, date_array: list[str | dt.date], format: str = "%Y-%m-%d") -> str:
-        """날짜 배열을 BETWEEN 및 IN 절로 최적화한 SQL WHERE 표현식을 생성한다."""
+    def expr_date_range(
+            self,
+            date_column: str,
+            date_array: list[str | dt.date],
+            format: str = "%Y-%m-%d",
+        ) -> str:
+        """조회할 날짜 배열의 연속성을 판단하여 DATE 열에 대해 최소의 파티션만 조회하는 WHERE 절을 생성한다. 다음 3가지 유형이 생성된다.
+        1. 날짜 배열에서 2일 이상 연속성이 있는 부분은 `{date_column} BETWEEN 'YYYY-MM-DD' AND 'YYYY-MM-DD'` 형식으로 표현한다.
+        2. 연속성이 없는 날짜는 하나로 묶어서 `{date_column} IN ('YYYY-MM-DD', ...)` 형식으로 표현한다.
+        3. 날짜 배열이 길이가 1인 단일 값인 경우 `{date_column} = 'YYYY-MM-DD'` 형식으로 표현한다.
+        """
         if len(date_array) < 2:
             return f"{date_column} = '{date_array[0]}'" if date_array else str()
 
@@ -255,7 +264,43 @@ class Connection(metaclass=ABCMeta):
             expr.append(f"{date_column} BETWEEN '{start}' AND '{end}'")
         if isin:
             expr.append(f"{date_column} IN ('"+"', '".join(isin)+"')")
-        return ('(('+") OR (".join(expr)+'))') if len(expr) > 1 else expr[0]
+        return '(({}))'.format(") OR (".join(expr)) if len(expr) > 1 else expr[0]
+
+    def expr_datetime_range(
+            self,
+            datetime_column: str,
+            date_array: list[str | dt.date],
+            format: str = "%Y-%m-%d",
+        ) -> str:
+        """조회할 날짜 배열의 연속성을 판단하여 TIMESTAMP 열에 대해 최소의 파티션만 조회하는 WHERE 절을 생성한다.
+        - 조회 기간은 시작일 0시부터 종료일+1일 0시 미만으로 계산하고 다음과 같이 표현한다.   
+            `{datetime_column} >= 'YYYY-MM-DD 00:00:00' AND {datetime_column} < 'YYYY-MM-DD 00:00:00'`
+        - 날짜 배열에서 2일 이상 연속성이 있는 부분은 하나의 조회 기간으로 연결하여 시작일과 종료일을 다른 기간으로 표현한다.
+        - 연속성이 없는 날짜는 시작일과 종료일이 동일한 기간으로 표현하면서 OR 조건으로 연결한다.
+        """
+        if not date_array:
+            return str()
+
+        import datetime as dt
+        def strptime(obj: str | dt.date) -> dt.date:
+            return obj if isinstance(obj, dt.date) else dt.datetime.strptime(str(obj), format).date()
+        array = sorted(map(strptime, date_array))
+
+        ranges = list()
+        start, prev = array[0], array[0]
+        for date in array[1:] + [array[-1] + dt.timedelta(days=2)]:
+            if (date - prev).days != 1: # if sequence breaks
+                if (start != prev) and (date - start).days != 1: # has 2+ days between dates
+                    ranges.append((str(start), str(prev + dt.timedelta(days=1))))
+                else:
+                    ranges.append((str(prev), str(prev + dt.timedelta(days=1))))
+                start = date
+            prev = date
+
+        expr = list()
+        for start, end in ranges:
+            expr.append(f"{datetime_column} >= '{start} 00:00:00' AND {datetime_column} < '{end} 00:00:00'")
+        return '(({}))'.format(") OR (".join(expr)) if len(expr) > 1 else expr[0]
 
 
 ###################################################################
