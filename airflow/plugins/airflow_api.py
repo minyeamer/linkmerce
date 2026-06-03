@@ -61,7 +61,7 @@ def list_dagruns(
     """특정 시간대의 DAG run 목록을 조회한다.
 
     Args:
-        dag_id: 조회할 DAG ID.
+        dag_id: 조회할 Dag ID.
         access_token: Airflow REST API JWT 액세스 토큰.
         logical_date_gte: 조회 시작 시각. (logical_date >=)
         logical_date_lte: 조회 종료 시각. (logical_date <=)
@@ -117,7 +117,7 @@ def trigger_dagrun(
         conf: dict | str | None = None,
         timeout: int = 30,
     ) -> dict:
-    """DAG ID에 대한 DAG 실행을 트리거한다. (DAG Run ID는 고유해야 한다.)"""
+    """Dag ID에 대한 DAG 실행을 트리거한다. (DAG Run ID는 고유해야 한다.)"""
     path = f"/dags/{dag_id}/dagRuns"
     body = {
         "dag_run_id": run_id,

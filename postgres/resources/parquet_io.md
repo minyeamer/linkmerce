@@ -17,7 +17,7 @@
 
 ## 개요
 
-`parquet_io`는 PostgreSQL 서버 안에서 실행되는 C 확장이다.   
+`parquet_io`는 PostgreSQL 서버 안에서 실행되는 C/C++ 확장이다.
 PostgreSQL SPI(Server Programming Interface)와 Apache Arrow / Parquet C++ 라이브러리를 연결한다.
 
 확장은 다음 3가지 공개 SQL 함수를 제공한다.
@@ -76,6 +76,9 @@ SELECT parquet_create($1::BYTEA, 'test.accounts', 'replace');
 SELECT parquet_read($1::BYTEA, 'test.accounts');
 SELECT parquet_write('SELECT * FROM test.accounts');
 ```
+
+Python 클라이언트에서는 prepared statement의 오버로드 선택이 모호해지지 않도록
+`%s::BYTEA`, `%s::TEXT`처럼 명시적 캐스팅을 붙여 호출한다.
 
 ## 입력 방식
 
@@ -187,6 +190,9 @@ Parquet의 원본 정밀도나 논리 타입을 모두 그대로 복원하지는
 | `TIMESTAMP`, `TIMESTAMPTZ` | 시간 단위를 마이크로초로 맞추고 PostgreSQL epoch 차이를 보정 |
 | 그 외 타입 | 문자열로 직렬화하여 `TEXT` 처리 |
 
+`NUMERIC`은 Arrow decimal 값을 문자열 또는 double로 읽은 뒤 PostgreSQL `NUMERIC` Datum으로 변환한다.
+정밀도가 중요한 컬럼은 입력 Parquet 스키마와 대상 PostgreSQL 컬럼 타입을 함께 점검한다.
+
 ### PostgreSQL 조회 결과를 Parquet로 출력
 
 `parquet_write()`는 PostgreSQL OID를 Arrow builder 타입으로 변환한다.
@@ -279,6 +285,8 @@ PostgreSQL의 `CREATE TABLE`과 `DROP TABLE`은 일반적인 트랜잭션 대상
 
 Python의 `PostgresClient.create_table_from_parquet()`는 같은 cursor에서   
 `parquet_create()`와 `parquet_read()`를 연속 실행한다. `commit=True`라면 두 호출이 모두 성공한 뒤 commit한다.
+Python 호출부는 `parquet_create(%s::BYTEA, %s::TEXT, %s::TEXT)`와
+`parquet_read(%s::BYTEA, %s::TEXT)`처럼 명시적 타입 캐스팅을 사용한다.
 
 ## 빌드 및 등록
 
@@ -312,4 +320,3 @@ CREATE EXTENSION parquet_io;
 - `NUMERIC`과 decimal 계열은 현재 `float64` 중심으로 변환된다. 정밀도가 중요한 데이터는 변환 정책을 별도로 설계한다.
 - Arrow 타입을 추가할 때는 create, read, write 세 방향의 타입 매핑을 함께 점검한다.
 - PostgreSQL 확장 ABI 변경 가능성이 있으므로 PostgreSQL major 버전을 변경하면 반드시 이미지를 다시 빌드한다.
-

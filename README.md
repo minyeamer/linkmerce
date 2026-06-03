@@ -3,7 +3,7 @@
 **이커머스 데이터 수집, 변환, 적재 통합 프레임워크**
 
 > 다양한 이커머스 API와 웹문서 응답을 수집하고 DuckDB 기반 변환을 거쳐,   
-> 외부 시스템에 데이터를 적재하는 워크플로우를 관리하기 위한 프로젝트를 안내한다.
+> BigQuery, PostgreSQL, Google Sheets 등 외부 시스템에 데이터를 적재하는 워크플로우를 관리하기 위한 프로젝트를 안내한다.
 
 ## 목차
 
@@ -12,6 +12,7 @@
 - [표준 ETL 모듈 구조](#표준-etl-모듈-구조)
 - [Airflow 서비스 구조](#airflow-서비스-구조)
 - [Airflow 작업 스케줄링](#airflow-작업-스케줄링)
+- [PostgreSQL 적재 환경](#postgresql-적재-환경)
 - [Streamlit UI](#streamlit-ui)
 - [빠른 시작](#빠른-시작)
 - [예시 코드](#예시-코드)
@@ -23,12 +24,15 @@ LinkMerce 프로젝트는 이커머스 플랫폼으로부터 쇼핑몰 운영에
 Python 스크래핑 로직을 구현한 PyPI 패키지가 프로젝트의 중심이 되며,   
 작업 스케줄링을 처리하기 위해 Apache Airflow를 적극적으로 활용한다.
 
-프로젝트에서 주목할 부분은 다음 4가지다.
+현재 `linkmerce` 패키지 버전은 `1.0.6`이다.
+
+프로젝트에서 주목할 부분은 다음 5가지다.
 
 1. `src/linkmerce`: 웹 스크래핑 및 외부 시스템과의 데이터 연동을 지원하는 핵심 Python 패키지
 2. `src/tests`: Python 패키지의 동작을 검증하고 중간 실행 결과를 저장하는 테스트 모음
 3. `airflow`: 작업 스케줄링, 오케스트레이션, Playwright 기반 브라우저 자동화가 들어 있는 DAG 모음
-4. `streamlit`: 쇼핑몰 운영 담당자가 비정기적인 데이터 수집을 위해 DAG을 수동으로 트리거할 때 사용하는 UI
+4. `postgres`: 로컬 PostgreSQL 18 적재 환경과 초기 스키마, 파티션, Parquet 확장을 관리하는 실행 환경
+5. `streamlit`: 쇼핑몰 운영 담당자가 비정기적인 데이터 수집을 위해 DAG을 수동으로 트리거할 때 사용하는 UI
 
 linkmerce 패키지가 지원하는 이커머스 관련 플랫폼의 수집 범위는 다음과 같다.
 
@@ -59,7 +63,7 @@ linkmerce 패키지는 ETL 프로세스를 [ _추출(Extract), 변환(Transform)
 1. `Extractor`는 동기 또는 비동기 HTTP 세션을 활용한 HTTP 요청을 담당한다.   
     일부 작업은 매개변수 목록에 대해 반복 요청하는데, `Task`를 활용해 이러한 동작을 추상화한다.
 2. `Transformer`는 HTTP 응답 결과를 JSON 형식으로 파싱하고, DuckDB 테이블의 스키마에 맞게 변환해 적재한다.   
-    DuckDB 연결을 통해 BigQuery 등의 외부 시스템에 데이터를 적재하는 확장 기능을 별도로 제공한다.
+    DuckDB 연결을 통해 BigQuery, PostgreSQL, Google Sheets 같은 외부 시스템에 데이터를 적재하는 확장 기능을 별도로 제공한다.
 
 지금까지의 설명을 아래 표로 정리할 수 있다.
 
@@ -69,7 +73,7 @@ linkmerce 패키지는 ETL 프로세스를 [ _추출(Extract), 변환(Transform)
 | `Task` | 반복 요청, 재시도, 페이지네이션 | `src/linkmerce/common/tasks.py` |
 | `ResponseTransformer` | 응답 결과 파싱, JSON 형식으로 변환 | `src/linkmerce/common/transform.py` |
 | `DuckDBTransformer` | DuckDB 테이블 생성 및 적재 | `src/linkmerce/common/transform.py` |
-| `DuckDBConnection` | DuckDB 연결 관리, CRUD 작업 지원 | `src/linkmerce/common/transform.py` |
+| `DuckDBConnection` | DuckDB 연결 관리, CRUD 작업 지원 | `src/linkmerce/common/load.py` |
 | `API Endpoint` | `Extractor`와 `Transformer` 연결 | `src/linkmerce/api/common.py` |
 | `Extensions` | DuckDB 테이블을 외부 시스템과 연동 | `src/linkmerce/extensions/*.py` |
 
@@ -86,7 +90,7 @@ DuckDBTransformer (core/.../transform.py)
     ↓   DuckDB 테이블에 적재
 DuckDBConnection (common/load.py)
     ↓   외부 시스템에 적재
-BigQueryClient (extensions/...)
+BigQueryClient / PostgresClient / WorksheetClient (extensions/...)
 ```
 
 ## 표준 ETL 모듈 구조
@@ -158,8 +162,8 @@ linkmerce 패키지를 활용하는 Airflow DAG은 공통적으로 다음 흐름
 1. `airflow_utils` 플러그인의 `read_config()` 또는 `read_credentials()` 함수로 설정과 인증 정보를 불러온다.
 2. `linkmerce.api.*` 함수를 호출해 추출(extract)과 변환(transform) 과정을 수행한다.
 3. `DuckDBConnection`을 통해 테이블에 적재된 API 실행 결과를 불러올 수 있다.
-4. `BigQueryClient`를 활용해 API 실행 결과를 BigQuery 테이블에 적재한다.
-5. Task 결과를 `{params: {...}, counts: {...}, status: {...}}` 딕셔너리로 반환한다.
+4. `dual_load` 플러그인으로 DuckDB 테이블을 PostgreSQL에 먼저 적재한 뒤 BigQuery에도 적재한다.
+5. Task 결과를 `{params: {...}, results: {...}}` 딕셔너리로 반환한다.
 
 이러한 흐름을 DAG으로 구현할 경우 다음과 같은 코드로 나타낼 수 있다.
 
@@ -171,7 +175,7 @@ with DAG(dag_id="...") as dag:
     @task(task_id="...")
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, tables=True, service_account=True)
+        return read_config(PATH, tables=True)
 
     @task(task_id="...")
     def read_credentials() -> list:
@@ -182,21 +186,24 @@ with DAG(dag_id="...") as dag:
     def etl_task(credentials: dict, configs: dict, **kwargs) -> dict:
         return main(**credentials, **configs)
 
-    def main(service_account: dict, tables: dict[str, str], **kwargs) -> dict:
+    def main(tables: dict[str, str], **kwargs) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.platform.hostname import example_api
-        from linkmerce.extensions.bigquery import BigQueryClient
+        from dual_load import load_table_from_duckdb
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            example_api(**kwargs)
+            example_api(**kwargs, connection=conn)
 
-            with BigQueryClient(service_account) as client:
-                status = client.load_table_from_duckdb(
-                    connection = conn,
-                    source_table = "table",
-                    target_table = tables["table"]
-                )
-                return {"params": {}, "counts": {}, "status": {"table": status}}
+            return {
+                "params": {},
+                "results": {
+                    tables["table"]: load_table_from_duckdb(
+                        connection = conn,
+                        source_table = "table",
+                        target_table = tables["table"],
+                    ),
+                },
+            }
 
     (etl_task
     .partial(configs=read_configs())
@@ -205,6 +212,24 @@ with DAG(dag_id="...") as dag:
 
 Airflow와 관련된 `airflow/` 경로에 대한 상세 설명은
 별도의 [문서](https://github.com/minyeamer/linkmerce/blob/main/airflow/README.md)를 참고한다.
+
+## PostgreSQL 적재 환경
+
+`postgres/` 경로는 Airflow MetaDB와 별개로 ETL 결과를 적재하기 위한 로컬 PostgreSQL 18 환경을 제공한다.
+
+구성 요소는 다음과 같다.
+
+- `Dockerfile`: PostgreSQL 18, `pg_partman`, Apache Arrow / Parquet 런타임, 자체 `parquet_io` 확장을 포함한 이미지 빌드
+- `init.sql`: 플랫폼별 스키마와 테이블, 일별 파티션 초기화
+- `partman_maintenance.sql`: 운영 중 미래의 파티션을 생성하기 위한 유지보수 SQL
+- `resources/bq_schemas.json`: PostgreSQL `init.sql` 기준으로 생성한 BigQuery 스키마 참고 파일
+- `resources/parquet_io.md`: `parquet_io` 확장의 SQL 인터페이스와 타입 변환 정책 설명
+
+Airflow DAG은 대부분 `dual_load` 플러그인을 통해 PostgreSQL 적재를 먼저 수행하고, 성공하면 BigQuery 적재를 이어서 수행한다.
+PostgreSQL은 더 엄격한 기본키와 타입 제약을 검증하는 1차 적재 대상으로 사용하고, BigQuery는 기존 분석 테이블 적재 대상으로 유지한다.
+
+PostgreSQL 실행 환경에 대한 상세 설명은
+별도의 [문서](https://github.com/minyeamer/linkmerce/blob/main/postgres/README.md)를 참고한다.
 
 ## Streamlit UI
 
@@ -233,7 +258,15 @@ pip install -e .
 
 패키지 메타데이터는 `pyproject.toml`에 정의되어 있다.
 
-### 2. Airflow 로컬 실행
+### 2. PostgreSQL 로컬 실행
+
+```bash
+cd postgres
+./build.sh
+docker compose up -d
+```
+
+### 3. Airflow 로컬 실행
 
 ```bash
 cd airflow
@@ -241,11 +274,14 @@ docker compose up airflow-init
 docker compose up -d
 ```
 
-### 3. 테스트 실행
+Airflow에서 dual load를 실행하려면 `postgres`, `bigquery` Airflow Connection을 먼저 등록해야 한다.
+
+### 4. 테스트 실행
 
 ```bash
 pytest src/tests/test_extract.py -m extract -v -s
 pytest src/tests/test_transform.py -m transform -v -s
+pytest src/tests/test_load.py -m load -v -s
 ```
 
 ## 예시 코드

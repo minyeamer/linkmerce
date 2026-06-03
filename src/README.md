@@ -3,7 +3,7 @@
 > LinkMerce 프로젝트의 핵심 실행 로직이 들어 있는 Python 패키지
 
 다양한 이커머스 API와 웹문서 응답을 수집하고,   
-DuckDB 기반 변환을 거쳐 BigQuery나 Google Sheets 같은 외부 시스템으로 넘길 수 있게 구성되어 있다.
+DuckDB 기반 변환을 거쳐 BigQuery, PostgreSQL, Google Sheets 같은 외부 시스템으로 넘길 수 있게 구성되어 있다.
 
 ## 목차
 - [한눈에 보기](#한눈에-보기)
@@ -21,7 +21,7 @@ DuckDB 기반 변환을 거쳐 BigQuery나 Google Sheets 같은 외부 시스템
 ## 한눈에 보기
 
 - **패키지명**: `linkmerce`
-- **버전**: `1.0.5`
+- **버전**: `1.0.6`
 - **Python**: `>=3.12`
 - **핵심 의존성**: `aiohttp`, `requests`, `duckdb`, `bs4`, `openpyxl`, `ruamel-yaml`, `tqdm`
 
@@ -73,6 +73,7 @@ src/linkmerce/
 │   └── smartstore/
 ├── extensions/
 │   ├── bigquery.py
+│   ├── postgres.py
 │   └── gsheets.py
 └── utils/
     ├── cast.py
@@ -96,7 +97,7 @@ linkmerce 패키지를 사용한 ETL 프로세스는 다음 5단계로 정리할
 2. `ResponseTransformer`가 응답 결과를 받아 SQL 쿼리로 다룰 수 있는 JSON 형식의 데이터로 변환한다.
 3. `DuckDBTransformer`가 JSON 형식의 데이터를 임시 DuckDB 테이블에 맞게 가공하여 적재한다.
 4. `api/*` 함수가 `Extractor`와 `Transformer`를 조합해 하나의 ET 프로세스를 구성한다.
-5. `extensions/*` 기능으로 DuckDB 테이블을 BigQuery 등 외부 시스템에 적재하는 ETL 프로세스를 완성한다.
+5. `extensions/*` 기능으로 DuckDB 테이블을 BigQuery, PostgreSQL 등 외부 시스템에 적재하는 ETL 프로세스를 완성한다.
 
 ```bash
 [API Endpoint] (api/...)
@@ -109,7 +110,7 @@ DuckDBTransformer (core/.../transform.py)
     ↓   DuckDB 테이블에 적재
 DuckDBConnection (common/load.py)
     ↓   외부 시스템에 적재
-BigQueryClient (extensions/...)
+BigQueryClient / PostgresClient / WorksheetClient (extensions/...)
 ```
 
 ## api/
@@ -284,10 +285,33 @@ BigQuery 테이블에 대규모 데이터를 적재하는 Load Job을 활용한 
 | 메서드 | 데이터 소스 | 추가 설명 |
 | --- | --- | --- |
 | `load_table_from_json` | `list[dict]` | 파이썬 객체에 대한 JSON 직렬화 지원 |
-| `load_table_from_file` | 파일 스트림 | Avro, CSV, JSON, ORC, Parquet 포맷 지원 |
-| `load_table_from_duckdb` | DuckDB 테이블 | 파티션별 분할 적재 지원 |
-| `overwrite_table_from_duckdb` | DuckDB 테이블 | 기존 데이터 삭제 후 적재 |
-| `merge_into_table_from_duckdb` | DuckDB 테이블 | MERGE 문 활용한 Upsert 동작 |
+| `load_table_from_file` | 파일 스트림 | Avro, CSV, JSON, ORC, Parquet 포맷과 명시적 스키마 지원 |
+| `load_table_from_duckdb` | DuckDB 테이블 | Load Job 적재 |
+| `load_table_from_duckdb_by_partition` | DuckDB 테이블 | 파티션별 분할 적재 지원 |
+| `overwrite_table_from_duckdb` | DuckDB 테이블 | 스테이징 테이블을 만든 후 대상 범위를 삭제하고 다시 적재 |
+| `merge_into_table_from_duckdb` | DuckDB 테이블 | 스테이징 테이블을 만든 후 두 테이블을 병합 |
+
+### `postgres.py`
+
+> [`psycopg2`](https://pypi.org/project/psycopg2/)
+> 라이브러리에 의존하여 PostgreSQL 대상 쿼리 실행 기능을 구현한다.
+
+- `PostgresClient`: PostgreSQL 쿼리 실행을 담당하며, DuckDB와의 연동을 지원한다.
+- `ensure_cursor`: PostgreSQL 커서 생성, 커밋, 롤백, 종료 정책을 지원하는 데코레이터.
+
+PostgreSQL 테이블과 파일/객체/DuckDB 데이터를 연결하는 주요 메서드는 다음과 같다.
+
+| 메서드 | 데이터 소스 | 추가 설명 |
+| --- | --- |
+| `insert_into_table` | 파일 또는 Python 객체 | CSV, JSON, Parquet 포맷을 읽어 테이블에 삽입 |
+| `load_table_from_duckdb` | DuckDB 테이블 | DuckDB 소스 테이블 행을 PostgreSQL 테이블에 삽입 |
+| `overwrite_table_from_duckdb` | DuckDB 테이블 | 스테이징 테이블을 만든 후 대상 범위를 삭제하고 다시 삽입 |
+| `upsert_table_from_duckdb` | DuckDB 테이블 | 스테이징 테이블을 만든 후 두 테이블을 병합 |
+
+Parquet 읽기/쓰기는 PostgreSQL 자체 확장 기능인 `parquet_io`를 사용한다.
+
+Parquet 파일 경로를 Python 메서드에 전달하면 클라이언트 프로세스가 파일을 읽어 `BYTEA` 타입으로 PostgreSQL에 전달한다.
+따라서, PostgreSQL 서버가 Docker 컨테이너 또는 원격 서버에 있어도 클라이언트에서 파일을 적재할 수 있다.
 
 ### `gsheets.py`
 

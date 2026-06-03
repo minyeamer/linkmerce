@@ -133,7 +133,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dag-ids",
-        help="Comma-separated DAG IDs to process. Defaults to all scheduled DAGs.",
+        help="Comma-separated Dag IDs to process. Defaults to all scheduled DAGs.",
         default = str(),
         type = str,
     )

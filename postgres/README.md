@@ -47,13 +47,14 @@ postgres/
 ├── .env
 ├── Dockerfile
 ├── README.md
-├── bq_schemas.json
 ├── build.sh
 ├── docker-compose.yaml
-├── exec.sh
 ├── init.sql
-├── parquet_io.md
-└── partman_maintenance.sql
+├── partman_maintenance.sql
+└── resources/
+    ├── bq_schemas.json
+    ├── exec.sh
+    └── parquet_io.md
 ```
 
 주요 파일의 역할은 다음과 같다.
@@ -66,7 +67,9 @@ postgres/
 | `init.sql` | 최초 데이터베이스 생성 시 스키마, 테이블, 확장, 일별 파티션 초기화 |
 | `partman_maintenance.sql` | 운영 중 `pg_partman` 파티션 유지보수를 수동 실행 |
 | `extension/` | `parquet_io` 확장의 C++ 구현 및 PostgreSQL 설치 파일 |
-| `parquet_io.md` | `parquet_io` 내부 구조와 유지보수 방법을 설명하는 기술 문서 |
+| `resources/bq_schemas.json` | `init.sql` 기준으로 생성한 BigQuery 스키마 참고 파일 |
+| `resources/exec.sh` | 실행 중인 컨테이너에 `psql`로 접속하는 보조 스크립트 |
+| `resources/parquet_io.md` | `parquet_io` 내부 구조와 유지보수 방법을 설명하는 기술 문서 |
 
 ## 로컬 실행 환경
 
@@ -85,10 +88,10 @@ cd postgres
 docker compose up -d
 ```
 
-실행 중인 PostgreSQL에 `psql`로 접속할 때는 `exec.sh`를 사용한다.
+실행 중인 PostgreSQL에 `psql`로 접속할 때는 `resources/exec.sh`를 사용한다.
 
 ```bash
-./exec.sh
+./resources/exec.sh
 ```
 
 `docker-compose.yaml`은 데이터 디렉터리만 컨테이너에 마운트한다.
@@ -185,7 +188,7 @@ SELECT parquet_read($1::BYTEA, 'test.accounts');
 SELECT parquet_write('SELECT * FROM test.accounts');
 ```
 
-구현 세부사항은 [parquet_io 기술 문서](parquet_io.md)를 참고한다.
+구현 세부사항은 [parquet_io 기술 문서](resources/parquet_io.md)를 참고한다.
 
 ## Python 연동
 
@@ -213,6 +216,20 @@ with PostgresClient("postgresql://...") as client:
 
 `create_table_from_parquet()`는 `parquet_create()`로 테이블을 만든 뒤,   
 같은 트랜잭션에서 `parquet_read()`를 호출하여 Parquet 행까지 적재한다.
+
+### DuckDB 연동
+
+DuckDB 테이블을 PostgreSQL로 직접 넘기는 적재 메서드도 제공한다.
+
+| 메서드 | 동작 |
+| --- | --- |
+| `load_table_from_duckdb` | DuckDB 소스 테이블 행을 대상 테이블에 삽입 |
+| `overwrite_table_from_duckdb` | 스테이징 테이블을 만든 뒤 대상 범위를 삭제하고 다시 삽입 |
+| `upsert_table_from_duckdb` | 스테이징 테이블을 만든 뒤 `INSERT ... ON CONFLICT`로 병합 |
+| `create_partitions` | `pg_partman`으로 부모 테이블의 파티션 생성 |
+
+DuckDB 연동 적재는 DuckDB `postgres` 확장을 사용해 PostgreSQL을 `db` 데이터베이스로 attach한 뒤 실행한다.
+`install_extension=True` 옵션을 사용하면 실행 시점에 DuckDB 확장을 설치하고 로드한다.
 
 ## 운영 참고사항
 

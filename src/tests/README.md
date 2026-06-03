@@ -7,6 +7,9 @@
 2. `test_transform.py` - `DuckDBTransformer.transform()` 결과를 저장한다.
 3. `test_load.py` - DuckDB 소스 테이블을 BigQuery/PostgreSQL 타겟 테이블에 적재한다.
 
+공통 fixture는 `conftest.py`에 있고, 테스트별 입력값은 `fixtures.yaml`에서 읽는다.
+인증 정보는 `src/env/credentials.yaml`, BigQuery 서비스 계정은 `src/env/service_account.json`을 사용한다.
+
 ## 테스트 실행
 
 1. `pytest src/tests/test_extract.py -m extract -v -s`
@@ -19,6 +22,11 @@
 적재 테스트는 백엔드별 마커로 분리할 수 있다.
 1. `pytest src/tests/test_load.py -m "load and load_bigquery" -v -s`
 2. `pytest src/tests/test_load.py -m "load and load_postgres" -v -s`
+
+적재 방식별 마커도 제공한다.
+1. `mode_append` - DuckDB 소스 테이블을 외부 타겟 테이블에 추가 적재한다.
+2. `mode_overwrite` - WHERE 조건에 맞는 타겟 범위를 삭제하고 소스 행으로 덮어쓴다.
+3. `mode_upsert` - 키 충돌 시 백엔드별 병합 규칙을 검증한다.
 
 ⚠️ `test_transform.py` 테스트를 실행하기 위해선 `test_extract.py` 실행 결과가 먼저 저장되어야 한다.
 
@@ -49,7 +57,9 @@
 
 ## Load 테스트
 
-적재 테스트는 [소스 데이터, 소스 테이블, 타겟 테이블]에 대한 연결 정보를 설정에서 읽어 다음 흐름을 검증한다.
+적재 테스트는 `fixtures.yaml`의 `bigquery`, `postgres` 설정에서
+[소스 데이터, 소스 테이블, 타겟 테이블, 검증 규칙]을 읽어 다음 흐름을 검증한다.
+
 1. 소스 데이터 파일을 DuckDB의 소스 테이블로 적재한다.
 2. 원본 테이블 스키마를 기준으로 타겟 테이블 또는 타겟 임시 테이블을 생성한다.
 3. `*_table_from_duckdb` 메서드 실행 시나리오를 실행한다.
