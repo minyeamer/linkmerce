@@ -49,6 +49,10 @@ class _ReportsDownload(NaverSearchAdApi):
         """하나의 보고서 유형에 대해 보고서 생성부터 삭제까지의 워크플로우를 실행하는 공통 로직. TSV 데이터를 반환한다."""
         report_job = self.create_report(report_type, **kwargs)
         id_column = "reportJobId" if self.job_type == "stat-reports" else "id"
+
+        if id_column not in report_job:
+            raise KeyError(report_job.get("message") or f"'{id_column}'")
+
         try:
             download_url = self.get_report(report_job[id_column])
             return self.download_report(download_url)
