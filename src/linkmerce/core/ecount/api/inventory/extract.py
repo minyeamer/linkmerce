@@ -11,9 +11,10 @@ if TYPE_CHECKING:
 class Inventory(EcountApi):
     """이카운트 재고현황을 조회하는 클래스.
 
-    - **Menu**: 재고 I > 출력물 > 재고현황
+    - **Menu(API)**: (재고)출력물API > 재고현황
+    - **Menu(UI)**: 재고 I > 출력물 > 재고현황
     - **API**: https://oapi{ZONE}.ecount.com/OAPI/V2/InventoryBalance/GetListInventoryBalanceStatus
-    - **Docs**: https://sboapi.ecount.com/ECERP/OAPI/OAPIView?lan_type=ko-KR
+    - **Docs**: https://sboapiad.ecount.com/ECERP/OAPIView/OAPIManual
     - **Referer**: https://loginad.ecount.com/.../view/erp?ec_req_sid=...&
 
     Attributes

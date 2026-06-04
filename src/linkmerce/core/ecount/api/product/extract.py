@@ -5,9 +5,10 @@ from linkmerce.core.ecount.api import EcountApi
 class Product(EcountApi):
     """이카운트 품목등록 리스트를 조회하는 클래스.
 
-    - **Menu**: 재고 I > 기초등록 > 품목등록
+    - **Menu(API)**: 기초등록API > 품목조회
+    - **Menu(UI)**: 재고 I > 기초등록 > 품목등록
     - **API**: https://oapi{ZONE}.ecount.com/OAPI/V2/InventoryBasic/GetBasicProductsList
-    - **Docs**: https://sboapi.ecount.com/ECERP/OAPI/OAPIView?lan_type=ko-KR
+    - **Docs**: https://sboapiad.ecount.com/ECERP/OAPIView/OAPIManual
     - **Referer**: https://loginad.ecount.com/.../view/erp?ec_req_sid=...&
 
     Attributes
@@ -35,7 +36,8 @@ class Product(EcountApi):
         product_code: str | None
             검색할 품목코드. 생략 시 모든 품목을 조회한다.
         comma_yn: bool
-            쉼표 사용 여부. 기본값은 `True`
+            쉼표 포함 여부. 기본값은 `True`
+                - `False`: 품목코드에 쉼표가 포함되어 있으면 `∬` 로 변경하여 전송한다.
 
         Returns
         -------

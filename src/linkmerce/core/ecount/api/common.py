@@ -13,7 +13,7 @@ class EcountApi(Extractor):
     """이카운트 오픈 API 요청을 처리하는 공통 클래스.
 
     - **API**: https://oapi{ZONE}.ecount.com/OAPI/
-    - **Docs**: https://sboapi.ecount.com/ECERP/OAPI/OAPIView?lan_type=ko-KR
+    - **Docs**: https://sboapiad.ecount.com/ECERP/OAPIView/OAPIManual
 
     Attributes
     ----------
