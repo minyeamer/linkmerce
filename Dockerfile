@@ -1,4 +1,4 @@
-FROM apache/airflow:3.2.1-python3.12
+FROM apache/airflow:3.2.2-python3.12
 
 # Set Korean locale to ensure proper handling of Korean text in HTTP responses
 USER root
