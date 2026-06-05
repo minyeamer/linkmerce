@@ -3,6 +3,7 @@ services:
   postgres:
     image: ${POSTGRES_IMAGE_NAME:-custom/postgres:18}
     container_name: linkmerce-postgres
+    shm_size: ${POSTGRES_SHM_SIZE:-1g}
     env_file:
       - .env
     environment:
