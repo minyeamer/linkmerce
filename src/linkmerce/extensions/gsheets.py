@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from linkmerce.common.extract import Client
 
-from typing import TYPE_CHECKING
+from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Hashable, Literal, Sequence, TypeVar
@@ -324,3 +324,53 @@ def upsert_records(left: list[dict], right: list[dict], on: str | Sequence[str])
         return records + list(groupby.values())
     else:
         return records
+
+
+###################################################################
+############################ Dual Load ############################
+###################################################################
+
+def dual_load(
+        account: ServiceAccount,
+        key: str,
+        sheet: str,
+        postgres_dsn: str,
+        table: str,
+        columns: Sequence[str] = list(),
+        primary_key: Sequence[str] = list(),
+        not_null: Sequence[str] = list(),
+        head: int = 1,
+        numericise_ignore: Sequence[int] | bool = list(),
+        **kwargs
+    ):
+    """워크시트를 읽어 PostgreSQL 및 BigQuery 테이블에 적재한다."""
+    from linkmerce.extensions.postgres import PostgresClient
+    from linkmerce.extensions.bigquery import BigQueryClient
+
+    gs = WorksheetClient(account, key, sheet)
+    values, unique = list(), set()
+
+    for record in gs.get_all_records(head=head, numericise_ignore=numericise_ignore, **kwargs):
+        if primary_key:
+            identifier = tuple(record[key] for key in primary_key if record[key])
+            if (not identifier) or (identifier in unique):
+                continue
+            unique.add(identifier)
+        if not_null:
+            if not [record[key] for key in not_null if record[key]]:
+                continue
+        values.append({column: record[column] for column in columns} if columns else record)
+
+    with PostgresClient(postgres_dsn) as pg_client:
+        with pg_client.conn.cursor() as cursor:
+            pg_client.execute("BEGIN;", cursor=cursor)
+            try:
+                pg_client.execute(f"TRUNCATE TABLE {table};", cursor=cursor)
+                pg_client.insert_into_table_from_json(table, values, cursor=cursor)
+                pg_client.execute("COMMIT;", cursor=cursor)
+            except:
+                pg_client.execute("ROLLBACK;", cursor=cursor)
+                raise
+
+    with BigQueryClient(account) as bq_client:
+        bq_client.load_table_from_json(table, values, write="truncate")
