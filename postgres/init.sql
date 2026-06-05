@@ -343,8 +343,9 @@ CREATE TABLE IF NOT EXISTS ecount.product (
     product_code TEXT NOT NULL -- 품목코드
   , option_id TEXT -- 옵션코드
   , product_name TEXT -- 품목명
-  , remarks_name TEXT -- 검색창내용
+  , product_keyword TEXT -- 상품약어
   , brand_name TEXT -- 브랜드
+  , remarks TEXT -- 적요
   , unit_quantity INTEGER -- 규격
   , unit_name TEXT -- 단위
   , org_price INTEGER -- 원가

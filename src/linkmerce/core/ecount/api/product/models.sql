@@ -3,8 +3,9 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
     product_code VARCHAR NOT NULL
   , option_id VARCHAR
   , product_name VARCHAR
-  , remarks_name VARCHAR
+  , product_keyword VARCHAR
   , brand_name VARCHAR
+  , remarks VARCHAR
   , unit_quantity INTEGER
   , unit_name VARCHAR
   , org_price INTEGER
@@ -19,8 +20,9 @@ SELECT
     PROD_CD AS product_code
   , CONT4 AS option_id
   , PROD_DES AS product_name
-  , REMARKS_WIN AS remarks_name
+  , CONT6 AS product_keyword
   , CONT1 AS brand_name
+  , REMARKS_WIN AS remarks
   , TRY_CAST(SIZE_DES AS INTEGER) AS unit_quantity
   , UNIT AS unit_name
   , TRY_CAST(IN_PRICE AS INTEGER) AS org_price

@@ -334,7 +334,7 @@ with DAG(
             return [
                 ("brand_name", ("재고 기준: {}".format(header_dates.get("stock_end_time")), "브랜드")),
                 ("option_id", (None, "사방넷\n품번코드")),
-                ("remarks_name", (None, "아이인리치코드")),
+                ("remarks", (None, "아이인리치코드")),
                 ("product_code", ("판매량 기준: {} ~ {}".format(*order_dates), "품목코드")),
                 ("product_name", (None, "품목명")),
                 ("expiration_date", (None, "소비기한")),

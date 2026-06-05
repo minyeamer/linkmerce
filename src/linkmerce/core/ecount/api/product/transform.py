@@ -23,6 +23,6 @@ class Product(DuckDBTransformer):
         scope = "Data.Result",
         fields = [
             "PROD_CD", "CONT4", "PROD_DES", "REMARKS_WIN", "CONT1", "SIZE_DES",
-            "UNIT", "IN_PRICE", "CONT2", "CONT3"
+            "UNIT", "IN_PRICE", "CONT2", "CONT3", "CONT6"
         ],
     )
