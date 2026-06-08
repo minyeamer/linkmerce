@@ -1,0 +1,141 @@
+version: 2
+
+sources:
+  - name: analytics
+    schema: analytics
+    tables:
+      - name: cost
+
+  - name: cj_eflexs
+    schema: cj_eflexs
+    tables:
+      - name: invoice
+      - name: invoice_order
+      - name: stock
+
+  - name: cj_loisparcel
+    schema: cj_loisparcel
+    tables:
+      - name: invoice
+
+  - name: coupang
+    schema: coupang
+    tables:
+      - name: option
+      - name: vendor
+
+  - name: coupang_ads
+    schema: coupang_ads
+    tables:
+      - name: campaign
+      - name: adgroup
+      - name: creative
+      - name: report_pa
+      - name: report_nca
+
+  - name: coupang_rfm
+    schema: coupang_rfm
+    tables:
+      - name: inventory
+      - name: sales
+      - name: shipping
+
+  - name: ecount
+    schema: ecount
+    tables:
+      - name: inventory
+      - name: product
+
+  - name: google_ads
+    schema: google_ads
+    tables:
+      - name: campaign
+      - name: adgroup
+      - name: ad
+      - name: insight
+      - name: asset
+
+  - name: meta_ads
+    schema: meta_ads
+    tables:
+      - name: account
+      - name: campaign
+      - name: adset
+      - name: ad
+      - name: insight
+
+  - name: naver_shp
+    schema: naver_shp
+    tables:
+      - name: category
+      - name: keyword
+      - name: product
+      - name: rank
+      - name: rank_now
+
+  - name: relation
+    schema: relation
+    tables:
+      - name: ad_id_to_cat_id
+      - name: cpg_opt_to_sbn_ids
+      - name: nsh_kwd_to_prd_id
+      - name: nsh_prd_to_ctl_id
+      - name: smt_opt_to_sbn_ids
+      - name: smt_prd_to_cat_id
+
+  - name: sabangnet
+    schema: sabangnet
+    tables:
+      - name: shop
+      - name: account
+      - name: model
+      - name: delivery
+      - name: order
+      - name: order_option
+      - name: order_invoice
+      - name: order_dispatch
+      - name: order_status
+      - name: mapping_id
+      - name: mapping_name
+      - name: product
+      - name: option
+      - name: add_product
+
+  - name: searchad
+    schema: searchad
+    tables:
+      - name: account
+      - name: campaign
+      - name: adgroup
+      - name: ad
+      - name: media
+      - name: report_sad
+      - name: report_gfa
+      - name: contract
+      - name: rank
+      - name: rank_now
+
+  - name: smartstore
+    schema: smartstore
+    tables:
+      - name: channel
+      - name: product
+      - name: option
+      - name: order
+      - name: order_detail
+      - name: order_delivery
+      - name: order_option
+      - name: order_status
+      - name: marketing_channel
+
+  - name: ss_hcenter
+    schema: ss_hcenter
+    tables:
+      - name: category_group
+      - name: mall
+      - name: product
+      - name: price
+      - name: product_catalog
+      - name: pageview
+      - name: sales
+      - name: stock
