@@ -52,7 +52,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.ecount.api import product
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         source = "ecount_product"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -71,7 +71,7 @@ with DAG(
                     "comma_yn": True,
                 },
                 "results": {
-                    tables["table"]: upsert_table_from_duckdb(
+                    tables["table"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = source,
                         target_table = tables["table"],

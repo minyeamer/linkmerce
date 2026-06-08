@@ -68,7 +68,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.wing import product_option, rocket_option
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         sources = {"table": "coupang_product", "rfm": "coupang_rocket_option"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -103,7 +103,7 @@ with DAG(
                     "see_more": True,
                 },
                 "results": {
-                    tables["table"]: upsert_table_from_duckdb(
+                    tables["table"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["table"],
                         target_table = tables["table"],

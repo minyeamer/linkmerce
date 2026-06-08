@@ -117,13 +117,13 @@ with DAG(
                             source_table = sources["rank"],
                             target_table = tables["rank"],
                         ),
-                        "now": client.merge_into_table_from_duckdb(
+                        "now": client.merge_table_from_duckdb(
                             connection = conn,
                             source_table = sources["rank"],
                             target_table = tables["now"],
                             **merge["now"],
                         ),
-                        "product": client.merge_into_table_from_duckdb(
+                        "product": client.merge_table_from_duckdb(
                             connection = conn,
                             source_table = sources["product"],
                             target_table = tables["product"],

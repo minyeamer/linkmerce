@@ -26,7 +26,7 @@
 적재 방식별 마커도 제공한다.
 1. `mode_append` - DuckDB 소스 테이블을 외부 타겟 테이블에 추가 적재한다.
 2. `mode_overwrite` - WHERE 조건에 맞는 타겟 범위를 삭제하고 소스 행으로 덮어쓴다.
-3. `mode_upsert` - 키 충돌 시 백엔드별 병합 규칙을 검증한다.
+3. `mode_merge` - 키 충돌 시 백엔드별 병합 규칙을 검증한다.
 
 ⚠️ `test_transform.py` 테스트를 실행하기 위해선 `test_extract.py` 실행 결과가 먼저 저장되어야 한다.
 

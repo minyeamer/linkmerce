@@ -73,7 +73,7 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         from importlib import import_module
         extract = getattr(import_module("linkmerce.api.google.api"), ad_level)
         date_range = dict() if ad_level == "asset" else {"date_range": "LAST_30_DAYS"}
@@ -96,7 +96,7 @@ with DAG(
                     **date_range,
                 },
                 "results": {
-                    tables[ad_level]: upsert_table_from_duckdb(
+                    tables[ad_level]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = source,
                         target_table = tables[ad_level],

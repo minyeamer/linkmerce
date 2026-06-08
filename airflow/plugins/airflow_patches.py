@@ -35,7 +35,7 @@ def _apply_test_mode_patches() -> None:
         from linkmerce.extensions.bigquery import BigQueryClient
         BigQueryClient.load_table_from_duckdb = _simulate_table_upload
         BigQueryClient.overwrite_table_from_duckdb = _simulate_table_upload
-        BigQueryClient.merge_into_table_from_duckdb = _simulate_table_upload
+        BigQueryClient.merge_table_from_duckdb = _simulate_table_upload
         logger.warning("[TEST-MODE] BigQueryClient patched successfully")
     except ImportError:
         pass
@@ -44,7 +44,7 @@ def _apply_test_mode_patches() -> None:
         from linkmerce.extensions.postgres import PostgresClient
         PostgresClient.load_table_from_duckdb = _simulate_table_upload
         PostgresClient.overwrite_table_from_duckdb = _simulate_table_upload
-        PostgresClient.upsert_table_from_duckdb = _simulate_table_upload
+        PostgresClient.merge_table_from_duckdb = _simulate_table_upload
         logger.warning("[TEST-MODE] PostgresClient patched successfully")
     except ImportError:
         pass

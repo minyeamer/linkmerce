@@ -265,40 +265,40 @@ class TestOverwriteTable:
 
 
 ###################################################################
-##################### upsert_table_from_duckdb ####################
+##################### merge_table_from_duckdb #####################
 ###################################################################
 
-class TestUpsertTable:
-    """외부 저장소 적재 테스트 (UPSERT)
+class TestMergeTable:
+    """외부 저장소 적재 테스트 (MERGE)
     - conflict_actions
     """
 
-    @pytest.mark.mode_upsert
+    @pytest.mark.mode_merge
     @pytest.mark.parametrize("backend", BACKENDS)
     @pytest.mark.parametrize("where_index", WHERE_CASES)
     @pytest.mark.parametrize("action_index", CONFLICT_CASES)
-    def test_upsert_table_conflict_actions(
+    def test_merge_table_conflict_actions(
             self,
             loader_harness: Harness,
             backend: str,
             where_index: int,
             action_index: int,
         ):
-        """UPSERT 동작이 WHERE 절과 충돌 정책에 따라 의도한 결과를 만들어 내는지 검증한다. 다음 순서를 따른다.
+        """MERGE 동작이 WHERE 절과 충돌 정책에 따라 의도한 결과를 만들어 내는지 검증한다. 다음 순서를 따른다.
         1. 타겟 테이블에 원본 데이터를 적재하고, 타겟 테이블과 동일한 구성의 임시 테이블을 생성한다.
-        2. 값 변경 규칙(`upsert_rules`)에 따라 기존 값은 변경하고 추가할 값을 복제한다.
-        3. WHERE 절과 충돌 정책에 따라 UPSERT하고 검증한다.
+        2. 값 변경 규칙(`merge_rules`)에 따라 기존 값은 변경하고 추가할 값을 복제한다.
+        3. WHERE 절과 충돌 정책에 따라 MERGE하고 검증한다.
             - 값이 변경되지 않은 칼럼은 타겟 테이블과 임시 테이블의 모든 행에 대해 값이 일치하는지 검증한다.
             - 값이 변경된 칼럼은 WHERE 절에 해당되는 덮어쓰기 대상에 따라 일치 또는 불일치하는지 검증한다.
             - PK를 다르게 복제하여 추가된 행은 그 수량만큼 적재되었는지 검증한다.
 
-        **NOTE** UPDATE 동작에 대한 값 변경 규칙(`upsert_rules['update']`)은 `{칼럼명: 연산식}`으로 구성된다.
+        **NOTE** UPDATE 동작에 대한 값 변경 규칙(`merge_rules['update']`)은 `{칼럼명: 연산식}`으로 구성된다.
         1. 값을 변경할 칼럼은 반드시 하나 이상 지정해야 한다.
         2. 반대로 모든 칼럼의 값을 변경해서도 안된다. 일부 칼럼만 변경해야 한다.
         3. 충돌 기준(`on_conflict`)과 WHERE 절 목록(`where_clauses`)에 의해 참조되는 칼럼은 변경하면 안된다.
         4. 테이블 내 모든 값에는 NULL이 없어야 하며, 변경할 값 또한 NULL이 아니어야 한다.
 
-        **NOTE** INSERT 동작에 대한 값 변경 규칙(`upsert_rules['insert']`)은 PRIMARY KEY를 포함해야 한다.
+        **NOTE** INSERT 동작에 대한 값 변경 규칙(`merge_rules['insert']`)은 PRIMARY KEY를 포함해야 한다.
 
         **NOTE** WHERE 절 목록(`where_clauses`)은 아래 3가지 순서로 구성해야 한다.
         1. `where-partial`: 일부 행만 선택
@@ -312,14 +312,15 @@ class TestUpsertTable:
 
         **NOTE** 각각의 충돌 정책(`conflict_action`)은 아래 3가지 항목을 포함해야 한다.
         - `on_conflict`: 중복 체크할 칼럼
-        - `do_action`: 중복 시 충돌 정책
+        - `matched`: 중복 시 충돌 정책
+        - `not_matched`: 중복되지 않을 시 삽입 정책
         - `updated_columns`: MERGE 동작으로 변경될 칼럼 목록
         """
         from linkmerce.common.load import build_temp_table_name
 
         harness = loader_harness(backend)
-        
-        upsert_rules = harness.spec["upsert_rules"]
+
+        merge_rules = harness.spec["merge_rules"]
         where_clause = harness.spec["where_clauses"][where_index] or "TRUE"
         conflict_action = harness.spec["conflict_actions"][action_index]
 
@@ -333,22 +334,22 @@ class TestUpsertTable:
         num_inserted = harness.duckdb.count_table(harness.source_table, where_clause)
 
         # 타겟 테이블 적재 후 소스 테이블의 값을 변경
-        for column, projection in upsert_rules["update"].items():
+        for column, projection in merge_rules["update"].items():
             harness.duckdb.execute(f"UPDATE {harness.source_table} SET {column} = {projection};")
 
         # 변경된 소스 테이블에서 PRIMARY KEY를 다르게 하여 전체 행 복제
-        insert_columns = ", ".join([upsert_rules["insert"].get(column, column) for column in harness.columns])
+        insert_columns = ", ".join([merge_rules["insert"].get(column, column) for column in harness.columns])
         insert_query = f"INSERT INTO {harness.source_table} SELECT {insert_columns} FROM {harness.source_table};"
         harness.duckdb.execute(insert_query)
 
-        # 타겟 테이블의 구성과 내용을 복제한 임시 테이블을 생성하고, 변경된 소스 테이블을 UPSERT 실행
+        # 타겟 테이블의 구성과 내용을 복제한 임시 테이블을 생성하고, 변경된 소스 테이블을 MERGE 실행
         temp_table = build_temp_table_name(harness.target_table)
         copy_options = {"option": "replace"}
         if backend == "postgres":
             copy_options.update({"commit": True, "close": True})
         harness.client.copy_table(harness.target_table, temp_table, **copy_options)
         try:
-            assert harness.upsert_table_from_duckdb(backend, target_table=temp_table, **conflict_action)
+            assert harness.merge_table_from_duckdb(backend, target_table=temp_table, **conflict_action)
 
             # EXCEPT 연산자를 사용해 값의 변경 여부를 검증하는 쿼리 문자열 동적 생성
             tables = {"target": harness.target_ref, "temp": harness.table_ref(temp_table)}
@@ -359,7 +360,7 @@ class TestUpsertTable:
             subquery = f"SELECT {{columns}} FROM {{temp}} WHERE {{where}} {op} SELECT {{columns}} FROM {{target}} WHERE {{where}}"
             diff_query = "SELECT COUNT(*) FROM ({}) AS diff;".format(subquery)
 
-            # UPSERT 전후로 테이블 행 수가 INSERT 행 수만큼만 차이나는지 여부 검증
+            # MERGE 전후로 테이블 행 수가 INSERT 행 수만큼만 차이나는지 여부 검증
             assert ((harness.client.count_table(harness.target_table) + num_inserted) == harness.client.count_table(temp_table))
 
             if harness.client.count_table(temp_table, where_clause) == 0:

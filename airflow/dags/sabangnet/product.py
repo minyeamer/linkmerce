@@ -69,7 +69,7 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         from importlib import import_module
         modules = {"product": "product", "option": "option_download", "add_product": "add_product"}
         extract = getattr(import_module("linkmerce.api.sabangnet.admin"), modules[product_type])
@@ -98,7 +98,7 @@ with DAG(
                     **({"is_deleted": [False, True]} if include_deleted else dict()),
                 },
                 "results": {
-                    tables[product_type]: upsert_table_from_duckdb(
+                    tables[product_type]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = source,
                         target_table = tables[product_type],
@@ -125,7 +125,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.sabangnet.admin import option_mapping
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         sources = {"product": "sabangnet_product_mapping", "sku": "sabangnet_sku_mapping"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -146,13 +146,13 @@ with DAG(
                     "end_date": end_date,
                 },
                 "results": {
-                    tables["mapping_product"]: upsert_table_from_duckdb(
+                    tables["mapping_product"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["product"],
                         target_table = tables["mapping_product"],
                         **merge["mapping_product"],
                     ),
-                    tables["mapping_sku"]: upsert_table_from_duckdb(
+                    tables["mapping_sku"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["sku"],
                         target_table = tables["mapping_sku"],

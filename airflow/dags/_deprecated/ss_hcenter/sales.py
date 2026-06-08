@@ -97,14 +97,14 @@ with DAG(
                         "product": conn.count_table(sources["product"]),
                     },
                     "status": {
-                        "sales": client.merge_into_table_from_duckdb(
+                        "sales": client.merge_table_from_duckdb(
                             connection = conn,
                             source_table = sources["sales"],
                             target_table = tables["sales"],
                             **merge["sales"],
                             where_clause = f"T.payment_date BETWEEN '{start_date}' AND '{end_date}'",
                         ),
-                        "product": client.merge_into_table_from_duckdb(
+                        "product": client.merge_table_from_duckdb(
                             connection = conn,
                             source_table = sources["product"],
                             target_table = tables["product"],

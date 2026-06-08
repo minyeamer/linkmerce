@@ -71,7 +71,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.advertising import campaign
         from linkmerce.api.coupang.advertising import creative
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         sources = {
             "campaign": "coupang_campaign",
             "adgroup": "coupang_adgroup",
@@ -111,19 +111,19 @@ with DAG(
                     "is_deleted": [False, True],
                 },
                 "results": {
-                    tables["campaign"]: upsert_table_from_duckdb(
+                    tables["campaign"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["campaign"],
                         target_table = tables["campaign"],
                         **merge["campaign"],
                     ),
-                    tables["adgroup"]: upsert_table_from_duckdb(
+                    tables["adgroup"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["adgroup"],
                         target_table = tables["adgroup"],
                         **merge["adgroup"],
                     ),
-                    tables["creative"]: (upsert_table_from_duckdb(
+                    tables["creative"]: (merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["creative"],
                         target_table = tables["creative"],

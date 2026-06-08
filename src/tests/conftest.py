@@ -11,7 +11,7 @@ import os
 import unicodedata
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Generator, Literal
+    from typing import Any, Callable, Generator, Literal, Sequence
     from pytest import FixtureRequest
     from linkmerce.common.extract import Extractor, JsonObject
     from linkmerce.common.load import DuckDBConnection
@@ -421,16 +421,17 @@ class PostgresConnOptions(TargetConnOptions):
     test_table: str
     primary_key: str
 
-class UpsertRules(TypedDict):
-    """MERGE/UPSERT 테스트 시 값 변경 규칙"""
+class MergeRules(TypedDict):
+    """MERGE 테스트 시 값 변경 규칙"""
     update: dict[str, str]
     insert: dict[str, str]
 
 class ConflictAction(TypedDict):
-    """MERGE/UPSERT 테스트 시 규칙"""
+    """MERGE 테스트 시 규칙"""
     on_conflict: str
-    do_action: str | dict[str, str]
-    updated_columns: str
+    matched: str | dict[str, str]
+    not_matched: str | dict[str, str]
+    updated_columns: list[str]
 
 class LoadTestSpec(TypedDict):
     """적재 테스트 설정"""
@@ -439,7 +440,7 @@ class LoadTestSpec(TypedDict):
     replace_columns: dict[str, Any]
     overwrite_rules: dict[str, str]
     where_clauses: list[str | None]
-    upsert_rules: UpsertRules
+    merge_rules: MergeRules
     conflict_actions: list[ConflictAction]
 
 POSTGRES_DATABASE = "db"
@@ -557,36 +558,39 @@ class LoaderHarness:
             **kwargs
         )
 
-    def upsert_table_from_duckdb(
+    def merge_table_from_duckdb(
             self,
             backend: Literal["bigquery", "postgres"],
             source_table: str | None = None,
             target_table: str | None = None,
             where_clause: str | None = None,
             on_conflict: str | None = None,
-            do_action: str | dict[str, str] = ":replace_all:",
+            matched: str | dict[str, str] = ":replace_all:",
+            not_matched: str | Sequence[str] = ":insert_all:",
             updated_columns: list[str] | None = None,
             **kwargs
         ) -> bool:
-        """소스 테이블을 타겟 테이블에 덮어쓰기 또는 추가하고 성공 여부를 반환한다."""
+        """소스 테이블을 타겟 테이블에 MERGE하고 성공 여부를 반환한다."""
         if backend == "bigquery":
-            return self.client.merge_into_table_from_duckdb(
+            return self.client.merge_table_from_duckdb(
                 connection = self.duckdb,
                 source_table = (source_table or self.source_table),
                 target_table = (target_table or self.target_table),
                 where_clause = where_clause,
                 on_conflict = on_conflict,
-                matched = do_action,
+                matched = matched,
+                not_matched = not_matched,
                 **kwargs
             )
         elif backend == "postgres":
-            return self.client.upsert_table_from_duckdb(
+            return self.client.merge_table_from_duckdb(
                 connection = self.duckdb,
                 source_table = (source_table or self.source_table),
                 target_table = (target_table or self.target_table),
                 where_clause = where_clause,
                 on_conflict = on_conflict,
-                do_action = do_action,
+                matched = matched,
+                not_matched = not_matched,
                 **kwargs
             )
         return False

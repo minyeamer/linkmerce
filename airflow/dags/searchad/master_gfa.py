@@ -55,7 +55,7 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         from importlib import import_module
         import logging
         extract = getattr(import_module("linkmerce.api.searchad.gfa"), api_type)
@@ -79,7 +79,7 @@ with DAG(
                     "status": status,
                 },
                 "results": {
-                    tables[api_type]: upsert_table_from_duckdb(
+                    tables[api_type]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = source,
                         target_table = tables[api_type],

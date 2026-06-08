@@ -85,7 +85,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.wing import rocket_settlement_download
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         sources = {"sales": "coupang_rocket_sales", "shipping": "coupang_rocket_shipping"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -110,7 +110,7 @@ with DAG(
                     "date_type": "SALES",
                 },
                 "results": {
-                    tables["sales"]: upsert_table_from_duckdb(
+                    tables["sales"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["sales"],
                         target_table = tables["sales"],
@@ -118,7 +118,7 @@ with DAG(
                         where_clause = conn.expr_date_range("T.sales_date", date_array["sales"]),
                         extra_metadata = {"dates": date_array["sales"]},
                     ),
-                    tables["shipping"]: upsert_table_from_duckdb(
+                    tables["shipping"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["shipping"],
                         target_table = tables["shipping"],

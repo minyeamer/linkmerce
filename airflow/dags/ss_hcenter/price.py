@@ -55,7 +55,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.hcenter import brand_price
-        from dual_load import load_table_from_duckdb, upsert_table_from_duckdb
+        from dual_load import load_table_from_duckdb, merge_table_from_duckdb
         sources = {"price": "naver_price_history", "product": "naver_product"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -83,7 +83,7 @@ with DAG(
                         source_table = sources["price"],
                         target_table = tables["price"],
                     ),
-                    tables["product"]: upsert_table_from_duckdb(
+                    tables["product"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["product"],
                         target_table = tables["product"],

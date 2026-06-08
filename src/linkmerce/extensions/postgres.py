@@ -505,84 +505,96 @@ class PostgresClient(Connection):
             values = Path(values).read_bytes()
         return cursor.execute("SELECT parquet_read(%s::BYTEA, %s::TEXT)", (values, table))
 
-    ############################## Upsert #############################
+    ############################## Merge ##############################
 
     @ensure_cursor(return_cursor=True)
-    def upsert(
+    def merge_table(
             self,
             source_table: str,
             target_table: str,
             on_conflict: str | Sequence[str],
-            do_action: Clause
+            matched: Clause
                 | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
                 | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
             where_clause: Clause | None = None,
             *,
             cursor: PgCursor | None = None,
             commit: bool = False,
             close: bool = False,
         ) -> PgCursor | None:
-        """소스 테이블을 타겟 테이블에 `INSERT ... ON CONFLICT` 병합한다.
+        """MERGE 문으로 소스 테이블을 타겟 테이블에 병합한다.
 
-        **NOTE** WHERE 절에서 소스 테이블 칼럼은 `S.`로 참조한다.
+        **NOTE** WHERE 절에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
         """
-        on_conflict = [on_conflict] if isinstance(on_conflict, str) else list(on_conflict)
-        columns = self.get_description(source_table, cursor)
-        if not columns:
-            raise ValueError("Source table does not contain any columns.")
-
-        query = self._compose_upsert_query(source_table, target_table, columns, on_conflict, do_action, where_clause)
+        query = self._compose_merge_query(source_table, target_table, on_conflict, matched, not_matched, where_clause)
         cursor.execute(query)
 
-    def _compose_upsert_query(
+    def _compose_merge_query(
             self,
             source_table: str,
             target_table: str,
-            columns: Sequence[str],
             on_conflict: str | Sequence[str],
-            do_action: Clause
+            matched: Clause
                 | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
                 | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
             where_clause: Clause | None = None,
         ) -> str:
-        on_conflict = [on_conflict] if isinstance(on_conflict, str) else list(on_conflict)
+        """MERGE 실행에 사용할 쿼리 문자열을 생성한다."""
+        on = [f"T.{col} = S.{col}" for col in ([on_conflict] if isinstance(on_conflict, str) else on_conflict)]
         return concat_sql(
-            f"INSERT INTO {target_table} AS T ({', '.join(columns)})",
-            "SELECT {}".format(', '.join(f"S.{column}" for column in columns)),
-            f"FROM {source_table} AS S",
-            f"ON CONFLICT ({', '.join(on_conflict)})",
-            self._compose_upsert_action(do_action, columns, on_conflict),
-            where(where_clause),
+            f"MERGE INTO {target_table} AS T",
+            f"USING {source_table} AS S",
+            "ON {}".format(" AND ".join(on + ([where_clause] if where_clause else list()))),
+            self._compose_merge_matched(matched, target_table, on_conflict), # WHEN MATCHED THEN UPDATE SET
+            self._compose_merge_not_matched(not_matched, target_table), # WHEN NOT MATCHED THEN INSERT
         )
 
-    def _compose_upsert_action(
+    def _compose_merge_matched(
             self,
-            do_action: Clause
+            matched: Clause
                 | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
-                | Literal[":replace_all:", ":do_nothing:"],
-            columns: Sequence[str] = list(),
+                | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            target_table: str = str(),
             on_conflict: str | Sequence[str] = list(),
         ) -> str:
-        """UPSERT의 `DO UPDATE` 또는 `DO NOTHING` 절을 생성한다."""
-        prefix = "DO UPDATE SET "
-        if do_action == ":replace_all:":
-            on_conflict = [on_conflict] if isinstance(on_conflict, str) else list(on_conflict)
-            return self._compose_upsert_action({col: "replace" for col in columns if col not in on_conflict})
-        elif (do_action == ":do_nothing:") or (not do_action):
-            return "DO NOTHING"
-        elif isinstance(do_action, dict):
-            def render(column: str, agg: str) -> str:
+        """MERGE 문의 WHEN MATCHED THEN UPDATE SET 절을 생성한다."""
+        prefix = "WHEN MATCHED THEN UPDATE SET "
+        if matched == ":replace_all:":
+            on = [on_conflict] if isinstance(on_conflict, str) else on_conflict
+            return self._compose_merge_matched({col: "replace" for col in self.get_columns(target_table) if col not in on})
+        elif matched == ":do_nothing:":
+            return None
+        elif isinstance(matched, dict):
+            def render(col: str, agg: str) -> str:
                 if agg in {"source_first", "target_first"}:
-                    alias = ("EXCLUDED", "T") if agg == "source_first" else ("T", "EXCLUDED")
-                    kwargs = dict(zip(["left", "right"], alias))
-                    return "COALESCE({left}.{column}, {right}.{column})".format(column=column, **kwargs)
-                if agg in {"greatest", "least"}:
-                    return f"{agg.upper()}(EXCLUDED.{column}, T.{column})"
-                if agg in {"replace", "ignore"}:
-                    return f"EXCLUDED.{column}" if agg == "replace" else f"T.{column}"
-                return f"{agg}({column})"
-            return prefix + ", ".join([f"{col} = {render(col, agg)}" for col, agg in do_action.items()])
-        return prefix + str(do_action)
+                    kwargs = dict(zip(["left", "right"], ('S','T') if agg == "source_first" else ('T','S')))
+                    return "COALESCE({left}.{col}, {right}.{col})".format(col=col, **kwargs)
+                elif agg in {"greatest", "least"}:
+                    return f"{agg.upper()}(S.{col}, T.{col})"
+                elif agg in {"replace", "ignore"}:
+                    return f"S.{col}" if agg == "replace" else f"T.{col}"
+                return f"{agg}({col})"
+            return prefix + ", ".join([f"{col} = {render(col, agg)}" for col, agg in matched.items()])
+        return prefix + str(matched)
+
+    def _compose_merge_not_matched(
+            self,
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
+            target_table: str = str(),
+        ) -> str:
+        """MERGE 문의 WHEN NOT MATCHED THEN INSERT 절을 생성한다."""
+        prefix = "WHEN NOT MATCHED THEN "
+        if not_matched == ":insert_all:":
+            return self._compose_merge_not_matched(self.get_columns(target_table))
+        elif not_matched == ":do_nothing:":
+            return None
+        elif isinstance(not_matched, str):
+            return prefix + not_matched
+        elif isinstance(not_matched, Sequence):
+            return prefix + "INSERT ({}) VALUES ({})".format(", ".join(not_matched), "S."+", S.".join(not_matched))
+        return prefix + str(not_matched)
 
     ############################## DuckDB #############################
 
@@ -710,7 +722,7 @@ class PostgresClient(Connection):
                 if cleanup_staging_table and staging_table:
                     cursor.execute(f"BEGIN; DROP TABLE IF EXISTS {staging_table}; COMMIT;")
 
-    def upsert_table_from_duckdb(
+    def merge_table_from_duckdb(
             self,
             connection: DuckDBConnection,
             source_table: DuckDBTable,
@@ -718,17 +730,18 @@ class PostgresClient(Connection):
             columns: Sequence[str] = list(),
             where_clause: Clause | None = None,
             on_conflict: str | Sequence[str] = list(),
-            do_action: Clause
+            matched: Clause
                 | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
                 | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+            not_matched: Clause | Columns | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
             if_source_table_empty: Literal["break", "continue"] | None = "break",
             if_target_table_not_found: Literal["break", "create", "raise"] = "raise",
             cleanup_staging_table: bool = True,
             install_extension: bool = False,
         ) -> bool:
-        """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 BigQuery 테이블에 UPESRT 한다.
+        """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 PostgreSQL 테이블에 MERGE 한다.
 
-        **NOTE** WHERE 절에서 소스 테이블 칼럼은 `S.`로 참조한다.
+        **NOTE** WHERE 절에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
         """
         if self._is_duckdb_table_empty(connection, source_table, if_source_table_empty):
             return True
@@ -747,8 +760,7 @@ class PostgresClient(Connection):
             staging_table = None
             try:
                 staging_table = self._prepare_staging_table_from_duckdb(*common, install_extension, cursor=cursor)
-                staging_columns = self.get_description(staging_table, cursor)
-                query = self._compose_upsert_query(staging_table, target_table, staging_columns, on_conflict, do_action, where_clause)
+                query = self._compose_merge_query(staging_table, target_table, on_conflict, matched, not_matched, where_clause)
                 cursor.execute(f"BEGIN; {query} COMMIT;")
                 return True
             except Exception:

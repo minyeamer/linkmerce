@@ -64,7 +64,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.api import order as smartstore_order
         from linkmerce.api.smartstore.api import aggregated_order_status
-        from dual_load import load_table_from_duckdb, upsert_table_from_duckdb
+        from dual_load import load_table_from_duckdb, merge_table_from_duckdb
         sources = {
             "order": "smartstore_order",
             "product_order": "smartstore_product_order",
@@ -115,20 +115,20 @@ with DAG(
                         source_table = sources["product_order"],
                         target_table = tables["product_order"],
                     ),
-                    tables["delivery"]: upsert_table_from_duckdb(
+                    tables["delivery"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["delivery"],
                         target_table = tables["delivery"],
                         **merge["delivery"],
                         where_clause = conn.expr_datetime_range("T.payment_dt", [date]),
                     ),
-                    tables["option"]: upsert_table_from_duckdb(
+                    tables["option"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["option"],
                         target_table = tables["option"],
                         **merge["option"],
                     ),
-                    tables["order_status"]: (upsert_table_from_duckdb(
+                    tables["order_status"]: (merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["order_status"],
                         target_table = tables["order_status"],

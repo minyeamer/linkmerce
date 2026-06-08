@@ -66,7 +66,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.naver.openapi import shop_rank
-        from dual_load import load_table_from_duckdb, upsert_table_from_duckdb
+        from dual_load import load_table_from_duckdb, merge_table_from_duckdb
         sources = {"rank": "naver_shop_rank", "product": "naver_shop_product"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -94,13 +94,13 @@ with DAG(
                         source_table = sources["rank"],
                         target_table = tables["rank"],
                     ),
-                    tables["now"]: upsert_table_from_duckdb(
+                    tables["now"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["rank"],
                         target_table = tables["now"],
                         **merge["now"],
                     ),
-                    tables["product"]: upsert_table_from_duckdb(
+                    tables["product"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["product"],
                         target_table = tables["product"],

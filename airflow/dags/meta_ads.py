@@ -72,7 +72,7 @@ with DAG(
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         from importlib import import_module
         extract = getattr(import_module("linkmerce.api.meta.api"), ad_level)
         source = f"meta_{ad_level}"
@@ -94,7 +94,7 @@ with DAG(
                     "account_ids": account_ids,
                 },
                 "results": {
-                    tables[ad_level]: upsert_table_from_duckdb(
+                    tables[ad_level]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = source,
                         target_table = tables[ad_level],
@@ -123,7 +123,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.meta.api import insights
-        from dual_load import load_table_from_duckdb, upsert_table_from_duckdb
+        from dual_load import load_table_from_duckdb, merge_table_from_duckdb
         sources = {
             "campaigns": "meta_campaigns",
             "adsets": "meta_adsets",
@@ -154,19 +154,19 @@ with DAG(
                     "account_ids": account_ids,
                 },
                 "results": {
-                    tables["campaigns"]: upsert_table_from_duckdb(
+                    tables["campaigns"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["campaigns"],
                         target_table = tables["campaigns"],
                         **merge["campaigns"],
                     ),
-                    tables["adsets"]: upsert_table_from_duckdb(
+                    tables["adsets"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["adsets"],
                         target_table = tables["adsets"],
                         **merge["adsets"],
                     ),
-                    tables["ads"]: upsert_table_from_duckdb(
+                    tables["ads"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["ads"],
                         target_table = tables["ads"],

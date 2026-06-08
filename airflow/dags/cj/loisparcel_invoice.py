@@ -71,7 +71,7 @@ with DAG(
         ) -> dict:
         """Playwright 브라우저로 기업고객일별배송상세 데이터를 다운로드 받고 BigQuery/PostgreSQL 테이블에 맞게 변환 및 적재한다."""
         from linkmerce.common.load import DuckDBConnection
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         date_by = {"접수일자": "by_register", "집화일자": "by_pickup", "배송완료일자": "by_delivery"}
         query_dates = {date_type: query_dates[date_type] for date_type in date_by.keys() if date_type in query_dates}
         if not query_dates:
@@ -95,7 +95,7 @@ with DAG(
                     **{date_by[date_type]: params for date_type, params in query_dates.items()},
                 },
                 "results": {
-                    tables["table"]: (upsert_table_from_duckdb(
+                    tables["table"]: (merge_table_from_duckdb(
                         connection = conn,
                         source_table = source_table,
                         target_table = tables["table"],

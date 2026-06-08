@@ -73,7 +73,7 @@ with DAG(
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.sabangnet.admin import order_download
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         source = "sabangnet_invoice"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -101,7 +101,7 @@ with DAG(
                     "download_type": "invoice",
                 },
                 "results": {
-                    tables["table"]: (upsert_table_from_duckdb(
+                    tables["table"]: (merge_table_from_duckdb(
                         connection = conn,
                         source_table = source,
                         target_table = tables["table"],

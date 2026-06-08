@@ -225,7 +225,7 @@ DuckDB 테이블을 PostgreSQL로 직접 넘기는 적재 메서드도 제공한
 | --- | --- |
 | `load_table_from_duckdb` | DuckDB 소스 테이블 행을 대상 테이블에 삽입 |
 | `overwrite_table_from_duckdb` | 스테이징 테이블을 만든 뒤 대상 범위를 삭제하고 다시 삽입 |
-| `upsert_table_from_duckdb` | 스테이징 테이블을 만든 뒤 `INSERT ... ON CONFLICT`로 병합 |
+| `merge_table_from_duckdb` | 스테이징 테이블을 만든 뒤 `MERGE`로 병합 |
 | `create_partitions` | `pg_partman`으로 부모 테이블의 파티션 생성 |
 
 DuckDB 연동 적재는 DuckDB `postgres` 확장을 사용해 PostgreSQL을 `db` 데이터베이스로 attach한 뒤 실행한다.

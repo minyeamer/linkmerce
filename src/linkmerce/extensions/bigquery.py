@@ -399,7 +399,7 @@ class BigQueryClient(Connection):
 
     ############################## Merge ##############################
 
-    def merge_into_table(
+    def merge_table(
             self,
             source_table: str,
             target_table: str,
@@ -485,7 +485,7 @@ class BigQueryClient(Connection):
 
     ########################## Load and Merge #########################
 
-    def merge_into_table_from_file(
+    def merge_table_from_file(
             self,
             target_table: str,
             source_file: IO[bytes],
@@ -637,7 +637,7 @@ class BigQueryClient(Connection):
             if cleanup_staging_table and staging_table:
                 self.execute_job(f"DROP TABLE IF EXISTS `{self.project_id}.{staging_table}`;")
 
-    def merge_into_table_from_duckdb(
+    def merge_table_from_duckdb(
             self,
             connection: DuckDBConnection,
             source_table: DuckDBTable,

@@ -63,29 +63,30 @@ def overwrite_table_from_duckdb(
     }
 
 
-def upsert_table_from_duckdb(
+def merge_table_from_duckdb(
         connection: DuckDBConnection,
         source_table: DuckDBTable,
         target_table: PgTable,
         columns: Sequence[str] = list(),
         where_clause: str | None = None,
         on_conflict: str | Sequence[str] = list(),
-        do_action: str
+        matched: str
             | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
             | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+        not_matched: str | Sequence[str] | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
         extra_metadata: dict | None = None,
         **kwargs
     ) -> LoadResult:
-    """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 BigQuery 테이블에 UPESRT 한다.
+    """DuckDB 테이블을 스테이징 테이블에 적재한 후, PostgreSQL/BigQuery 테이블에 MERGE 한다.
 
-    **NOTE** WHERE 절에서 소스 테이블 칼럼은 `S.`로 참조한다.
+    **NOTE** WHERE 절에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
     """
-    common = (connection, source_table, target_table, columns, where_clause, on_conflict, do_action)
+    common = (connection, source_table, target_table, columns, where_clause, on_conflict, matched, not_matched)
     return {
         "src_count": connection.count_table(source_table),
         **(extra_metadata if isinstance(extra_metadata, dict) else dict()),
         # 제약 조건이 엄격한 PostgreSQL에 먼저 적재하여 데이터 유효성을 검증한다.
-        "pg_success": upsert_pg_table_from_duckdb(*common, **kwargs),
+        "pg_success": merge_into_pg_table_from_duckdb(*common, **kwargs),
         "bq_success": merge_into_bq_table_from_duckdb(*common, **kwargs),
     }
 
@@ -188,7 +189,7 @@ def merge_into_bq_table_from_duckdb(
     **NOTE** WHERE 절에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
     """
     client: BigQueryClient = kwargs["client"]
-    return client.merge_into_table_from_duckdb(
+    return client.merge_table_from_duckdb(
         connection, source_table, target_table, columns,
         where_clause, on_conflict, matched, not_matched, schema,
         if_source_table_empty, if_target_table_not_found, cleanup_staging_table
@@ -276,29 +277,30 @@ def overwrite_pg_table_from_duckdb(
 
 
 @postgres_client
-def upsert_pg_table_from_duckdb(
+def merge_into_pg_table_from_duckdb(
         connection: DuckDBConnection,
         source_table: DuckDBTable,
         target_table: PgTable,
         columns: Sequence[str] = list(),
         where_clause: str | None = None,
         on_conflict: str | Sequence[str] = list(),
-        do_action: str
+        matched: str
             | dict[str, Literal["replace", "ignore", "greatest", "least", "source_first", "target_first"]]
             | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
+        not_matched: str | Sequence[str] | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
         if_source_table_empty: Literal["break", "continue"] | None = "break",
         if_target_table_not_found: Literal["break", "create", "raise"] = "raise",
         cleanup_staging_table: bool = True,
         **kwargs
     ) -> bool:
-    """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 BigQuery 테이블에 UPESRT 한다.
+    """DuckDB 테이블을 스테이징 테이블에 적재한 후, 스테이징 테이블을 PostgreSQL 테이블에 MERGE 한다.
 
-    **NOTE** WHERE 절에서 소스 테이블 칼럼은 `S.`로 참조한다.
+    **NOTE** WHERE 절에서 타겟 테이블 칼럼은 `T.`, 소스 테이블 칼럼은 `S.`로 참조한다.
     """
     client: PostgresClient = kwargs["client"]
-    return client.upsert_table_from_duckdb(
+    return client.merge_table_from_duckdb(
         connection, source_table, target_table, columns,
-        where_clause, on_conflict, do_action,
+        where_clause, on_conflict, matched, not_matched,
         if_source_table_empty, if_target_table_not_found, cleanup_staging_table,
         install_extension=True
     )

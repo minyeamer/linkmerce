@@ -58,7 +58,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.smartstore.api import product
         from linkmerce.api.smartstore.api import option
-        from dual_load import upsert_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         sources = {"product": "smartstore_product", "option": "smartstore_option"}
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -88,13 +88,13 @@ with DAG(
                     "status_type": ["ALL"],
                 },
                 "results": {
-                    tables["product"]: upsert_table_from_duckdb(
+                    tables["product"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["product"],
                         target_table = tables["product"],
                         **merge["product"],
                     ),
-                    tables["option"]: upsert_table_from_duckdb(
+                    tables["option"]: merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["option"],
                         target_table = tables["option"],
