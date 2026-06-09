@@ -1,15 +1,50 @@
 {
-  "analytics.cost": [
-    {"name": "id", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
-    {"name": "name", "type": "STRING", "description": "마케팅"},
-    {"name": "sales_team", "type": "STRING", "description": "영업팀"},
+  "analytics.item": [
+    {"name": "item_id", "type": "STRING", "description": "분류코드", "mode": "REQUIRED"},
+    {"name": "item_seq", "type": "INTEGER", "description": "순번"},
+    {"name": "product_id", "type": "STRING", "description": "품목코드"},
+    {"name": "team_name", "type": "STRING", "description": "영업팀"},
     {"name": "brand_name", "type": "STRING", "description": "브랜드"},
-    {"name": "cost_type", "type": "STRING", "description": "유형", "mode": "REQUIRED"},
-    {"name": "cost", "type": "INTEGER", "description": "비용"},
+    {"name": "category_name1", "type": "STRING", "description": "대분류"},
+    {"name": "category_name2", "type": "STRING", "description": "중분류"},
+    {"name": "category_name3", "type": "STRING", "description": "소분류"},
+    {"name": "category_name4", "type": "STRING", "description": "세분류"},
+    {"name": "color", "type": "STRING", "description": "색상"},
+    {"name": "product_name", "type": "STRING", "description": "상품명"},
+    {"name": "unit_name", "type": "STRING", "description": "소분류단위"},
+    {"name": "unit_scale", "type": "INTEGER", "description": "소분류배율"},
+    {"name": "maker_name", "type": "STRING", "description": "업체명"},
+    {"name": "model_code", "type": "STRING", "description": "대표코드"},
+    {"name": "model_id", "type": "STRING", "description": "식별코드"},
+    {"name": "eflexs_item_code", "type": "STRING", "description": "풀필먼트코드"},
+    {"name": "delivery_group", "type": "STRING", "description": "배송그룹"},
+    {"name": "delivery_fee", "type": "INTEGER", "description": "배송비"},
+    {"name": "org_price", "type": "INTEGER", "description": "원가/공급가"},
+    {"name": "extra_cost", "type": "INTEGER", "description": "부자재비"},
+    "CLUSTER BY team_name, brand_name"
+  ],
+  "analytics.delivery_group": [
+    {"name": "delivery_group", "type": "STRING", "description": "배송그룹", "mode": "REQUIRED"},
+    {"name": "min_unit", "type": "INTEGER", "description": "최소구성", "mode": "REQUIRED"},
+    {"name": "coolant_cost", "type": "INTEGER", "description": "냉매"},
+    {"name": "label_cost", "type": "INTEGER", "description": "스티커"},
+    {"name": "wrap_cost", "type": "INTEGER", "description": "에어버블"},
+    {"name": "box_cost", "type": "INTEGER", "description": "택배박스"},
+    {"name": "delivery_fee", "type": "INTEGER", "description": "자체배송비"},
+    {"name": "n_arrival_fee", "type": "INTEGER", "description": "N배송비"},
+    {"name": "n_arrival_add", "type": "INTEGER", "description": "N배송비추가"}
+  ],
+  "analytics.opex": [
+    {"name": "expense_id", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
+    {"name": "expense_name", "type": "STRING", "description": "명칭"},
+    {"name": "dept_name", "type": "STRING", "description": "부서", "mode": "REQUIRED"},
+    {"name": "team_name", "type": "STRING", "description": "영업팀"},
+    {"name": "brand_name", "type": "STRING", "description": "브랜드"},
+    {"name": "amount", "type": "INTEGER", "description": "비용"},
     {"name": "start_date", "type": "DATE", "description": "시작일"},
     {"name": "end_date", "type": "DATE", "description": "종료일", "mode": "REQUIRED"},
     "PARTITION BY end_date",
-    "CLUSTER BY cost_type, sales_team, brand_name",
+    "CLUSTER BY dept_name, team_name, brand_name",
     "< ecount.cost"
   ],
   "cj_eflexs.invoice": [
@@ -462,11 +497,12 @@
     "CLUSTER BY keyword",
     "< nshopping.rank_now"
   ],
-  "relation.ad_id_to_cat_id": [
+  "relation.ad_id_to_sbn_ids": [
     {"name": "ad_id", "type": "STRING", "description": "광고ID", "mode": "REQUIRED"},
     {"name": "ad_type", "type": "INTEGER", "description": "광고유형", "mode": "REQUIRED"},
     {"name": "platform_name", "type": "STRING", "description": "광고플랫폼", "mode": "REQUIRED"},
-    {"name": "category_id", "type": "STRING", "description": "분류코드", "mode": "REQUIRED"},
+    {"name": "brand_name", "type": "STRING", "description": "브랜드"},
+    {"name": "bundle_product_ids", "type": "STRING", "description": "연결품번코드"},
     "CLUSTER BY platform_name, ad_type"
   ],
   "relation.cpg_opt_to_sbn_ids": [
@@ -489,9 +525,10 @@
     {"name": "option_id", "type": "INTEGER", "description": "옵션코드", "mode": "REQUIRED"},
     {"name": "bundle_option_ids", "type": "STRING", "description": "연결상품코드", "mode": "REQUIRED"}
   ],
-  "relation.smt_prd_to_cat_id": [
+  "relation.smt_prd_to_sbn_ids": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
-    {"name": "category_id", "type": "STRING", "description": "분류코드", "mode": "REQUIRED"}
+    {"name": "brand_name", "type": "STRING", "description": "브랜드"},
+    {"name": "bundle_product_ids", "type": "STRING", "description": "연결품번코드"}
   ],
   "sabangnet.shop": [
     {"name": "shop_seq", "type": "INTEGER", "description": "쇼핑몰순번", "mode": "REQUIRED"},
@@ -514,42 +551,6 @@
     {"name": "status", "type": "BOOLEAN", "description": "상태"},
     {"name": "commission_rate", "type": "FLOAT", "description": "수수료율"},
     "CLUSTER BY shop_group, shop_name"
-  ],
-  "sabangnet.model": [
-    {"name": "category_id", "type": "STRING", "description": "분류코드", "mode": "REQUIRED"},
-    {"name": "category_seq", "type": "INTEGER", "description": "순번"},
-    {"name": "product_id", "type": "STRING", "description": "품목코드"},
-    {"name": "model_code", "type": "STRING", "description": "대표코드"},
-    {"name": "model_id", "type": "STRING", "description": "식별코드"},
-    {"name": "brand_name", "type": "STRING", "description": "브랜드"},
-    {"name": "category_name1", "type": "STRING", "description": "대분류"},
-    {"name": "category_name2", "type": "STRING", "description": "중분류"},
-    {"name": "category_name3", "type": "STRING", "description": "소분류"},
-    {"name": "category_name4", "type": "STRING", "description": "세분류"},
-    {"name": "color", "type": "STRING", "description": "색상"},
-    {"name": "product_name", "type": "STRING", "description": "상품명"},
-    {"name": "unit_name", "type": "STRING", "description": "소분류단위"},
-    {"name": "unit_scale", "type": "INTEGER", "description": "소분류배율"},
-    {"name": "maker_name", "type": "STRING", "description": "업체명"},
-    {"name": "sales_team", "type": "STRING", "description": "영업팀"},
-    {"name": "delivery_group", "type": "STRING", "description": "배송그룹"},
-    {"name": "delivery_fee", "type": "INTEGER", "description": "배송비"},
-    {"name": "eflexs_item_code", "type": "STRING", "description": "풀필먼트코드"},
-    {"name": "org_price", "type": "INTEGER", "description": "원가/공급가"},
-    {"name": "wrap_price", "type": "INTEGER", "description": "OPP/에어캡"},
-    {"name": "extra_cost", "type": "INTEGER", "description": "기타부자재"},
-    "CLUSTER BY sales_team, brand_name, category_name1"
-  ],
-  "sabangnet.delivery": [
-    {"name": "delivery_group", "type": "STRING", "description": "배송그룹", "mode": "REQUIRED"},
-    {"name": "min_unit", "type": "INTEGER", "description": "최소구성", "mode": "REQUIRED"},
-    {"name": "coolant_cost", "type": "INTEGER", "description": "냉매"},
-    {"name": "label_cost", "type": "INTEGER", "description": "스티커"},
-    {"name": "wrap_cost", "type": "INTEGER", "description": "에어버블"},
-    {"name": "box_cost", "type": "INTEGER", "description": "택배박스"},
-    {"name": "delivery_fee", "type": "INTEGER", "description": "자체배송비"},
-    {"name": "n_arrival_fee", "type": "INTEGER", "description": "N배송비"},
-    {"name": "n_arrival_add", "type": "INTEGER", "description": "N배송비추가"}
   ],
   "sabangnet.order": [
     {"name": "order_seq", "type": "INTEGER", "description": "주문번호(사방넷)", "mode": "REQUIRED"},
@@ -821,10 +822,10 @@
     {"name": "channel_name", "type": "STRING", "description": "채널명"},
     {"name": "brand_name", "type": "STRING", "description": "브랜드명"},
     {"name": "brand_seq", "type": "INTEGER", "description": "브랜드순번"},
-    {"name": "sales_team", "type": "STRING", "description": "영업팀"},
+    {"name": "team_name", "type": "STRING", "description": "영업팀"},
     {"name": "mall_url", "type": "STRING", "description": "판매처주소"},
     {"name": "order_date", "type": "DATE", "description": "최초주문일"},
-    "CLUSTER BY sales_team"
+    "CLUSTER BY team_name"
   ],
   "smartstore.product": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},

@@ -35,17 +35,57 @@ CREATE EXTENSION IF NOT EXISTS pg_partman WITH SCHEMA partman;
 -- analytics (통합/분석용)
 -- ============================================================
 
--- [마케팅비용]
-CREATE TABLE IF NOT EXISTS analytics.cost (
-    id BIGINT NOT NULL -- 순번
-  , name TEXT -- 마케팅
-  , sales_team TEXT -- 영업팀
+-- [대표상품]
+CREATE TABLE IF NOT EXISTS analytics.item (
+    item_id TEXT NOT NULL -- 분류코드
+  , item_seq BIGINT -- 순번
+  , product_id TEXT -- 품목코드
+  , team_name TEXT -- 영업팀
   , brand_name TEXT -- 브랜드
-  , cost_type TEXT NOT NULL -- 유형
-  , cost BIGINT -- 비용
+  , category_name1 TEXT -- 대분류
+  , category_name2 TEXT -- 중분류
+  , category_name3 TEXT -- 소분류
+  , category_name4 TEXT -- 세분류
+  , color TEXT -- 색상
+  , product_name TEXT -- 상품명
+  , unit_name TEXT -- 소분류단위
+  , unit_scale INTEGER -- 소분류배율
+  , maker_name TEXT -- 업체명
+  , model_code TEXT -- 대표코드
+  , model_id TEXT -- 식별코드
+  , eflexs_item_code TEXT -- 풀필먼트코드
+  , delivery_group TEXT -- 배송그룹
+  , delivery_fee INTEGER -- 배송비
+  , org_price INTEGER -- 원가
+  , extra_cost INTEGER -- 부자재비
+  , PRIMARY KEY (item_id)
+);
+
+-- [배송그룹]
+CREATE TABLE IF NOT EXISTS analytics.delivery_group (
+    delivery_group TEXT NOT NULL -- 배송그룹
+  , min_unit INTEGER NOT NULL -- 최소구성
+  , coolant_cost INTEGER -- 냉매
+  , label_cost INTEGER -- 스티커
+  , wrap_cost INTEGER -- 에어버블
+  , box_cost INTEGER -- 택배박스
+  , delivery_fee INTEGER -- 자체배송비
+  , n_arrival_fee INTEGER -- N배송비
+  , n_arrival_add INTEGER -- N배송비추가
+  , PRIMARY KEY (delivery_group, min_unit)
+);
+
+-- [운영비]
+CREATE TABLE IF NOT EXISTS analytics.opex (
+    expense_id BIGINT NOT NULL -- 순번
+  , expense_name TEXT -- 명칭
+  , dept_name TEXT NOT NULL -- 부서
+  , team_name TEXT -- 영업팀
+  , brand_name TEXT -- 브랜드
+  , amount BIGINT -- 비용
   , start_date DATE -- 시작일
   , end_date DATE NOT NULL -- 종료일
-  , PRIMARY KEY (end_date, id)
+  , PRIMARY KEY (end_date, expense_id)
 ) PARTITION BY RANGE (end_date);
 
 -- ============================================================
@@ -574,13 +614,14 @@ CREATE INDEX IF NOT EXISTS nsh_rank_now__item_idx ON naver_shp.rank_now (nv_mid)
 -- relation
 -- ============================================================
 
--- [종합 캠페인/광고그룹/소재 - 개발용 분류코드 관계]
-CREATE TABLE IF NOT EXISTS relation.ad_id_to_cat_id (
+-- [종합 캠페인/광고그룹/소재 - 사방넷 묶음품목 관계]
+CREATE TABLE IF NOT EXISTS relation.ad_id_to_sbn_ids (
     ad_id TEXT NOT NULL -- 광고ID
   , ad_type INTEGER NOT NULL -- 광고유형
   , platform_name TEXT NOT NULL -- 광고플랫폼
-  , category_id TEXT NOT NULL -- 분류코드
-  , PRIMARY KEY (ad_id, ad_type, platform_name)
+  , brand_name TEXT -- 브랜드
+  , bundle_product_ids TEXT -- 연결품번코드
+  , PRIMARY KEY (platform_name, ad_type, ad_id)
 );
 
 -- [쿠팡 옵션 - 사방넷 묶음상품 관계]
@@ -612,10 +653,11 @@ CREATE TABLE IF NOT EXISTS relation.smt_opt_to_sbn_ids (
   , PRIMARY KEY (option_id)
 );
 
--- [스마트스토어 상품 - 개발용 분류코드 관계]
-CREATE TABLE IF NOT EXISTS relation.smt_prd_to_cat_id (
+-- [스마트스토어 상품 - 사방넷 묶음품목 관계]
+CREATE TABLE IF NOT EXISTS relation.smt_prd_to_sbn_ids (
     product_id BIGINT NOT NULL -- 상품코드
-  , category_id TEXT NOT NULL -- 분류코드
+  , brand_name TEXT -- 브랜드
+  , bundle_product_ids TEXT -- 연결품번코드
   , PRIMARY KEY (product_id)
 );
 
@@ -647,47 +689,6 @@ CREATE TABLE IF NOT EXISTS sabangnet.account (
   , status BOOLEAN -- 상태
   , commission_rate DOUBLE PRECISION -- 수수료율
   , PRIMARY KEY (account_no)
-);
-
--- [사방넷 대표상품]
-CREATE TABLE IF NOT EXISTS sabangnet.model (
-    category_id TEXT NOT NULL -- 분류코드
-  , category_seq BIGINT -- 순번
-  , product_id TEXT -- 품목코드
-  , model_code TEXT -- 대표코드
-  , model_id TEXT -- 식별코드
-  , brand_name TEXT -- 브랜드
-  , category_name1 TEXT -- 대분류
-  , category_name2 TEXT -- 중분류
-  , category_name3 TEXT -- 소분류
-  , category_name4 TEXT -- 세분류
-  , color TEXT -- 색상
-  , product_name TEXT -- 상품명
-  , unit_name TEXT -- 소분류단위
-  , unit_scale INTEGER -- 소분류배율
-  , maker_name TEXT -- 업체명
-  , sales_team TEXT -- 영업팀
-  , delivery_group TEXT -- 배송그룹
-  , delivery_fee INTEGER -- 배송비
-  , eflexs_item_code TEXT -- 풀필먼트코드
-  , org_price INTEGER -- 원가/공급가
-  , wrap_price INTEGER -- OPP/에어캡
-  , extra_cost INTEGER -- 기타부자재
-  , PRIMARY KEY (category_id)
-);
-
--- [사방넷 배송그룹]
-CREATE TABLE IF NOT EXISTS sabangnet.delivery (
-    delivery_group TEXT NOT NULL -- 배송그룹
-  , min_unit INTEGER NOT NULL -- 최소구성
-  , coolant_cost INTEGER -- 냉매
-  , label_cost INTEGER -- 스티커
-  , wrap_cost INTEGER -- 에어버블
-  , box_cost INTEGER -- 택배박스
-  , delivery_fee INTEGER -- 자체배송비
-  , n_arrival_fee INTEGER -- N배송비
-  , n_arrival_add INTEGER -- N배송비추가
-  , PRIMARY KEY (delivery_group, min_unit)
 );
 
 -- [사방넷 주문 내역]
@@ -1006,7 +1007,7 @@ CREATE TABLE IF NOT EXISTS smartstore.channel (
   , channel_name TEXT -- 채널명
   , brand_name TEXT -- 브랜드명
   , brand_seq BIGINT -- 브랜드순번
-  , sales_team TEXT -- 영업팀
+  , team_name TEXT -- 영업팀
   , mall_url TEXT -- 판매처주소
   , order_date DATE -- 최초주문일
   , PRIMARY KEY (channel_seq)
