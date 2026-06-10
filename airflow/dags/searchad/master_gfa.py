@@ -1,6 +1,21 @@
+"""
+# 네이버 성과형 디스플레이 광고 캠페인/광고 그룹/소재 ETL 파이프라인
+
+## 인증(Credentials)
+성과형 디스플레이 광고 계정을 보유한 네이버 계정의 로그인 쿠키가 필요하다.
+
+## 추출(Extract)
+계정별 캠페인 목록, 광고 그룹 목록, 소재 목록을 수집한다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+각각의 데이터를 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,22 +25,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 8, 30, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:medium", "searchad:master", "login:gfa", "schedule:weekdays", "time:morning"],
-    doc_md = dedent("""
-        # 네이버 성과형 디스플레이 광고 캠페인/광고 그룹/소재 ETL 파이프라인
-
-        ## 인증(Credentials)
-        성과형 디스플레이 광고 계정을 보유한 네이버 계정의 로그인 쿠키가 필요하다.
-
-        ## 추출(Extract)
-        계정별 캠페인 목록, 광고 그룹 목록, 소재 목록을 수집한다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 데이터를 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:medium", "platform:searchad", "objective:adreport", "credentials:cookies",
+        "schedule:weekdays", "time:morning", "write:merge"
+    ],
 ) as dag:
 
     PATH = "searchad.gfa.master"

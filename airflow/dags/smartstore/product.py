@@ -1,6 +1,23 @@
+"""
+# 스마트스토어 상품 및 옵션 ETL 파이프라인
+
+## 인증(Credentials)
+스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.
+
+## 추출(Extract)
+스마트스토어 채널별 모든 상품 목록을 수집하고,
+모든 상품코드에 대한 상품 상세 정보를 추가로 가져온다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 상품 목록을 DuckDB 테이블에 적재하고,
+각각의 상품 상세 정보로부터 옵션 및 추가상품 목록을 추출하여 하나의 옵션 테이블에 적재한다.
+
+## 적재(Load)
+각각의 상품, 옵션 테이블을 기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,24 +27,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 9, 3, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:high", "smartstore:product", "smartstore:option", "api:smartstore", "schedule:weekdays", "time:night"],
-    doc_md = dedent("""
-        # 스마트스토어 상품 및 옵션 ETL 파이프라인
-
-        ## 인증(Credentials)
-        스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.
-
-        ## 추출(Extract)
-        스마트스토어 채널별 모든 상품 목록을 수집하고,
-        모든 상품코드에 대한 상품 상세 정보를 추가로 가져온다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 상품 목록을 DuckDB 테이블에 적재하고,
-        각각의 상품 상세 정보로부터 옵션 및 추가상품 목록을 추출하여 하나의 옵션 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 상품, 옵션 테이블을 기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:smartstore", "objective:product", "credentials:api-key",
+        "schedule:weekdays", "time:night", "write:merge"
+    ],
 ) as dag:
 
     PATH = "smartstore.api.product"

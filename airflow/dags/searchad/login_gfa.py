@@ -1,7 +1,23 @@
+"""
+# 네이버 성과형 디스플레이 광고 로그인 파이프라인
+
+## 동작 방식
+1. 크롬 확장프로그램을 통해 Slack 채널 '_네이버-쿠키'에 업로드되는 로그인 쿠키를 추출한다.
+2. 네이버 로그인 쿠키를 가지고 네이버 광고주센터의 디스플레이 광고 계정을 인증한다.
+3. 쿠키에 'XSRF-TOKEN'이 추가되었다면 인증된 것으로 인식하고, 완성된 쿠키 문자열을 지정된 파일에 덮어쓴다.
+
+## 인증 정보
+- 네이버 계정 목록(searchad.users)과 디스플레이 광고 계정 목록(searchad.gfa)을 'customer_id'로 매칭한다.
+- 네이버와 디스플레이 광고 계정 정보에 각각 쿠키 문자열을 저장할 파일 경로(cookies)가 필요하다.
+
+## 예외 상황
+- 계정 보호조치, 비밀번호 변경 등의 사례로 네이버 로그인이 해제될 수 있다.
+- 네이버 로그인이 해제되면 직접 수동 로그인 후 실패한 Task를 재실행한다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.providers.slack.hooks.slack import SlackHook
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -11,23 +27,11 @@ with DAG(
     start_date = pendulum.datetime(2026, 4, 9, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:high", "searchad:cookies", "login:gfa", "schedule:daily", "time:morning"],
-    doc_md = dedent("""
-        # 네이버 성과형 디스플레이 광고 로그인 파이프라인
-
-        ## 동작 방식
-        1. 크롬 확장프로그램을 통해 Slack 채널 '_네이버-쿠키'에 업로드되는 로그인 쿠키를 추출한다.
-        2. 네이버 로그인 쿠키를 가지고 네이버 광고주센터의 디스플레이 광고 계정을 인증한다.
-        3. 쿠키에 'XSRF-TOKEN'이 추가되었다면 인증된 것으로 인식하고, 완성된 쿠키 문자열을 지정된 파일에 덮어쓴다.
-
-        ## 인증 정보
-        - 네이버 계정 목록(searchad.users)과 디스플레이 광고 계정 목록(searchad.gfa)을 'customer_id'로 매칭한다.
-        - 네이버와 디스플레이 광고 계정 정보에 각각 쿠키 문자열을 저장할 파일 경로(cookies)가 필요하다.
-
-        ## 예외 상황
-        - 계정 보호조치, 비밀번호 변경 등의 사례로 네이버 로그인이 해제될 수 있다.
-        - 네이버 로그인이 해제되면 직접 수동 로그인 후 실패한 Task를 재실행한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:searchad", "objective:login",
+        "schedule:daily", "time:morning", "write:file", "provider:slack", "upstream:extension"
+    ],
 ) as dag:
 
     PATH = "searchad.gfa.login"

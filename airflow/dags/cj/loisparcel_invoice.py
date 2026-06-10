@@ -1,3 +1,24 @@
+"""
+# CJ대한통운 로이스파셀 기업고객일별배송상세 ETL 파이프라인
+
+## 인증(Credentials)
+CJ대한통운 로이스파셀 로그인을 위한 아이디, 비밀번호와
+2단계 인증을 위한 이메일 계정 로그인 정보가 필요하다.
+(동일한 도커 네트워크의 Playwright 컨테이너가 실행 중이어야 한다.)
+
+## 추출(Extract)
+접수일자, 집화일자, 배송완료일자 기준으로 기업고객일별배송상세 데이터를 다운로드 받는다.
+실행 시점(data_interval_end)을 기준으로 접수일자는 3일전부터 1일전 기준,
+집화일자와 배송완료일자는 1일전을 기준으로 조회한다.
+
+## 변환(Transform)
+3가지 날짜 기준으로 다운로드 받은 엑셀 바이너리 형식의 데이터를 파싱하여
+하나의 DuckDB 테이블에 중복 없이 적재한다.
+
+## 적재(Load)
+기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 중복 없이 적재한다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
@@ -11,27 +32,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 12, 3, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:high", "loisparcel:invoice", "login:cj-loisparcel", "schedule:daily", "time:night", "playwright:true"],
-    doc_md = dedent("""
-        # CJ대한통운 로이스파셀 기업고객일별배송상세 ETL 파이프라인
-
-        ## 인증(Credentials)
-        CJ대한통운 로이스파셀 로그인을 위한 아이디, 비밀번호와
-        2단계 인증을 위한 이메일 계정 로그인 정보가 필요하다.
-        (동일한 도커 네트워크의 Playwright 컨테이너가 실행 중이어야 한다.)
-
-        ## 추출(Extract)
-        접수일자, 집화일자, 배송완료일자 기준으로 기업고객일별배송상세 데이터를 다운로드 받는다.
-        실행 시점(data_interval_end)을 기준으로 접수일자는 3일전부터 1일전 기준,
-        집화일자와 배송완료일자는 1일전을 기준으로 조회한다.
-
-        ## 변환(Transform)
-        3가지 날짜 기준으로 다운로드 받은 엑셀 바이너리 형식의 데이터를 파싱하여
-        하나의 DuckDB 테이블에 중복 없이 적재한다.
-
-        ## 적재(Load)
-        기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 중복 없이 적재한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:cj-loisparcel", "objective:delivery", "credentials:userid",
+        "schedule:daily", "time:night", "plugin:playwright", "write:merge"
+    ],
 ) as dag:
 
     PATH = "cj.loisparcel.invoice"

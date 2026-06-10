@@ -1,7 +1,24 @@
+"""
+# 사방넷 상품/옵션/매핑 ETL 파이프라인
+
+## 인증(Credentials)
+사방넷 아이디, 비밀번호와 시스템 도메인 번호가 필요하다.
+Task를 실행할 때마다 로그인하고, 쿠키와 `access_token`을 발급받아 활용한다.
+
+## 추출(Extract)
+사방넷 시스템에서 상품 목록, 단품 옵션 목록, 추가상품 목록, 품번/단품코드 매핑 내역을
+순차적으로 수집한다.
+
+## 변환(Transform)
+JSON 또는 엑셀 바이너리 형식의 각각의 데이터를 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+Task마다 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
-from textwrap import dedent
 from typing import Literal
 import pendulum
 
@@ -12,24 +29,12 @@ with DAG(
     start_date = pendulum.datetime(2025, 10, 22, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:high", "sabangnet:product", "sabangnet:option", "sabangnet:mapping", "login:sabangnet", "schedule:weekdays", "time:night"],
-    doc_md = dedent("""
-        # 사방넷 상품/옵션/매핑 ETL 파이프라인
-
-        ## 인증(Credentials)
-        사방넷 아이디, 비밀번호와 시스템 도메인 번호가 필요하다.
-        Task를 실행할 때마다 로그인하고, 쿠키와 `access_token`을 발급받아 활용한다.
-
-        ## 추출(Extract)
-        사방넷 시스템에서 상품 목록, 단품 옵션 목록, 추가상품 목록, 품번/단품코드 매핑 내역을
-        순차적으로 수집한다.
-
-        ## 변환(Transform)
-        JSON 또는 엑셀 바이너리 형식의 각각의 데이터를 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        Task마다 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:medium", "platform:sabangnet",
+        "objective:product", "objective:mapping", "credentials:userid",
+        "schedule:weekdays", "time:night", "write:merge"
+    ],
 ) as dag:
 
     PATH = "sabangnet.admin.product"

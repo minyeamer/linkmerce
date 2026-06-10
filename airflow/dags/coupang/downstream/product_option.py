@@ -1,3 +1,29 @@
+"""
+# 쿠팡 상품 옵션 ETL 파이프라인
+
+> 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+
+## 인증(Credentials)
+'coupang' Dag에서 Playwright 브라우저로 쿠팡 Wing 로그인 후 쿠키를 추출한다.
+쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
+
+## 추출(Extract)
+쿠팡 업체별 상품 옵션 목록을 수집하고,
+쿠팡 로켓 재고 현황으로부터 로켓 옵션 목록을 수집해 병합한다.
+각각 'see_more=True' 파라미터에 의해 상품별 대표 옵션뿐 아니라,
+상품 페이지를 하나씩 접속하면서 전체 옵션 목록을 수집한다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 옵션 목록을 DuckDB 테이블에 적재한다.
+'see_more=True' 파라미터에 의해 수집되는 상세 옵션 목록을 동일한 테이블에 적재해
+누락없는 전체 옵션 목록을 완성한다.
+로켓 옵션 목록은 'main' 함수에서 INSERT 문을 실행해 옵션 테이블로 옮긴다.
+
+## 적재(Load)
+상품 옵션 목록과 로켓 옵션 목록을 통합한 하나의 테이블을
+기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.dagrun import DagRun
 from datetime import timedelta
@@ -11,32 +37,12 @@ with DAG(
     start_date = pendulum.datetime(2025, 11, 4, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:medium", "coupang:option", "login:coupang", "schedule:daily", "time:morning", "manual:dagrun"],
-    doc_md = dedent("""
-        # 쿠팡 상품 옵션 ETL 파이프라인
-
-        > 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
-
-        ## 인증(Credentials)
-        'coupang' Dag에서 Playwright 브라우저로 쿠팡 Wing 로그인 후 쿠키를 추출한다.
-        쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
-
-        ## 추출(Extract)
-        쿠팡 업체별 상품 옵션 목록을 수집하고,
-        쿠팡 로켓 재고 현황으로부터 로켓 옵션 목록을 수집해 병합한다.
-        각각 'see_more=True' 파라미터에 의해 상품별 대표 옵션뿐 아니라,
-        상품 페이지를 하나씩 접속하면서 전체 옵션 목록을 수집한다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 옵션 목록을 DuckDB 테이블에 적재한다.
-        'see_more=True' 파라미터에 의해 수집되는 상세 옵션 목록을 동일한 테이블에 적재해
-        누락없는 전체 옵션 목록을 완성한다.
-        로켓 옵션 목록은 'main' 함수에서 INSERT 문을 실행해 옵션 테이블로 옮긴다.
-
-        ## 적재(Load)
-        상품 옵션 목록과 로켓 옵션 목록을 통합한 하나의 테이블을
-        기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:medium", "platform:coupang-wing", "objective:product", "credentials:cookies",
+        "schedule:daily", "schedule:none", "time:night", "write:merge",
+        "upstream:dagrun"
+    ],
 ) as dag:
 
     PATH = "coupang.wing.product_option"

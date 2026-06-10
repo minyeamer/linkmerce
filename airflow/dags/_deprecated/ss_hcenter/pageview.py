@@ -1,7 +1,29 @@
+"""
+# 네이버 브랜드 스토어 방문 통계 ETL 파이프라인
+
+> 안내) 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가,
+> [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782)
+> 참고 (~ v0.6.8)
+
+## 인증(Credentials)
+네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
+(브랜드 스토어 권한이 필요하고, '브랜드 애널리틱스' 메뉴에 도달해야 한다.)
+
+## 추출(Extract)
+실행 시점(data_interval_end)에서 1일 전을 기준으로
+스토어와 상품에 대한 방문 통계 데이터를 수집한다.
+(브랜드 스토어만 대상으로 조회할 수 있다.)
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 스토어/상품별 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+각각의 데이터를 대응되는 BigQuery 테이블 끝에 추가한다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -11,29 +33,12 @@ with DAG(
     start_date = pendulum.datetime(2025, 12, 13, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:low", "naver:pageview", "login:hcenter", "schedule:daily", "time:morning"],
-    doc_md = dedent("""
-        # 네이버 브랜드 스토어 방문 통계 ETL 파이프라인
-
-        > 안내) 26-02-27 이후 '브랜드 애널리틱스 > 스토어 트래픽' 메뉴 삭제로 이용 불가,
-        > [공지사항](https://adcenter.shopping.naver.com/board/notice_detail.nhn?noticeSeq=311782)
-        > 참고 (~ v0.6.8)
-
-        ## 인증(Credentials)
-        네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
-        (브랜드 스토어 권한이 필요하고, '브랜드 애널리틱스' 메뉴에 도달해야 한다.)
-
-        ## 추출(Extract)
-        실행 시점(data_interval_end)에서 1일 전을 기준으로
-        스토어와 상품에 대한 방문 통계 데이터를 수집한다.
-        (브랜드 스토어만 대상으로 조회할 수 있다.)
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 스토어/상품별 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 데이터를 대응되는 BigQuery 테이블 끝에 추가한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:low", "platform:naver-hcenter", "objective:statistics", "credentials:cookies",
+        "schedule:daily", "time:morning", "write:append",
+        "status:deprecated"
+    ],
 ) as dag:
 
     PATH = "smartstore.hcenter.pageview"

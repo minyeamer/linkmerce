@@ -1,6 +1,26 @@
+"""
+# 메타 광고 ETL 파이프라인
+
+## 인증(Credentials)
+메타 광고 API 인증 정보인 Access Token이 필요하다.
+토큰 만료 시 연장을 위해 App ID와 App Secret이 선택적으로 요구된다.
+
+## 추출(Extract)
+Access Token 권한이 있는 계정들에 대한 캠페인, 광고세트, 광고 목록을 수집하고,
+추가로 실행 시점(data_interval_end)에서 1일 전을 기준으로 광고 성과 보고서를 가져온다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 캠페인, 광고세트, 광고,
+그리고 성과 보고서에 대한 각각의 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+각각의 캠페인, 광고세트, 광고 테이블을 기존 BigQuery/Postgres 테이블과
+MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+성과 보고서 테이블은 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,27 +30,11 @@ with DAG(
     start_date = pendulum.datetime(2026, 2, 20, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:high", "meta:ads", "api:meta", "schedule:daily", "time:morning"],
-    doc_md = dedent("""
-        # 메타 광고 ETL 파이프라인
-
-        ## 인증(Credentials)
-        메타 광고 API 인증 정보인 Access Token이 필요하다.
-        토큰 만료 시 연장을 위해 App ID와 App Secret이 선택적으로 요구된다.
-
-        ## 추출(Extract)
-        Access Token 권한이 있는 계정들에 대한 캠페인, 광고세트, 광고 목록을 수집하고,
-        추가로 실행 시점(data_interval_end)에서 1일 전을 기준으로 광고 성과 보고서를 가져온다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 캠페인, 광고세트, 광고,
-        그리고 성과 보고서에 대한 각각의 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 캠페인, 광고세트, 광고 테이블을 기존 BigQuery/Postgres 테이블과
-        MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-        성과 보고서 테이블은 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:meta-ads", "objective:adreport", "credentials:api-key",
+        "schedule:daily", "time:morning", "write:append", "write:merge"
+    ],
 ) as dag:
 
     PATH = "meta.api.ads"

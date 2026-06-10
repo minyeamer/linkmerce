@@ -1,3 +1,20 @@
+"""
+# 네이버 검색광고 계약 정보 ETL 파이프라인
+
+## 인증(Credentials)
+네이버 검색광고 API 인증 키(액세스라이선스, 비밀키)와 CUSTOMER_ID가 필요하다.
+
+## 추출(Extract)
+브랜드/신제품검색 계약 API를 통해 계정별 모든 계약을 수집한다.
+
+## 변환(Transform)
+계약 유형별로 JSON 형식의 응답 본문을 파싱하여 각각의 DuckDB 테이블에 적재한 뒤,
+UNION ALL로 하나의 테이블로 병합한다.
+
+## 적재(Load)
+병합된 테이블의 데이터를 기존 BigQuery/Postgres 테이블을 지우고 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
 from textwrap import dedent
@@ -10,23 +27,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 10, 30, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=5),
     catchup = False,
-    tags = ["priority:medium", "searchad:contract", "api:searchad", "schedule:daily", "time:morning"],
-    doc_md = dedent("""
-        # 네이버 검색광고 계약 정보 ETL 파이프라인
-
-        ## 인증(Credentials)
-        네이버 검색광고 API 인증 키(액세스라이선스, 비밀키)와 CUSTOMER_ID가 필요하다.
-
-        ## 추출(Extract)
-        브랜드/신제품검색 계약 API를 통해 계정별 모든 계약을 수집한다.
-
-        ## 변환(Transform)
-        계약 유형별로 JSON 형식의 응답 본문을 파싱하여 각각의 DuckDB 테이블에 적재한 뒤,
-        UNION ALL로 하나의 테이블로 병합한다.
-
-        ## 적재(Load)
-        병합된 테이블의 데이터를 기존 BigQuery/Postgres 테이블을 지우고 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:medium", "platform:searchad", "objective:adreport", "credentials:api-key",
+        "schedule:weekdays", "time:morning", "write:overwrite"
+    ],
 ) as dag:
 
     PATH = "searchad.api.contract"

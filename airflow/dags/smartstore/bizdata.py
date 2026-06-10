@@ -1,6 +1,21 @@
+"""
+# 스마트스토어 상품/마케팅 채널 데이터 ETL 파이프라인
+
+## 인증(Credentials)
+스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.
+
+## 추출(Extract)
+상품/마케팅 채널 API로 마케팅 채널별 상품 결제 데이터를 수집한다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,22 +25,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 12, 1, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:low", "smartstore:bizdata", "api:smartstore", "schedule:weekdays", "time:morning"],
-    doc_md = dedent("""
-        # 스마트스토어 상품/마케팅 채널 데이터 ETL 파이프라인
-
-        ## 인증(Credentials)
-        스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.
-
-        ## 추출(Extract)
-        상품/마케팅 채널 API로 마케팅 채널별 상품 결제 데이터를 수집한다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:low", "platform:smartstore", "objective:statistics", "credentials:api-key",
+        "schedule:daily", "time:morning", "write:append"
+    ],
 ) as dag:
 
     PATH = "smartstore.bizdata.marketing_channel"

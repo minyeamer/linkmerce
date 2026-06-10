@@ -1,9 +1,32 @@
+"""
+# 사방넷 주문 ETL 파이프라인
+
+> 안내) 담당자가 주문 확인 후 Streamlit UI에서 Dag 실행 요청을 보낸다.
+> 실행 회차가 같이 전달되며, 1차 실행 후 재고 현황을 알리는 'stock_report' Dag을 트리거한다.
+
+## 인증(Credentials)
+사방넷 아이디, 비밀번호와 시스템 도메인 번호가 필요하다.
+Task를 실행할 때마다 로그인하고, 쿠키와 'access_token'을 발급받아 활용한다.
+
+## 추출(Extract)
+담당자의 주문 확인 후 사방넷 주문 내역을 다운로드 받는다.
+매일 밤에 주문 등록일 기준으로 주문 내역을 다시 조회해 누락을 검증한다.
+
+## 변환(Transform)
+3가지 다운로드 양식으로 받은 엑셀 바이너리 형식의 사방넷 주문 내역를 파싱한다.
+- 주문번호, 결제금액 등을 포함하는 주문 내역을 DuckDB 주문 테이블에 적재한다.
+- 상품명, 옵션명 등을 포함하는 주문 옵션 정보를 DuckDB 옵션 테이블에 적재한다.
+- 이름, 주소 등을 포함하는 발송 내역을 DuckDB 발송 테이블에 적재한다.
+
+## 적재(Load)
+각각의 테이블을 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -13,30 +36,12 @@ with DAG(
     start_date = pendulum.datetime(2025, 9, 11, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:high", "sabangnet:order", "login:sabangnet", "schedule:weekdays", "time:daytime", "manual:api"],
-    doc_md = dedent("""
-        # 사방넷 주문 ETL 파이프라인
-
-        > 안내) 담당자가 주문 확인 후 Streamlit UI에서 Dag 실행 요청을 보낸다.
-        > 실행 회차가 같이 전달되며, 1차 실행 후 재고 현황을 알리는 'stock_report' Dag을 트리거한다.
-
-        ## 인증(Credentials)
-        사방넷 아이디, 비밀번호와 시스템 도메인 번호가 필요하다.
-        Task를 실행할 때마다 로그인하고, 쿠키와 'access_token'을 발급받아 활용한다.
-
-        ## 추출(Extract)
-        담당자의 주문 확인 후 사방넷 주문 내역을 다운로드 받는다.
-        매일 밤에 주문 등록일 기준으로 주문 내역을 다시 조회해 누락을 검증한다.
-
-        ## 변환(Transform)
-        3가지 다운로드 양식으로 받은 엑셀 바이너리 형식의 사방넷 주문 내역를 파싱한다.
-        - 주문번호, 결제금액 등을 포함하는 주문 내역을 DuckDB 주문 테이블에 적재한다.
-        - 상품명, 옵션명 등을 포함하는 주문 옵션 정보를 DuckDB 옵션 테이블에 적재한다.
-        - 이름, 주소 등을 포함하는 발송 내역을 DuckDB 발송 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 테이블을 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:sabangnet", "objective:sales", "credentials:userid",
+        "schedule:daily", "time:morning", "time:afternoon", "time:night",
+        "write:merge", "upstream:streamlit"
+    ],
 ) as dag:
 
     PATH = "sabangnet.admin.order"

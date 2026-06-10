@@ -1,6 +1,28 @@
+"""
+# 네이버 검색광고 노출 상품 순위 ETL 파이프라인
+
+> 안내) 네이버 로그인 정책 강화로 사용 중지 (~ v0.6.8)
+
+## 인증(Credentials)
+네이버 검색광고 광고 계정을 보유한 네이버 계정의 로그인 쿠키가 필요하다.
+(정책 강화로 인한 CAPTCHA 인증을 통과할 수 없어 API로 대체한다.)
+
+## 추출(Extract)
+네이버 검색광고의 키워드 노출 현황 진단 도구로
+키워드별 네이버 통합검색 모바일 노출 상품 순위를 시간대별로 수집한다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
+노출 진단 결과로부터 노출 상품 순위와 노출 상품 정보를 각각의 테이블로 분리해 적재한다.
+
+## 적재(Load)
+- 노출 상품 순위 테이블은 BigQuery 테이블 끝에 추가한다.
+- 동일한 순위 데이터를 최신 데이터만 기록하는 BigQuery 테이블에 MERGE 문으로 덮어쓴다.
+- 노출 상품 정보 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,29 +32,13 @@ with DAG(
     start_date = pendulum.datetime(2025, 8, 15, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=55),
     catchup = False,
-    tags = ["priority:mediaum", "naver:rank", "naver:product", "login:searchad", "schedule:hourly", "time:daytime"],
-    doc_md = dedent("""
-        # 네이버 검색광고 노출 상품 순위 ETL 파이프라인
-
-        > 안내) 네이버 로그인 정책 강화로 사용 중지 (~ v0.6.8)
-
-        ## 인증(Credentials)
-        네이버 검색광고 광고 계정을 보유한 네이버 계정의 로그인 쿠키가 필요하다.
-        (정책 강화로 인한 CAPTCHA 인증을 통과할 수 없어 API로 대체한다.)
-
-        ## 추출(Extract)
-        네이버 검색광고의 키워드 노출 현황 진단 도구로
-        키워드별 네이버 통합검색 모바일 노출 상품 순위를 시간대별로 수집한다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-        노출 진단 결과로부터 노출 상품 순위와 노출 상품 정보를 각각의 테이블로 분리해 적재한다.
-
-        ## 적재(Load)
-        - 노출 상품 순위 테이블은 BigQuery 테이블 끝에 추가한다.
-        - 동일한 순위 데이터를 최신 데이터만 기록하는 BigQuery 테이블에 MERGE 문으로 덮어쓴다.
-        - 노출 상품 정보 테이블은 기존 BigQuery 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:medium", "platform:searchad",
+        "objective:rank", "objective:product", "credentials:cookies",
+        "schedule:hourly", "time:morning", "time:afternoon", "write:append", "write:merge",
+        "status:deprecated"
+    ],
 ) as dag:
 
     PATH = "searchad.center.rank"

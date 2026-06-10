@@ -1,8 +1,54 @@
+"""
+# 쿠팡 Wing/광고 통합 ETL 파이프라인
+
+## 동작 방식
+쿠팡 계정 목록을 순회하면서 한 번에 하나씩 [로그인 >> 5개의 SubDag 순차 실행] 사이클을 반복한다.
+(단, Dag ID가 'scheduled__'로 시작하는 Dag run은 실행 시간에 따라 일부 Dag만 선택적으로 실행된다.)
+로그인은 쿠팡 Wing 인증 후 광고센터 탭으로 전환하여 Wing/광고에 대한 쿠키를 한번에 수집한다.
+
+## 주의 사항
+쿠팡 로그인 정책 강화로 인해 한 번에 하나의 판매자 계정만 로그인 가능하다.
+따라서, 기존에 쿠키를 저장해두고 병렬로 실행하던 동작을 폐기하고 엄격한 직렬 실행 방식으로 전환했다.
+
+## 예외 처리
+- 로그인 실패 시: 해당 업체의 전체 SubDag을 건너뛰고 다음 업체를 시도한다.
+- SubDag 실패 시: 해당 SubDag의 오류를 기록하고 나머지 SubDag은 계속 실행한다.
+
+## 트리거 대상 Dag
+1. 'coupang_adreport' (광고)
+2. 'coupang_campaign' (광고)
+3. 'coupang_inventory' (Wing)
+4. 'coupang_product_option' (Wing)
+5. 'coupang_rocket_sales' (Wing)
+
+## Manual 실행 시 필터 설정
+Airflow UI에서 Dag을 트리거할 때 {vendor_id: dag_ids} 형식의 Configuration JSON을 전달해
+특정 판매자 계정이나 특정 SubDag만 선택적으로 실행할 수 있다.
+(설정이 비어있으면 필터하지 않는다.)
+
+### 키-값 설명
+- 'vendor_id' (str): 실행할 판매자 계정의 업체코드.
+    "*"를 키로 사용하면 모든 계정을 대상으로 동일한 Dag 필터를 적용할 수 있다.
+- 'dag_ids' (list): 실행할 Dag ID 목록.
+    "*" 값을 포함하면 모든 Dag을 실행한다.
+
+### 사용 예시
+```json
+// 특정 판매자 계정만 전체 SubDag 실행
+{ "filters": { "A00000001": ["*"] } }
+
+// 특정 판매자 계정의 특정 SubDag만 실행
+{ "filters": { "A00000001": ["coupang_rocket_sales"] } }
+
+// 모든 판매자 계정의 특정 SubDag만 실행
+{ "filters": { "*": ["coupang_rocket_sales"] } }
+```
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.dagrun import DagRun
 from airflow.exceptions import AirflowException
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -12,56 +58,13 @@ with DAG(
     start_date = pendulum.datetime(2026, 4, 9, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1), # Airflow 액세스 토큰의 기본 유효 기간만큼 동작
     catchup = False,
+    doc_md = __doc__,
     tags = [
-        "priority:high", "coupang:adreport", "coupang:campaign", "coupang:option", "coupang:sales",
-        "login:coupang", "schedule:daily", "time:morning", "time:afternoon", "time:night"
+        "priority:high", "platform:coupang-wing", "platform:coupang-ads", "objective:login",
+        "objective:adreport", "objective:sales", "objective:product", "credentials:userid",
+        "schedule:daily", "time:morning", "time:afternoon", "time:night",
+        "plugin:playwright", "plugin:rest-api"
     ],
-    doc_md = dedent("""
-        # 쿠팡 Wing/광고 통합 ETL 파이프라인
-
-        ## 동작 방식
-        쿠팡 계정 목록을 순회하면서 한 번에 하나씩 [로그인 >> 5개의 SubDag 순차 실행] 사이클을 반복한다.
-        (단, Dag ID가 'scheduled__'로 시작하는 Dag run은 실행 시간에 따라 일부 Dag만 선택적으로 실행된다.)
-        로그인은 쿠팡 Wing 인증 후 광고센터 탭으로 전환하여 Wing/광고에 대한 쿠키를 한번에 수집한다.
-
-        ## 주의 사항
-        쿠팡 로그인 정책 강화로 인해 한 번에 하나의 판매자 계정만 로그인 가능하다.
-        따라서, 기존에 쿠키를 저장해두고 병렬로 실행하던 동작을 폐기하고 엄격한 직렬 실행 방식으로 전환했다.
-
-        ## 예외 처리
-        - 로그인 실패 시: 해당 업체의 전체 SubDag을 건너뛰고 다음 업체를 시도한다.
-        - SubDag 실패 시: 해당 SubDag의 오류를 기록하고 나머지 SubDag은 계속 실행한다.
-
-        ## 트리거 대상 Dag
-        1. 'coupang_adreport' (광고)
-        2. 'coupang_campaign' (광고)
-        3. 'coupang_inventory' (Wing)
-        4. 'coupang_product_option' (Wing)
-        5. 'coupang_rocket_sales' (Wing)
-
-        ## Manual 실행 시 필터 설정
-        Airflow UI에서 Dag을 트리거할 때 {vendor_id: dag_ids} 형식의 Configuration JSON을 전달해
-        특정 판매자 계정이나 특정 SubDag만 선택적으로 실행할 수 있다.
-        (설정이 비어있으면 필터하지 않는다.)
-
-        ### 키-값 설명
-        - 'vendor_id' (str): 실행할 판매자 계정의 업체코드.
-            "*"를 키로 사용하면 모든 계정을 대상으로 동일한 Dag 필터를 적용할 수 있다.
-        - 'dag_ids' (list): 실행할 Dag ID 목록.
-            "*" 값을 포함하면 모든 Dag을 실행한다.
-
-        ### 사용 예시
-        ```json
-        // 특정 판매자 계정만 전체 SubDag 실행
-        { "filters": { "A00000001": ["*"] } }
-
-        // 특정 판매자 계정의 특정 SubDag만 실행
-        { "filters": { "A00000001": ["coupang_rocket_sales"] } }
-
-        // 모든 판매자 계정의 특정 SubDag만 실행
-        { "filters": { "*": ["coupang_rocket_sales"] } }
-        ```
-    """).strip(),
 ) as dag:
 
     PATH = "coupang.vendor"

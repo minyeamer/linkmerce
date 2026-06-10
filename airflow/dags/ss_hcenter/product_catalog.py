@@ -1,7 +1,28 @@
+"""
+# 네이버 카탈로그-상품 매핑 ETL 파이프라인
+
+> 안내) 네이버 쇼핑 검색 순위를 수집하는 `naver_shop_rank` DAG 실행 후 트리거된다.
+
+## 인증(Credentials)
+네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
+(브랜드 스토어 권한이 필요하고, '브랜드 관리' 메뉴에 도달해야 한다.)
+
+## 추출(Extract)
+실행 시점에서 조회되는 판매처별 브랜드 상품들의 목록을 수집한다.
+(매개변수로 전달되는 브랜드ID에 대한 브랜드가 등록된 상품들만 검색할 수 있다.)
+
+## 변환(Transform)
+JSON 형식의 응답 본문으로부터 카탈로그와 매칭된 상품만 필터한다.
+카탈로그-상품 매핑 내역을 정리하여 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+- 현재 시간이 포함된 매핑 테이블을 일별 BigQuery/Postgres 테이블에 끝에 추가해 누적한다.
+- 동일한 매핑 데이터를 최신 데이터만 기록하는 BigQuery/Postgres 테이블에 MERGE 문으로 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -11,28 +32,13 @@ with DAG(
     start_date = pendulum.datetime(2025, 8, 15, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:mediaum", "naver:rank", "login:hcenter", "schedule:hourly", "time:daytime", "manual:dagrun"],
-    doc_md = dedent("""
-        # 네이버 카탈로그-상품 매핑 ETL 파이프라인
-
-        > 안내) 네이버 쇼핑 검색 순위를 수집하는 `naver_shop_rank` DAG 실행 후 트리거된다.
-
-        ## 인증(Credentials)
-        네이버 쇼핑파트너센터 로그인 쿠키가 필요하다.
-        (브랜드 스토어 권한이 필요하고, '브랜드 관리' 메뉴에 도달해야 한다.)
-
-        ## 추출(Extract)
-        실행 시점에서 조회되는 판매처별 브랜드 상품들의 목록을 수집한다.
-        (매개변수로 전달되는 브랜드ID에 대한 브랜드가 등록된 상품들만 검색할 수 있다.)
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문으로부터 카탈로그와 매칭된 상품만 필터한다.
-        카탈로그-상품 매핑 내역을 정리하여 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        - 현재 시간이 포함된 매핑 테이블을 일별 BigQuery/Postgres 테이블에 끝에 추가해 누적한다.
-        - 동일한 매핑 데이터를 최신 데이터만 기록하는 BigQuery/Postgres 테이블에 MERGE 문으로 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:medium", "platform:naver-hcenter",
+        "objective:rank", "objective:mapping", "credentials:cookies",
+        "schedule:hourly", "schedule:none", "time:morning", "time:afternoon", "write:append", "write:merge",
+        "upstream:dagrun", "status:disabled"
+    ],
 ) as dag:
 
     PATH = "smartstore.hcenter.product_catalog"

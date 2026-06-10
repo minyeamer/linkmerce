@@ -1,7 +1,26 @@
+"""
+# 쿠팡 광고 보고서 ETL 파이프라인
+
+> 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+
+## 인증(Credentials)
+'coupang' Dag에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
+쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
+
+## 추출(Extract)
+실행 시점(data_interval_end)에서 1일 전을 기준으로
+매출 성장 광고 보고서(PA) 및 신규 구매 고객 확보 광고 보고서(NCA)를 다운로드한다.
+
+## 변환(Transform)
+엑셀 바이너리 형식의 광고 보고서를 JSON 형식으로 변환하고 보고서 유형별 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+각각의 광고 보고서를 대응되는 BigQuery/Postgres 테이블의 끝에 추가한다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.dagrun import DagRun
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -11,26 +30,12 @@ with DAG(
     start_date = pendulum.datetime(2025, 11, 1, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:high", "coupang:adreport", "login:coupang", "schedule:daily", "time:morning", "manual:dagrun"],
-    doc_md = dedent("""
-        # 쿠팡 광고 보고서 ETL 파이프라인
-
-        > 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
-
-        ## 인증(Credentials)
-        'coupang' Dag에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
-        쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
-
-        ## 추출(Extract)
-        실행 시점(data_interval_end)에서 1일 전을 기준으로
-        매출 성장 광고 보고서(PA) 및 신규 구매 고객 확보 광고 보고서(NCA)를 다운로드한다.
-
-        ## 변환(Transform)
-        엑셀 바이너리 형식의 광고 보고서를 JSON 형식으로 변환하고 보고서 유형별 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 광고 보고서를 대응되는 BigQuery/Postgres 테이블의 끝에 추가한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:coupang-ads", "objective:adreport", "credentials:cookies",
+        "schedule:daily", "schedule:none", "time:morning", "write:append",
+        "upstream:dagrun"
+    ],
 ) as dag:
 
     PATH = "coupang.advertising.adreport"

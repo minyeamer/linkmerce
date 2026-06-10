@@ -1,7 +1,22 @@
+"""
+# 이카운트 창고별/품목별 재고현황 ETL 파이프라인
+
+## 인증(Credentials)
+이카운트 API 인증 키(회사코드, 사용자ID, API 키)가 필요하다.
+
+## 추출(Extract)
+매일 오전/오후 재고 업데이트 시간에 맞춰 이카운트 API로 재고현황 데이터를 수집한다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -11,22 +26,11 @@ with DAG(
     start_date = pendulum.datetime(2026, 5, 27, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:high", "ecount:inventory", "api:ecount", "schedule:daily", "time:morning", "time:afternoon"],
-    doc_md = dedent("""
-        # 이카운트 창고별/품목별 재고현황 ETL 파이프라인
-
-        ## 인증(Credentials)
-        이카운트 API 인증 키(회사코드, 사용자ID, API 키)가 필요하다.
-
-        ## 추출(Extract)
-        매일 오전/오후 재고 업데이트 시간에 맞춰 이카운트 API로 재고현황 데이터를 수집한다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:ecount", "objective:stock", "credentials:api-key",
+        "schedule:daily", "time:morning", "time:afternoon", "write:append"
+    ],
 ) as dag:
 
     PATH = "ecount.api.inventory"

@@ -1,3 +1,23 @@
+"""
+# 네이버 카페 검색 모니터링 파이프라인
+
+## 인증(Credentials)
+브라우저로 네이버 모바일 메인 페이지에 접속해 'NNB' 값이 포함된 쿠키를 획득한다.
+(동일한 도커 네트워크의 Playwright 컨테이너가 실행 중이어야 한다.)
+
+## 추출(Extract)
+키워드별 네이버 모바일 카페 탭 검색 결과를 수집하고,
+검색 결과로 보여지는 상위 게시글의 본문 내용을 추가로 수집한다.
+
+## 변환(Transform)
+검색 결과(HTML), 게시글 내용(JSON) 응답 본문을 파싱하여 검색 결과와 게시글 테이블에 적재한다.
+추가로, 검색 결과 테이블과 게시글 테이블을 병합한 통합 테이블을 생성한다.
+
+## 알림(Alert)
+생성된 테이블을 가지고 요약, 전체 엑셀 파일을 생성하고,
+메시지와 함께 Slack의 지정된 채널에 업로드한다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.models.taskinstance import TaskInstance
@@ -13,26 +33,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 12, 12, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
-    tags = ["priority:low", "naver:cafe", "schedule:weekdays", "time:morning", "provider:slack"],
-    doc_md = dedent("""
-        # 네이버 카페 검색 모니터링 파이프라인
-
-        ## 인증(Credentials)
-        브라우저로 네이버 모바일 메인 페이지에 접속해 'NNB' 값이 포함된 쿠키를 획득한다.
-        (동일한 도커 네트워크의 Playwright 컨테이너가 실행 중이어야 한다.)
-
-        ## 추출(Extract)
-        키워드별 네이버 모바일 카페 탭 검색 결과를 수집하고,
-        검색 결과로 보여지는 상위 게시글의 본문 내용을 추가로 수집한다.
-
-        ## 변환(Transform)
-        검색 결과(HTML), 게시글 내용(JSON) 응답 본문을 파싱하여 검색 결과와 게시글 테이블에 적재한다.
-        추가로, 검색 결과 테이블과 게시글 테이블을 병합한 통합 테이블을 생성한다.
-
-        ## 알림(Alert)
-        생성된 테이블을 가지고 요약, 전체 엑셀 파일을 생성하고,
-        메시지와 함께 Slack의 지정된 채널에 업로드한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:low", "platform:naver-main", "objective:alert", "objective:search",
+        "schedule:weekdays", "time:morning", "write:file", "provider:slack"
+    ],
 ) as dag:
 
     PATH = "naver.main.cafe_search"

@@ -1,3 +1,25 @@
+"""
+# 재고-소비기한 알림 파이프라인
+
+> 안내) 사방넷 주문 내역을 수집하는 'sabangnet_order' Dag 실행 후 트리거된다.
+> 오전에 Dag이 실행되었다면 오후에 재고 업데이트 시간에 맞춰 다시 트리거된다.
+
+## 의존성(Upstreams)
+오전/오후 시간대에 트리거된 상위 3개의 Dag run 상태가 전부 성공할 때까지 실행 대기한다.
+1. cj_eflexs_stock
+2. ecount_inventory
+3. coupang_inventory
+
+## 추출(Extract)
+BigQuery 테이블에 업로드된 3가지 플랫폼의 재고 내역을 테이블 함수로 병합해 가져온다.
+
+## 변환(Transform)
+조회한 데이터를 2단계 한글 헤더로 구성된 엑셀 파일로 변환한다.
+
+## 알림(Alert)
+서식이 포함된 엑셀 파일을 메시지와 함께 Slack의 지정된 채널에 업로드한다.
+"""
+
 from airflow.sdk import DAG, TaskGroup, task
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
@@ -5,7 +27,6 @@ from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -15,32 +36,13 @@ with DAG(
     start_date = pendulum.datetime(2026, 5, 27, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1),
     catchup = False,
+    doc_md = __doc__,
     tags = [
-        "priority:high", "ecount:inventory", "eflexs:stock", "coupang:inventory",
+        "priority:high", "platform:ecount", "platform:cj-eflexs", "platform:coupang-wing",
+        "objective:alert", "objective:stock", "credentials:service-account",
         "schedule:weekdays", "time:morning", "time:afternoon",
-        "manual:api", "manual:dagrun", "provider:slack"
+        "provider:slack", "upstream:dagrun"
     ],
-    doc_md = dedent("""
-        # 재고-소비기한 알림 파이프라인
-
-        > 안내) 사방넷 주문 내역을 수집하는 'sabangnet_order' Dag 실행 후 트리거된다.
-        > 오전에 Dag이 실행되었다면 오후에 재고 업데이트 시간에 맞춰 다시 트리거된다.
-
-        ## 의존성(Upstreams)
-        오전/오후 시간대에 트리거된 상위 3개의 Dag run 상태가 전부 성공할 때까지 실행 대기한다.
-        1. cj_eflexs_stock
-        2. ecount_inventory
-        3. coupang_inventory
-
-        ## 추출(Extract)
-        BigQuery 테이블에 업로드된 3가지 플랫폼의 재고 내역을 테이블 함수로 병합해 가져온다.
-
-        ## 변환(Transform)
-        조회한 데이터를 2단계 한글 헤더로 구성된 엑셀 파일로 변환한다.
-
-        ## 알림(Alert)
-        서식이 포함된 엑셀 파일을 메시지와 함께 Slack의 지정된 채널에 업로드한다.
-    """).strip(),
 ) as dag:
 
     PATH = "public.stock_report"

@@ -1,6 +1,23 @@
+"""
+# 네이버 검색광고 마스터 보고서 ETL 파이프라인
+
+## 인증(Credentials)
+네이버 검색광고 API 인증 키(액세스라이선스, 비밀키)와 CUSTOMER_ID가 필요하다.
+
+## 추출(Extract)
+마스터 보고서를 생성, 조회, 삭제하는 API를 순차적으로 실행하면서
+계정별 캠페인, 광고그룹, 소재 목록을 수집한다.
+~~(첫 번째 계정에 한해 광고매체 목록을 추가로 수집한다.)~~
+
+## 변환(Transform)
+TSV 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+각각의 데이터를 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,24 +27,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 8, 30, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:medium", "searchad:master", "api:searchad", "schedule:weekdays", "time:night"],
-    doc_md = dedent("""
-        # 네이버 검색광고 마스터 보고서 ETL 파이프라인
-
-        ## 인증(Credentials)
-        네이버 검색광고 API 인증 키(액세스라이선스, 비밀키)와 CUSTOMER_ID가 필요하다.
-
-        ## 추출(Extract)
-        마스터 보고서를 생성, 조회, 삭제하는 API를 순차적으로 실행하면서
-        계정별 캠페인, 광고그룹, 소재 목록을 수집한다.
-        ~~(첫 번째 계정에 한해 광고매체 목록을 추가로 수집한다.)~~
-
-        ## 변환(Transform)
-        TSV 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 데이터를 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:medium", "platform:searchad", "objective:adreport", "credentials:api-key",
+        "schedule:weekdays", "time:night", "write:merge"
+    ],
 ) as dag:
 
     PATH = "searchad.api.master"

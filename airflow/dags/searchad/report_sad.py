@@ -1,6 +1,25 @@
+"""
+# 네이버 검색광고 다차원 보고서 ETL 파이프라인
+
+## 인증(Credentials)
+네이버 검색광고 API 인증 키(액세스라이선스, 비밀키)와 CUSTOMER_ID가 필요하다.
+
+## 추출(Extract)
+실행 시점(data_interval_end)에서 1일 전을 기준으로,
+대용량 보고서를 생성, 조회, 삭제하는 API를 순차적으로 실행하면서
+광고성과 및 전환 보고서를 수집한다.
+
+## 변환(Transform)
+TSV 형식의 응답 본문을 파싱하고, 하나의 다차원 보고서로 병합해 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+
+> 주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,26 +29,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 8, 24, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:high", "searchad:report", "api:searchad", "schedule:daily", "time:morning"],
-    doc_md = dedent("""
-        # 네이버 검색광고 다차원 보고서 ETL 파이프라인
-
-        ## 인증(Credentials)
-        네이버 검색광고 API 인증 키(액세스라이선스, 비밀키)와 CUSTOMER_ID가 필요하다.
-
-        ## 추출(Extract)
-        실행 시점(data_interval_end)에서 1일 전을 기준으로,
-        대용량 보고서를 생성, 조회, 삭제하는 API를 순차적으로 실행하면서
-        광고성과 및 전환 보고서를 수집한다.
-
-        ## 변환(Transform)
-        TSV 형식의 응답 본문을 파싱하고, 하나의 다차원 보고서로 병합해 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
-
-        > 주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:searchad", "objective:adreport", "credentials:api-key",
+        "schedule:daily", "time:morning", "write:append"
+    ],
 ) as dag:
 
     PATH = "searchad.api.report"

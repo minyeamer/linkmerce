@@ -1,6 +1,26 @@
+"""
+# 구글 광고 ETL 파이프라인
+
+## 인증(Credentials)
+구글 광고 API 인증 정보(개발자 토큰, 계정 ID, 매니저 계정 ID)와
+GCP 서비스 계정이 필요하다.
+
+## 추출(Extract)
+계정별 캠페인, 광고그룹, 소재, 애셋 목록을 수집하고,
+추가로 실행 시점(data_interval_end)에서 1일 전을 기준으로 소재의 성과 데이터를 가져온다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 캠페인, 광고그룹, 소재, 애셋,
+그리고 성과 데이터에 대한 각각의 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+각각의 캠페인, 광고그룹, 소재, 애셋 테이블을 기존 BigQuery/Postgres 테이블과
+MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+소재 성과 테이블은 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,27 +30,11 @@ with DAG(
     start_date = pendulum.datetime(2026, 2, 26, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:high", "google:ads", "api:google", "schedule:daily", "time:morning"],
-    doc_md = dedent("""
-        # 구글 광고 ETL 파이프라인
-
-        ## 인증(Credentials)
-        구글 광고 API 인증 정보(개발자 토큰, 계정 ID, 매니저 계정 ID)와
-        GCP 서비스 계정이 필요하다.
-
-        ## 추출(Extract)
-        계정별 캠페인, 광고그룹, 소재, 애셋 목록을 수집하고,
-        추가로 실행 시점(data_interval_end)에서 1일 전을 기준으로 소재의 성과 데이터를 가져온다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 캠페인, 광고그룹, 소재, 애셋,
-        그리고 성과 데이터에 대한 각각의 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 캠페인, 광고그룹, 소재, 애셋 테이블을 기존 BigQuery/Postgres 테이블과
-        MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-        소재 성과 테이블은 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:google-ads", "objective:adreport", "credentials:service-account",
+        "schedule:daily", "time:morning", "write:append", "write:merge"
+    ],
 ) as dag:
 
     PATH = "google.api.ads"

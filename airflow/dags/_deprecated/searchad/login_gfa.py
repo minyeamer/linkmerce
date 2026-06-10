@@ -1,37 +1,42 @@
+"""
+# 네이버 성과형 디스플레이 광고 로그인 파이프라인
+
+> 안내) 네이버가 Playwright 브라우저를 안전하지 않은 환경으로 인식하여 사용 중지 (~ v0.6.8)
+
+## 동작 방식
+1. 저장된 네이버 로그인 상태(storage_state)를 불러와 업데이트된 로그인 쿠키를 추출한다.
+2. 네이버 로그인 쿠키를 가지고 네이버 광고주센터의 디스플레이 광고 계정을 인증한다.
+3. 쿠키에 'XSRF-TOKEN'이 추가되었다면 인증된 것으로 인식하고, 완성된 쿠키 문자열을 지정된 파일에 덮어쓴다.
+
+## 인증 정보
+- 네이버 계정 목록(searchad.users)과 디스플레이 광고 계정 목록(searchad.gfa)을 'customer_id'로 매칭한다.
+- 네이버 계정 정보에는 저장된 네이버 로그인 상태(states)가 필요하다.
+- 디스플레이 광고 계정 정보에는 쿠키 문자열을 저장할 파일 경로(cookies)가 필요하다.
+
+## 예외 상황
+- 계정 보호조치, 비밀번호 변경 등의 사례로 저장된 네이버 로그인 상태가 만료될 수 있다.
+- 만약 저장된 상태가 없거나 상태가 만료되면 모바일 환경에서 로그인을 수행한다.
+- 네이버 로그인 정책 강화로 빈 프로필의 Playwright 브라우저에서 로그인 시 CAPTCHA 인증이 발생한다.
+- 따라서, 저장된 네이버 로그인 상태가 만료되면 직접 수동 로그인 후 상태를 업데이트해야 한다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
 with DAG(
-    dag_id = "searchad_login_gfa",
+    dag_id = "searchad_login_gfa_old",
     schedule = "0 5 * * *",
     start_date = pendulum.datetime(2026, 4, 9, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:high", "searchad:cookies", "login:gfa", "schedule:daily", "time:morning"],
-    doc_md = dedent("""
-        # 네이버 성과형 디스플레이 광고 로그인 파이프라인
-
-        > 안내) 네이버가 Playwright 브라우저를 안전하지 않은 환경으로 인식하여 사용 중지 (~ v0.6.8)
-
-        ## 동작 방식
-        1. 저장된 네이버 로그인 상태(storage_state)를 불러와 업데이트된 로그인 쿠키를 추출한다.
-        2. 네이버 로그인 쿠키를 가지고 네이버 광고주센터의 디스플레이 광고 계정을 인증한다.
-        3. 쿠키에 'XSRF-TOKEN'이 추가되었다면 인증된 것으로 인식하고, 완성된 쿠키 문자열을 지정된 파일에 덮어쓴다.
-
-        ## 인증 정보
-        - 네이버 계정 목록(searchad.users)과 디스플레이 광고 계정 목록(searchad.gfa)을 'customer_id'로 매칭한다.
-        - 네이버 계정 정보에는 저장된 네이버 로그인 상태(states)가 필요하다.
-        - 디스플레이 광고 계정 정보에는 쿠키 문자열을 저장할 파일 경로(cookies)가 필요하다.
-
-        ## 예외 상황
-        - 계정 보호조치, 비밀번호 변경 등의 사례로 저장된 네이버 로그인 상태가 만료될 수 있다.
-        - 만약 저장된 상태가 없거나 상태가 만료되면 모바일 환경에서 로그인을 수행한다.
-        - 네이버 로그인 정책 강화로 빈 프로필의 Playwright 브라우저에서 로그인 시 CAPTCHA 인증이 발생한다.
-        - 따라서, 저장된 네이버 로그인 상태가 만료되면 직접 수동 로그인 후 상태를 업데이트해야 한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:searchad", "objective:login", "credentials:userid",
+        "schedule:daily", "time:morning", "write:file", "plugin:playwright",
+        "status:deprecated"
+    ],
 ) as dag:
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))

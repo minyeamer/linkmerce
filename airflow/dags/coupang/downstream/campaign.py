@@ -1,7 +1,29 @@
+"""
+# 쿠팡 광고 캠페인/광고그룹/소재 ETL 파이프라인
+
+> 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+
+## 인증(Credentials)
+'coupang' Dag에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
+쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
+
+## 추출(Extract)
+쿠팡 업체별 전체 캠페인 목록을 수집하고 (광고그룹은 캠페인 내에 포함),
+신규 구매 고객 확보(NCA) 목표의 캠페인이 있다면 소재 목록도 추가로 가져온다.
+(삭제 여부를 구분해 각각 2번에 나눠서 요청한다.)
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 캠페인, 광고그룹, 소재에 대한
+각각의 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+각각의 캠페인, 광고그룹, 소재 테이블을 BigQuery/Postgres 테이블과
+MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.dagrun import DagRun
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -11,29 +33,12 @@ with DAG(
     start_date = pendulum.datetime(2025, 11, 6, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:medium", "coupang:campaign", "login:coupang", "schedule:daily", "time:morning", "manual:dagrun"],
-    doc_md = dedent("""
-        # 쿠팡 광고 캠페인/광고그룹/소재 ETL 파이프라인
-
-        > 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
-
-        ## 인증(Credentials)
-        'coupang' Dag에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
-        쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
-
-        ## 추출(Extract)
-        쿠팡 업체별 전체 캠페인 목록을 수집하고 (광고그룹은 캠페인 내에 포함),
-        신규 구매 고객 확보(NCA) 목표의 캠페인이 있다면 소재 목록도 추가로 가져온다.
-        (삭제 여부를 구분해 각각 2번에 나눠서 요청한다.)
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 캠페인, 광고그룹, 소재에 대한
-        각각의 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        각각의 캠페인, 광고그룹, 소재 테이블을 BigQuery/Postgres 테이블과
-        MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:medium", "platform:coupang-ads", "objective:adreport", "credentials:cookies",
+        "schedule:daily", "schedule:none", "time:night", "write:merge",
+        "upstream:dagrun"
+    ],
 ) as dag:
 
     PATH = "coupang.advertising.campaign"

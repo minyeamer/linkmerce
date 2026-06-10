@@ -1,6 +1,13 @@
+"""
+# 네이버 쇼핑파트너센터 로그인 파이프라인
+
+브랜드 스토어 권한이 있는 스마트스토어 판매자 계정으로 스마트스토어센터에 로그인 후,
+채널 권한을 가지고 네이버 쇼핑파트너센터로 전환한다.
+브랜드 애널리틱스 메뉴까지 도달한 후 완성된 쿠키 문자열을 지정된 파일에 덮어쓴다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -10,14 +17,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 9, 8, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,
-    tags = ["priority:high", "hcenter:cookies", "login:hcenter", "schedule:daily", "time:night"],
-    doc_md = dedent("""
-        # 네이버 쇼핑파트너센터 로그인 파이프라인
-
-        브랜드 스토어 권한이 있는 스마트스토어 판매자 계정으로 스마트스토어센터에 로그인 후,
-        채널 권한을 가지고 네이버 쇼핑파트너센터로 전환한다.
-        브랜드 애널리틱스 메뉴까지 도달한 후 완성된 쿠키 문자열을 지정된 파일에 덮어쓴다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:naver-hcenter", "objective:login", "credentials:userid",
+        "schedule:daily", "time:night", "write:file"
+    ],
 ) as dag:
 
     @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))

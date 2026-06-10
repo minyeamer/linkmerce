@@ -1,3 +1,21 @@
+"""
+# 네이버 성과형 디스플레이 광고 성과 보고서 ETL 파이프라인
+
+## 인증(Credentials)
+성과형 디스플레이 광고 계정을 보유한 네이버 계정의 로그인 쿠키가 필요하다.
+
+## 추출(Extract)
+실행 시점(data_interval_end)에서 1일 전을 기준으로
+계정별 캠페인/소재 성과 보고서를 다운로드한다.
+
+## 변환(Transform)
+엑셀 바이너리 형식의 보고서를 JSON 형식으로 변환하고 보고서 유형별 DuckDB 테이블에 적재한다.
+소재 성과 보고서에서 누락된 캠페인 성과 보고서를 INSERT 문으로 추가한다.
+
+## 적재(Load)
+보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+"""
+
 from airflow.sdk import DAG, task
 from datetime import timedelta
 from textwrap import dedent
@@ -10,24 +28,11 @@ with DAG(
     start_date = pendulum.datetime(2025, 8, 24, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
-    tags = ["priority:high", "searchad:report", "login:gfa", "schedule:daily", "time:morning"],
-    doc_md = dedent("""
-        # 네이버 성과형 디스플레이 광고 성과 보고서 ETL 파이프라인
-
-        ## 인증(Credentials)
-        성과형 디스플레이 광고 계정을 보유한 네이버 계정의 로그인 쿠키가 필요하다.
-
-        ## 추출(Extract)
-        실행 시점(data_interval_end)에서 1일 전을 기준으로
-        계정별 캠페인/소재 성과 보고서를 다운로드한다.
-
-        ## 변환(Transform)
-        엑셀 바이너리 형식의 보고서를 JSON 형식으로 변환하고 보고서 유형별 DuckDB 테이블에 적재한다.
-        소재 성과 보고서에서 누락된 캠페인 성과 보고서를 INSERT 문으로 추가한다.
-
-        ## 적재(Load)
-        보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
-    """).strip(),
+    doc_md = __doc__,
+    tags = [
+        "priority:high", "platform:searchad", "objective:adreport", "credentials:cookies",
+        "schedule:daily", "time:morning", "write:append"
+    ],
 ) as dag:
 
     PATH = "searchad.gfa.report"

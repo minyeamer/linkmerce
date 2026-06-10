@@ -1,7 +1,25 @@
+"""
+# CJ대한통운 eFLEXs 상세재고조회 ETL 파이프라인
+
+## 인증(Credentials)
+CJ대한통운 eFLEXs 로그인을 위한 아이디, 비밀번호와
+2단계 인증을 위한 이메일 계정 로그인 정보가 필요하다.
+(2단계 인증 메일 수신에 2분 정도 소요된다.)
+
+## 추출(Extract)
+매일 오전/오후 재고 업데이트 시간에 맞춰
+실행 시점(data_interval_end)을 기준으로 7일전부터 실행 시점까지의 데이터를 조회한다.
+
+## 변환(Transform)
+JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
+
+## 적재(Load)
+데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
+"""
+
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
 from datetime import timedelta
-from textwrap import dedent
 import pendulum
 
 
@@ -11,28 +29,12 @@ with DAG(
     start_date = pendulum.datetime(2026, 5, 27, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=20),
     catchup = False,
+    doc_md = __doc__,
     tags = [
-        "priority:high", "eflexs:stock", "login:cj-eflexs", "schedule:daily",
-        "time:morning", "time:afternoon", "playwright:true"
+        "priority:high", "platform:cj-eflexs", "objective:stock", "credentials:userid",
+        "schedule:daily", "time:morning", "time:afternoon", "write:append",
+        "plugin:playwright"
     ],
-    doc_md = dedent("""
-        # CJ대한통운 eFLEXs 상세재고조회 ETL 파이프라인
-
-        ## 인증(Credentials)
-        CJ대한통운 eFLEXs 로그인을 위한 아이디, 비밀번호와
-        2단계 인증을 위한 이메일 계정 로그인 정보가 필요하다.
-        (2단계 인증 메일 수신에 2분 정도 소요된다.)
-
-        ## 추출(Extract)
-        매일 오전/오후 재고 업데이트 시간에 맞춰
-        실행 시점(data_interval_end)을 기준으로 7일전부터 실행 시점까지의 데이터를 조회한다.
-
-        ## 변환(Transform)
-        JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
-
-        ## 적재(Load)
-        데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
-    """).strip(),
 ) as dag:
 
     PATH = "cj.eflexs.stock"
