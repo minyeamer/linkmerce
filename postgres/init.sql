@@ -326,6 +326,15 @@ CREATE TABLE IF NOT EXISTS coupang_rfm.inventory (
   , PRIMARY KEY (updated_at, option_id)
 ) PARTITION BY RANGE (updated_at);
 
+-- [쿠팡 로켓그로스 재고-소비기한]
+CREATE TABLE IF NOT EXISTS coupang_rfm.inventory_exp (
+    option_id BIGINT NOT NULL -- 노출옵션ID
+  , expiration_date DATE NOT NULL -- 유통기한
+  , start_time TIMESTAMP NOT NULL -- 시작일시
+  , end_time TIMESTAMP NOT NULL -- 종료일시
+  , PRIMARY KEY (option_id, expiration_date)
+);
+
 -- [쿠팡 로켓그로스 정산현황 - 판매 수수료 리포트]
 CREATE TABLE IF NOT EXISTS coupang_rfm.sales (
     order_id BIGINT NOT NULL -- 주문ID
@@ -392,6 +401,14 @@ CREATE TABLE IF NOT EXISTS ecount.product (
   , org_price INTEGER -- 원가
   , expiration_date TEXT -- 유통기한
   , updated_at TIMESTAMP -- 갱신일시
+  , PRIMARY KEY (product_code)
+);
+
+-- [이카운트 재고-발주일정]
+CREATE TABLE IF NOT EXISTS ecount.schedule (
+    product_code TEXT NOT NULL -- 품목코드
+  , order_date DATE -- 발주진행일
+  , delivery_date DATE -- 입고예정일
   , PRIMARY KEY (product_code)
 );
 
@@ -627,7 +644,7 @@ CREATE TABLE IF NOT EXISTS relation.ad_id_to_sbn_ids (
 
 -- [쿠팡 옵션 - 사방넷 묶음상품 관계]
 CREATE TABLE IF NOT EXISTS relation.cpg_opt_to_sbn_ids (
-    option_id BIGINT NOT NULL -- 옵션ID
+    option_id BIGINT NOT NULL -- 노출옵션ID
   , bundle_option_ids TEXT NOT NULL -- 연결상품코드
   , PRIMARY KEY (option_id)
 );

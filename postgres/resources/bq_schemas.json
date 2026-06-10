@@ -251,6 +251,13 @@
     "CLUSTER BY vendor_id",
     "< coupang.inventory"
   ],
+  "coupang_rfm.inventory_exp": [
+    {"name": "option_id", "type": "INTEGER", "description": "노출옵션ID", "mode": "REQUIRED"},
+    {"name": "expiration_date", "type": "DATE", "description": "유통기한", "mode": "REQUIRED"},
+    {"name": "start_time", "type": "DATETIME", "description": "시작일시", "mode": "REQUIRED"},
+    {"name": "end_time", "type": "DATETIME", "description": "종료일시", "mode": "REQUIRED"},
+    "CLUSTER BY option_id"
+  ],
   "coupang_rfm.sales": [
     {"name": "order_id", "type": "INTEGER", "description": "주문ID", "mode": "REQUIRED"},
     {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},
@@ -309,6 +316,11 @@
     {"name": "expiration_date", "type": "STRING", "description": "유통기한"},
     {"name": "updated_at", "type": "DATETIME", "description": "갱신일시"},
     "CLUSTER BY brand_name"
+  ],
+  "ecount.schedule": [
+    {"name": "product_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
+    {"name": "order_date", "type": "DATE", "description": "발주진행일"},
+    {"name": "delivery_date", "type": "DATE", "description": "입고예정일"}
   ],
   "google_ads.campaign": [
     {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
@@ -505,7 +517,7 @@
     "CLUSTER BY platform_name, ad_type"
   ],
   "relation.cpg_opt_to_sbn_ids": [
-    {"name": "option_id", "type": "INTEGER", "description": "옵션ID", "mode": "REQUIRED"},
+    {"name": "option_id", "type": "INTEGER", "description": "노출옵션ID", "mode": "REQUIRED"},
     {"name": "bundle_option_ids", "type": "STRING", "description": "연결상품코드", "mode": "REQUIRED"}
   ],
   "relation.nsh_kwd_to_prd_id": [

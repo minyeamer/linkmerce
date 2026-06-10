@@ -39,6 +39,7 @@ sources:
     schema: coupang_rfm
     tables:
       - name: inventory
+      - name: inventory_exp
       - name: sales
       - name: shipping
 
@@ -47,6 +48,7 @@ sources:
     tables:
       - name: inventory
       - name: product
+      - name: schedule
 
   - name: google_ads
     schema: google_ads
