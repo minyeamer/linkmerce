@@ -1,10 +1,12 @@
 version: 2
 
 sources:
-  - name: analytics
-    schema: analytics
+  - name: core
+    schema: core
     tables:
-      - name: cost
+      - name: item
+      - name: delivery_group
+      - name: opex
 
   - name: cj_eflexs
     schema: cj_eflexs
@@ -76,20 +78,18 @@ sources:
   - name: relation
     schema: relation
     tables:
-      - name: ad_id_to_cat_id
+      - name: ad_id_to_sbn_ids
       - name: cpg_opt_to_sbn_ids
       - name: nsh_kwd_to_prd_id
       - name: nsh_prd_to_ctl_id
       - name: smt_opt_to_sbn_ids
-      - name: smt_prd_to_cat_id
+      - name: smt_prd_to_sbn_ids
 
   - name: sabangnet
     schema: sabangnet
     tables:
       - name: shop
       - name: account
-      - name: model
-      - name: delivery
       - name: order
       - name: order_option
       - name: order_invoice

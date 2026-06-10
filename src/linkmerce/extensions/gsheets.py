@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from linkmerce.common.extract import Client
 
-from typing import TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Hashable, Literal, Sequence, TypeVar
+    from typing import Any, Callable, Hashable, Literal, Sequence, TypeVar
     _KT = TypeVar("_KT", Hashable)
     _VT = TypeVar("_VT", Any)
     JsonString = TypeVar("JsonString", str)
@@ -336,11 +336,12 @@ def dual_load(
         sheet: str,
         postgres_dsn: str,
         table: str,
-        columns: Sequence[str] = list(),
-        primary_key: Sequence[str] = list(),
-        not_null: Sequence[str] = list(),
+        columns: Sequence[str] | None = None,
+        primary_key: Sequence[str] | None = None,
+        not_null: Sequence[str] | None = None,
         head: int = 1,
         numericise_ignore: Sequence[int] | bool = list(),
+        apply_func: dict[str, Callable[[Any], Any]] | None = None,
         **kwargs
     ):
     """워크시트를 읽어 PostgreSQL 및 BigQuery 테이블에 적재한다."""
@@ -359,6 +360,9 @@ def dual_load(
         if not_null:
             if not [record[key] for key in not_null if record[key]]:
                 continue
+        if apply_func:
+            for key, func in apply_func.items():
+                record[key] = func(record[key])
         values.append({column: record[column] for column in columns} if columns else record)
 
     with PostgresClient(postgres_dsn) as pg_client:

@@ -7,6 +7,7 @@
 -- ============================================================
 
 CREATE SCHEMA IF NOT EXISTS analytics; -- anl
+CREATE SCHEMA IF NOT EXISTS core; -- cor
 CREATE SCHEMA IF NOT EXISTS cj_eflexs; -- cje
 CREATE SCHEMA IF NOT EXISTS cj_loisparcel; -- cjl
 CREATE SCHEMA IF NOT EXISTS coupang; -- cpg
@@ -32,11 +33,11 @@ CREATE EXTENSION IF NOT EXISTS parquet_io;
 CREATE EXTENSION IF NOT EXISTS pg_partman WITH SCHEMA partman;
 
 -- ============================================================
--- analytics (통합/분석용)
+-- core (공통 상품/비용)
 -- ============================================================
 
 -- [대표상품]
-CREATE TABLE IF NOT EXISTS analytics.item (
+CREATE TABLE IF NOT EXISTS core.item (
     item_id TEXT NOT NULL -- 분류코드
   , item_seq BIGINT -- 순번
   , product_id TEXT -- 품목코드
@@ -62,7 +63,7 @@ CREATE TABLE IF NOT EXISTS analytics.item (
 );
 
 -- [배송그룹]
-CREATE TABLE IF NOT EXISTS analytics.delivery_group (
+CREATE TABLE IF NOT EXISTS core.delivery_group (
     delivery_group TEXT NOT NULL -- 배송그룹
   , min_unit INTEGER NOT NULL -- 최소구성
   , coolant_cost INTEGER -- 냉매
@@ -75,8 +76,8 @@ CREATE TABLE IF NOT EXISTS analytics.delivery_group (
   , PRIMARY KEY (delivery_group, min_unit)
 );
 
--- [운영비]
-CREATE TABLE IF NOT EXISTS analytics.opex (
+-- [운영비용]
+CREATE TABLE IF NOT EXISTS core.opex (
     expense_id BIGINT NOT NULL -- 순번
   , expense_name TEXT -- 명칭
   , dept_name TEXT NOT NULL -- 부서
@@ -1321,7 +1322,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-SELECT public.bootstrap_daily_partitions('analytics.cost',				        'end_date',			      '2025-01-13',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('core.opex',				              'end_date',			      '2025-01-13',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice',			        'pickup_date',			  '2023-05-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order',		    'order_date',			    '2023-05-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.stock',				        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);

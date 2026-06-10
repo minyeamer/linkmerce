@@ -1,5 +1,5 @@
 {
-  "analytics.item": [
+  "core.item": [
     {"name": "item_id", "type": "STRING", "description": "분류코드", "mode": "REQUIRED"},
     {"name": "item_seq", "type": "INTEGER", "description": "순번"},
     {"name": "product_id", "type": "STRING", "description": "품목코드"},
@@ -23,7 +23,7 @@
     {"name": "extra_cost", "type": "INTEGER", "description": "부자재비"},
     "CLUSTER BY team_name, brand_name"
   ],
-  "analytics.delivery_group": [
+  "core.delivery_group": [
     {"name": "delivery_group", "type": "STRING", "description": "배송그룹", "mode": "REQUIRED"},
     {"name": "min_unit", "type": "INTEGER", "description": "최소구성", "mode": "REQUIRED"},
     {"name": "coolant_cost", "type": "INTEGER", "description": "냉매"},
@@ -34,7 +34,7 @@
     {"name": "n_arrival_fee", "type": "INTEGER", "description": "N배송비"},
     {"name": "n_arrival_add", "type": "INTEGER", "description": "N배송비추가"}
   ],
-  "analytics.opex": [
+  "core.opex": [
     {"name": "expense_id", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
     {"name": "expense_name", "type": "STRING", "description": "명칭"},
     {"name": "dept_name", "type": "STRING", "description": "부서", "mode": "REQUIRED"},
@@ -44,8 +44,7 @@
     {"name": "start_date", "type": "DATE", "description": "시작일"},
     {"name": "end_date", "type": "DATE", "description": "종료일", "mode": "REQUIRED"},
     "PARTITION BY end_date",
-    "CLUSTER BY dept_name, team_name, brand_name",
-    "< ecount.cost"
+    "CLUSTER BY dept_name, team_name, brand_name"
   ],
   "cj_eflexs.invoice": [
     {"name": "invoice_no", "type": "STRING", "description": "운송장번호", "mode": "REQUIRED"},
