@@ -6,7 +6,6 @@
 -- 스키마 생성
 -- ============================================================
 
-CREATE SCHEMA IF NOT EXISTS analytics; -- anl
 CREATE SCHEMA IF NOT EXISTS core; -- cor
 CREATE SCHEMA IF NOT EXISTS cj_eflexs; -- cje
 CREATE SCHEMA IF NOT EXISTS cj_loisparcel; -- cjl
@@ -22,8 +21,11 @@ CREATE SCHEMA IF NOT EXISTS sabangnet; -- sbn
 CREATE SCHEMA IF NOT EXISTS searchad; -- sad
 CREATE SCHEMA IF NOT EXISTS smartstore; -- smt
 CREATE SCHEMA IF NOT EXISTS ss_hcenter; -- ssh
+
+CREATE SCHEMA IF NOT EXISTS analytics; -- dbt_marts
+CREATE SCHEMA IF NOT EXISTS transformed; -- dbt_intermediate
 CREATE SCHEMA IF NOT EXISTS partman; -- pg_partman
-CREATE SCHEMA IF NOT EXISTS test;
+CREATE SCHEMA IF NOT EXISTS test; -- pytest
 
 -- ============================================================
 -- parquet_io / pg_partman 확장 및 초기 파티션 설정
