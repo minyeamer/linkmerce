@@ -1,4 +1,6 @@
-WITH ad_id_to_sbn_ids AS (
+WITH{{var("line_break")
+
+}} ad_id_to_sbn_ids AS (
   SELECT
       ad_id
     , ad_level

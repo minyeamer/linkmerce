@@ -1,4 +1,6 @@
-WITH opex_source AS (
+WITH
+
+opex_source AS (
   SELECT
       expense_id
     , expense_name
@@ -26,7 +28,7 @@ opex_extended AS (
       , DATE_ADD(start_date, INTERVAL date_offset DAY) AS ymd
     FROM opex_source,
       UNNEST(GENERATE_ARRAY(0, date_count - 1)) AS date_offset
-  )
+  ) AS t_
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
 ),
 
@@ -57,6 +59,6 @@ opex_daily AS (
   FROM opex_extended AS ext
   LEFT JOIN brand_item AS brd
     ON ext.brand_name = brd.brand_name
-  )
+)
 
 SELECT * FROM opex_daily

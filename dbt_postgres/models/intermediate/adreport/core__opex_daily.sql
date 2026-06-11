@@ -1,4 +1,6 @@
-WITH opex_source AS (
+WITH{{var("line_break")
+
+}} opex_source AS (
   SELECT
       expense_id
     , expense_name
