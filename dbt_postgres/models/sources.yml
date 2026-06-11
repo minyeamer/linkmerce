@@ -53,6 +53,7 @@ sources:
   - name: google_ads
     schema: google_ads
     tables:
+      - name: account
       - name: campaign
       - name: adgroup
       - name: ad

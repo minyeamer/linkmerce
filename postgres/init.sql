@@ -418,6 +418,15 @@ CREATE TABLE IF NOT EXISTS ecount.schedule (
 -- google_ads (구글 광고)
 -- ============================================================
 
+-- [구글 광고 계정]
+CREATE TABLE IF NOT EXISTS google_ads.account (
+    customer_id BIGINT NOT NULL -- 고객ID
+  , account_name TEXT -- 계정명
+  , account_group TEXT -- 계정그룹
+  , account_seq BIGINT -- 계정순번
+  , PRIMARY KEY (customer_id)
+);
+
 -- [구글 광고 캠페인 보고서]
 CREATE TABLE IF NOT EXISTS google_ads.campaign (
     campaign_id TEXT NOT NULL -- 캠페인ID
@@ -637,11 +646,10 @@ CREATE INDEX IF NOT EXISTS nsh_rank_now__item_idx ON naver_shp.rank_now (nv_mid)
 -- [종합 캠페인/광고그룹/소재 - 사방넷 묶음품목 관계]
 CREATE TABLE IF NOT EXISTS relation.ad_id_to_sbn_ids (
     ad_id TEXT NOT NULL -- 광고ID
-  , ad_type INTEGER NOT NULL -- 광고유형
+  , ad_level INTEGER NOT NULL -- 광고단위
+  , bundle_product_ids TEXT NOT NULL -- 연결품번코드
   , platform_name TEXT NOT NULL -- 광고플랫폼
-  , brand_name TEXT -- 브랜드
-  , bundle_product_ids TEXT -- 연결품번코드
-  , PRIMARY KEY (platform_name, ad_type, ad_id)
+  , PRIMARY KEY (platform_name, ad_level, ad_id)
 );
 
 -- [쿠팡 옵션 - 사방넷 묶음상품 관계]
@@ -676,7 +684,6 @@ CREATE TABLE IF NOT EXISTS relation.smt_opt_to_sbn_ids (
 -- [스마트스토어 상품 - 사방넷 묶음품목 관계]
 CREATE TABLE IF NOT EXISTS relation.smt_prd_to_sbn_ids (
     product_id BIGINT NOT NULL -- 상품코드
-  , brand_name TEXT -- 브랜드
   , bundle_product_ids TEXT -- 연결품번코드
   , PRIMARY KEY (product_id)
 );
