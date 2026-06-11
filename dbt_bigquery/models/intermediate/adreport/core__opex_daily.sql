@@ -1,10 +1,3 @@
-{{
-  config(
-    materialized = 'view',
-    schema = 'transformed'
-  )
-}}
-
 WITH opex_source AS (
   SELECT
       expense_id

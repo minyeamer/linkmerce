@@ -1,10 +1,3 @@
-{{
-  config(
-    materialized = 'view',
-    schema = 'transformed',
-  )
-}}
-
 WITH opex_source AS (
   SELECT
       expense_id
@@ -18,7 +11,9 @@ WITH opex_source AS (
     , (end_date - COALESCE(start_date, end_date)) + 1 AS date_count
   FROM {{ source('core', 'opex') }}
   WHERE end_date >= DATE '{{ var("ds_start_date") }}'
-), opex_extended AS (
+),{{var("line_break")
+
+}} opex_extended AS (
   SELECT *
   FROM (
     SELECT
@@ -37,7 +32,9 @@ WITH opex_source AS (
     CROSS JOIN LATERAL generate_series(0, date_count - 1) AS _t0(date_offset)
   ) AS _t
   WHERE ymd BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
-), brand_item AS (
+),{{var("line_break")
+
+}} brand_item AS (
   SELECT *
   FROM (
     SELECT
@@ -51,7 +48,9 @@ WITH opex_source AS (
     WHERE category_name1 IS NULL
   ) AS _t
   WHERE rn = 1
-), opex_daily AS (
+),{{var("line_break")
+
+}} opex_daily AS (
   SELECT
     ext.expense_id,
     COALESCE(brd.item_id, 'NA-AAAAAA-00') AS item_id,

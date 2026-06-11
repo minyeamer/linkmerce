@@ -2,12 +2,12 @@
 # Name your project! Project names should contain only lowercase characters
 # and underscores. A good package name should reflect your organization's
 # name or the intended use of these models
-name: 'linkmerce_bigquery'
-version: '1.0.0'
+name: "linkmerce_bigquery"
+version: "1.0.0"
 config-version: 2
 
 # This setting configures which "profile" dbt uses for this project.
-profile: 'dbt_bigquery'
+profile: "dbt_bigquery"
 
 # These configurations specify where dbt should look for different types of files.
 # The `model-paths` config, for example, states that models in this project can be
@@ -37,5 +37,13 @@ models:
       columns: true
     intermediate:
       +materialized: view
+      +schema: transformed
     marts:
       +materialized: table
+      +schema: analytics
+
+# Configuring variables
+# Full documentation: https://docs.getdbt.com/docs/build/project-variables
+vars:
+  ds_start_date: "2999-12-31"
+  ds_end_date: "2999-12-31"
