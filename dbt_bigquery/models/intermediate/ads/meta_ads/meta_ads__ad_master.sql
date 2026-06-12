@@ -50,9 +50,9 @@ ad_master AS (
   LEFT JOIN {{ source('meta_ads', 'account') }} AS acc
     ON ad.account_id = acc.account_id
   LEFT JOIN {{ source('meta_ads', 'campaign') }} AS cmp
-    ON ad.account_id = cmp.account_id AND ad.campaign_id = cmp.campaign_id
+    ON ad.campaign_id = cmp.campaign_id
   LEFT JOIN {{ source('meta_ads', 'adset') }} AS adset
-    ON ad.account_id = adset.account_id AND ad.adset_id = adset.adset_id
+    ON ad.adset_id = adset.adset_id
   -- Map codes to labels
   LEFT JOIN objective_mapping AS objective
     ON cmp.objective = objective.code

@@ -5,25 +5,31 @@
       {'name': 'DS_START_DATE', 'type': 'date'},
       {'name': 'DS_END_DATE', 'type': 'date'}
     ],
-    schema = 'meta_ads',
+    schema = 'searchad',
     alias = 'report_daily'
   )
 }}
 
 SELECT
-    master.account_id
+    master.customer_id
   , master.account_name
+  , master.account_type
   -- Campaign attrs
   , master.campaign_id
   , master.campaign_name
-  , COALESCE(master.objective, '-') AS objective
-  -- Adset attrs
-  , master.adset_id
-  , master.adset_name
+  , COALESCE(master.campaign_type, '캠페인 없음') AS campaign_type
+  -- Adgroup attrs
+  , master.adgroup_id
+  , master.adgroup_name
+  , COALESCE(master.adgroup_type, '그룹 없음') AS adgroup_type
   -- Ad attrs
   , insight.ad_id
-  , master.ad_name
-  , COALESCE(master.ad_status, '-') AS ad_status
+  , master.title
+  , master.description
+  , COALESCE(master.ad_type, '유형 없음') AS ad_type
+  , master.is_enabled
+  , master.is_deleted
+  , master.mall_product_id
   -- Product attrs
   , insight.product_id
   , product.item_id
@@ -38,13 +44,16 @@ SELECT
   , COALESCE(product.product_name, '-') AS product_name
   -- Insight metrics
   , insight.impression_count
-  , insight.reach_count
   , insight.click_count
-  , insight.link_click_count
   , insight.ad_cost
+  , insight.ad_rank_sum
+  , insight.conv_count
+  , insight.direct_conv_count
+  , insight.conv_amount
+  , insight.direct_conv_amount
   , insight.ymd
-FROM {{ ref('meta_ads__insight_daily') }} AS insight
-LEFT JOIN {{ ref('meta_ads__ad_master') }} AS master
+FROM {{ ref('searchad__insight_daily') }} AS insight
+LEFT JOIN {{ ref('searchad__ad_master') }} AS master
   ON insight.ad_id = master.ad_id
 LEFT JOIN {{ ref('core__product_master') }} AS product
   ON insight.product_id = product.product_id
