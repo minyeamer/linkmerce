@@ -27,7 +27,7 @@ with DAG(
     catchup = False,
     doc_md = __doc__,
     tags = [
-        "priority:medium", "platform:searchad", "objective:adreport", "credentials:cookies",
+        "priority:medium", "platform:searchad", "objective:ads", "credentials:cookies",
         "schedule:weekdays", "time:morning", "write:merge"
     ],
 ) as dag:

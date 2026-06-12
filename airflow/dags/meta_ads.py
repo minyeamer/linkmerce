@@ -32,7 +32,7 @@ with DAG(
     catchup = False,
     doc_md = __doc__,
     tags = [
-        "priority:high", "platform:meta-ads", "objective:adreport", "credentials:api-key",
+        "priority:high", "platform:meta-ads", "objective:ads", "credentials:api-key",
         "schedule:daily", "time:morning", "write:append", "write:merge"
     ],
 ) as dag:

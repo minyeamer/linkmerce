@@ -35,7 +35,7 @@ with DAG(
     catchup = False,
     doc_md = __doc__,
     tags = [
-        "priority:medium", "platform:coupang-ads", "objective:adreport", "credentials:cookies",
+        "priority:medium", "platform:coupang-ads", "objective:ads", "credentials:cookies",
         "schedule:daily", "schedule:none", "time:night", "write:merge",
         "upstream:dagrun"
     ],

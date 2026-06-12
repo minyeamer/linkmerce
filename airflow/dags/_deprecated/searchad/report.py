@@ -37,7 +37,7 @@ with DAG(
     catchup = False,
     doc_md = __doc__,
     tags = [
-        "priority:high", "platform:searchad", "objective:adreport", "credentials:cookies",
+        "priority:high", "platform:searchad", "objective:ads", "credentials:cookies",
         "schedule:daily", "time:morning", "write:append",
         "status:deprecated"
     ],

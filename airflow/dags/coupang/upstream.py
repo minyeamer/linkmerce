@@ -61,7 +61,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:coupang-wing", "platform:coupang-ads", "objective:login",
-        "objective:adreport", "objective:sales", "objective:product", "credentials:userid",
+        "objective:ads", "objective:sales", "objective:product", "credentials:userid",
         "schedule:daily", "time:morning", "time:afternoon", "time:night",
         "plugin:playwright", "plugin:rest-api"
     ],
