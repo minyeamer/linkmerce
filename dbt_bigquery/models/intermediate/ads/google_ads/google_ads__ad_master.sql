@@ -1,3 +1,5 @@
+{{ config(materialized = 'table') }}
+
 WITH
 
 ad_id_to_sbn_ids AS (

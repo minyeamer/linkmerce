@@ -1,3 +1,5 @@
+{{ config(materialized = 'table') }}
+
 WITH
 
 campaign_type_mapping AS (

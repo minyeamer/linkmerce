@@ -52,7 +52,7 @@ insight_daily AS (
     ON insight.ad_id = rel_ad.ad_id
   LEFT JOIN {{ source('meta_ads', 'account') }} AS acc
     ON insight.account_id = acc.account_id
-  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  WHERE insight.ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
 ),
 
 bundle_product_insight AS (
