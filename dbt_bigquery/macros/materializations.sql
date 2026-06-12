@@ -1,10 +1,10 @@
-{% materialization tvf, adapter='bigquery' %}
+{% materialization tvf, adapter='bigquery' -%}
   -- Load params from model configuration
   {%- set params = config.get('params', []) -%}
   {%- set declared_params = [] -%}
   {%- for param in params -%}
     {%- do declared_params.append(param['name'] ~ ' ' ~ param['type']) -%}
-  {% endfor %}
+  {%- endfor -%}
   {%- set joined_params = declared_params | join(', ') -%}
 
   -- Load model query
@@ -16,5 +16,5 @@
     ({{ joined_params }}) as ({{ body_query }})
   {%- endcall -%}
 
-  {{ return({'relations': [this]}) }}
-{% endmaterialization %}
+  {{- return({'relations': [this]}) -}}
+{%- endmaterialization %}

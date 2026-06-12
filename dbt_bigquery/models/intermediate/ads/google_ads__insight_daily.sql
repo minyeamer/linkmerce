@@ -25,11 +25,8 @@ ad_id_to_sbn_ids AS (
   WHERE platform_name = '구글'
 ),
 
-renewal_mapping AS (
-  SELECT *
-  FROM UNNEST([
-    STRUCT('100169' AS product_id_old, '100863' AS product_id_new, DATE(2026, 2, 10) AS renewal_date)
-  ])
+product_renewal_mapping AS (
+  {{ core__product_renewal_mapping() }}
 ),
 
 insight_daily AS (
@@ -86,7 +83,7 @@ exploded_product_insight AS (
       , ARRAY_LENGTH(SPLIT(insight.bundle_product_ids, ',')) AS bundle_product_count
     FROM bundle_product_insight AS insight
     CROSS JOIN UNNEST(SPLIT(insight.bundle_product_ids, ',')) AS bundle_product_id WITH OFFSET AS bundle_product_offset
-    LEFT JOIN renewal_mapping AS renewal
+    LEFT JOIN product_renewal_mapping AS renewal
       ON (bundle_product_id = renewal.product_id_new) AND (insight.ymd < renewal.renewal_date)
   ) AS t_
 )
