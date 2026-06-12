@@ -44,10 +44,10 @@ class TestCjLogistics:
 
 class TestCoupangAds:
     """쿠팡 광고센터 데이터 변환 테스트.
-    - coupang.advertising.adreport.Campaign
-    - coupang.advertising.adreport.Creative
-    - coupang.advertising.adreport.ProductAdReport
-    - coupang.advertising.adreport.NewCustomerAdReport
+    - coupang.advertising.report.Campaign
+    - coupang.advertising.report.Creative
+    - coupang.advertising.report.ProductAdReport
+    - coupang.advertising.report.NewCustomerAdReport
     """
 
     def vendor_id(self, reader: YamlReader) -> str:
@@ -56,7 +56,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_campaign(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 캠페인 목록을 변환하는 테스트."""
-        from linkmerce.core.coupang.advertising.adreport.transform import Campaign
+        from linkmerce.core.coupang.advertising.report.transform import Campaign
         transformer_harness(Campaign).transform(
             vendor_id = self.vendor_id(credentials),
         )
@@ -65,7 +65,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_creative(self, transformer_harness: Harness, configs: YamlReader, credentials: YamlReader):
         """쿠팡 광고센터 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 변환하는 테스트."""
-        from linkmerce.core.coupang.advertising.adreport.transform import Creative
+        from linkmerce.core.coupang.advertising.report.transform import Creative
         transformer_harness(Creative).transform(
             vendor_id = self.vendor_id(credentials),
             map_index = configs("coupang.advertising.creative")["campaign_ids"],
@@ -74,7 +74,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_product_adreport(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 매출 성장 광고 보고서를 변환하는 테스트."""
-        from linkmerce.core.coupang.advertising.adreport.transform import ProductAdReport
+        from linkmerce.core.coupang.advertising.report.transform import ProductAdReport
         transformer_harness(ProductAdReport).transform(
             vendor_id = self.vendor_id(credentials),
         )
@@ -83,7 +83,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_new_customer_adreport(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 신규 구매 고객 확보 광고 보고서를 변환하는 테스트."""
-        from linkmerce.core.coupang.advertising.adreport.transform import NewCustomerAdReport
+        from linkmerce.core.coupang.advertising.report.transform import NewCustomerAdReport
         transformer_harness(NewCustomerAdReport).transform(
             vendor_id = self.vendor_id(credentials),
         )
@@ -583,34 +583,53 @@ class TestSabangNet:
 
 class TestSearchAdApi:
     """네이버 검색광고 API 데이터 변환 테스트.
-    - searchad.api.adreport.Campaign
-    - searchad.api.adreport.Adgroup
-    - searchad.api.adreport.MasterAd
-    - searchad.api.adreport.AdvancedReport
     - searchad.api.contract.TimeContract
     - searchad.api.contract.BrandNewContract
     - searchad.api.keyword.Keyword
+    - searchad.api.report.Campaign
+    - searchad.api.report.Adgroup
+    - searchad.api.report.MasterAd
+    - searchad.api.report.Media
+    - searchad.api.report.AdvancedReport
     """
 
     def customer_id(self, reader: YamlReader):
         return reader("searchad.api.0")["customer_id"]
 
     @pytest.mark.searchad_api
+    def test_time_contract(self, transformer_harness: Harness):
+        """네이버 브랜드검색 광고 계약기간 데이터를 변환하는 테스트."""
+        from linkmerce.core.searchad.api.contract.transform import TimeContract
+        transformer_harness(TimeContract).transform()
+
+    @pytest.mark.searchad_api
+    def test_brand_new_contract(self, transformer_harness: Harness):
+        """네이버 신제품검색 광고 계약기간 데이터를 변환하는 테스트."""
+        from linkmerce.core.searchad.api.contract.transform import BrandNewContract
+        transformer_harness(BrandNewContract).transform()
+
+    @pytest.mark.searchad_api
+    def test_keyword(self, transformer_harness: Harness):
+        """네이버 검색광고 키워드 도구의 연관키워드 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.searchad.api.keyword.transform import Keyword
+        transformer_harness(Keyword).transform()
+
+    @pytest.mark.searchad_api
     def test_campaign(self, transformer_harness: Harness):
         """네이버 검색광고 캠페인 마스터 데이터를 변환하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.transform import Campaign
+        from linkmerce.core.searchad.api.report.transform import Campaign
         transformer_harness(Campaign).transform()
 
     @pytest.mark.searchad_api
     def test_adgroup(self, transformer_harness: Harness):
         """네이버 검색광고 광고그룹 마스터 데이터를 변환하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.transform import Adgroup
+        from linkmerce.core.searchad.api.report.transform import Adgroup
         transformer_harness(Adgroup).transform()
 
     @pytest.mark.searchad_api
     def test_master_ad(self, transformer_harness: Harness, credentials: YamlReader):
         """모든 소재 유형의 네이버 검색광고 마스터 데이터를 변환하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.transform import MasterAd, AD_TABLE_KEYS
+        from linkmerce.core.searchad.api.report.transform import MasterAd, AD_TABLE_KEYS
         if TYPE_CHECKING:
             class MasterAdHarness(TransformerHarness, MasterAd):
                 ...
@@ -638,13 +657,13 @@ class TestSearchAdApi:
     @pytest.mark.searchad_api
     def test_media(self, transformer_harness: Harness):
         """네이버 검색광고 광고매체 마스터 데이터를 변환하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.transform import Media
+        from linkmerce.core.searchad.api.report.transform import Media
         transformer_harness(Media).transform()
 
     @pytest.mark.searchad_api
     def test_advanced_report(self, transformer_harness: Harness, credentials: YamlReader, yesterday: dt.date):
         """다차원 보고서의 바탕이 되는 광고성과 및 전환 보고서를 변환하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.transform import AdvancedReport
+        from linkmerce.core.searchad.api.report.transform import AdvancedReport
         if TYPE_CHECKING:
             class AdvancedReportHarness(TransformerHarness, AdvancedReport):
                 ...
@@ -667,24 +686,6 @@ class TestSearchAdApi:
         harness.insert_into(query_key, render=harness.tables, params=params)
         harness.dump_tables()
 
-    @pytest.mark.searchad_api
-    def test_time_contract(self, transformer_harness: Harness):
-        """네이버 브랜드검색 광고 계약기간 데이터를 변환하는 테스트."""
-        from linkmerce.core.searchad.api.contract.transform import TimeContract
-        transformer_harness(TimeContract).transform()
-
-    @pytest.mark.searchad_api
-    def test_brand_new_contract(self, transformer_harness: Harness):
-        """네이버 신제품검색 광고 계약기간 데이터를 변환하는 테스트."""
-        from linkmerce.core.searchad.api.contract.transform import BrandNewContract
-        transformer_harness(BrandNewContract).transform()
-
-    @pytest.mark.searchad_api
-    def test_keyword(self, transformer_harness: Harness):
-        """네이버 검색광고 키워드 도구의 연관키워드 조회 결과를 변환하는 테스트."""
-        from linkmerce.core.searchad.api.keyword.transform import Keyword
-        transformer_harness(Keyword).transform()
-
 
 ###################################################################
 ######################## SearchAd Center ##########################
@@ -692,21 +693,13 @@ class TestSearchAdApi:
 
 class TestSearchAdCenter:
     """네이버 광고주센터 데이터 변환 테스트.
-    - searchad.center.adreport.DailyReport
     - searchad.center.exposure.ExposureDiagnosis
     - searchad.center.exposure.ExposureRank
+    - searchad.center.report.DailyReport
     """
 
     def customer_id(self, reader: YamlReader):
         return reader("searchad.center.0")["customer_id"]
-
-    @pytest.mark.searchad_center
-    def test_daily_report(self, transformer_harness: Harness, credentials: YamlReader):
-        """네이버 광고주센터에서 다차원 보고서를 변환하는 테스트."""
-        from linkmerce.core.searchad.center.adreport.transform import DailyReport
-        transformer_harness(DailyReport).transform(
-            customer_id = self.customer_id(credentials),
-        )
 
     @pytest.mark.searchad_center
     def test_exposure_diagnosis(self, transformer_harness: Harness, configs: YamlReader):
@@ -730,6 +723,14 @@ class TestSearchAdCenter:
             map_index = _configs["keyword"],
         )
 
+    @pytest.mark.searchad_center
+    def test_daily_report(self, transformer_harness: Harness, credentials: YamlReader):
+        """네이버 광고주센터에서 다차원 보고서를 변환하는 테스트."""
+        from linkmerce.core.searchad.center.report.transform import DailyReport
+        transformer_harness(DailyReport).transform(
+            customer_id = self.customer_id(credentials),
+        )
+
 
 ###################################################################
 ########################## SearchAd GFA ###########################
@@ -737,11 +738,11 @@ class TestSearchAdCenter:
 
 class TestSearchAdGfa:
     """네이버 성과형 디스플레이 광고 데이터 변환 테스트.
-    - searchad.gfa.adreport.Campaign
-    - searchad.gfa.adreport.AdSet
-    - searchad.gfa.adreport.Creative
-    - searchad.gfa.adreport.CampaignReport
-    - searchad.gfa.adreport.CreativeReport
+    - searchad.gfa.report.Campaign
+    - searchad.gfa.report.AdSet
+    - searchad.gfa.report.Creative
+    - searchad.gfa.report.CampaignReport
+    - searchad.gfa.report.CreativeReport
     """
 
     def account_no(self, reader: YamlReader):
@@ -750,7 +751,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_campaign(self, transformer_harness: Harness, options: YamlReader):
         """네이버 성과형 디스플레이 광고 캠페인 목록을 변환하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.transform import Campaign
+        from linkmerce.core.searchad.gfa.report.transform import Campaign
         _configs = options("searchad.gfa.campaign")
         transformer_harness(Campaign).transform(
             map_index = _configs.get("status", "RUNNABLE"),
@@ -759,7 +760,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_ad_set(self, transformer_harness: Harness, options: YamlReader, credentials: YamlReader):
         """네이버 성과형 디스플레이 광고 그룹 목록을 변환하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.transform import AdSet
+        from linkmerce.core.searchad.gfa.report.transform import AdSet
         _configs = options("searchad.gfa.ad_set")
         transformer_harness(AdSet).transform(
             account_no = self.account_no(credentials),
@@ -769,7 +770,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_creative(self, transformer_harness: Harness, options: YamlReader, credentials: YamlReader):
         """네이버 성과형 디스플레이 광고 소재 목록을 변환하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.transform import Creative
+        from linkmerce.core.searchad.gfa.report.transform import Creative
         _configs = options("searchad.gfa.creative")
         transformer_harness(Creative).transform(
             account_no = self.account_no(credentials),
@@ -779,7 +780,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_campaign_report(self, transformer_harness: Harness, credentials: YamlReader):
         """네이버 성과형 디스플레이 광고 캠페인 성과 보고서를 변환하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.transform import CampaignReport
+        from linkmerce.core.searchad.gfa.report.transform import CampaignReport
         transformer_harness(CampaignReport).transform(
             account_no = self.account_no(credentials),
             map_index = "campaign",
@@ -788,7 +789,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_creative_report(self, transformer_harness: Harness, credentials: YamlReader):
         """네이버 성과형 디스플레이 광고 소재 성과 보고서를 변환하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.transform import CreativeReport
+        from linkmerce.core.searchad.gfa.report.transform import CreativeReport
         transformer_harness(CreativeReport).transform(
             account_no = self.account_no(credentials),
             map_index = "creative",

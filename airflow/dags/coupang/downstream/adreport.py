@@ -38,7 +38,7 @@ with DAG(
     ],
 ) as dag:
 
-    PATH = "coupang.advertising.adreport"
+    PATH = "coupang.advertising.report"
     RETRY_OPTIONS = {"retries": 3, "retry_delay": timedelta(seconds=10)}
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
@@ -81,7 +81,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from dual_load import load_table_from_duckdb
         from importlib import import_module
-        extract = getattr(import_module("linkmerce.api.coupang.advertising"), f"adreport_{report_type}")
+        extract = getattr(import_module("linkmerce.api.coupang.advertising"), f"report_{report_type}")
         report_level = "creative" if report_type == "nca" else "vendorItem"
         source = f"coupang_adreport_{report_type}"
 

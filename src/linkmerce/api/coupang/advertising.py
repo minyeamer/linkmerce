@@ -101,8 +101,8 @@ def campaign(
             - `"raw"`: 데이터 수집 후 `dict` 또는 `list[dict]` 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.coupang.advertising.adreport.extract import Campaign
-    from linkmerce.core.coupang.advertising.adreport.transform import Campaign as T
+    from linkmerce.core.coupang.advertising.report.extract import Campaign
+    from linkmerce.core.coupang.advertising.report.transform import Campaign as T
     return Campaign(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,
@@ -164,8 +164,8 @@ def creative(
             - `"raw"`: 데이터 수집 후 `dict` 또는 `list[dict]` 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.coupang.advertising.adreport.extract import Creative
-    from linkmerce.core.coupang.advertising.adreport.transform import Creative as T
+    from linkmerce.core.coupang.advertising.report.extract import Creative
+    from linkmerce.core.coupang.advertising.report.transform import Creative as T
     return Creative(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,
@@ -179,7 +179,7 @@ def creative(
 
 
 @with_duckdb_connection(table="coupang_adreport_pa")
-def adreport_pa(
+def report_pa(
         cookies: str,
         vendor_id: str,
         start_date: dt.date | str, 
@@ -247,8 +247,8 @@ def adreport_pa(
             - `"raw"`: 데이터 다운로드 후 `{파일명: 엑셀 바이너리}` 구조의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.coupang.advertising.adreport.extract import ProductAdReport
-    from linkmerce.core.coupang.advertising.adreport.transform import ProductAdReport as T
+    from linkmerce.core.coupang.advertising.report.extract import ProductAdReport
+    from linkmerce.core.coupang.advertising.report.transform import ProductAdReport as T
     return ProductAdReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,
@@ -256,7 +256,7 @@ def adreport_pa(
 
 
 @with_duckdb_connection(table="coupang_adreport_nca")
-def adreport_nca(
+def report_nca(
         cookies: str,
         vendor_id: str,
         start_date: dt.date | str, 
@@ -324,8 +324,8 @@ def adreport_nca(
             - `"raw"`: 데이터 다운로드 후 `{파일명: 엑셀 바이너리}` 구조의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.coupang.advertising.adreport.extract import NewCustomerAdReport
-    from linkmerce.core.coupang.advertising.adreport.transform import NewCustomerAdReport as T
+    from linkmerce.core.coupang.advertising.report.extract import NewCustomerAdReport
+    from linkmerce.core.coupang.advertising.report.transform import NewCustomerAdReport as T
     return NewCustomerAdReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,

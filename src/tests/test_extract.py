@@ -57,10 +57,10 @@ class TestCjLogistics:
 
 class TestCoupangAds:
     """쿠팡 광고센터 데이터 추출 테스트.
-    - coupang.advertising.adreport.Campaign
-    - coupang.advertising.adreport.Creative
-    - coupang.advertising.adreport.ProductAdReport
-    - coupang.advertising.adreport.NewCustomerAdReport
+    - coupang.advertising.report.Campaign
+    - coupang.advertising.report.Creative
+    - coupang.advertising.report.ProductAdReport
+    - coupang.advertising.report.NewCustomerAdReport
     """
 
     def cookies(self, reader: YamlReader) -> str:
@@ -69,7 +69,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 광고센터 캠페인 목록을 조회하는 테스트."""
-        from linkmerce.core.coupang.advertising.adreport.extract import Campaign
+        from linkmerce.core.coupang.advertising.report.extract import Campaign
         _configs = options("coupang.advertising.campaign")
         Campaign(
             cookies = self.cookies(credentials),
@@ -83,7 +83,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_creative(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 광고센터 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 조회하는 테스트."""
-        from linkmerce.core.coupang.advertising.adreport.extract import Creative
+        from linkmerce.core.coupang.advertising.report.extract import Creative
         _configs = configs("coupang.advertising.creative")
         Creative(
             cookies = self.cookies(credentials),
@@ -95,7 +95,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_product_adreport(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """쿠팡 매출 성장 광고 보고서를 생성 및 다운로드하는 테스트."""
-        from linkmerce.core.coupang.advertising.adreport.extract import ProductAdReport
+        from linkmerce.core.coupang.advertising.report.extract import ProductAdReport
         _configs = options("coupang.advertising.product_adreport")
         ProductAdReport(
             cookies = self.cookies(credentials),
@@ -114,7 +114,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_new_customer_adreport(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """쿠팡 신규 구매 고객 확보 광고 보고서를 생성 및 다운로드하는 테스트."""
-        from linkmerce.core.coupang.advertising.adreport.extract import NewCustomerAdReport
+        from linkmerce.core.coupang.advertising.report.extract import NewCustomerAdReport
         _configs = options("coupang.advertising.new_customer_adreport")
         NewCustomerAdReport(
             cookies = self.cookies(credentials),
@@ -857,10 +857,11 @@ class TestSabangnet:
 
 class TestSearchAdApi:
     """네이버 검색광고 API 데이터 추출 테스트.
-    - searchad.api.adreport.Campaign
-    - searchad.api.adreport.Adgroup
-    - searchad.api.adreport.MasterAd
-    - searchad.api.adreport.AdvancedReport
+    - searchad.api.report.Campaign
+    - searchad.api.report.Adgroup
+    - searchad.api.report.MasterAd
+    - searchad.api.report.Media
+    - searchad.api.report.AdvancedReport
     - searchad.api.contract.TimeContract
     - searchad.api.contract.BrandNewContract
     - searchad.api.keyword.Keyword
@@ -877,7 +878,7 @@ class TestSearchAdApi:
     @pytest.mark.searchad_api
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 검색광고 캠페인 마스터 데이터를 다운로드하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.extract import Campaign
+        from linkmerce.core.searchad.api.report.extract import Campaign
         _configs = options("searchad.api.campaign")
         Campaign(
             configs = self.credentials(credentials),
@@ -889,7 +890,7 @@ class TestSearchAdApi:
     @pytest.mark.searchad_api
     def test_adgroup(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 검색광고 광고그룹 마스터 데이터를 다운로드하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.extract import Adgroup
+        from linkmerce.core.searchad.api.report.extract import Adgroup
         _configs = options("searchad.api.adgroup")
         Adgroup(
             configs = self.credentials(credentials),
@@ -901,7 +902,7 @@ class TestSearchAdApi:
     @pytest.mark.searchad_api
     def test_master_ad(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """모든 소재 유형의 네이버 검색광고 마스터 데이터를 일괄 다운로드하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.extract import MasterAd
+        from linkmerce.core.searchad.api.report.extract import MasterAd
         _configs = options("searchad.api.test_master_ad")
         _parser = dump_extract(MasterAd, format="tsv", map_index="$report_type")
 
@@ -920,7 +921,7 @@ class TestSearchAdApi:
     @pytest.mark.searchad_api
     def test_media(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 검색광고 광고매체 마스터 데이터를 다운로드하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.extract import Media
+        from linkmerce.core.searchad.api.report.extract import Media
         _configs = options("searchad.api.media")
         Media(
             configs = self.credentials(credentials),
@@ -932,8 +933,8 @@ class TestSearchAdApi:
     @pytest.mark.searchad_api
     def test_advanced_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """다차원 보고서의 바탕이 되는 광고성과 및 전환 보고서를 다운로드하는 테스트."""
-        from linkmerce.core.searchad.api.adreport.extract import AdvancedReport
-        _configs = options("searchad.api.adreport")
+        from linkmerce.core.searchad.api.report.extract import AdvancedReport
+        _configs = options("searchad.api.report")
         _parser = dump_extract(AdvancedReport, format="tsv", map_index="$report_type")
 
         def custom_dump(response: dict[str, str], *args, **kwargs):
@@ -987,7 +988,7 @@ class TestSearchAdApi:
 
 class TestSearchAdCenter:
     """네이버 광고주센터 데이터 추출 테스트.
-    - searchad.center.adreport.DailyReport
+    - searchad.center.report.DailyReport
     - searchad.center.exposure.ExposureDiagnosis
     """
 
@@ -1004,7 +1005,7 @@ class TestSearchAdCenter:
     @pytest.mark.searchad_center
     def test_daily_report(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 광고주센터에서 고정된 항목의 다차원 보고서를 다운로드하는 테스트."""
-        from linkmerce.core.searchad.center.adreport.extract import DailyReport
+        from linkmerce.core.searchad.center.report.extract import DailyReport
         _configs = configs("searchad.center.daily_report")
         DailyReport(
             **self.credentials(credentials),
@@ -1039,10 +1040,10 @@ class TestSearchAdCenter:
 
 class TestSearchAdGfa:
     """네이버 성과형 디스플레이 광고 데이터 추출 테스트.
-    - searchad.gfa.adreport.Campaign
-    - searchad.gfa.adreport.AdSet
-    - searchad.gfa.adreport.Creative
-    - searchad.gfa.adreport.PerformanceReport
+    - searchad.gfa.report.Campaign
+    - searchad.gfa.report.AdSet
+    - searchad.gfa.report.Creative
+    - searchad.gfa.report.PerformanceReport
     """
 
     def credentials(self, reader: YamlReader) -> dict:
@@ -1055,7 +1056,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 성과형 디스플레이 광고 캠페인 목록을 조회하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.extract import Campaign
+        from linkmerce.core.searchad.gfa.report.extract import Campaign
         _configs = options("searchad.gfa.campaign")
         Campaign(
             **self.credentials(credentials),
@@ -1067,7 +1068,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_ad_set(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 성과형 디스플레이 광고 그룹 목록을 조회하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.extract import AdSet
+        from linkmerce.core.searchad.gfa.report.extract import AdSet
         _configs = options("searchad.gfa.ad_set")
         AdSet(
             **self.credentials(credentials),
@@ -1079,7 +1080,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_creative(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 성과형 디스플레이 광고 소재 목록을 조회하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.extract import Creative
+        from linkmerce.core.searchad.gfa.report.extract import Creative
         _configs = options("searchad.gfa.creative")
         Creative(
             **self.credentials(credentials),
@@ -1091,7 +1092,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_campaign_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 성과형 디스플레이 광고 성과 보고서를 다운로드하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
+        from linkmerce.core.searchad.gfa.report.extract import PerformanceReport
         _configs = options("searchad.gfa.campaign_report")
         PerformanceReport(
             **self.credentials(credentials),
@@ -1110,7 +1111,7 @@ class TestSearchAdGfa:
     @pytest.mark.searchad_gfa
     def test_creative_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 성과형 디스플레이 광고 성과 보고서를 다운로드하는 테스트."""
-        from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
+        from linkmerce.core.searchad.gfa.report.extract import PerformanceReport
         _configs = options("searchad.gfa.creative_report")
         PerformanceReport(
             **self.credentials(credentials),

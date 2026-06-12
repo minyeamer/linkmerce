@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from typing import Iterable, Literal
     from linkmerce.api.common import DuckDBResult
     from linkmerce.common.load import DuckDBConnection
-    from linkmerce.core.searchad.api.adreport.extract import _ReportsDownload
+    from linkmerce.core.searchad.api.report.extract import _ReportsDownload
     import datetime as dt
 
 
@@ -52,7 +52,7 @@ def download_report(
     """
     if isinstance(report_cls, str):
         from importlib import import_module
-        report_cls = getattr(import_module("linkmerce.core.searchad.api.adreport.extract"), report_cls)
+        report_cls = getattr(import_module("linkmerce.core.searchad.api.report.extract"), report_cls)
     extractor: _ReportsDownload = report_cls(configs=_get_api_configs(api_key, secret_key, customer_id))
     tsv_data = extractor.extract(**kwargs)
 
@@ -114,8 +114,8 @@ def campaign(
             - `"raw"`: 데이터 다운로드 후 TSV 텍스트 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.api.adreport.extract import Campaign
-    from linkmerce.core.searchad.api.adreport.transform import Campaign as T
+    from linkmerce.core.searchad.api.report.extract import Campaign
+    from linkmerce.core.searchad.api.report.transform import Campaign as T
     return Campaign(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(api_key, secret_key, customer_id),
@@ -169,8 +169,8 @@ def adgroup(
             - `"raw"`: 데이터 다운로드 후 TSV 텍스트 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.api.adreport.extract import Adgroup
-    from linkmerce.core.searchad.api.adreport.transform import Adgroup as T
+    from linkmerce.core.searchad.api.report.extract import Adgroup
+    from linkmerce.core.searchad.api.report.transform import Adgroup as T
     return Adgroup(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(api_key, secret_key, customer_id),
@@ -232,8 +232,8 @@ def master_ad(
             - `"raw"`: 데이터 다운로드 후 `{보고서 유형: TSV 텍스트}` 구조의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.api.adreport.extract import MasterAd
-    from linkmerce.core.searchad.api.adreport.transform import MasterAd as T
+    from linkmerce.core.searchad.api.report.extract import MasterAd
+    from linkmerce.core.searchad.api.report.transform import MasterAd as T
     return MasterAd(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(api_key, secret_key, customer_id),
@@ -287,8 +287,8 @@ def media(
             - `"raw"`: 데이터 다운로드 후 TSV 텍스트 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.api.adreport.extract import Media
-    from linkmerce.core.searchad.api.adreport.transform import Media as T
+    from linkmerce.core.searchad.api.report.extract import Media
+    from linkmerce.core.searchad.api.report.transform import Media as T
     return Media(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(api_key, secret_key, customer_id),
@@ -353,8 +353,8 @@ def advanced_report(
             - `"raw"`: 데이터 다운로드 후 `{보고서 유형: TSV 텍스트}` 구조의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.api.adreport.extract import AdvancedReport
-    from linkmerce.core.searchad.api.adreport.transform import AdvancedReport as T
+    from linkmerce.core.searchad.api.report.extract import AdvancedReport
+    from linkmerce.core.searchad.api.report.transform import AdvancedReport as T
     return AdvancedReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(api_key, secret_key, customer_id),

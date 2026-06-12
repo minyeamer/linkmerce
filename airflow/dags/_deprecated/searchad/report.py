@@ -45,7 +45,7 @@ with DAG(
 
     with TaskGroup(group_id="searchad_group") as searchad_group:
 
-        SEARCHAD_PATH = "searchad.center.adreport"
+        SEARCHAD_PATH = "searchad.center.report"
 
         @task(task_id="read_configs_searchad", retries=3, retry_delay=timedelta(minutes=1))
         def read_configs_searchad() -> dict:
@@ -122,7 +122,7 @@ with DAG(
 
     with TaskGroup(group_id="gfa_group") as gfa_group:
 
-        GFA_PATH = "searchad.gfa.adreport"
+        GFA_PATH = "searchad.gfa.report"
 
         @task(task_id="read_configs_gfa", retries=3, retry_delay=timedelta(minutes=1), trigger_rule=TriggerRule.ALWAYS)
         def read_configs_gfa() -> dict:

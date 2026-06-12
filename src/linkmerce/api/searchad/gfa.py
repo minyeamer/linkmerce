@@ -62,8 +62,8 @@ def campaign(
             - `"raw"`: 데이터 수집 후 `list[dict]` 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.gfa.adreport.extract import Campaign
-    from linkmerce.core.searchad.gfa.adreport.transform import Campaign as T
+    from linkmerce.core.searchad.gfa.report.extract import Campaign
+    from linkmerce.core.searchad.gfa.report.transform import Campaign as T
     return Campaign(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
@@ -133,8 +133,8 @@ def adset(
             - `"raw"`: 데이터 수집 후 `list[dict]` 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.gfa.adreport.extract import AdSet
-    from linkmerce.core.searchad.gfa.adreport.transform import AdSet as T
+    from linkmerce.core.searchad.gfa.report.extract import AdSet
+    from linkmerce.core.searchad.gfa.report.transform import AdSet as T
     return AdSet(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
@@ -206,8 +206,8 @@ def creative(
             - `"raw"`: 데이터 수집 후 `list[dict]` 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.gfa.adreport.extract import Creative
-    from linkmerce.core.searchad.gfa.adreport.transform import Creative as T
+    from linkmerce.core.searchad.gfa.report.extract import Creative
+    from linkmerce.core.searchad.gfa.report.transform import Creative as T
     return Creative(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
@@ -293,8 +293,8 @@ def campaign_report(
             - `"raw"`: 데이터 다운로드 후 `{파일명: ZIP 바이너리}` 구조의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
-    from linkmerce.core.searchad.gfa.adreport.transform import CampaignReport as T
+    from linkmerce.core.searchad.gfa.report.extract import PerformanceReport
+    from linkmerce.core.searchad.gfa.report.transform import CampaignReport as T
     return PerformanceReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},
@@ -372,8 +372,8 @@ def creative_report(
             - `"raw"`: 데이터 다운로드 후 `{파일명: ZIP 바이너리}` 구조의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.gfa.adreport.extract import PerformanceReport
-    from linkmerce.core.searchad.gfa.adreport.transform import CreativeReport as T
+    from linkmerce.core.searchad.gfa.report.extract import PerformanceReport
+    from linkmerce.core.searchad.gfa.report.transform import CreativeReport as T
     return PerformanceReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no},

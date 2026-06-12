@@ -21,7 +21,7 @@ DuckDB 기반 변환을 거쳐 BigQuery, PostgreSQL, Google Sheets 같은 외부
 ## 한눈에 보기
 
 - **패키지명**: `linkmerce`
-- **버전**: `1.0.7`
+- **버전**: `1.0.8`
 - **Python**: `>=3.12`
 - **핵심 의존성**: `aiohttp`, `requests`, `duckdb`, `bs4`, `openpyxl`, `ruamel-yaml`, `tqdm`
 
@@ -248,7 +248,7 @@ core/{platform}/{hostname}/{category}/
 | 플랫폼 | 호스트명 | 카테고리 | 플랫폼 구분 | 수집 범위 |
 | --- | --- | --- | --- | --- |
 | `cj` | `eflexs` | `stock` | CJ대한통운 eFLEXs | 재고 |
-| `coupang` | `advertising` | `adreport` | 쿠팡 광고센터 | 광고 |
+| `coupang` | `advertising` | `report` | 쿠팡 광고센터 | 광고 |
 | `coupang` | `wing` | `product`, `settlement` | 쿠팡 판매자센터 | 상품, 매출 |
 | `ecount` | `api` | `inventory`, `product` | 이카운트 API | 상품, 재고 |
 | `google` | `api` | `ads` | 구글 API | 광고 |
@@ -256,9 +256,9 @@ core/{platform}/{hostname}/{category}/
 | `naver` | `main` | `search` | 네이버 메인 | 검색 |
 | `naver` | `openapi` | `search` | 네이버 오픈 API | 검색 |
 | `sabangnet` | `admin` | `order`, `product` | 사방넷 시스템 | 주문, 상품 |
-| `searchad` | `api` | `adreport`, `contract`, `keyword` | 네이버 검색광고 API | 광고 보고서, 광고 계약, 검색량 |
-| `searchad` | `center` | `adreport`, `exposure` | 네이버 광고주센터 (검색광고) | 광고 보고서, 광고 순위 |
-| `searchad` | `gfa` | `adreport` | 네이버 성과형 디스플레이 광고 | 광고 보고서 |
+| `searchad` | `api` | `contract`, `keyword`, `report` | 네이버 검색광고 API | 광고 보고서, 광고 계약, 검색량 |
+| `searchad` | `center` | `exposure`, `report` | 네이버 광고주센터 (검색광고) | 광고 보고서, 광고 순위 |
+| `searchad` | `gfa` | `report` | 네이버 성과형 디스플레이 광고 | 광고 보고서 |
 | `smartstore` | `api` | `bizdata`, `order`, `product` | 네이버 커머스 API | 주문, 상품, 통계 |
 | `smartstore` | `hcenter` | `catalog`, `pageview`, `sales` | 네이버 쇼핑파트너센터 | 매출, 방문 통계, 카탈로그/상품 |
 

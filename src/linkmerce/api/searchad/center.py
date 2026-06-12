@@ -139,8 +139,8 @@ def advanced_report(
             - `"json"`: CSV 형식의 보고서를 JSON 형식의 `list[dict]`로 파싱해 반환한다. (기본값)
             - `"raw"`: CSV 형식의 보고서를 원본 텍스트로 반환한다.
     """
-    from linkmerce.core.searchad.center.adreport.extract import AdvancedReport
-    from linkmerce.core.searchad.center.adreport.transform import AdvancedReport as T
+    from linkmerce.core.searchad.center.report.extract import AdvancedReport
+    from linkmerce.core.searchad.center.report.transform import AdvancedReport as T
     return AdvancedReport(**prepare_extract(
         T, extract_options, transform_options, return_type,
         configs = {"account_no": account_no, "customer_id": customer_id},
@@ -207,8 +207,8 @@ def daily_report(
             - `"raw"`: 데이터 다운로드 후 CSV 텍스트 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.searchad.center.adreport.extract import DailyReport
-    from linkmerce.core.searchad.center.adreport.transform import DailyReport as T
+    from linkmerce.core.searchad.center.report.extract import DailyReport
+    from linkmerce.core.searchad.center.report.transform import DailyReport as T
     return DailyReport(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         configs = {"account_no": account_no, "customer_id": customer_id},

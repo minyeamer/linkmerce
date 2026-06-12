@@ -96,7 +96,7 @@ coupang/
 ├── advertising/
 │   ├─x CoupangAds(Extractor)::common
 │   ├─x CoupangLogin(LoginHandler)::common
-│   └── adreport/
+│   └── report/
 │       ├── Campaign(CoupangAds)::extract
 │       │   └── Campaign(DuckDBTransformer)::transform
 │       │       ├── CampaignParser(JsonTransformer)::transform
@@ -290,7 +290,7 @@ sabangnet/
 searchad/
 ├── api/
 │   ├─x NaverSearchAdApi(Extractor)::common
-│   ├── adreport/
+│   ├── report/
 │   │   ├─x _ReportsDownload(NaverSearchAdApi)::extract
 │   │   ├─x _MasterReport(_ReportsDownload)::extract
 │   │   ├── Campaign(_MasterReport)::extract
@@ -337,7 +337,7 @@ searchad/
 │           └── Keyword(DuckDBTransformer)::transform >> json
 ├── center/
 │   ├─x SearchAdCenter(Extractor)::common
-│   ├── adreport/
+│   ├── report/
 │   │   ├─x AdvancedReport(SearchAdCenter)::extract
 │   │   └── DailyReport(AdvancedReport)::extract
 │   │       └── DailyReport(DuckDBTransformer)::transform
@@ -348,7 +348,7 @@ searchad/
 │           └── ExposureRank(ExposureDiagnosis)::transform >> json
 └── gfa/
     ├─x SearchAdGfa(Extractor)::common
-    └── adreport/
+    └── report/
         ├─x _MasterReport(SearchAdGfa)::extract
         ├── Campaign(_MasterReport)::extract
         │   └── Campaign(DuckDBTransformer)::transform >> json
@@ -433,7 +433,7 @@ src/
     └── results/
         └── coupang/
             └── advertising/
-                └── adreport/
+                └── report/
                     └── Campaign/
                         ├── Campaign/
                         │   ├── CampaignParser/
