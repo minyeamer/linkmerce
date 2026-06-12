@@ -19,7 +19,7 @@ adset_master AS (
     -- Adset attrs
     , adset.adset_id
     , CONCAT(
-          COALESCE(IF(status_fin.code = 'DELETED', '1', '0'), '0')
+          IF(status_fin.code = 'DELETED', '1', '0')
         , COALESCE(FORMAT('%02d', acc.account_seq), '99')
         , COALESCE(FORMAT('%02d', objective.seq), '99')
       ) AS adset_seq

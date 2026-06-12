@@ -28,7 +28,7 @@ adgroup_master AS (
     -- Adgroup attrs
     , ad.adgroup_id
     , CONCAT(
-          COALESCE(IF(status_fin.code = 'REMOVED', '1', '0'), '0')
+          IF(status_fin.code = 'REMOVED', '1', '0')
         , COALESCE(FORMAT('%02d', acc.account_seq), '99')
         , COALESCE(FORMAT('%02d', campaign_type.seq), '99')
         , COALESCE(FORMAT('%02d', adgroup_type.seq), '99')

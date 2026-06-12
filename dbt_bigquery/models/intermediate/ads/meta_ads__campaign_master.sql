@@ -15,7 +15,7 @@ campaign_master AS (
     -- Campaign attrs
     , cmp.campaign_id
     , CONCAT(
-          COALESCE(IF(cmp.effective_status = 'DELETED', '1', '0'), '0')
+          IF(cmp.effective_status = 'DELETED', '1', '0')
         , COALESCE(FORMAT('%02d', acc.account_seq), '99')
         , COALESCE(FORMAT('%02d', objective.seq), '99')
       ) AS campaign_seq
