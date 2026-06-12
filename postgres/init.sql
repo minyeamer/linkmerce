@@ -420,10 +420,11 @@ CREATE TABLE IF NOT EXISTS ecount.schedule (
 
 -- [구글 광고 계정]
 CREATE TABLE IF NOT EXISTS google_ads.account (
-    customer_id BIGINT NOT NULL -- 고객ID
+    customer_id BIGINT NOT NULL -- 계정ID
+  , userid TEXT -- 아이디
   , account_name TEXT -- 계정명
-  , account_group TEXT -- 계정그룹
   , account_seq BIGINT -- 계정순번
+  , bundle_brand_ids TEXT -- 연결브랜드ID
   , PRIMARY KEY (customer_id)
 );
 
@@ -504,9 +505,10 @@ CREATE TABLE IF NOT EXISTS google_ads.asset (
 -- [메타 광고 계정]
 CREATE TABLE IF NOT EXISTS meta_ads.account (
     account_id TEXT NOT NULL -- 계정ID
+  , userid TEXT -- 아이디
   , account_name TEXT -- 계정명
-  , account_group TEXT -- 계정그룹
   , account_seq BIGINT -- 계정순번
+  , bundle_brand_ids TEXT -- 연결브랜드ID
   , PRIMARY KEY (account_id)
 );
 
@@ -885,9 +887,11 @@ CREATE TABLE IF NOT EXISTS sabangnet.add_product (
 -- [네이버 검색광고 계정]
 CREATE TABLE IF NOT EXISTS searchad.account (
     customer_id BIGINT NOT NULL -- 계정ID
+  , userid TEXT -- 아이디
   , account_name TEXT -- 계정명
   , account_type TEXT -- 계정유형
   , account_seq BIGINT -- 계정순번
+  , bundle_brand_ids TEXT -- 연결브랜드ID
   , PRIMARY KEY (customer_id)
 );
 

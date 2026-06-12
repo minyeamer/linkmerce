@@ -1,3 +1,18 @@
+{{
+  config(
+    materialized = 'incremental',
+    incremental_strategy = 'insert_overwrite',
+    cluster_by = ["dept_name", "team_name", "brand_name"],
+    partition_by = {
+      "field": "ymd",
+      "data_type": "date",
+      "granularity": "day"
+    },
+    partitions = bq_date_partitions('ds_start_date', 'ds_end_date'),
+    require_partition_filter = true
+  )
+}}
+
 WITH
 
 opex_source AS (

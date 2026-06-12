@@ -324,10 +324,10 @@
   ],
   "google_ads.account": [
     {"name": "customer_id", "type": "INTEGER", "description": "고객ID", "mode": "REQUIRED"},
+    {"name": "userid", "type": "STRING", "description": "아이디"},
     {"name": "account_name", "type": "STRING", "description": "계정명"},
-    {"name": "account_group", "type": "STRING", "description": "계정그룹"},
     {"name": "account_seq", "type": "INTEGER", "description": "계정순번"},
-    "CLUSTER BY account_group"
+    {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"}
   ],
   "google_ads.campaign": [
     {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
@@ -397,11 +397,10 @@
   ],
   "meta_ads.account": [
     {"name": "account_id", "type": "STRING", "description": "계정ID", "mode": "REQUIRED"},
+    {"name": "userid", "type": "STRING", "description": "아이디"},
     {"name": "account_name", "type": "STRING", "description": "계정명"},
-    {"name": "account_group", "type": "STRING", "description": "계정그룹"},
     {"name": "account_seq", "type": "INTEGER", "description": "계정순번"},
-    "CLUSTER BY account_group",
-    "< meta.accounts"
+    {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"}
   ],
   "meta_ads.campaign": [
     {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
@@ -707,10 +706,11 @@
   ],
   "searchad.account": [
     {"name": "customer_id", "type": "INTEGER", "description": "계정ID", "mode": "REQUIRED"},
+    {"name": "userid", "type": "STRING", "description": "아이디"},
     {"name": "account_name", "type": "STRING", "description": "계정명"},
     {"name": "account_type", "type": "STRING", "description": "계정유형"},
     {"name": "account_seq", "type": "INTEGER", "description": "계정순번"},
-    "CLUSTER BY account_type"
+    {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"}
   ],
   "searchad.campaign": [
     {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
