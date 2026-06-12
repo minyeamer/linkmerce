@@ -16,6 +16,15 @@
 
 WITH
 
+ad_id_to_sbn_ids AS (
+  SELECT
+      ad_id
+    , ad_level
+    , bundle_product_ids
+  FROM {{ source('relation', 'ad_id_to_sbn_ids') }}
+  WHERE platform_name = '구글'
+),
+
 renewal_mapping AS (
   SELECT *
   FROM UNNEST([
@@ -25,27 +34,37 @@ renewal_mapping AS (
 
 insight_daily AS (
   SELECT
-      ad_id
-    , SUM(impression_count) AS impression_count
-    , SUM(click_count) AS click_count
-    , SUM(ad_cost) AS ad_cost
-    , ymd
-  FROM {{ source('google_ads', 'insight') }}
-  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd, ad_id
-),
-
-bundle_product_insight AS (
-  SELECT
       insight.ad_id
-    , COALESCE(master.bundle_product_ids, '900000') AS bundle_product_ids
+    , COALESCE(
+          rel_ad.bundle_product_ids
+        , rel_grp.bundle_product_ids
+        , rel_cmp.bundle_product_ids
+        , '900000'
+      ) AS bundle_product_ids
     , insight.impression_count
     , insight.click_count
     , insight.ad_cost
     , insight.ymd
-  FROM insight_daily AS insight
-  LEFT JOIN {{ ref('google_ads__master') }} AS master
-    ON insight.ad_id = master.ad_id
+  FROM {{ source('google_ads', 'insight') }} AS insight
+  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 0) AS rel_cmp
+    ON insight.campaign_id = rel_cmp.ad_id
+  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 1) AS rel_grp
+    ON insight.adgroup_id = rel_grp.ad_id
+  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 2) AS rel_ad
+    ON insight.ad_id = rel_ad.ad_id
+  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+),
+
+bundle_product_insight AS (
+  SELECT
+      ad_id
+    , ANY_VALUE(bundle_product_ids) AS bundle_product_ids
+    , SUM(impression_count) AS impression_count
+    , SUM(click_count) AS click_count
+    , SUM(ad_cost) AS ad_cost
+    , ymd
+  FROM insight_daily
+  GROUP BY ymd, ad_id
 ),
 
 exploded_product_insight AS (

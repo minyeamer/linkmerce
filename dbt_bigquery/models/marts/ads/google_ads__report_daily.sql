@@ -44,7 +44,7 @@ SELECT
   , insight.ad_cost
   , insight.ymd
 FROM {{ ref('google_ads__insight_daily') }} AS insight
-LEFT JOIN {{ ref('google_ads__master') }} AS master
+LEFT JOIN {{ ref('google_ads__ad_master') }} AS master
   ON insight.ad_id = master.ad_id
 LEFT JOIN {{ ref('core__product_master') }} AS product
   ON insight.product_id = product.product_id
