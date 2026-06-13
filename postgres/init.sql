@@ -216,6 +216,8 @@ CREATE TABLE IF NOT EXISTS coupang.vendor (
     vendor_id TEXT NOT NULL -- 업체코드
   , vendor_name TEXT -- 업체명
   , vendor_alias TEXT -- 업체별칭
+  , vendor_seq BIGINT -- 업체순번
+  , bundle_brand_ids TEXT -- 연결브랜드ID
   , rocket_sales_date DATE -- 매출인식일
   , rocket_settle_date DATE -- 정산시작일
   , PRIMARY KEY (vendor_id)

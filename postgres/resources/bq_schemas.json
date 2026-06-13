@@ -154,6 +154,8 @@
     {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},
     {"name": "vendor_name", "type": "STRING", "description": "업체명"},
     {"name": "vendor_alias", "type": "STRING", "description": "업체별칭"},
+    {"name": "vendor_seq", "type": "INTEGER", "description": "업체순번"},
+    {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"},
     {"name": "rocket_sales_date", "type": "DATE", "description": "매출인식일"},
     {"name": "rocket_settle_date", "type": "DATE", "description": "정산시작일"}
   ],

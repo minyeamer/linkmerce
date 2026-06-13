@@ -32,7 +32,8 @@ insight_sad_daily AS (
       sad.ad_id
     , sad.pc_mobile_type AS device_type
     , COALESCE(
-          rel_ad.bundle_product_ids
+          rel_prd.bundle_product_ids
+        , rel_ad.bundle_product_ids
         , rel_grp.bundle_product_ids
         , rel_cmp.bundle_product_ids
         , acc.bundle_brand_ids
@@ -59,6 +60,8 @@ insight_sad_daily AS (
     ON ad.adgroup_id = rel_grp.ad_id
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 2) AS rel_ad
     ON sad.ad_id = rel_ad.ad_id
+  LEFT JOIN {{ source('relation', 'smt_prd_to_sbn_ids') }} AS rel_prd
+    ON ad.product_id = rel_prd.product_id
   LEFT JOIN {{ source('searchad', 'account') }} AS acc
     ON sad.customer_id = acc.customer_id
   WHERE sad.ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
