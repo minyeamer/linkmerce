@@ -10,6 +10,12 @@
   )
 }}
 
+WITH
+
+device_type_mapping AS (
+  {{ searchad__device_type_mapping() }}
+)
+
 SELECT
     master.customer_id
   , master.account_name
@@ -42,7 +48,8 @@ SELECT
   , COALESCE(product.category_name4, '-') AS category_name4
   , COALESCE(product.color, '-') AS color
   , COALESCE(product.product_name, '-') AS product_name
-  -- Insight metrics
+  -- Insight attrs
+  , COALESCE(device_type.label, '-') AS device_type
   , insight.impression_count
   , insight.click_count
   , insight.ad_cost
@@ -53,6 +60,8 @@ SELECT
   , insight.direct_conv_amount
   , insight.ymd
 FROM {{ ref('searchad__insight_daily') }} AS insight
+LEFT JOIN device_type_mapping AS device_type
+  ON insight.device_type = device_type.code
 LEFT JOIN {{ ref('searchad__ad_master') }} AS master
   ON insight.ad_id = master.ad_id
 LEFT JOIN {{ ref('core__product_master') }} AS product

@@ -122,3 +122,16 @@ FROM UNNEST([
   , STRUCT(4 AS seq, 'UNSPECIFIED' AS code, '지정되지 않음' AS label)
 ])
 {%- endmacro %}
+
+{% macro google_ads__device_type_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 0 AS code, '데스크톱' AS label)
+  , STRUCT(1 AS seq, 1 AS code, '모바일' AS label)
+  , STRUCT(2 AS seq, 2 AS code, '태블릿' AS label)
+  , STRUCT(3 AS seq, 3 AS code, '연결된 TV' AS label)
+  , STRUCT(4 AS seq, 4 AS code, '기타' AS label)
+  , STRUCT(5 AS seq, 5 AS code, '알 수 없음' AS label)
+  , STRUCT(6 AS seq, 6 AS code, '지정되지 않음' AS label)
+])
+{%- endmacro %}

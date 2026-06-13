@@ -62,6 +62,16 @@ FROM UNNEST([
 ])
 {%- endmacro %}
 
+{% macro searchad__device_type_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 0 AS code, 'PC' AS label)
+  , STRUCT(1 AS seq, 1 AS code, '모바일' AS label)
+  , STRUCT(2 AS seq, 2 AS code, '기타' AS label)
+  , STRUCT(9 AS seq, 9 AS code, '성과형' AS label)
+])
+{%- endmacro %}
+
 {% macro searchad__contract_type_mapping() -%}
 SELECT *
 FROM UNNEST([

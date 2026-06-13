@@ -30,6 +30,7 @@ product_renewal_mapping AS (
 insight_daily AS (
   SELECT
       insight.ad_id
+    , insight.device_type
     , COALESCE(
           rel_ad.bundle_product_ids
         , rel_grp.bundle_product_ids
@@ -56,18 +57,20 @@ insight_daily AS (
 bundle_product_insight AS (
   SELECT
       ad_id
+    , device_type
     , ANY_VALUE(bundle_product_ids) AS bundle_product_ids
     , SUM(impression_count) AS impression_count
     , SUM(click_count) AS click_count
     , SUM(ad_cost) AS ad_cost
     , ymd
   FROM insight_daily
-  GROUP BY ymd, ad_id
+  GROUP BY ymd, ad_id, device_type
 ),
 
 exploded_product_insight AS (
   SELECT
       ad_id
+    , device_type
     , bundle_product_id AS product_id
     , (DIV(impression_count, bundle_product_count)
       + IF(bundle_product_offset = 0, MOD(impression_count, bundle_product_count), 0)) AS impression_count

@@ -30,6 +30,7 @@ product_renewal_mapping AS (
 insight_sad_daily AS (
   SELECT
       sad.ad_id
+    , sad.pc_mobile_type AS device_type
     , COALESCE(
           rel_ad.bundle_product_ids
         , rel_grp.bundle_product_ids
@@ -66,6 +67,7 @@ insight_sad_daily AS (
 insight_gfa_daily AS (
   SELECT
       CAST(gfa.creative_no AS STRING) AS ad_id
+    , 9 AS device_type
     , COALESCE(
           rel_ad.bundle_product_ids
         , rel_adset.bundle_product_ids
@@ -97,6 +99,7 @@ insight_gfa_daily AS (
 bundle_product_insight AS (
   SELECT
       ad_id
+    , device_type
     , ANY_VALUE(bundle_product_ids) AS bundle_product_ids
     , SUM(impression_count) AS impression_count
     , SUM(click_count) AS click_count
@@ -112,12 +115,13 @@ bundle_product_insight AS (
     UNION ALL
     SELECT * FROM insight_gfa_daily
   ) AS t_
-  GROUP BY ymd, ad_id
+  GROUP BY ymd, ad_id, device_type
 ),
 
 exploded_product_insight AS (
   SELECT
       ad_id
+    , device_type
     , bundle_product_id AS product_id
     , (DIV(impression_count, bundle_product_count)
       + IF(bundle_product_offset = 0, MOD(impression_count, bundle_product_count), 0)) AS impression_count
