@@ -14,11 +14,11 @@ adset_master AS (
   SELECT
       adset.account_id
     , acc.account_name
-    -- Campaign attrs
+    -- Campaign attributes
     , adset.campaign_id
     , cmp.campaign_name
     , objective.label AS objective
-    -- Adset attrs
+    -- Adset attributes
     , adset.adset_id
     , CONCAT(
           IF(status_fin.code = 'DELETED', '1', '0')

@@ -13,18 +13,18 @@
 SELECT
     master.account_id
   , master.account_name
-  -- Campaign attrs
+  -- Campaign attributes
   , master.campaign_id
   , master.campaign_name
   , COALESCE(master.objective, '-') AS objective
-  -- Adset attrs
+  -- Adset attributes
   , master.adset_id
   , master.adset_name
-  -- Ad attrs
+  -- Ad attributes
   , insight.ad_id
   , master.ad_name
   , COALESCE(master.ad_status, '-') AS ad_status
-  -- Product attrs
+  -- Product attributes
   , insight.product_id
   , product.item_id
   , COALESCE(product.item_seq, 99999999) AS item_seq

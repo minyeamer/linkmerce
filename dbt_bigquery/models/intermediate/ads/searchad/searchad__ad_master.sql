@@ -28,15 +28,15 @@ ad_master AS (
       ad.customer_id
     , acc.account_name
     , acc.account_type
-    -- Campaign attrs
+    -- Campaign attributes
     , grp.campaign_id
     , cmp.campaign_name
     , campaign_type.label AS campaign_type
-    -- Adgroup attrs
+    -- Adgroup attributes
     , ad.adgroup_id
     , grp.adgroup_name
     , adgroup_type.label AS adgroup_type
-    -- Ad attrs
+    -- Ad attributes
     , ad.ad_id
     , CONCAT(
           IF(ad.is_deleted, '2', '1')
@@ -77,7 +77,7 @@ ad_master AS (
     ON grp.adgroup_type = adgroup_type.code
   LEFT JOIN ad_type_mapping AS ad_type
     ON ad.ad_type = ad_type.code
-  -- Resolve bundle_product_id
+  -- Resolve bundle_product_ids
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 0) AS rel_cmp
     ON grp.campaign_id = rel_cmp.ad_id
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 1) AS rel_grp

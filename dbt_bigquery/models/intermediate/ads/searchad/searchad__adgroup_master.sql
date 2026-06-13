@@ -15,11 +15,11 @@ adgroup_master AS (
       grp.customer_id
     , acc.account_name
     , acc.account_type
-    -- Campaign attrs
+    -- Campaign attributes
     , grp.campaign_id
     , cmp.campaign_name
     , campaign_type.label AS campaign_type
-    -- Adgroup attrs
+    -- Adgroup attributes
     , grp.adgroup_id
     , CONCAT(
           IF(grp.is_deleted, '2', '1')

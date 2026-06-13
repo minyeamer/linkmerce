@@ -19,20 +19,20 @@ device_type_mapping AS (
 SELECT
     master.customer_id
   , master.account_name
-  -- Campaign attrs
+  -- Campaign attributes
   , master.campaign_id
   , master.campaign_name
   , COALESCE(master.campaign_type, '캠페인 없음') AS campaign_type
-  -- Adgroup attrs
+  -- Adgroup attributes
   , master.adgroup_id
   , master.adgroup_name
   , COALESCE(master.adgroup_type, '그룹 없음') AS adgroup_type
-  -- Ad attrs
+  -- Ad attributes
   , insight.ad_id
   , master.ad_name
   , COALESCE(master.ad_type, '유형 없음') AS ad_type
   , COALESCE(master.ad_status, '알 수 없음') AS ad_status
-  -- Product attrs
+  -- Product attributes
   , insight.product_id
   , product.item_id
   , COALESCE(product.item_seq, 99999999) AS item_seq
@@ -44,7 +44,7 @@ SELECT
   , COALESCE(product.category_name4, '-') AS category_name4
   , COALESCE(product.color, '-') AS color
   , COALESCE(product.product_name, '-') AS product_name
-  -- Insight attrs
+  -- Insight attributes
   , COALESCE(device_type.label, '-') AS device_type
   , insight.impression_count
   , insight.click_count

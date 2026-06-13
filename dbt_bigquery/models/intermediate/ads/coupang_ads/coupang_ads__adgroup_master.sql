@@ -20,11 +20,11 @@ campaign_master AS (
     , vdr.vendor_name
     , vdr.vendor_alias
     , vendor_type.label AS vendor_type
-    -- Campaign attrs
+    -- Campaign attributes
     , grp.campaign_id
     , cmp.campaign_name
     , COALESCE(campaign_type.label, cmp.campaign_type) AS campaign_type
-    -- Adgroup attrs
+    -- Adgroup attributes
     , adgroup.adgroup_id
     , adgroup.adgroup_name
     , CONCAT(

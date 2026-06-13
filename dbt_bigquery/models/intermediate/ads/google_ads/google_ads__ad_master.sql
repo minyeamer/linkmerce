@@ -35,16 +35,16 @@ ad_master AS (
   SELECT
       ad.customer_id
     , acc.account_name
-    -- Campaign attrs
+    -- Campaign attributes
     , ad.campaign_id
     , cmp.campaign_name
     , campaign_type.label AS campaign_type
     , bidding_strategy.label AS bidding_strategy
-    -- Adgroup attrs
+    -- Adgroup attributes
     , ad.adgroup_id
     , grp.adgroup_name
     , adgroup_type.label AS adgroup_type
-    -- Ad attrs
+    -- Ad attributes
     , ad.ad_id
     , CONCAT(
           IF(status_fin.code = 'REMOVED', '1', '0')
@@ -88,7 +88,7 @@ ad_master AS (
     ON ad.ad_status = status_ad.code
   LEFT JOIN status_mapping AS status_fin
     ON GREATEST(status_cmp.seq, status_grp.seq, status_ad.seq) = status_fin.seq
-  -- Resolve bundle_product_id
+  -- Resolve bundle_product_ids
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 0) AS rel_cmp
     ON ad.campaign_id = rel_cmp.ad_id
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 1) AS rel_grp

@@ -20,15 +20,15 @@ SELECT
     master.customer_id
   , master.account_name
   , master.account_type
-  -- Campaign attrs
+  -- Campaign attributes
   , master.campaign_id
   , master.campaign_name
   , COALESCE(master.campaign_type, '캠페인 없음') AS campaign_type
-  -- Adgroup attrs
+  -- Adgroup attributes
   , master.adgroup_id
   , master.adgroup_name
   , COALESCE(master.adgroup_type, '그룹 없음') AS adgroup_type
-  -- Ad attrs
+  -- Ad attributes
   , insight.ad_id
   , master.title
   , master.description
@@ -36,7 +36,7 @@ SELECT
   , master.is_enabled
   , master.is_deleted
   , master.mall_product_id
-  -- Product attrs
+  -- Product attributes
   , insight.product_id
   , product.item_id
   , COALESCE(product.item_seq, 99999999) AS item_seq
@@ -48,7 +48,7 @@ SELECT
   , COALESCE(product.category_name4, '-') AS category_name4
   , COALESCE(product.color, '-') AS color
   , COALESCE(product.product_name, '-') AS product_name
-  -- Insight attrs
+  -- Insight attributes
   , COALESCE(device_type.label, '-') AS device_type
   , insight.impression_count
   , insight.click_count

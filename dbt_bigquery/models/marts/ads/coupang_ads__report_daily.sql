@@ -21,14 +21,14 @@ SELECT
   , master.vendor_name
   , master.vendor_alias
   , master.vendor_type
-  -- Campaign attrs
+  -- Campaign attributes
   , insight.campaign_id
   , master.campaign_name
   , COALESCE(master.campaign_type, '캠페인 없음') AS campaign_type
   , COALESCE(master.goal_type, '-') AS goal_type
   , master.is_active
   , master.is_deleted
-  -- Product attrs
+  -- Product attributes
   , insight.product_id
   , product.item_id
   , COALESCE(product.item_seq, 99999999) AS item_seq
@@ -40,7 +40,7 @@ SELECT
   , COALESCE(product.category_name4, '-') AS category_name4
   , COALESCE(product.color, '-') AS color
   , COALESCE(product.product_name, '-') AS product_name
-  -- Insight attrs
+  -- Insight attributes
   , insight.option_id
   , COALESCE(placement_group.label, '-') AS placement_group
   , insight.impression_count

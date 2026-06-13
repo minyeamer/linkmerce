@@ -53,7 +53,7 @@ insight_sad_daily AS (
     ON sad.ad_id = ad.adgroup_id
   LEFT JOIN {{ source('searchad', 'adgroup') }} AS grp
     ON ad.adgroup_id = grp.adgroup_id
-  -- Resolve bundle_product_id
+  -- Resolve bundle_product_ids
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 0) AS rel_cmp
     ON grp.campaign_id = rel_cmp.ad_id
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 1) AS rel_grp

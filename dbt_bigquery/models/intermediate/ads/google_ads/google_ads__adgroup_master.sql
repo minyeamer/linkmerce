@@ -22,12 +22,12 @@ adgroup_master AS (
   SELECT
       ad.customer_id
     , acc.account_name
-    -- Campaign attrs
+    -- Campaign attributes
     , ad.campaign_id
     , cmp.campaign_name
     , campaign_type.label AS campaign_type
     , bidding_strategy.label AS bidding_strategy
-    -- Adgroup attrs
+    -- Adgroup attributes
     , ad.adgroup_id
     , CONCAT(
           IF(status_fin.code = 'REMOVED', '1', '0')

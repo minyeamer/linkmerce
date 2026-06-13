@@ -20,7 +20,7 @@ campaign_master AS (
     , vdr.vendor_name
     , vdr.vendor_alias
     , vendor_type.label AS vendor_type
-    -- Campaign attrs
+    -- Campaign attributes
     , cmp.campaign_id
     , CONCAT(
           IF(cmp.is_deleted, '1', '0')

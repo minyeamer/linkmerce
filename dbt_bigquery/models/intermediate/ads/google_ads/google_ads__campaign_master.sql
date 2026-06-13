@@ -18,7 +18,7 @@ campaign_master AS (
   SELECT
       cmp.customer_id
     , acc.account_name
-    -- Campaign attrs
+    -- Campaign attributes
     , cmp.campaign_id
     , CONCAT(
           IF(cmp.campaign_status = 'REMOVED', '1', '0')

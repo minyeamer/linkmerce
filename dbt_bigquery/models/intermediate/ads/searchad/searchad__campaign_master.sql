@@ -11,7 +11,7 @@ campaign_master AS (
       cmp.customer_id
     , acc.account_name
     , acc.account_type
-    -- Campaign attrs
+    -- Campaign attributes
     , cmp.campaign_id
     , CONCAT(
           IF(cmp.is_deleted, '2', '1')

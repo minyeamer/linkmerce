@@ -14,7 +14,7 @@ campaign_master AS (
   SELECT
       cmp.account_id
     , acc.account_name
-    -- Campaign attrs
+    -- Campaign attributes
     , cmp.campaign_id
     , CONCAT(
           IF(cmp.effective_status = 'DELETED', '1', '0')
