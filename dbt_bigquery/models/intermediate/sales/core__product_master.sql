@@ -14,3 +14,4 @@ SELECT
   , unit_scale
 FROM {{ source('core', 'item') }}
 WHERE product_id IS NOT NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY product_id) = 1
