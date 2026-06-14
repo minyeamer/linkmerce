@@ -14,6 +14,22 @@
 
 WITH
 
+delivery_group AS (
+  SELECT
+      del.delivery_group
+    , COALESCE(del.min_unit, 1) AS min_unit
+    , (CASE
+        WHEN MAX(del.min_unit) OVER (PARTITION BY del.delivery_group) = del.min_unit THEN 9999
+        ELSE COALESCE(LEAD(del.min_unit) OVER (PARTITION BY del.delivery_group ORDER BY del.min_unit))
+      END) AS max_unit
+    , COALESCE(del.delivery_fee, 0) AS delivery_fee
+    , (COALESCE(del.coolant_cost, 0) + COALESCE(del.label_cost, 0)
+      + COALESCE(del.wrap_cost, 0) + COALESCE(del.box_cost, 0)) AS extra_cost
+    , COALESCE(del.n_arrival_fee, 0) AS n_arrival_fee
+    , COALESCE(del.n_arrival_add, 0) AS n_arrival_add
+  FROM {{ source('core', 'delivery_group') }} AS del
+),
+
 ecount_product AS (
   SELECT
       SPLIT(option_id, '-')[SAFE_OFFSET(0)] AS product_id
@@ -23,24 +39,6 @@ ecount_product AS (
   QUALIFY ROW_NUMBER() OVER (
     PARTITION BY option_id
     ORDER BY expiration_date ASC, product_code DESC) = 1
-),
-
-delivery_group AS (
-  SELECT
-      del.delivery_group
-    , COALESCE(del.min_unit, 1) AS min_unit
-    , (CASE
-        WHEN MAX(del.min_unit) OVER (PARTITION BY del.delivery_group) = del.min_unit THEN 9999
-        ELSE COALESCE(LEAD(del.min_unit) OVER (PARTITION BY del.delivery_group ORDER BY del.min_unit))
-      END) AS max_unit
-    , COALESCE(del.coolant_cost, 0) AS coolant_cost
-    , COALESCE(del.label_cost, 0) AS label_cost
-    , COALESCE(del.wrap_cost, 0) AS wrap_cost
-    , COALESCE(del.box_cost, 0) AS box_cost
-    , COALESCE(del.delivery_fee, 0) AS delivery_fee
-    , COALESCE(del.n_arrival_fee, 0) AS n_arrival_fee
-    , COALESCE(del.n_arrival_add, 0) AS n_arrival_add
-  FROM {{ source('core', 'delivery_group') }} AS del
 ),
 
 product_delivery_unit AS (
@@ -69,21 +67,15 @@ order_status_smt AS (
   GROUP BY smt.product_order_id
 ),
 
-order_status_sbn AS (
+order_status_cor AS (
   SELECT
-      SAFE_CAST(sbn.order_id AS INT64) AS order_id
-    , MAX(CASE
-        WHEN sbn.order_status = '반품' THEN 1
-        WHEN sbn.order_status = '교환' THEN 2
-        WHEN sbn.order_status = '빈박스' THEN 5
-        ELSE NULL
-      END) AS order_status
-  FROM {{ source('sabangnet', 'order_status') }} AS sbn
-  WHERE sbn.order_date >= DATE('{{ var("ds_start_date") }}')
-    AND sbn.order_date < DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY)
-    AND sbn.shop_name = '스마트스토어'
-    AND SAFE_CAST(sbn.order_id AS INT64) IS NOT NULL
-  GROUP BY order_id
+      SAFE_CAST(cor.order_id AS INT64) AS order_id
+    , MAX(cor.order_status) AS order_status
+  FROM {{ source('core', 'order_status') }} AS cor
+  WHERE cor.order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+    AND cor.shop_name = '스마트스토어'
+    AND SAFE_CAST(cor.order_id AS INT64) IS NOT NULL
+  GROUP BY cor.order_id
 ),
 
 bundle_product_order AS (
@@ -99,7 +91,7 @@ bundle_product_order AS (
       ) AS bundle_product_ids
     , (CASE
         WHEN status_smt.order_status IN (6, 8) THEN -1
-        WHEN status_sbn.order_status IS NOT NULL THEN status_sbn.order_status
+        WHEN status_cor.order_status IS NOT NULL THEN status_cor.order_status
         WHEN status_smt.order_status = 7 THEN 1
         WHEN status_smt.order_status = 5 THEN 2
         ELSE 0
@@ -117,14 +109,16 @@ bundle_product_order AS (
   FROM {{ source('smartstore', 'order_detail') }} AS ord
   LEFT JOIN order_delivery AS dlv
     ON ord.product_order_id = dlv.product_order_id
+  -- Resolve bundle_product_ids
   LEFT JOIN {{ ref('relation__smt_opt_to_sbn_ids') }} AS rel
     ON ord.option_id = rel.option_id
   LEFT JOIN {{ source('smartstore', 'channel') }} AS chl
     ON ord.channel_seq = chl.channel_seq
+  -- Resolve order_status
   LEFT JOIN order_status_smt AS status_smt
     ON ord.product_order_id = status_smt.product_order_id
-  LEFT JOIN order_status_sbn AS status_sbn
-    ON ord.order_id = status_sbn.order_id
+  LEFT JOIN order_status_cor AS status_cor
+    ON ord.order_id = status_cor.order_id
   WHERE ord.payment_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND ord.payment_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
 ),
@@ -135,8 +129,8 @@ exploded_product_order AS (
   SELECT
       *
     -- Allocation metrics
-    , IF(order_status = 3, 0, sku_quantity) AS actual_quantity
     , COUNT(*) OVER (PARTITION BY product_order_id) AS bundle_product_count
+    , IF(order_status = 3, 0, org_price * sku_quantity) AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -202,22 +196,18 @@ product_order_with_split_amount AS (
     -- Sales partition key
     , order_date
     -- Allocation metrics
-    , actual_quantity
+    , cost_amount
   FROM (
     -- Step 3-2: split amounts by cost weights
     SELECT
         *
-      , CAST(payment_amount * price_rate AS INT64) AS payment_amount_split
-      , CAST(supply_amount * price_rate AS INT64) AS supply_amount_split
+      , CAST(payment_amount * cost_weight AS INT64) AS payment_amount_split
+      , CAST(supply_amount * cost_weight AS INT64) AS supply_amount_split
     FROM (
       SELECT
           *
         -- Step 3-1: calculate cost weights within each product order
-        , COALESCE(
-            (org_price * actual_quantity)
-              / NULLIF(SUM(org_price * actual_quantity) OVER (PARTITION BY product_order_id), 0)
-            , 0.0
-          ) AS price_rate
+        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY product_order_id), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY product_order_id ORDER BY product_id) AS product_order_offset
       FROM exploded_product_order
       WHERE bundle_product_count > 1
@@ -252,7 +242,7 @@ product_order_with_cj_delivery AS (
     -- Sales partition key
     , ord.order_date
     -- Allocation metrics
-    , ord.actual_quantity
+    , ord.cost_amount
   FROM (
     (SELECT * EXCEPT (bundle_product_count)
     FROM exploded_product_order
@@ -283,11 +273,10 @@ max_delivery_fee AS (
           WHEN dlv.delivery_group IS NULL
             THEN ord.delivery_fee
           WHEN ord.delivery_fee > 0
-            THEN (ord.delivery_fee
-              + IF(ord.box_cost > 0, ord.box_cost, dlv.coolant_cost + dlv.label_cost + dlv.wrap_cost + dlv.box_cost))
+            THEN (ord.delivery_fee + IF(ord.box_cost > 0, ord.box_cost, dlv.extra_cost))
           WHEN ord.delivery_type = 7
             THEN dlv.n_arrival_fee + (dlv.n_arrival_add * (ord.delivery_quantity - dlv.min_unit))
-          ELSE dlv.delivery_fee + dlv.coolant_cost + dlv.label_cost + dlv.wrap_cost + dlv.box_cost
+          ELSE dlv.delivery_fee + dlv.extra_cost
         END) AS delivery_fee
     FROM (
       -- Step 5-1: aggregate delivery data by each delivery group
@@ -329,7 +318,7 @@ product_order_with_max_delivery AS (
     -- Sales partition key
     , ord.order_date
     -- Allocation metrics
-    , ord.actual_quantity
+    , ord.cost_amount
     , COUNT(*) OVER (PARTITION BY ord.order_id, ord.invoice_no) AS bundle_invoice_count
   FROM product_order_with_cj_delivery AS ord
   LEFT JOIN max_delivery_fee AS dlv
@@ -361,16 +350,12 @@ product_order_with_split_delivery AS (
     -- Step 7-2: split delivery fees by cost weight
     SELECT
         *
-      , COALESCE(SAFE_CAST(delivery_fee * price_rate AS INT64), 0) AS delivery_fee_split
+      , COALESCE(SAFE_CAST(delivery_fee * cost_weight AS INT64), 0) AS delivery_fee_split
     FROM (
       SELECT
           *
         -- Step 7-1: calculate cost weights within each order invoice
-        , COALESCE(
-            (org_price * actual_quantity)
-              / NULLIF(SUM(org_price * actual_quantity) OVER (PARTITION BY order_id, invoice_no), 0)
-            , 0.0
-          ) AS price_rate
+        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, invoice_no), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY order_id, invoice_no ORDER BY product_id) AS order_invoice_offset
       FROM product_order_with_max_delivery
       WHERE bundle_invoice_count > 1
@@ -392,7 +377,7 @@ sales_daily AS (
     , SUM(delivery_fee) AS delivery_fee
     , order_date
   FROM (
-    (SELECT * EXCEPT (actual_quantity, bundle_invoice_count)
+    (SELECT * EXCEPT (bundle_invoice_count, cost_amount)
     FROM product_order_with_max_delivery
     WHERE bundle_invoice_count = 1)
     UNION ALL

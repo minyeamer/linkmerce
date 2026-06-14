@@ -7,6 +7,7 @@ sources:
       - name: item
       - name: delivery_group
       - name: opex
+      - name: order_status
 
   - name: cj_eflexs
     schema: cj_eflexs
@@ -97,7 +98,6 @@ sources:
       - name: order_option
       - name: order_invoice
       - name: order_dispatch
-      - name: order_status
       - name: mapping_id
       - name: mapping_name
       - name: product

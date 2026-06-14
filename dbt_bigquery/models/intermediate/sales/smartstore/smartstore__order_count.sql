@@ -24,21 +24,15 @@ order_status_smt AS (
   GROUP BY smt.product_order_id
 ),
 
-order_status_sbn AS (
+order_status_cor AS (
   SELECT
-      SAFE_CAST(sbn.order_id AS INT64) AS order_id
-    , MAX(CASE
-        WHEN sbn.order_status = '반품' THEN 1
-        WHEN sbn.order_status = '교환' THEN 2
-        WHEN sbn.order_status = '빈박스' THEN 5
-        ELSE NULL
-      END) AS order_status
-  FROM {{ source('sabangnet', 'order_status') }} AS sbn
-  WHERE sbn.order_date >= DATE('{{ var("ds_start_date") }}')
-    AND sbn.order_date < DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY)
-    AND sbn.shop_name = '스마트스토어'
-    AND SAFE_CAST(sbn.order_id AS INT64) IS NOT NULL
-  GROUP BY order_id
+      SAFE_CAST(cor.order_id AS INT64) AS order_id
+    , MAX(cor.order_status) AS order_status
+  FROM {{ source('core', 'order_status') }} AS cor
+  WHERE cor.order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+    AND cor.shop_name = '스마트스토어'
+    AND SAFE_CAST(cor.order_id AS INT64) IS NOT NULL
+  GROUP BY cor.order_id
 ),
 
 bundle_product_order AS (
@@ -52,7 +46,7 @@ bundle_product_order AS (
       ) AS bundle_product_ids
     , (CASE
         WHEN status_smt.order_status IN (6, 8) THEN -1
-        WHEN status_sbn.order_status IS NOT NULL THEN status_sbn.order_status
+        WHEN status_cor.order_status IS NOT NULL THEN status_cor.order_status
         WHEN status_smt.order_status = 7 THEN 1
         WHEN status_smt.order_status = 5 THEN 2
         ELSE 0
@@ -67,8 +61,8 @@ bundle_product_order AS (
     ON ord.channel_seq = chl.channel_seq
   LEFT JOIN order_status_smt AS status_smt
     ON ord.product_order_id = status_smt.product_order_id
-  LEFT JOIN order_status_sbn AS status_sbn
-    ON ord.order_id = status_sbn.order_id
+  LEFT JOIN order_status_cor AS status_cor
+    ON ord.order_id = status_cor.order_id
   WHERE ord.payment_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND ord.payment_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
 ),

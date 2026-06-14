@@ -46,6 +46,14 @@
     "PARTITION BY end_date",
     "CLUSTER BY dept_name, team_name, brand_name"
   ],
+  "core.order_status": [
+    {"name": "order_id", "type": "STRING", "description": "주문번호", "mode": "REQUIRED"},
+    {"name": "product_order_id", "type": "STRING", "description": "상품주문번호"},
+    {"name": "shop_name", "type": "STRING", "description": "쇼핑몰명"},
+    {"name": "order_status", "type": "INTEGER", "description": "주문상태", "mode": "REQUIRED"},
+    {"name": "order_date", "type": "DATE", "description": "주문일시", "mode": "REQUIRED"},
+    "PARTITION BY order_date"
+  ],
   "cj_eflexs.invoice": [
     {"name": "invoice_no", "type": "STRING", "description": "운송장번호", "mode": "REQUIRED"},
     {"name": "package_no", "type": "STRING", "description": "묶음배송번호"},
@@ -634,14 +642,6 @@
     {"name": "order_dt", "type": "DATETIME", "description": "주문일시"},
     "PARTITION BY DATE(register_dt)",
     "CLUSTER BY account_no"
-  ],
-  "sabangnet.order_status": [
-    {"name": "order_id", "type": "STRING", "description": "주문번호", "mode": "REQUIRED"},
-    {"name": "product_order_id", "type": "STRING", "description": "상품주문번호"},
-    {"name": "shop_name", "type": "STRING", "description": "쇼핑몰명"},
-    {"name": "order_status", "type": "STRING", "description": "주문상태", "mode": "REQUIRED"},
-    {"name": "order_date", "type": "DATE", "description": "주문일시", "mode": "REQUIRED"},
-    "PARTITION BY order_date"
   ],
   "sabangnet.mapping_id": [
     {"name": "product_id_shop", "type": "STRING", "description": "상품코드(쇼핑몰)", "mode": "REQUIRED"},

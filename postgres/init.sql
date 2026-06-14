@@ -91,6 +91,16 @@ CREATE TABLE IF NOT EXISTS core.opex (
   , PRIMARY KEY (end_date, expense_id)
 ) PARTITION BY RANGE (end_date);
 
+-- [주문상태]
+CREATE TABLE IF NOT EXISTS core.order_status (
+    order_id TEXT NOT NULL -- 주문번호
+  , product_order_id TEXT -- 상품주문번호
+  , shop_name TEXT -- 쇼핑몰명
+  , order_status SMALLINT NOT NULL -- 주문상태
+  , order_date DATE NOT NULL -- 주문일시
+  , PRIMARY KEY (order_date, order_id, order_status)
+) PARTITION BY RANGE (order_date);
+
 -- ============================================================
 -- cj_eflexs (CJ대한통운 eFLEXs)
 -- ============================================================
@@ -797,17 +807,6 @@ CREATE TABLE IF NOT EXISTS sabangnet.order_dispatch (
   , PRIMARY KEY (register_dt, order_seq)
 ) PARTITION BY RANGE (register_dt);
 
--- [사방넷 주문 상태]
-CREATE TABLE IF NOT EXISTS sabangnet.order_status (
-    order_id TEXT NOT NULL -- 주문번호
-  , product_order_id TEXT -- 상품주문번호
-  , shop_name TEXT -- 쇼핑몰명
-  , order_status TEXT NOT NULL -- 주문상태
-  , order_date DATE NOT NULL -- 주문일시
-  , PRIMARY KEY (order_date, order_id, order_status)
-) PARTITION BY RANGE (order_date);
-CREATE INDEX IF NOT EXISTS sbn_order_status__id_idx ON sabangnet.order_status (order_id);
-
 -- [사방넷 품번코드매핑]
 CREATE TABLE IF NOT EXISTS sabangnet.mapping_id (
     product_id_shop TEXT NOT NULL -- 상품코드(쇼핑몰)
@@ -1355,6 +1354,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 SELECT public.bootstrap_daily_partitions('core.opex',				              'end_date',			      '2025-01-13',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('core.order_status',		          'order_date',			    '2025-04-03',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice',			        'pickup_date',			  '2023-05-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order',		    'order_date',			    '2023-05-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.stock',				        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
@@ -1371,7 +1371,6 @@ SELECT public.bootstrap_daily_partitions('naver_shp.rank',				        'created_a
 SELECT public.bootstrap_daily_partitions('sabangnet.order',				        'order_dt',			      '2024-11-04 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('sabangnet.order_invoice',		    'order_dt',			      '2024-11-04 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('sabangnet.order_dispatch',		  'register_dt',			  '2023-12-12 00:00:00',  '1 day',  35);
-SELECT public.bootstrap_daily_partitions('sabangnet.order_status',		    'order_date',			    '2025-04-03',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('searchad.report_sad',			      'ymd',				        '2025-04-03',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('searchad.report_gfa',			      'ymd',				        '2024-06-25',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('searchad.contract',			        'contract_end_date',  '2022-06-23',				    '1 day',  35);
