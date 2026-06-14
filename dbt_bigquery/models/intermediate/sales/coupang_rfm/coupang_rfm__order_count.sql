@@ -63,20 +63,13 @@ order_count AS (
   SELECT
       order_id
     , product_id
-    , order_status
-    , order_quantity
-    , order_date
-  FROM (
-    SELECT
-        order_id
-      , product_id
-      , MAX(order_status) AS order_status
-      , SUM(order_quantity) AS order_quantity
-      , MAX(order_date) AS order_date
-    FROM exploded_product_order
-    GROUP BY order_id, product_id
-  ) AS t_
-  WHERE order_status = 0 AND order_quantity != 0
+    , MAX(order_status) AS order_status
+    , SUM(order_quantity) AS order_quantity
+    , MAX(order_date) AS order_date
+  FROM exploded_product_order
+  GROUP BY order_id, product_id
 )
 
-SELECT * FROM order_count
+SELECT *
+FROM order_count
+WHERE order_status = 0 AND order_quantity != 0

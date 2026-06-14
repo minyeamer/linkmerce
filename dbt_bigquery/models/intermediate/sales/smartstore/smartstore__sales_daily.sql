@@ -16,18 +16,18 @@ WITH
 
 delivery_group AS (
   SELECT
-      del.delivery_group
-    , COALESCE(del.min_unit, 1) AS min_unit
+      dlv.delivery_group
+    , COALESCE(dlv.min_unit, 1) AS min_unit
     , (CASE
-        WHEN MAX(del.min_unit) OVER (PARTITION BY del.delivery_group) = del.min_unit THEN 9999
-        ELSE COALESCE(LEAD(del.min_unit) OVER (PARTITION BY del.delivery_group ORDER BY del.min_unit))
+        WHEN MAX(dlv.min_unit) OVER (PARTITION BY dlv.delivery_group) = dlv.min_unit THEN 9999
+        ELSE COALESCE(LEAD(dlv.min_unit) OVER (PARTITION BY dlv.delivery_group ORDER BY dlv.min_unit))
       END) AS max_unit
-    , COALESCE(del.delivery_fee, 0) AS delivery_fee
-    , (COALESCE(del.coolant_cost, 0) + COALESCE(del.label_cost, 0)
-      + COALESCE(del.wrap_cost, 0) + COALESCE(del.box_cost, 0)) AS extra_cost
-    , COALESCE(del.n_arrival_fee, 0) AS n_arrival_fee
-    , COALESCE(del.n_arrival_add, 0) AS n_arrival_add
-  FROM {{ source('core', 'delivery_group') }} AS del
+    , COALESCE(dlv.delivery_fee, 0) AS delivery_fee
+    , (COALESCE(dlv.coolant_cost, 0) + COALESCE(dlv.label_cost, 0)
+      + COALESCE(dlv.wrap_cost, 0) + COALESCE(dlv.box_cost, 0)) AS extra_cost
+    , COALESCE(dlv.n_arrival_fee, 0) AS n_arrival_fee
+    , COALESCE(dlv.n_arrival_add, 0) AS n_arrival_add
+  FROM {{ source('core', 'delivery_group') }} AS dlv
 ),
 
 ecount_product AS (
@@ -189,7 +189,7 @@ product_order_with_split_amount AS (
             THEN supply_amount - (SUM(supply_amount_split) OVER (PARTITION BY product_order_id))
           ELSE 0 END)
       ) AS supply_amount
-    -- Cost attributes
+    -- Cost data
     , org_price
     , delivery_group
     , delivery_fee
@@ -215,7 +215,7 @@ product_order_with_split_amount AS (
   ) AS t1_
 ),
 
--- Step 4: prepare delivery data
+-- Step 4: attach delivery data
 
 product_order_with_cj_delivery AS (
   SELECT
@@ -231,7 +231,7 @@ product_order_with_cj_delivery AS (
     , ord.supply_amount
     , (CASE
         WHEN ord.order_status IN (1, 5, 7) THEN 0
-        ELSE COALESCE(ord.sku_quantity, 0) * COALESCE(ord.org_price, 0)
+        ELSE ord.org_price * ord.sku_quantity
       END) AS supply_cost
     -- Delivery data
     , ord.org_price
@@ -292,8 +292,8 @@ max_delivery_fee AS (
       GROUP BY order_id, invoice_no, delivery_group
     ) AS ord
     LEFT JOIN delivery_group AS dlv
-      ON (ord.delivery_group = dlv.delivery_group)
-        AND (ord.delivery_quantity BETWEEN dlv.min_unit AND dlv.max_unit)
+      ON ord.delivery_group = dlv.delivery_group
+        AND ord.delivery_quantity BETWEEN dlv.min_unit AND dlv.max_unit
   ) AS t_
   QUALIFY ROW_NUMBER() OVER (PARTITION BY order_id, invoice_no ORDER BY ABS(delivery_fee) DESC) = 1
 ),
@@ -318,8 +318,8 @@ product_order_with_max_delivery AS (
     -- Sales partition key
     , ord.order_date
     -- Allocation metrics
-    , ord.cost_amount
     , COUNT(*) OVER (PARTITION BY ord.order_id, ord.invoice_no) AS bundle_invoice_count
+    , ord.cost_amount
   FROM product_order_with_cj_delivery AS ord
   LEFT JOIN max_delivery_fee AS dlv
     ON ord.order_id = dlv.order_id AND ord.invoice_no = dlv.invoice_no
@@ -332,19 +332,21 @@ product_order_with_split_delivery AS (
   SELECT
       order_id
     , invoice_no
+    -- Sales dimensions
     , product_id
     , delivery_type
     , order_status
+    -- Sales metrics
     , sku_quantity
     , payment_amount
     , supply_amount
     , supply_cost
-    , org_price
     , (delivery_fee_split
         + (CASE WHEN order_invoice_offset = 1
             THEN delivery_fee - (SUM(delivery_fee_split) OVER (PARTITION BY order_id, invoice_no))
           ELSE 0 END)
       ) AS delivery_fee
+    -- Sales partition key
     , order_date
   FROM (
     -- Step 7-2: split delivery fees by cost weight
@@ -377,7 +379,7 @@ sales_daily AS (
     , SUM(delivery_fee) AS delivery_fee
     , order_date
   FROM (
-    (SELECT * EXCEPT (bundle_invoice_count, cost_amount)
+    (SELECT * EXCEPT (bundle_invoice_count, cost_amount, org_price)
     FROM product_order_with_max_delivery
     WHERE bundle_invoice_count = 1)
     UNION ALL
