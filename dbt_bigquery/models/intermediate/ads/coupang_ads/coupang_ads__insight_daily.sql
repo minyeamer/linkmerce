@@ -39,7 +39,7 @@ insight_pa_daily AS (
     , COALESCE(
           rel_opt.bundle_product_ids
         , vdr.bundle_brand_ids
-        , '900000'
+        , '200000'
       ) AS bundle_product_ids
     , pa.impression_count
     , pa.click_count
@@ -65,7 +65,7 @@ insight_nca_daily AS (
     , COALESCE(
           rel_opt.bundle_product_ids
         , vdr.bundle_brand_ids
-        , '900000'
+        , '200000'
       ) AS bundle_product_ids
     , nca.impression_count
     , nca.click_count

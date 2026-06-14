@@ -64,7 +64,7 @@ opex_daily AS (
       ext.expense_id
     , COALESCE(brd.item_id, 'NA-AAAAAA-00') AS item_id
     , COALESCE(brd.item_seq, 99999999) AS item_seq
-    , COALESCE(brd.product_id, '900000') AS product_id
+    , COALESCE(brd.product_id, '200000') AS product_id
     , ext.expense_name
     , COALESCE(ext.dept_name, '부서 없음') AS dept_name
     , COALESCE(ext.team_name, brd.team_name, '담당팀 없음') AS team_name

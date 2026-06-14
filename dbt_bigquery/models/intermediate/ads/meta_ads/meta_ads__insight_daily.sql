@@ -35,7 +35,7 @@ insight_daily AS (
         , rel_adset.bundle_product_ids
         , rel_cmp.bundle_product_ids
         , acc.bundle_brand_ids
-        , '900000'
+        , '200000'
       ) AS bundle_product_ids
     , insight.impression_count
     , insight.reach_count

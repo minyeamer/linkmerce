@@ -43,7 +43,7 @@ ad_master AS (
           rel_ad.bundle_product_ids
         , rel_adset.bundle_product_ids
         , rel_cmp.bundle_product_ids
-        , '900000'
+        , '200000'
       ) AS bundle_product_ids
     , COALESCE(ad.created_at, adset.created_at, cmp.created_at) AS created_at
   FROM {{ source('meta_ads', 'ad') }} AS ad

@@ -37,7 +37,7 @@ insight_sad_daily AS (
         , rel_grp.bundle_product_ids
         , rel_cmp.bundle_product_ids
         , acc.bundle_brand_ids
-        , '900000'
+        , '200000'
       ) AS bundle_product_ids
     , sad.impression_count
     , sad.click_count
@@ -76,7 +76,7 @@ insight_gfa_daily AS (
         , rel_adset.bundle_product_ids
         , rel_cmp.bundle_product_ids
         , acc.bundle_brand_ids
-        , '900000'
+        , '200000'
       ) AS bundle_product_ids
     , gfa.impression_count
     , gfa.click_count

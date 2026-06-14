@@ -60,7 +60,7 @@ ad_master AS (
           rel_ad.bundle_product_ids
         , rel_grp.bundle_product_ids
         , rel_cmp.bundle_product_ids
-        , '900000'
+        , '200000'
       ) AS bundle_product_ids
     , cmp.created_at
   FROM {{ source('google_ads', 'ad') }} AS ad
