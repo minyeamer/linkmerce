@@ -659,7 +659,7 @@ CREATE TABLE IF NOT EXISTS relation.ad_id_to_sbn_ids (
 -- [쿠팡 옵션 - 사방넷 묶음상품 관계]
 CREATE TABLE IF NOT EXISTS relation.cpg_opt_to_sbn_ids (
     option_id BIGINT NOT NULL -- 노출옵션ID
-  , bundle_option_ids TEXT NOT NULL -- 연결상품코드
+  , bundle_product_ids TEXT -- 연결품번코드
   , PRIMARY KEY (option_id)
 );
 
@@ -681,7 +681,7 @@ CREATE TABLE IF NOT EXISTS relation.nsh_prd_to_ctl_id (
 -- [스마트스토어 옵션 - 사방넷 묶음상품 관계]
 CREATE TABLE IF NOT EXISTS relation.smt_opt_to_sbn_ids (
     option_id BIGINT NOT NULL -- 옵션코드
-  , bundle_option_ids TEXT NOT NULL -- 연결상품코드
+  , bundle_product_ids TEXT -- 연결품번코드
   , PRIMARY KEY (option_id)
 );
 

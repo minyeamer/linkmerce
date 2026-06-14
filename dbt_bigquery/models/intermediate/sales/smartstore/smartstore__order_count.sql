@@ -3,7 +3,7 @@
     materialized = 'incremental',
     incremental_strategy = 'insert_overwrite',
     partition_by = {
-      "field": "payment_date",
+      "field": "order_date",
       "data_type": "date",
       "granularity": "day"
     },
@@ -46,11 +46,10 @@ bundle_product_order AS (
       ord.order_id
     , ord.product_order_id
     , COALESCE(
-          rel.bundle_option_ids
-        , CONCAT(chl.brand_id, '-0001:1')
-        , '900000-0001:1'
-      ) AS bundle_option_ids
-    , (rel.bundle_option_ids IS NOT NULL) AS has_option_ids
+          rel.bundle_product_ids
+        , chl.brand_id
+        , '200000'
+      ) AS bundle_product_ids
     , (CASE
         WHEN status_smt.order_status IN (6, 8) THEN -1
         WHEN status_sbn.order_status IS NOT NULL THEN status_sbn.order_status
@@ -58,9 +57,9 @@ bundle_product_order AS (
         WHEN status_smt.order_status = 5 THEN 2
         ELSE 0
       END) AS order_status
-    , IF(ord.delivery_type = 7, 1, 0) AS delivery_type
+    , IF(ord.delivery_type = 7, 7, 0) AS delivery_type
     , COALESCE(ord.order_quantity, 0) AS order_quantity
-    , DATE(ord.payment_dt) AS payment_date
+    , DATE(ord.payment_dt) AS order_date
   FROM {{ source('smartstore', 'order_detail') }} AS ord
   LEFT JOIN {{ ref('relation__smt_opt_to_sbn_ids') }} AS rel
     ON ord.option_id = rel.option_id
@@ -78,17 +77,13 @@ exploded_product_order AS (
   SELECT
       ord.order_id
     , ord.product_order_id
-    , SPLIT(bundle_option, '-')[SAFE_OFFSET(0)] AS product_id
-    , (CASE
-        WHEN (ord.order_status = 0) AND ord.has_option_ids
-          THEN IF(LEFT(bundle_option, 1) = '9', 3, ord.order_status)
-        ELSE ord.order_status
-      END) AS order_status
+    , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+    , IF((ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9'), 3, ord.order_status) AS order_status
     , ord.delivery_type
     , ord.order_quantity
-    , ord.payment_date
+    , ord.order_date
   FROM bundle_product_order AS ord
-  CROSS JOIN UNNEST(SPLIT(ord.bundle_option_ids, ',')) AS bundle_option
+  CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
 ),
 
 order_count AS (
@@ -96,12 +91,23 @@ order_count AS (
       order_id
     , product_order_id
     , product_id
-    , ANY_VALUE(delivery_type) AS delivery_type
-    , ANY_VALUE(order_status) AS order_status
-    , ANY_VALUE(order_quantity) AS order_quantity
-    , ANY_VALUE(payment_date) AS payment_date
-  FROM exploded_product_order
-  GROUP BY order_id, product_order_id, product_id
+    , delivery_type
+    , order_status
+    , order_quantity
+    , order_date
+  FROM (
+    SELECT
+        order_id
+      , product_order_id
+      , product_id
+      , MAX(delivery_type) AS delivery_type
+      , MAX(order_status) AS order_status
+      , SUM(order_quantity) AS order_quantity
+      , MAX(order_date) AS order_date
+    FROM exploded_product_order
+    GROUP BY order_id, product_order_id, product_id
+  ) AS t_
+  WHERE order_status = 0 AND order_quantity > 0
 )
 
 SELECT * FROM order_count
