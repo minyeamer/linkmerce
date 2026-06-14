@@ -133,42 +133,42 @@ bundle_product_order AS (
 
 exploded_product_order AS (
   SELECT
-      ord.order_id
-    , ord.product_order_id
-    , ord.invoice_no
-    , COUNT(*) OVER (PARTITION BY ord.product_order_id) AS bundle_product_count
-    -- Sales dimensions
-    , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
-    , (CASE
-        WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 3
-        ELSE ord.order_status
-      END) AS order_status
-    , ord.delivery_type
-    -- Sales metrics
-    , (ord.order_quantity
-        * COALESCE(SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64), 1)
-      ) AS sku_quantity
-    , (CASE
-        WHEN (ord.order_status IN (1, 2)) OR (LEFT(bundle_product, 1) = '9') THEN 0
-        ELSE ord.payment_amount
-      END) AS payment_amount
-    , (CASE
-        WHEN (ord.order_status IN (1, 2)) OR (LEFT(bundle_product, 1) = '9') THEN 0
-        ELSE ord.supply_amount
-      END) AS supply_amount
-    -- Cost data
-    , COALESCE(prd.org_price, itm.org_price, 0) + COALESCE(itm.extra_cost, 0) AS org_price
-    , COALESCE(itm.delivery_group, '-') AS delivery_group
-    , COALESCE(itm.delivery_fee, 0) AS delivery_fee
-    -- Sales partition key
-    , ord.order_date
-  FROM bundle_product_order AS ord
-  CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
-  LEFT JOIN ecount_product AS prd
-    ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = prd.product_id
-  LEFT JOIN `barn-factory`.`core`.`item` AS itm
-    ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = itm.product_id
-  WHERE ord.order_status != -1
+      *
+    -- Allocation metrics
+    , IF(order_status = 3, 0, sku_quantity) AS actual_quantity
+    , COUNT(*) OVER (PARTITION BY product_order_id) AS bundle_product_count
+  FROM (
+    SELECT
+        ord.order_id
+      , ord.product_order_id
+      , ord.invoice_no
+      -- Sales dimensions
+      , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+      , (CASE
+          WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 3
+          ELSE ord.order_status
+        END) AS order_status
+      , ord.delivery_type
+      -- Sales metrics
+      , (ord.order_quantity
+          * COALESCE(SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64), 1)
+        ) AS sku_quantity
+      , IF(ord.order_status = 0, ord.payment_amount, 0) AS payment_amount
+      , IF(ord.order_status = 0, ord.supply_amount, 0) AS supply_amount
+      -- Cost data
+      , COALESCE(prd.org_price, itm.org_price, 0) + COALESCE(itm.extra_cost, 0) AS org_price
+      , COALESCE(itm.delivery_group, '-') AS delivery_group
+      , COALESCE(itm.delivery_fee, 0) AS delivery_fee
+      -- Sales partition key
+      , ord.order_date
+    FROM bundle_product_order AS ord
+    CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
+    LEFT JOIN ecount_product AS prd
+      ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = prd.product_id
+    LEFT JOIN {{ source('core', 'item') }} AS itm
+      ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = itm.product_id
+    WHERE ord.order_status != -1
+  ) AS t_
 ),
 
 -- Step 3: allocate amounts across bundle products by cost weight
@@ -201,6 +201,8 @@ product_order_with_split_amount AS (
     , delivery_fee
     -- Sales partition key
     , order_date
+    -- Allocation metrics
+    , actual_quantity
   FROM (
     -- Step 3-2: split amounts by cost weights
     SELECT
@@ -212,9 +214,10 @@ product_order_with_split_amount AS (
           *
         -- Step 3-1: calculate cost weights within each product order
         , COALESCE(
-            (org_price * sku_quantity)
-            / NULLIF(SUM(org_price * sku_quantity) OVER (PARTITION BY product_order_id), 0)
-          , 0.0) AS price_rate
+            (org_price * actual_quantity)
+              / NULLIF(SUM(org_price * actual_quantity) OVER (PARTITION BY product_order_id), 0)
+            , 0.0
+          ) AS price_rate
         , ROW_NUMBER() OVER (PARTITION BY product_order_id ORDER BY product_id) AS product_order_offset
       FROM exploded_product_order
       WHERE bundle_product_count > 1
@@ -238,7 +241,7 @@ product_order_with_cj_delivery AS (
     , ord.supply_amount
     , (CASE
         WHEN ord.order_status IN (1, 5, 7) THEN 0
-        ELSE (COALESCE(ord.sku_quantity, 0) * COALESCE(ord.org_price, 0))
+        ELSE COALESCE(ord.sku_quantity, 0) * COALESCE(ord.org_price, 0)
       END) AS supply_cost
     -- Delivery data
     , ord.org_price
@@ -248,9 +251,12 @@ product_order_with_cj_delivery AS (
     , COALESCE(cj_inv.box_cost, cj_ord.box_cost, 0) AS box_cost
     -- Sales partition key
     , ord.order_date
+    -- Allocation metrics
+    , ord.actual_quantity
   FROM (
     (SELECT * EXCEPT (bundle_product_count)
-    FROM exploded_product_order WHERE bundle_product_count = 1)
+    FROM exploded_product_order
+    WHERE bundle_product_count = 1)
     UNION ALL
     (SELECT * FROM product_order_with_split_amount)
   ) AS ord
@@ -309,7 +315,6 @@ product_order_with_max_delivery AS (
   SELECT
       ord.order_id
     , ord.invoice_no
-    , COUNT(*) OVER (PARTITION BY ord.order_id, ord.invoice_no) AS bundle_invoice_count
     -- Sales dimensions
     , ord.product_id
     , ord.delivery_type
@@ -323,6 +328,9 @@ product_order_with_max_delivery AS (
     , IF(ord.order_status = 3, 0, dlv.delivery_fee) AS delivery_fee
     -- Sales partition key
     , ord.order_date
+    -- Allocation metrics
+    , ord.actual_quantity
+    , COUNT(*) OVER (PARTITION BY ord.order_id, ord.invoice_no) AS bundle_invoice_count
   FROM product_order_with_cj_delivery AS ord
   LEFT JOIN max_delivery_fee AS dlv
     ON ord.order_id = dlv.order_id AND ord.invoice_no = dlv.invoice_no
@@ -345,7 +353,7 @@ product_order_with_split_delivery AS (
     , org_price
     , (delivery_fee_split
         + (CASE WHEN order_invoice_offset = 1
-            THEN delivery_fee - (SUM(delivery_fee_split) OVER (PARTITION BY order_id, invoice_no, delivery_type))
+            THEN delivery_fee - (SUM(delivery_fee_split) OVER (PARTITION BY order_id, invoice_no))
           ELSE 0 END)
       ) AS delivery_fee
     , order_date
@@ -359,14 +367,11 @@ product_order_with_split_delivery AS (
           *
         -- Step 7-1: calculate cost weights within each order invoice
         , COALESCE(
-            (org_price * sku_quantity)
-              / NULLIF(SUM(org_price * sku_quantity) OVER (PARTITION BY order_id, invoice_no, delivery_type), 0)
+            (org_price * actual_quantity)
+              / NULLIF(SUM(org_price * actual_quantity) OVER (PARTITION BY order_id, invoice_no), 0)
             , 0.0
           ) AS price_rate
-        , ROW_NUMBER() OVER (
-            PARTITION BY order_id, invoice_no, delivery_type, (order_status = 3)
-            ORDER BY product_id
-          ) AS order_invoice_offset
+        , ROW_NUMBER() OVER (PARTITION BY order_id, invoice_no ORDER BY product_id) AS order_invoice_offset
       FROM product_order_with_max_delivery
       WHERE bundle_invoice_count > 1
     ) AS t0_
@@ -387,11 +392,12 @@ sales_daily AS (
     , SUM(delivery_fee) AS delivery_fee
     , order_date
   FROM (
-    (SELECT * EXCEPT (bundle_invoice_count)
-    FROM product_order_with_max_delivery WHERE bundle_invoice_count = 1)
+    (SELECT * EXCEPT (actual_quantity, bundle_invoice_count)
+    FROM product_order_with_max_delivery
+    WHERE bundle_invoice_count = 1)
     UNION ALL
     (SELECT * FROM product_order_with_split_delivery)
-  )
+  ) AS t_
   GROUP BY order_date, product_id, delivery_type, order_status
 )
 

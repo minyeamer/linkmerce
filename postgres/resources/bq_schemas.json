@@ -525,7 +525,7 @@
   ],
   "relation.cpg_opt_to_sbn_ids": [
     {"name": "option_id", "type": "INTEGER", "description": "노출옵션ID", "mode": "REQUIRED"},
-    {"name": "bundle_option_ids", "type": "STRING", "description": "연결상품코드", "mode": "REQUIRED"}
+    {"name": "bundle_product_ids", "type": "STRING", "description": "연결품번코드", "mode": "REQUIRED"}
   ],
   "relation.nsh_kwd_to_prd_id": [
     {"name": "keyword", "type": "STRING", "description": "키워드", "mode": "REQUIRED"},
@@ -545,7 +545,7 @@
   ],
   "relation.smt_prd_to_sbn_ids": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
-    {"name": "bundle_product_ids", "type": "STRING", "description": "연결품번코드"}
+    {"name": "bundle_product_ids", "type": "STRING", "description": "연결품번코드", "mode": "REQUIRED"}
   ],
   "sabangnet.shop": [
     {"name": "shop_seq", "type": "INTEGER", "description": "쇼핑몰순번", "mode": "REQUIRED"},
