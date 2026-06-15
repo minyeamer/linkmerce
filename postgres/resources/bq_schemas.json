@@ -37,14 +37,13 @@
   "core.opex": [
     {"name": "expense_id", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
     {"name": "expense_name", "type": "STRING", "description": "명칭"},
-    {"name": "dept_name", "type": "STRING", "description": "부서", "mode": "REQUIRED"},
-    {"name": "team_name", "type": "STRING", "description": "영업팀"},
-    {"name": "brand_name", "type": "STRING", "description": "브랜드"},
+    {"name": "dept_id", "type": "INTEGER", "description": "부서ID", "mode": "REQUIRED"},
+    {"name": "brand_id", "type": "STRING", "description": "연결브랜드ID"},
     {"name": "amount", "type": "INTEGER", "description": "비용"},
     {"name": "start_date", "type": "DATE", "description": "시작일"},
     {"name": "end_date", "type": "DATE", "description": "종료일", "mode": "REQUIRED"},
     "PARTITION BY end_date",
-    "CLUSTER BY dept_name, team_name, brand_name"
+    "CLUSTER BY dept_id, brand_id"
   ],
   "core.order_status": [
     {"name": "order_id", "type": "STRING", "description": "주문번호", "mode": "REQUIRED"},

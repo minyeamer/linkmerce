@@ -82,9 +82,8 @@ CREATE TABLE IF NOT EXISTS core.delivery_group (
 CREATE TABLE IF NOT EXISTS core.opex (
     expense_id BIGINT NOT NULL -- 순번
   , expense_name TEXT -- 명칭
-  , dept_name TEXT NOT NULL -- 부서
-  , team_name TEXT -- 영업팀
-  , brand_name TEXT -- 브랜드
+  , dept_id SMALLINT NOT NULL -- 부서ID
+  , brand_id TEXT NOT NULL -- 연결브랜드ID
   , amount BIGINT -- 비용
   , start_date DATE -- 시작일
   , end_date DATE NOT NULL -- 종료일
