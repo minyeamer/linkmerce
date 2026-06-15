@@ -89,6 +89,7 @@ bundle_product_order AS (
         , chl.brand_id
         , '200000'
       ) AS bundle_product_ids
+    , IF(ord.delivery_type = 7, 7, 0) AS delivery_type
     , (CASE
         WHEN status_smt.order_status IN (6, 8) THEN -1
         WHEN status_cor.order_status IS NOT NULL THEN status_cor.order_status
@@ -96,7 +97,6 @@ bundle_product_order AS (
         WHEN status_smt.order_status = 5 THEN 2
         ELSE 0
       END) AS order_status
-    , IF(ord.delivery_type = 7, 7, 0) AS delivery_type
     -- Sales metrics
     , COALESCE(ord.order_quantity, 0) AS order_quantity
     , ((COALESCE(ord.unit_price, 0) + COALESCE(ord.option_price, 0))
@@ -138,11 +138,11 @@ exploded_product_order AS (
       , ord.invoice_no
       -- Sales dimensions
       , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+      , ord.delivery_type
       , (CASE
           WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 3
           ELSE ord.order_status
         END) AS order_status
-      , ord.delivery_type
       -- Sales metrics
       , (ord.order_quantity
           * COALESCE(SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64), 1)
@@ -226,12 +226,12 @@ product_order_with_cj_delivery AS (
     , ord.delivery_type
     , ord.order_status
     -- Sales metrics
-    , ord.sku_quantity
+    , IF(ord.order_status = 0, ord.sku_quantity, 0) AS sku_quantity
     , ord.payment_amount
     , ord.supply_amount
     , (CASE
-        WHEN ord.order_status IN (1, 5, 7) THEN 0
-        ELSE ord.org_price * ord.sku_quantity
+        WHEN ord.order_status IN (0, 2, 3) THEN ord.org_price * ord.sku_quantity
+        ELSE 0
       END) AS supply_cost
     -- Delivery data
     , ord.org_price
@@ -313,8 +313,12 @@ product_order_with_max_delivery AS (
     , ord.payment_amount
     , ord.supply_amount
     , ord.supply_cost
+    -- Delivery data
     , ord.org_price
-    , IF(ord.order_status = 3, 0, dlv.delivery_fee) AS delivery_fee
+    , (CASE
+        WHEN ord.order_status IN (0, 1, 2, 5, 7) THEN dlv.delivery_fee
+        ELSE 0
+      END) AS delivery_fee
     -- Sales partition key
     , ord.order_date
     -- Allocation metrics

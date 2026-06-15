@@ -28,7 +28,7 @@ rocket_sales AS (
   SELECT
       order_id
     , option_id
-    , vendor_id
+    , ANY_VALUE(vendor_id) AS vendor_id
     , MAX(settlement_type) AS order_status
     , SUM(order_quantity) AS order_quantity
     , SUM(COALESCE(unit_price, 0) * COALESCE(order_quantity, 0)
@@ -39,15 +39,14 @@ rocket_sales AS (
     , MAX(sales_date) AS sales_date
   FROM {{ source('coupang_rfm', 'sales') }}
   WHERE sales_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY order_id, option_id, vendor_id
+  GROUP BY order_id, option_id
 ),
 
 rocket_shipping AS (
   SELECT
       order_id
     , option_id
-    , vendor_id
-    , 7 AS order_status
+    , ANY_VALUE(vendor_id) AS vendor_id
     , SUM(COALESCE(warehousing_fee, 0)
         - COALESCE(discount_amount, 0)
         + COALESCE(extra_fee, 0)
@@ -55,25 +54,27 @@ rocket_shipping AS (
     , MAX(sales_date) AS sales_date
   FROM {{ source('coupang_rfm', 'shipping') }}
   WHERE sales_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY order_id, option_id, vendor_id
+  GROUP BY order_id, option_id
 ),
 
 rocket_sales_shipping AS (
   SELECT
       COALESCE(sales.order_id, shipping.order_id) AS order_id
     , COALESCE(sales.option_id, shipping.option_id) AS option_id
-    , COALESCE(sales.vendor_id, shipping.vendor_id) AS vendor_id
-    , COALESCE(sales.order_status, shipping.order_status) AS order_status
-    , COALESCE(sales.order_quantity, 0) AS order_quantity
-    , COALESCE(sales.sales_amount, 0) AS sales_amount
-    , COALESCE(sales.settlement_amount, 0) AS settlement_amount
-    , COALESCE(shipping.delivery_fee, 0) AS delivery_fee
+    , ANY_VALUE(COALESCE(sales.vendor_id, shipping.vendor_id)) AS vendor_id
+    , (CASE
+        WHEN MAX(sales.order_status) IS NULL THEN 7
+        ELSE MAX(sales.order_status)
+      END) AS order_status
+    , SUM(COALESCE(sales.order_quantity, 0)) AS order_quantity
+    , SUM(COALESCE(sales.sales_amount, 0)) AS sales_amount
+    , SUM(COALESCE(sales.settlement_amount, 0)) AS settlement_amount
+    , SUM(COALESCE(shipping.delivery_fee, 0)) AS delivery_fee
     , COALESCE(sales.sales_date, shipping.sales_date) AS sales_date
   FROM rocket_sales AS sales
   FULL OUTER JOIN rocket_shipping AS shipping
-    ON sales.order_id = shipping.order_id
-      AND sales.option_id = shipping.option_id
-      AND sales.vendor_id = shipping.vendor_id
+    ON sales.order_id = shipping.order_id AND sales.option_id = shipping.option_id
+  GROUP BY sales_date, order_id, option_id
 ),
 
 bundle_product_order AS (
@@ -108,8 +109,8 @@ exploded_product_order AS (
   SELECT
       *
     -- Allocation metrics
-    , IF(order_status = 3, 0, sku_quantity) AS actual_quantity
     , COUNT(*) OVER (PARTITION BY order_id, option_id) AS bundle_product_count
+    , IF(order_status = 3, 0, org_price * sku_quantity) AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -174,11 +175,7 @@ product_order_with_split_amount AS (
       SELECT
           *
         -- Step 3-1: calculate cost weights within each order option
-        , COALESCE(
-            (org_price * actual_quantity)
-              / NULLIF(SUM(org_price * actual_quantity) OVER (PARTITION BY order_id, option_id), 0)
-            , 0.0
-          ) AS cost_weight
+        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, option_id), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY order_id, option_id ORDER BY product_id) AS order_option_offset
       FROM exploded_product_order
       WHERE bundle_product_count > 1
@@ -192,17 +189,17 @@ sales_daily AS (
   SELECT
       product_id
     , order_status
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(IF(order_status = 0, sku_quantity, 0)) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
     , SUM(supply_amount) AS supply_amount
     , SUM(CASE
-        WHEN order_status IN (1, 7) THEN 0
-        ELSE sku_quantity * org_price
+        WHEN order_status IN (0, 2, 3) THEN org_price * sku_quantity
+        ELSE 0
       END) AS supply_cost
     , SUM(delivery_fee) AS delivery_fee
     , order_date
   FROM (
-    (SELECT * EXCEPT (actual_quantity, bundle_product_count)
+    (SELECT * EXCEPT (bundle_product_count, cost_amount)
     FROM exploded_product_order WHERE bundle_product_count = 1)
     UNION ALL
     (SELECT * FROM product_order_with_split_amount)

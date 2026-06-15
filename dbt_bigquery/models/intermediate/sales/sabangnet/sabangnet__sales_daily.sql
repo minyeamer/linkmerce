@@ -106,23 +106,29 @@ order_detail AS (
 
 bundle_product_order AS (
   SELECT
-      order_id
-    , invoice_no
-    , account_no
-    -- Sales dimensions
-    , shop_id
-    , product_id
-    , option_id
-    , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
-    , ({{ sabangnet__order_status_rules() }}) AS order_status
-    -- Sales metrics
-    , order_quantity
-    , ({{ sabangnet__sku_quantity_rules() }}) AS sku_quantity
-    , ({{ sabangnet__payment_amount_rules() }}) AS payment_amount
-    , SAFE_CAST(payment_amount * ({{ sabangnet__net_rate_rules() }}) AS INT64) AS supply_amount
-    -- Sales partition key
-    , DATE(order_dt) AS order_date
-  FROM order_detail
+      * EXCEPT (net_rate, order_date)
+    , SAFE_CAST(payment_amount * net_rate AS INT64) AS supply_amount
+    , order_date
+  FROM (
+    SELECT
+        order_id
+      , invoice_no
+      , account_no
+      -- Sales dimensions
+      , shop_id
+      , product_id
+      , option_id
+      , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
+      , ({{ sabangnet__order_status_rules() }}) AS order_status
+      -- Sales metrics
+      , order_quantity
+      , ({{ sabangnet__sku_quantity_rules() }}) AS sku_quantity
+      , ({{ sabangnet__payment_amount_rules() }}) AS payment_amount
+      , ({{ sabangnet__net_rate_rules() }}) AS net_rate
+      -- Sales partition key
+      , DATE(order_dt) AS order_date
+    FROM order_detail
+  ) AS t_
 ),
 
 -- Step 3: explode bundle products with bundle options
@@ -260,12 +266,12 @@ product_order_with_cj_delivery AS (
     , ord.product_id
     , ord.order_status
     -- Sales metrics
-    , ord.sku_quantity
+    , IF(ord.order_status = 0, ord.sku_quantity, 0) AS sku_quantity
     , ord.payment_amount
     , ord.supply_amount
     , (CASE
-        WHEN ord.order_status IN (1, 5, 7) THEN 0
-        ELSE ord.sku_quantity * ord.org_price
+        WHEN ord.order_status IN (0, 2, 3) THEN ord.org_price * ord.sku_quantity
+        ELSE 0
       END) AS supply_cost
     -- Delivery data
     , ord.org_price
@@ -376,7 +382,8 @@ product_order_with_split_delivery AS (
     , (delivery_fee_split
         + (CASE WHEN order_invoice_offset = 1
             THEN delivery_fee - (SUM(delivery_fee_split) OVER (PARTITION BY order_id, invoice_no))
-          ELSE 0 END)
+          ELSE 0
+        END)
       ) AS delivery_fee
     -- Sales partition key
     , order_date
