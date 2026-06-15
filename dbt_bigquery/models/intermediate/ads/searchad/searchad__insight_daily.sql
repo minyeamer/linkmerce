@@ -14,18 +14,53 @@
 
 WITH
 
-ad_id_to_sbn_ids AS (
+product_renewal_mapping AS (
+  {{ core__product_renewal_mapping() }}
+),
+
+-- Step 1: prepare relations
+
+ad_id_to_ranged_sbn_ids AS (
   SELECT
       ad_id
     , ad_level
     , bundle_product_ids
-  FROM {{ source('relation', 'ad_id_to_sbn_ids') }}
+    , start_date
+    , end_date
+  FROM {{ ref('relation__ad_id_to_ranged_sbn_ids') }}
   WHERE platform_name = '네이버'
 ),
 
-product_renewal_mapping AS (
-  {{ core__product_renewal_mapping() }}
+smt_prd_to_ranged_sbn_ids AS (
+  SELECT
+      product_id
+    , bundle_product_ids
+    , start_date
+    , end_date
+  FROM {{ ref('relation__smt_prd_to_ranged_sbn_ids') }}
 ),
+
+smt_prd_to_ranged_prd_ids AS (
+  SELECT
+      product_id
+    , bundle_product_ids
+    , start_date
+    , end_date
+  FROM smt_prd_to_ranged_sbn_ids
+  WHERE LEFT(bundle_product_ids, 1) != '2'
+),
+
+smt_prd_to_ranged_brd_ids AS (
+  SELECT
+      product_id
+    , bundle_product_ids AS bundle_brand_ids
+    , start_date
+    , end_date
+  FROM smt_prd_to_ranged_sbn_ids
+  WHERE LEFT(bundle_product_ids, 1) = '2'
+),
+
+-- Step 2: prepare searchad and gfa reports
 
 insight_sad_daily AS (
   SELECT
@@ -36,6 +71,7 @@ insight_sad_daily AS (
         , rel_ad.bundle_product_ids
         , rel_grp.bundle_product_ids
         , rel_cmp.bundle_product_ids
+        , rel_brd.bundle_brand_ids
         , acc.bundle_brand_ids
         , '200000'
       ) AS bundle_product_ids
@@ -50,18 +86,27 @@ insight_sad_daily AS (
     , sad.ymd
   FROM {{ source('searchad', 'report_sad') }} AS sad
   LEFT JOIN {{ source('searchad', 'ad') }} AS ad
-    ON sad.ad_id = ad.adgroup_id
+    ON sad.ad_id = ad.ad_id
   LEFT JOIN {{ source('searchad', 'adgroup') }} AS grp
     ON ad.adgroup_id = grp.adgroup_id
-  -- Resolve bundle_product_ids
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 0) AS rel_cmp
+  -- Resolve bundle_product_ids using ad_id
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 0) AS rel_cmp
     ON grp.campaign_id = rel_cmp.ad_id
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 1) AS rel_grp
+    AND sad.ymd BETWEEN rel_cmp.start_date AND rel_cmp.end_date
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 1) AS rel_grp
     ON ad.adgroup_id = rel_grp.ad_id
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 2) AS rel_ad
+    AND sad.ymd BETWEEN rel_grp.start_date AND rel_grp.end_date
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 2) AS rel_ad
     ON sad.ad_id = rel_ad.ad_id
-  LEFT JOIN {{ source('relation', 'smt_prd_to_sbn_ids') }} AS rel_prd
+    AND sad.ymd BETWEEN rel_ad.start_date AND rel_ad.end_date
+  -- Resolve bundle_product_ids using product_id
+  LEFT JOIN smt_prd_to_ranged_prd_ids AS rel_prd
     ON ad.product_id = rel_prd.product_id
+    AND sad.ymd BETWEEN rel_prd.start_date AND rel_prd.end_date
+  LEFT JOIN smt_prd_to_ranged_brd_ids AS rel_brd
+    ON ad.product_id = rel_brd.product_id
+    AND sad.ymd BETWEEN rel_brd.start_date AND rel_brd.end_date
+  -- Resolve bundle_product_ids using customer_id
   LEFT JOIN {{ source('searchad', 'account') }} AS acc
     ON sad.customer_id = acc.customer_id
   WHERE sad.ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
@@ -72,9 +117,11 @@ insight_gfa_daily AS (
       CAST(gfa.creative_no AS STRING) AS ad_id
     , 9 AS device_type
     , COALESCE(
-          rel_ad.bundle_product_ids
+          rel_prd.bundle_product_ids
+        , rel_ad.bundle_product_ids
         , rel_adset.bundle_product_ids
         , rel_cmp.bundle_product_ids
+        , rel_brd.bundle_brand_ids
         , acc.bundle_brand_ids
         , '200000'
       ) AS bundle_product_ids
@@ -88,16 +135,32 @@ insight_gfa_daily AS (
     , NULL AS direct_conv_amount
     , gfa.ymd
   FROM {{ source('searchad', 'report_gfa') }} AS gfa
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 0) AS rel_cmp
+  LEFT JOIN {{ source('searchad', 'ad') }} AS ad
+    ON CAST(gfa.creative_no AS STRING) = ad.ad_id
+  -- Resolve bundle_product_ids using ad_id
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 0) AS rel_cmp
     ON CAST(gfa.campaign_no AS STRING) = rel_cmp.ad_id
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 1) AS rel_adset
+    AND gfa.ymd BETWEEN rel_cmp.start_date AND rel_cmp.end_date
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 1) AS rel_adset
     ON CAST(gfa.adset_no AS STRING) = rel_adset.ad_id
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 2) AS rel_ad
+    AND gfa.ymd BETWEEN rel_adset.start_date AND rel_adset.end_date
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 2) AS rel_ad
     ON CAST(gfa.creative_no AS STRING) = rel_ad.ad_id
+    AND gfa.ymd BETWEEN rel_ad.start_date AND rel_ad.end_date
+  -- Resolve bundle_product_ids using product_id
+  LEFT JOIN smt_prd_to_ranged_prd_ids AS rel_prd
+    ON ad.product_id = rel_prd.product_id
+    AND gfa.ymd BETWEEN rel_prd.start_date AND rel_prd.end_date
+  LEFT JOIN smt_prd_to_ranged_brd_ids AS rel_brd
+    ON ad.product_id = rel_brd.product_id
+    AND gfa.ymd BETWEEN rel_brd.start_date AND rel_brd.end_date
+  -- Resolve bundle_product_ids using customer_id
   LEFT JOIN {{ source('searchad', 'account') }} AS acc
     ON gfa.account_no = acc.customer_id
   WHERE gfa.ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
 ),
+
+-- Step 3: union the reports and aggregate by dimensions
 
 bundle_product_insight AS (
   SELECT
@@ -120,6 +183,8 @@ bundle_product_insight AS (
   ) AS t_
   GROUP BY ymd, ad_id, device_type
 ),
+
+-- Step 4: explode bundle products and allocate metrics with equal weight
 
 exploded_product_insight AS (
   SELECT

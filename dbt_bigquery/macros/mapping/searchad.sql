@@ -75,7 +75,7 @@ FROM UNNEST([
 {% macro searchad__contract_type_mapping() -%}
 SELECT *
 FROM UNNEST([
-    STRUCT(0 AS seq, 1 AS code, '브랜드검색-신제품검색형 소재' AS label)
-  , STRUCT(1 AS seq, 2 AS code, '브랜드검색-일반형 소재' AS label)
+    STRUCT(0 AS seq, 0 AS code, '브랜드검색-신제품검색형 소재' AS label)
+  , STRUCT(1 AS seq, 1 AS code, '브랜드검색-일반형 소재' AS label)
 ])
 {%- endmacro %}

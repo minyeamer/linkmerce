@@ -14,12 +14,14 @@
 
 WITH
 
-ad_id_to_sbn_ids AS (
+ad_id_to_ranged_sbn_ids AS (
   SELECT
       ad_id
     , ad_level
     , bundle_product_ids
-  FROM {{ source('relation', 'ad_id_to_sbn_ids') }}
+    , start_date
+    , end_date
+  FROM {{ ref('relation__ad_id_to_ranged_sbn_ids') }}
   WHERE platform_name = '구글'
 ),
 
@@ -43,12 +45,15 @@ insight_daily AS (
     , insight.ad_cost
     , insight.ymd
   FROM {{ source('google_ads', 'insight') }} AS insight
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 0) AS rel_cmp
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 0) AS rel_cmp
     ON insight.campaign_id = rel_cmp.ad_id
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 1) AS rel_grp
+    AND insight.ymd BETWEEN rel_cmp.start_date AND rel_cmp.end_date
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 1) AS rel_grp
     ON insight.adgroup_id = rel_grp.ad_id
-  LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 2) AS rel_ad
+    AND insight.ymd BETWEEN rel_grp.start_date AND rel_grp.end_date
+  LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 2) AS rel_ad
     ON insight.ad_id = rel_ad.ad_id
+    AND insight.ymd BETWEEN rel_ad.start_date AND rel_ad.end_date
   LEFT JOIN {{ source('google_ads', 'account') }} AS acc
     ON insight.customer_id = acc.customer_id
   WHERE insight.ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
