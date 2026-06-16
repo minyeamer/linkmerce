@@ -35,8 +35,8 @@ SELECT
       , '-'
     ) AS category_unit_name
   , fact.shop_id
-  , shop.shop_group
-  , shop.shop_alias AS shop_name
+  , COALESCE(shop.shop_group, '-') AS shop_group
+  , COALESCE(shop.shop_alias, '-') AS shop_name
   , COALESCE(order_status.label, '알 수 없음') AS order_status
   , fact.sku_quantity * COALESCE(item.unit_scale, 1) AS unit_quantity
   , fact.sku_quantity

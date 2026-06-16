@@ -200,7 +200,77 @@ searchad_insight_daily_with_shop_mapping AS (
     ON ads.order_date = brd.order_date AND itm.brand_name = brd.brand_name
 ),
 
--- Step 4: concat sales and ads data
+-- Step 4: assign coupang-ads cost to the highest-sales shop_id
+
+coupang_product_daily AS (
+  SELECT
+      order_date
+    , product_id
+    , shop_id
+  FROM (
+    SELECT
+        order_date
+      , product_id
+      , shop_id
+      , SUM(payment_amount) AS payment_amount
+    FROM (
+      (SELECT * FROM coupang_rfm_sales_daily)
+      UNION ALL
+      (SELECT * FROM sabangnet_sales_daily WHERE shop_id = 'shop0075')
+    ) AS t_
+    GROUP BY order_date, product_id, shop_id
+  ) AS t_
+  -- Step 4-1: find the highest-sales coupang shop_id for each product-day
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY order_date, product_id
+    ORDER BY payment_amount DESC, shop_id DESC
+  ) = 1
+),
+
+coupang_brand_daily AS (
+  SELECT
+      order_date
+    , brand_name
+    , shop_id
+  FROM (
+    SELECT
+        cpg.order_date
+      , prd.brand_name
+      , cpg.shop_id
+      , SUM(cpg.payment_amount) AS payment_amount
+    FROM (
+      (SELECT * FROM coupang_rfm_sales_daily)
+      UNION ALL
+      (SELECT * FROM sabangnet_sales_daily WHERE shop_id = 'shop0075')
+    ) AS cpg
+    INNER JOIN {{ ref('core__product_master') }} AS prd
+      ON NULLIF(cpg.product_id, '200000') = prd.product_id
+    GROUP BY cpg.order_date, prd.brand_name, cpg.shop_id
+  ) AS t_
+  -- Step 4-2: find the highest-sales coupang shop_id for each brand-day
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY order_date, brand_name
+    ORDER BY payment_amount DESC, shop_id DESC
+  ) = 1
+),
+
+coupang_ads_insight_daily_with_shop_mapping AS (
+  SELECT
+      ads.product_id
+    , COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+    , ads.ad_cost
+    , ads.order_date
+  FROM coupang_ads_insight_daily AS ads
+  LEFT JOIN {{ ref('core__product_master') }} AS itm
+    ON ads.product_id = itm.product_id
+  -- Step 4-3: map coupang ads cost to shop_id using product first, then brand fallback
+  LEFT JOIN coupang_product_daily AS prd
+    ON ads.order_date = prd.order_date AND ads.product_id = prd.product_id
+  LEFT JOIN coupang_brand_daily AS brd
+    ON ads.order_date = brd.order_date AND itm.brand_name = brd.brand_name
+),
+
+-- Step 5: concat sales and ads data
 
 insight_daily AS (
   SELECT
@@ -217,7 +287,7 @@ insight_daily AS (
   FROM (
     (SELECT * FROM searchad_insight_daily_with_shop_mapping)
     UNION ALL
-    (SELECT * FROM coupang_ads_insight_daily)
+    (SELECT * FROM coupang_ads_insight_daily_with_shop_mapping)
     UNION ALL
     (SELECT * FROM google_ads_insight_daily)
     UNION ALL
