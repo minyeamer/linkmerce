@@ -8,7 +8,7 @@
       "granularity": "day"
     },
     partitions = bq_date_partitions('ds_start_date', 'ds_end_date'),
-    require_partition_filter = false,
+    require_partition_filter = true,
     schema = "analytics",
     alias = "sales_daily"
   )
