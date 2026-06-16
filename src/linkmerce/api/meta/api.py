@@ -11,20 +11,9 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-def _get_api_configs(access_token: str, app_id: str = str(), app_secret: str = str()) -> dict:
-    """메타 API 인증에 필요한 공통 설정을 구성한다."""
-    return {
-        "access_token": access_token,
-        "app_id": app_id,
-        "app_secret": app_secret,
-    }
-
-
 @with_duckdb_connection(table="meta_campaigns")
 def campaigns(
         access_token: str,
-        app_id: str = str(),
-        app_secret: str = str(),
         start_date: dt.date | str | None = None,
         end_date: dt.date | str | None = None,
         account_ids: Sequence[str] = list(),
@@ -46,10 +35,6 @@ def campaigns(
     ----------
     access_token: str
         메타 액세스 토큰
-    app_id: str
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
     start_date: dt.date | str | None
         조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
     end_date: dt.date | str | None
@@ -85,7 +70,7 @@ def campaigns(
     from linkmerce.core.meta.api.ads.transform import Campaigns as T
     return Campaigns(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        configs = _get_api_configs(access_token, app_id, app_secret),
+        configs = {"access_token": access_token},
         options = {
             "RequestEach": {
                 "request_delay": request_delay,
@@ -98,8 +83,6 @@ def campaigns(
 @with_duckdb_connection(table="meta_adsets")
 def adsets(
         access_token: str,
-        app_id: str = str(),
-        app_secret: str = str(),
         start_date: dt.date | str | None = None,
         end_date: dt.date | str | None = None,
         account_ids: Sequence[str] = list(),
@@ -121,10 +104,6 @@ def adsets(
     ----------
     access_token: str
         메타 액세스 토큰
-    app_id: str
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
     start_date: dt.date | str | None
         조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
     end_date: dt.date | str | None
@@ -160,7 +139,7 @@ def adsets(
     from linkmerce.core.meta.api.ads.transform import Adsets as T
     return Adsets(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        configs = _get_api_configs(access_token, app_id, app_secret),
+        configs = {"access_token": access_token},
         options ={
             "RequestEach": {
                 "request_delay": request_delay,
@@ -173,8 +152,6 @@ def adsets(
 @with_duckdb_connection(table="meta_ads")
 def ads(
         access_token: str,
-        app_id: str = str(),
-        app_secret: str = str(),
         start_date: dt.date | str | None = None,
         end_date: dt.date | str | None = None,
         account_ids: Sequence[str] = list(),
@@ -196,10 +173,6 @@ def ads(
     ----------
     access_token: str
         메타 액세스 토큰
-    app_id: str
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
     start_date: dt.date | str | None
         조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력할 수 있다.
     end_date: dt.date | str | None
@@ -235,7 +208,7 @@ def ads(
     from linkmerce.core.meta.api.ads.transform import Ads as T
     return Ads(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        configs = _get_api_configs(access_token, app_id, app_secret),
+        configs = {"access_token": access_token},
         options = {
             "RequestEach": {
                 "request_delay": request_delay,
@@ -257,8 +230,6 @@ def insights(
         start_date: dt.date | str,
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         date_type: Literal["daily", "total"] = "daily",
-        app_id: str = str(),
-        app_secret: str = str(),
         account_ids: Sequence[str] = list(),
         fields: Sequence[str] = list(),
         *,
@@ -295,10 +266,6 @@ def insights(
         보고서 기간 구분
             - `"total"`: 합계
             - `"daily"`: 일별 (기본값)
-    app_id: str
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
     account_ids: Sequence[str]
         조회할 메타 광고 계정 ID 목록. 생략 시 사용 가능한 모든 계정을 조회한다.
     fields: Sequence[str]
@@ -330,7 +297,7 @@ def insights(
     from linkmerce.core.meta.api.ads.transform import Insights as T
     return Insights(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
-        configs = _get_api_configs(access_token, app_id, app_secret),
+        configs = {"access_token": access_token},
         options = {
             "RequestEach": {
                 "request_delay": request_delay,

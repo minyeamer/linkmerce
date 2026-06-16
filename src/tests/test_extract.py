@@ -409,11 +409,7 @@ class TestMetaAds:
 
     def credentials(self, reader: YamlReader) -> dict:
         _credentials = reader("meta.marketing_api.0")
-        return {
-            "app_id": _credentials.get("app_id", str()),
-            "app_secret": _credentials.get("app_secret", str()),
-            "access_token": _credentials["access_token"],
-        }
+        return {"access_token": _credentials["access_token"]}
 
     @pytest.mark.meta_ads
     def test_campaigns(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):

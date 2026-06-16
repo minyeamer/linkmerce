@@ -27,10 +27,6 @@ class MetaAds(MetaApi):
 
     access_token: str
         메타 액세스 토큰
-    app_id: str | None
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str | None
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
@@ -82,7 +78,6 @@ class _AdObjects(MetaAds):
         return list()
 
     @MetaAds.with_session
-    @MetaAds.auto_refresh_token
     def extract(
             self,
             start_date: dt.date | str | None = None,
@@ -138,10 +133,6 @@ class Campaigns(_AdObjects):
 
     access_token: str
         메타 액세스 토큰
-    app_id: str | None
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str | None
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
@@ -173,10 +164,6 @@ class Adsets(_AdObjects):
 
     access_token: str
         메타 액세스 토큰
-    app_id: str | None
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str | None
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
@@ -209,10 +196,6 @@ class Ads(_AdObjects):
 
     access_token: str
         메타 액세스 토큰
-    app_id: str | None
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str | None
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
@@ -244,10 +227,6 @@ class Insights(MetaAds):
 
     access_token: str
         메타 액세스 토큰
-    app_id: str | None
-        메타 앱 ID (토큰 자동 갱신 시 필요)
-    app_secret: str | None
-        메타 앱 시크릿 (토큰 자동 갱신 시 필요)
 
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
@@ -260,7 +239,6 @@ class Insights(MetaAds):
     path = "/insights"
 
     @MetaAds.with_session
-    @MetaAds.auto_refresh_token
     def extract(
             self,
             ad_level: Literal["campaign", "adset", "ad"],

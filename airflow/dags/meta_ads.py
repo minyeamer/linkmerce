@@ -68,8 +68,6 @@ with DAG(
     def main_objects(
             ad_level: str,
             access_token: str,
-            app_id: str,
-            app_secret: str,
             tables: dict[str, str],
             merge: dict[str, dict],
             account_ids: list[str] = list(),
@@ -84,8 +82,6 @@ with DAG(
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             extract(
                 access_token = access_token,
-                app_id = app_id,
-                app_secret = app_secret,
                 account_ids = account_ids,
                 connection = conn,
                 progress = False,
@@ -117,8 +113,6 @@ with DAG(
 
     def main_insights(
             access_token: str,
-            app_id: str,
-            app_secret: str,
             date: str,
             tables: dict[str, str],
             merge: dict[str, dict],
@@ -138,8 +132,6 @@ with DAG(
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             insights(
                 access_token = access_token,
-                app_id = app_id,
-                app_secret = app_secret,
                 ad_level = "ad",
                 start_date = date,
                 end_date = date,
