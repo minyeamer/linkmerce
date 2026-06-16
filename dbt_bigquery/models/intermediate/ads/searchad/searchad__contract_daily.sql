@@ -58,7 +58,44 @@ smt_prd_to_ranged_brd_ids AS (
   WHERE LEFT(bundle_product_ids, 1) = '2'
 ),
 
--- Step 2: build adgroup-level bundle mappings from ad-level ranged rules
+-- Step 2: prepare contracts and expand them by day
+
+contract_base AS (
+  SELECT
+      sad.contract_id
+    , sad.adgroup_id
+    , sad.customer_id
+    , sad.contract_amount - COALESCE(sad.refund_amount, 0) AS ad_cost
+    , sad.exposure_start_date
+    , sad.exposure_end_date
+    , DATE_DIFF(sad.exposure_end_date, sad.exposure_start_date, DAY) + 1 AS date_count
+  FROM {{ source('searchad', 'contract') }} AS sad
+  WHERE sad.contract_end_date >= DATE('{{ var("ds_start_date") }}')
+    AND sad.exposure_start_date IS NOT NULL
+    AND sad.exposure_end_date IS NOT NULL
+),
+
+contract_expand AS (
+  SELECT
+      sad.contract_id
+    , sad.adgroup_id
+    , sad.customer_id
+    , SAFE_CAST(sad.ad_cost / NULLIF(sad.date_count, 0) AS INT64) AS ad_cost
+    , DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY) AS ymd
+  FROM contract_base AS sad
+  CROSS JOIN UNNEST(GENERATE_ARRAY(0, sad.date_count - 1)) AS date_offset
+  WHERE DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY)
+    BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+),
+
+contract_dates AS (
+  SELECT DISTINCT
+      adgroup_id
+    , ymd
+  FROM contract_expand
+),
+
+-- Step 3: build adgroup-level bundle mappings from ad-level ranged rules
 
 adgroup_ad_id_to_ranged_sbn_ids AS (
   SELECT
@@ -95,13 +132,15 @@ adgroup_ad_id_to_ranged_sbn_ids AS (
 
 adgroup_ad_id_to_daily_sbn_ids AS (
   SELECT
-      adgroup_id
+      rel.adgroup_id
     , NULLIF(TRIM(bundle_product_id), '') AS bundle_product_id
-    , ymd
-  FROM adgroup_ad_id_to_ranged_sbn_ids
-  CROSS JOIN UNNEST(GENERATE_DATE_ARRAY(start_date, end_date)) AS ymd
-  CROSS JOIN UNNEST(SPLIT(bundle_product_ids, ',')) AS bundle_product_id
-  WHERE bundle_product_ids IS NOT NULL
+    , dates.ymd
+  FROM adgroup_ad_id_to_ranged_sbn_ids AS rel
+  INNER JOIN contract_dates AS dates
+    ON rel.adgroup_id = dates.adgroup_id
+    AND dates.ymd BETWEEN rel.start_date AND rel.end_date
+  CROSS JOIN UNNEST(SPLIT(rel.bundle_product_ids, ',')) AS bundle_product_id
+  WHERE rel.bundle_product_ids IS NOT NULL
     AND bundle_product_id != '200000'
 ),
 
@@ -111,7 +150,7 @@ adgroup_ad_id_to_daily_prd_ids AS (
     , STRING_AGG(DISTINCT bundle_product_id, ',') AS bundle_product_ids
     , ymd
   FROM adgroup_ad_id_to_daily_sbn_ids
-  WHERE STARTS_WITH(bundle_product_id, '1')
+  WHERE NOT STARTS_WITH(bundle_product_id, '2')
   GROUP BY adgroup_id, ymd
 ),
 
@@ -123,36 +162,6 @@ adgroup_ad_id_to_daily_brd_ids AS (
   FROM adgroup_ad_id_to_daily_sbn_ids
   WHERE STARTS_WITH(bundle_product_id, '2')
   GROUP BY adgroup_id, ymd
-),
-
--- Step 3: prepare contracts and expand them by day
-
-contract_base AS (
-  SELECT
-      sad.contract_id
-    , sad.adgroup_id
-    , sad.customer_id
-    , sad.contract_amount - COALESCE(sad.refund_amount, 0) AS ad_cost
-    , sad.exposure_start_date
-    , sad.exposure_end_date
-    , DATE_DIFF(sad.exposure_end_date, sad.exposure_start_date, DAY) + 1 AS date_count
-  FROM {{ source('searchad', 'contract') }} AS sad
-  WHERE sad.contract_end_date >= DATE('{{ var("ds_start_date") }}')
-    AND sad.exposure_start_date IS NOT NULL
-    AND sad.exposure_end_date IS NOT NULL
-),
-
-contract_expand AS (
-  SELECT
-      sad.contract_id
-    , sad.adgroup_id
-    , sad.customer_id
-    , SAFE_CAST(sad.ad_cost / NULLIF(sad.date_count, 0) AS INT64) AS ad_cost
-    , DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY) AS ymd
-  FROM contract_base AS sad
-  CROSS JOIN UNNEST(GENERATE_ARRAY(0, sad.date_count - 1)) AS date_offset
-  WHERE DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY)
-    BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
 ),
 
 -- Step 4: attach bundle_product_ids to each daily contract row

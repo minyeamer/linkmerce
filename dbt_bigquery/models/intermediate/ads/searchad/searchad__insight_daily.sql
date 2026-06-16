@@ -47,7 +47,7 @@ smt_prd_to_ranged_prd_ids AS (
     , start_date
     , end_date
   FROM smt_prd_to_ranged_sbn_ids
-  WHERE LEFT(bundle_product_ids, 1) != '2'
+  WHERE NOT STARTS_WITH(bundle_product_ids, '2')
 ),
 
 smt_prd_to_ranged_brd_ids AS (
@@ -57,7 +57,7 @@ smt_prd_to_ranged_brd_ids AS (
     , start_date
     , end_date
   FROM smt_prd_to_ranged_sbn_ids
-  WHERE LEFT(bundle_product_ids, 1) = '2'
+  WHERE STARTS_WITH(bundle_product_ids, '2')
 ),
 
 -- Step 2: prepare searchad and gfa reports
