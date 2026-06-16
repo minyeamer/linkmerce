@@ -1,6 +1,7 @@
 {{
   config(
     materialized = 'incremental',
+    schema = 'xfm_ads',
     incremental_strategy = 'insert_overwrite',
     partition_by = {
       "field": "ymd",

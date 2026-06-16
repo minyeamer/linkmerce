@@ -1,6 +1,7 @@
 {{
   config(
     materialized = 'table',
+    schema = 'xfm_ads',
     cluster_by = ["dept_id", "brand_id"],
     partition_by = {
       "field": "ymd",

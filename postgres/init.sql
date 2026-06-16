@@ -22,8 +22,11 @@ CREATE SCHEMA IF NOT EXISTS searchad; -- sad
 CREATE SCHEMA IF NOT EXISTS smartstore; -- smt
 CREATE SCHEMA IF NOT EXISTS ss_hcenter; -- ssh
 
-CREATE SCHEMA IF NOT EXISTS analytics; -- dbt_marts
-CREATE SCHEMA IF NOT EXISTS transformed; -- dbt_intermediate
+CREATE SCHEMA IF NOT EXISTS analytics; -- dbt/models/marts/**
+CREATE SCHEMA IF NOT EXISTS transformed; -- dbt/models/intermediate/**
+CREATE SCHEMA IF NOT EXISTS xfm_ads; -- dbt/models/intermediate/ads/**
+CREATE SCHEMA IF NOT EXISTS xfm_sales; -- dbt/models/intermediate/sales/**
+
 CREATE SCHEMA IF NOT EXISTS partman; -- pg_partman
 CREATE SCHEMA IF NOT EXISTS test; -- pytest
 
@@ -57,6 +60,7 @@ CREATE TABLE IF NOT EXISTS core.item (
   , model_code TEXT -- 대표코드
   , model_id TEXT -- 식별코드
   , eflexs_item_code TEXT -- 풀필먼트코드
+  , in_stock_yn BOOLEAN -- 입고품여부
   , delivery_group TEXT -- 배송그룹
   , delivery_fee INTEGER -- 배송비
   , org_price INTEGER -- 원가

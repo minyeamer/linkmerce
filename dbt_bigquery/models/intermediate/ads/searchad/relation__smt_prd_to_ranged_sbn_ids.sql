@@ -1,3 +1,10 @@
+{{
+  config(
+    materialized = 'view',
+    schema = 'xfm_ads'
+  )
+}}
+
 WITH original_relation AS (
   SELECT
       product_id AS product_id_shop

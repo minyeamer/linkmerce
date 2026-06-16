@@ -1,3 +1,11 @@
+{{
+  config(
+    materialized = 'view',
+    schema = 'core',
+    alias = 'product'
+  )
+}}
+
 SELECT
     product_id
   , item_id

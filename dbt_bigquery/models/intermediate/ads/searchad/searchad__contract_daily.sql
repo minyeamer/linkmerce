@@ -1,6 +1,7 @@
 {{
   config(
     materialized = 'table',
+    schema = 'xfm_ads',
     partition_by = {
       "field": "ymd",
       "data_type": "date",

@@ -1,3 +1,10 @@
+{{
+  config(
+    materialized = 'view',
+    schema = 'xfm_sales'
+  )
+}}
+
 WITH
 
 loisparcel AS (

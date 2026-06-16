@@ -1,6 +1,7 @@
 {{
   config(
     materialized = 'incremental',
+    schema = 'xfm_sales',
     incremental_strategy = 'insert_overwrite',
     partition_by = {
       "field": "order_date",
