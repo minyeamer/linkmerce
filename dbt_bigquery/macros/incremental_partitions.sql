@@ -27,3 +27,18 @@
 
   {%- do return(partitions) -%}
 {%- endmacro %}
+
+-- Expand an input date to the Monday-Sunday week boundary for partition filtering
+-- Used by Coupang rocket settlement sources (`sales` and `shipping`)
+
+{% macro bq_week_start_date(date_var='ds_start_date') -%}
+  {%- set base_date = modules.datetime.datetime.strptime(var(date_var), '%Y-%m-%d').date() -%}
+  {%- set week_start = base_date - modules.datetime.timedelta(days=base_date.weekday()) -%}
+  {{ week_start.isoformat() }}
+{%- endmacro %}
+
+{% macro bq_week_end_date(date_var='ds_end_date') -%}
+  {%- set base_date = modules.datetime.datetime.strptime(var(date_var), '%Y-%m-%d').date() -%}
+  {%- set week_end = base_date + modules.datetime.timedelta(days=(6 - base_date.weekday())) -%}
+  {{ week_end.isoformat() }}
+{%- endmacro %}

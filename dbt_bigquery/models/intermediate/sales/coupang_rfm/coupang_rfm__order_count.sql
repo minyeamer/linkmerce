@@ -22,7 +22,9 @@ WITH rocket_sales AS (
     , SUM(order_quantity) AS order_quantity
     , MAX(sales_date) AS sales_date
   FROM {{ source('coupang_rfm', 'sales') }}
-  WHERE sales_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  WHERE sales_date
+    BETWEEN DATE('{{ bq_week_start_date("ds_start_date") }}')
+    AND DATE('{{ bq_week_end_date("ds_end_date") }}')
   GROUP BY order_id, option_id, vendor_id
 ),
 
@@ -43,7 +45,8 @@ bundle_product_order AS (
     ON ord.option_id = rel.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON ord.vendor_id = vdr.vendor_id
-  WHERE NOT ord.order_quantity = 0
+  WHERE ord.sales_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+    AND ord.order_quantity != 0
 ),
 
 exploded_product_order AS (

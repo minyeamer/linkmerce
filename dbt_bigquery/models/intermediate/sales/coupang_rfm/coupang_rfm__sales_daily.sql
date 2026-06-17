@@ -15,12 +15,29 @@
 
 WITH
 
+delivery_group AS (
+  SELECT
+      dlv.delivery_group
+    , COALESCE(dlv.min_unit, 1) AS min_unit
+    , (CASE
+        WHEN MAX(dlv.min_unit) OVER (PARTITION BY dlv.delivery_group) = dlv.min_unit THEN 9999
+        ELSE COALESCE(LEAD(dlv.min_unit) OVER (PARTITION BY dlv.delivery_group ORDER BY dlv.min_unit))
+      END) AS max_unit
+    , (COALESCE(dlv.coolant_cost, 0) + COALESCE(dlv.label_cost, 0)
+      + COALESCE(dlv.wrap_cost, 0) + COALESCE(dlv.box_cost, 0)) AS extra_cost
+  FROM {{ source('core', 'delivery_group') }} AS dlv
+),
+
 ecount_product AS (
   SELECT
       SPLIT(option_id, '-')[SAFE_OFFSET(0)] AS product_id
     , org_price
   FROM {{ source('ecount', 'product') }}
   QUALIFY ROW_NUMBER() OVER (PARTITION BY option_id ORDER BY expiration_date ASC, product_code DESC) = 1
+),
+
+product_delivery_unit AS (
+  {{ core__product_delivery_unit() }}
 ),
 
 -- Step 1: prepare sales and delivery data
@@ -39,7 +56,8 @@ rocket_sales AS (
     , SUM(settlement_amount) AS settlement_amount
     , MAX(sales_date) AS sales_date
   FROM {{ source('coupang_rfm', 'sales') }}
-  WHERE sales_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  WHERE sales_date BETWEEN DATE('{{ bq_week_start_date("ds_start_date") }}')
+    AND DATE('{{ bq_week_end_date("ds_end_date") }}')
   GROUP BY order_id, option_id
 ),
 
@@ -54,7 +72,9 @@ rocket_shipping AS (
       ) AS delivery_fee
     , MAX(sales_date) AS sales_date
   FROM {{ source('coupang_rfm', 'shipping') }}
-  WHERE sales_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  WHERE sales_date
+    BETWEEN DATE('{{ bq_week_start_date("ds_start_date") }}')
+    AND DATE('{{ bq_week_end_date("ds_end_date") }}')
   GROUP BY order_id, option_id
 ),
 
@@ -101,50 +121,75 @@ bundle_product_order AS (
     ON ord.option_id = rel.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON ord.vendor_id = vdr.vendor_id
-  WHERE NOT (ord.order_quantity = 0 AND ord.delivery_fee = 0)
+  WHERE ord.sales_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+    AND NOT (ord.order_quantity = 0 AND ord.delivery_fee = 0)
 ),
 
 -- Step 2: explode bundle products and attach cost data
 
 exploded_product_order AS (
   SELECT
-      *
-    -- Allocation metrics
-    , COUNT(*) OVER (PARTITION BY order_id, option_id) AS bundle_product_count
-    , IF(order_status = 3, 0, org_price * sku_quantity) AS cost_amount
-  FROM (
-    SELECT
-        ord.order_id
-      , ord.option_id
-      -- Sales dimensions
-      , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
-      , (CASE
-          WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 3
-          ELSE ord.order_status
-        END) AS order_status
-      -- Sales metrics
-      , (ord.order_quantity
-          * COALESCE(SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64), 1)
-        ) AS sku_quantity
-      , IF(LEFT(bundle_product, 1) = '9', 0, ord.payment_amount) AS payment_amount
-      , IF(LEFT(bundle_product, 1) = '9', 0, ord.supply_amount) AS supply_amount
-      , COALESCE(prd.org_price, itm.org_price, 0) + COALESCE(itm.extra_cost, 0) AS org_price
-      , ord.delivery_fee
-      -- Sales partition key
-      , ord.order_date
-    FROM bundle_product_order AS ord
-    CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
-    LEFT JOIN ecount_product AS prd
-      ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = prd.product_id
-    LEFT JOIN {{ source('core', 'item') }} AS itm
-      ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = itm.product_id
-  ) AS t_
+      ord.order_id
+    , ord.option_id
+    -- Sales dimensions
+    , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+    , (CASE
+        WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 3
+        ELSE ord.order_status
+      END) AS order_status
+    -- Sales metrics
+    , (ord.order_quantity
+        * COALESCE(SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64), 1)
+      ) AS sku_quantity
+    , IF(LEFT(bundle_product, 1) = '9', 0, ord.payment_amount) AS payment_amount
+    , IF(LEFT(bundle_product, 1) = '9', 0, ord.supply_amount) AS supply_amount
+    , COALESCE(prd.org_price, itm.org_price, 0) + COALESCE(itm.extra_cost, 0) AS org_price
+    , ord.delivery_fee
+    , itm.delivery_group
+    -- Sales partition key
+    , ord.order_date
+  FROM bundle_product_order AS ord
+  CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
+  LEFT JOIN ecount_product AS prd
+    ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = prd.product_id
+  LEFT JOIN {{ source('core', 'item') }} AS itm
+    ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = itm.product_id
 ),
 
--- Step 3: allocate amounts across bundle products by cost weight
+-- Step 3: add delivery extra cost per order option before amount allocation
+
+product_order_with_delivery_extra AS (
+  SELECT
+      ord.order_id
+    , ord.option_id
+    -- Sales dimensions
+    , ord.product_id
+    , ord.order_status
+    -- Sales metrics
+    , ord.sku_quantity
+    , ord.payment_amount
+    , ord.supply_amount
+    , ord.org_price
+    , (ord.delivery_fee
+        + COALESCE(MAX(dlv.extra_cost) OVER (PARTITION BY order_id, option_id), 0)
+      ) AS delivery_fee
+    -- Sales partition key
+    , ord.order_date
+    -- Allocation metrics
+    , COUNT(*) OVER (PARTITION BY ord.order_id, ord.option_id) AS bundle_product_count
+    , IF(ord.order_status = 3, 0, ord.org_price * ord.sku_quantity) AS cost_amount
+  FROM exploded_product_order AS ord
+  LEFT JOIN product_delivery_unit AS unit
+    ON ord.product_id = unit.product_id
+  LEFT JOIN delivery_group AS dlv
+    ON ord.delivery_group = dlv.delivery_group
+      AND (ord.sku_quantity * COALESCE(unit.unit, 1)) BETWEEN dlv.min_unit AND dlv.max_unit
+),
+
+-- Step 4: allocate amounts across bundle products by cost weight
 
 product_order_with_split_amount AS (
-  -- Step 3-3: adjust rounding remainders to preserve the original totals
+  -- Step 4-3: adjust rounding remainders to preserve the original totals
   SELECT
       order_id
     , option_id
@@ -166,7 +211,7 @@ product_order_with_split_amount AS (
     -- Sales partition key
     , order_date
   FROM (
-    -- Step 3-2: split amounts by cost weight
+    -- Step 4-2: split amounts by cost weight
     SELECT
         *
       , COALESCE(SAFE_CAST(payment_amount * cost_weight AS INT64), 0) AS payment_amount_split
@@ -175,16 +220,16 @@ product_order_with_split_amount AS (
     FROM (
       SELECT
           *
-        -- Step 3-1: calculate cost weights within each order option
+        -- Step 4-1: calculate cost weights within each order option
         , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, option_id), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY order_id, option_id ORDER BY product_id) AS order_option_offset
-      FROM exploded_product_order
+      FROM product_order_with_delivery_extra
       WHERE bundle_product_count > 1
     ) AS t0_
   ) AS t1_
 ),
 
--- Step 4: aggregate daily sales
+-- Step 5: aggregate daily sales
 
 sales_daily AS (
   SELECT
@@ -201,7 +246,8 @@ sales_daily AS (
     , order_date
   FROM (
     (SELECT * EXCEPT (bundle_product_count, cost_amount)
-    FROM exploded_product_order WHERE bundle_product_count = 1)
+    FROM product_order_with_delivery_extra
+    WHERE bundle_product_count = 1)
     UNION ALL
     (SELECT * FROM product_order_with_split_amount)
   ) AS t_
