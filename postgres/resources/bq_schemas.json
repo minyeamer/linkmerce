@@ -330,7 +330,8 @@
   "ecount.schedule": [
     {"name": "product_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
     {"name": "order_date", "type": "DATE", "description": "발주진행일"},
-    {"name": "delivery_date", "type": "DATE", "description": "입고예정일"}
+    {"name": "delivery_date", "type": "DATE", "description": "입고예정일"},
+    {"name": "remarks", "type": "STRING", "description": "구분"}
   ],
   "google_ads.account": [
     {"name": "customer_id", "type": "INTEGER", "description": "고객ID", "mode": "REQUIRED"},

@@ -426,6 +426,7 @@ CREATE TABLE IF NOT EXISTS ecount.schedule (
     product_code TEXT NOT NULL -- 품목코드
   , order_date DATE -- 발주진행일
   , delivery_date DATE -- 입고예정일
+  , remarks TEXT -- 구분
   , PRIMARY KEY (product_code)
 );
 
