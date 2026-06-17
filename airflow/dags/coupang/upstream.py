@@ -48,13 +48,18 @@ Airflow UI에서 Dag을 트리거할 때 {vendor_id: dag_ids} 형식의 Configur
 from airflow.sdk import DAG, task
 from airflow.models.dagrun import DagRun
 from airflow.exceptions import AirflowException
+from airflow.timetables.trigger import MultipleCronTriggerTimetable
 from datetime import timedelta
 import pendulum
 
 
 with DAG(
     dag_id = "coupang",
-    schedule = "0 9,17,23 * * *",
+    schedule = MultipleCronTriggerTimetable(
+        "0 9,11,23 * * *",
+        "30 17 * * *",
+        timezone = "Asia/Seoul",
+    ),
     start_date = pendulum.datetime(2026, 4, 9, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1), # Airflow 액세스 토큰의 기본 유효 기간만큼 동작
     catchup = False,
@@ -86,7 +91,8 @@ with DAG(
     ]
 
     SCHEDULES = {
-        9: ["coupang_rocket_sales", "coupang_inventory", "coupang_adreport"],
+        9: ["coupang_rocket_sales", "coupang_adreport"],
+        11: ["coupang_inventory"],
         17: ["coupang_inventory"],
         23: ["coupang_product_option", "coupang_campaign"],
     }

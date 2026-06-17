@@ -25,7 +25,7 @@ import pendulum
 
 with DAG(
     dag_id = "coupang_inventory",
-    schedule = None, # `coupang` Dag 실행 후 트리거 (0 9,17 * * *)
+    schedule = None, # `coupang` Dag 실행 후 트리거 ["0 11 * * *", "30 17 * * *"]
     start_date = pendulum.datetime(2026, 5, 27, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,

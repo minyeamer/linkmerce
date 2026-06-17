@@ -16,13 +16,18 @@ JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
 
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
+from airflow.timetables.trigger import MultipleCronTriggerTimetable
 from datetime import timedelta
 import pendulum
 
 
 with DAG(
     dag_id = "ecount_product",
-    schedule = "50 8,16 * * 1-5",
+    schedule = MultipleCronTriggerTimetable(
+        "50 10 * * 1-5",
+        "20 17 * * 1-5",
+        timezone = "Asia/Seoul",
+    ),
     start_date = pendulum.datetime(2026, 5, 26, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,

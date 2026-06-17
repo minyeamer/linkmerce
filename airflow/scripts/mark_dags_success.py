@@ -57,22 +57,22 @@ SCHEDULED_DAGS = {
     "searchad_report_gfa": last_cron_utc("20 5 * * *"), # 05:20 KST
     "searchad_report_sad": last_cron_utc("40 5 * * *"), # 05:40 KST
     # 매일 n회 ───────────────────────────────────────────────────────────────
-    "cj_eflexs_stock": last_cron_utc("0 9,17 * * *"), # 09:00 / 17:00 KST
-    "coupang": last_cron_utc("0 9,17,23 * * *"), # 09:00 / 17:00 / 23:00 KST
-    "ecount_inventory": last_cron_utc("0 9,17 * * *"), # 09:00 / 17:00 KST
     "naver_shop_rank": last_cron_utc("0 6-18 * * *"), # 06~18시 정각
     "naver_cafe_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     "naver_main_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     # 평일(월-금)만 ───────────────────────────────────────────────────────────
-    "ecount_product": last_cron_utc("50 8,16 * * 1-5"), # 08:50 / 16:50 KST
     "sabangnet_product": last_cron_utc("20 23 * * 1-5"), # 23:20 KST
-    "stock_report": last_cron_utc("0 17 * * 1-5"), # 17:00 KST
     "smartstore_product": last_cron_utc("30 23 * * 1-5"), # 23:30 KST
     "searchad_contract": last_cron_utc("30 5 * * 1-5"), # 05:30 KST
     "searchad_master_gfa": last_cron_utc("30 5 * * 1-5"), # 05:30 KST
     "searchad_master_sad": last_cron_utc("40 23 * * 1-5"), # 23:40 KST
     # MultipleCronTriggerTimetable ──────────────────────────────────────────
+    "cj_eflexs_stock": last_cron_utc(["0 11 * * *", "30 17 * * *"]),
+    "coupang": last_cron_utc(["0 9,11,23 * * *", "30 17 * * *"]),
+    "ecount_inventory": last_cron_utc(["0 11 * * *", "30 17 * * *"]),
+    "ecount_product": last_cron_utc(["50 8 * * 1-5", "20 17 * * 1-5"]),
     "sabangnet_invoice": last_multi_cron_utc(["30 10 * * 1-5", "30 14 * * 1-5", "50 23 * * 1-5"]),
+    "stock_report": last_cron_utc(["0 11 * * 1-5", "30 17 * * 1-5"]),
     # ㄴ 평일 10:30 / 14:30 / 23:50
     "smartstore_invoice": last_multi_cron_utc(["0 3 * * *", "30 10 * * 1-5", "0 15 * * 1-5"]),
     # ㄴ 매일 03:00 / 평일 10:30 / 15:00

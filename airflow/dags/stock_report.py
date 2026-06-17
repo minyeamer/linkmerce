@@ -1,8 +1,7 @@
 """
 # 재고-소비기한 알림 파이프라인
 
-> 안내) 사방넷 주문 내역을 수집하는 'sabangnet_order' Dag 실행 후 트리거된다.
-> 오전에 Dag이 실행되었다면 오후에 재고 업데이트 시간에 맞춰 다시 트리거된다.
+> 안내) 같은 날에 사방넷 주문 내역을 수집하는 'sabangnet_order' Dag이 실행된 경우만 알림을 보낸다.
 
 ## 의존성(Upstreams)
 오전/오후 시간대에 트리거된 상위 3개의 Dag run 상태가 전부 성공할 때까지 실행 대기한다.
@@ -26,13 +25,18 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.timetables.trigger import MultipleCronTriggerTimetable
 from datetime import timedelta
 import pendulum
 
 
 with DAG(
     dag_id = "stock_report",
-    schedule = "0 17 * * 1-5", # `sabangnet_order` Dag 실행 후 트리거 (담당자가 수동으로 API 요청)
+    schedule = MultipleCronTriggerTimetable(
+        "0 11 * * 1-5",
+        "30 17 * * 1-5",
+        timezone = "Asia/Seoul",
+    ),
     start_date = pendulum.datetime(2026, 5, 27, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1),
     catchup = False,
@@ -40,8 +44,7 @@ with DAG(
     tags = [
         "priority:high", "platform:ecount", "platform:cj-eflexs", "platform:coupang-wing",
         "objective:alert", "objective:stock", "credentials:service-account",
-        "schedule:weekdays", "time:morning", "time:afternoon",
-        "provider:slack", "upstream:dagrun"
+        "schedule:weekdays", "time:morning", "time:afternoon", "provider:slack"
     ],
 ) as dag:
 
@@ -54,25 +57,18 @@ with DAG(
 
 
     def check_prior_run(ti: TaskInstance, data_interval_end: pendulum.DateTime, **kwargs) -> str:
-        """`scheduled__` 실행 시 오늘 중 실행된 DAG run이 있는지 확인하여 없다면 skip한다.
-
-        17시 스케줄 알림은 담당자가 오전에 API 요청을 보내는 영업일인 경우만 전송하기 위함이다.
-        """
+        """`scheduled__` 실행 시 오늘 중 `sabangnet_order` Dag이 실행되었는지 확인하고 없다면 skip한다."""
         if not ti.run_id.startswith("scheduled__"):
             return "external_task_sensor"
 
         from airflow_api import authenticate, list_dagruns
         dag_runs = list_dagruns(
-            dag_id = ti.dag_id,
+            dag_id = "sabangnet_order",
             access_token = authenticate(),
             logical_date_gte = data_interval_end.start_of("day"),
             logical_date_lte = data_interval_end.end_of("day"),
         )
-
-        for dag_run in dag_runs:
-            if dag_run["dag_run_id"] != ti.run_id:
-                return "external_task_sensor"
-        return None
+        return "external_task_sensor" if dag_runs else None
 
     branch_prior_run = BranchPythonOperator(
         task_id = "branch_prior_run",
