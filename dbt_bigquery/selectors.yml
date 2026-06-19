@@ -1,0 +1,182 @@
+selectors:
+  # Airflow Dags - cj_loisparcel
+  - name: cj_loisparcel_invoice
+    description: "'cj_loisparcel_invoice' DAG 실행 결과를 반영하기 위한 CJ 송장 후속 모델"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/delivery
+        - method: fqn
+          value: intermediate.sales.sabangnet.sabangnet__sales_daily
+        - method: fqn
+          value: intermediate.sales.smartstore.smartstore__sales_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  # Airflow Dags - coupang
+  - name: coupang_adreport
+    description: "'coupang' >> 'coupang_adreport' DAG 실행 결과를 반영하기 위한 쿠팡 광고 실적 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.coupang_ads.coupang_ads__insight_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: coupang_campaign
+    description: "'coupang' >> 'coupang_campaign' DAG 실행 결과를 반영하기 위한 쿠팡 광고 마스터 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.coupang_ads.coupang_ads__campaign_master
+        - method: fqn
+          value: intermediate.ads.coupang_ads.coupang_ads__adgroup_master
+        # `coupang_ads.creative` 테이블을 업데이트하는 경우 아래 후속 모델을 활성화한다.
+        # - method: fqn
+        #   value: intermediate.ads.coupang_ads.coupang_ads__insight_daily
+        # - method: fqn
+        #   value: marts.sales.analytics__sales_daily
+  - name: coupang_rocket_sales
+    description: "'coupang' >> 'coupang_rocket_sales' DAG 실행 결과를 반영하기 위한 쿠팡 로켓정산 후속 모델"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/sales/coupang_rfm
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  # Airflow Dags - ecount
+  - name: ecount_product
+    description: "'ecount_product' DAG 실행 결과를 반영하기 위한 상품 기준 매출 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.sales.coupang_rfm.coupang_rfm__sales_daily
+        - method: fqn
+          value: intermediate.sales.sabangnet.sabangnet__sales_daily
+        - method: fqn
+          value: intermediate.sales.smartstore.smartstore__sales_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  # Airflow Dags - google_ads
+  - name: google_ads
+    description: "'google_ads' DAG 실행 결과를 반영하기 위한 구글 광고 후속 모델"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/ads/google_ads
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  # Airflow Dags - meta_ads
+  - name: meta_ads
+    description: "'meta_ads' DAG 실행 결과를 반영하기 위한 메타 광고 후속 모델"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/ads/meta_ads
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  # Airflow Dags - sabangnet
+  - name: sabangnet_invoice
+    description: "'sabangnet_invoice' DAG 실행 결과를 반영하기 위한 사방넷 송장 후속 모델"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/sales/sabangnet
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: sabangnet_order
+    description: "'sabangnet_order' DAG 실행 결과를 반영하기 위한 사방넷 주문 후속 모델"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/sales/sabangnet
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: sabangnet_product
+    description: "'sabangnet_product' DAG 실행 결과를 반영하기 위한 사방넷 상품/매핑 후속 모델"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/sales/sabangnet
+        - method: path
+          value: models/intermediate/sales/smartstore
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  # Airflow Dags - searchad
+  - name: searchad_contract
+    description: "'searchad_contract' DAG 실행 결과를 반영하기 위한 검색광고 계약 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__contract_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__contract_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: searchad_master_gfa
+    description: "'searchad_master_gfa' DAG 실행 결과를 반영하기 위한 GFA 광고 마스터 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__campaign_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__adgroup_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__ad_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__contract_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__contract_daily
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__insight_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: searchad_master_sad
+    description: "'searchad_master_sad' DAG 실행 결과를 반영하기 위한 검색광고 마스터 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__campaign_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__adgroup_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__ad_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__contract_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__contract_daily
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__insight_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: searchad_report_gfa
+    description: "'searchad_report_gfa' DAG 실행 결과를 반영하기 위한 GFA 광고 실적 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__insight_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: searchad_report_sad
+    description: "'searchad_report_sad' DAG 실행 결과를 반영하기 위한 검색광고 실적 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__insight_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  # Airflow Dags - smartstore
+  - name: smartstore_invoice
+    description: "'smartstore_invoice' DAG 실행 결과를 반영하기 위한 스마트스토어 배송 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.sales.smartstore.smartstore__sales_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: smartstore_order
+    description: "'smartstore_order' DAG 실행 결과를 반영하기 위한 스마트스토어 주문 후속 모델"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/sales/smartstore
+        - method: fqn
+          value: marts.sales.analytics__sales_daily

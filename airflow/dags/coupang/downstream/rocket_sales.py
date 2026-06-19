@@ -105,9 +105,13 @@ with DAG(
                 return_type = "none",
             )
 
-            date_array = {table: conn.unique(f"coupang_rocket_{table}", "sales_date") for table in ["sales", "shipping"]}
+            sales_dates = conn.unique(sources["sales"], "sales_date")
+            shipping_dates = conn.unique(sources["shipping"], "sales_date")
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, set(sales_dates + shipping_dates))),
+                },
                 "params": {
                     "vendor_id": vendor_id,
                     "start_date": start_date,
@@ -115,21 +119,21 @@ with DAG(
                     "date_type": "SALES",
                 },
                 "results": {
-                    tables["sales"]: merge_table_from_duckdb(
+                    "sales": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["sales"],
                         target_table = tables["sales"],
                         **merge["sales"],
-                        where_clause = conn.expr_date_range("T.sales_date", date_array["sales"]),
-                        extra_metadata = {"dates": date_array["sales"]},
+                        where_clause = conn.expr_date_range("T.sales_date", sales_dates),
+                        execute = bool(sales_dates),
                     ),
-                    tables["shipping"]: merge_table_from_duckdb(
+                    "shipping": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["shipping"],
                         target_table = tables["shipping"],
                         **merge["shipping"],
-                        where_clause = conn.expr_date_range("T.sales_date", date_array["shipping"]),
-                        extra_metadata = {"dates": date_array["shipping"]},
+                        where_clause = conn.expr_date_range("T.sales_date", shipping_dates),
+                        execute = bool(shipping_dates),
                     ),
                 }
             }

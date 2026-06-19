@@ -13,10 +13,13 @@
 소재 성과 보고서에서 누락된 캠페인 성과 보고서를 INSERT 문으로 추가한다.
 
 ## 적재(Load)
-보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+- 보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+- 적재 과정에서 수집한 광고 성과일 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
+from airflow.models.taskinstance import TaskInstance
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 from textwrap import dedent
 import pendulum
@@ -31,7 +34,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:searchad", "objective:ads", "credentials:cookies",
-        "schedule:daily", "time:morning", "write:append"
+        "schedule:daily", "time:morning", "write:append", "plugin:dbt"
     ],
 ) as dag:
 
@@ -96,18 +99,19 @@ with DAG(
             conn.execute(merge_into_query(sources["campaign"], sources["merged"]))
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, conn.unique(sources["merged"], "ymd"))),
+                },
                 "params": {
                     "account_no": account_no,
                     "date": date,
                     "date_type": "DAY",
                 },
-                tables["table"]: {
-                    tables["table"]: load_table_from_duckdb(
-                        connection = conn,
-                        source_table = sources["merged"],
-                        target_table = tables["table"],
-                    )
-                }
+                "result": load_table_from_duckdb(
+                    connection = conn,
+                    source_table = sources["merged"],
+                    target_table = tables["table"],
+                )
             }
 
     def merge_into_query(source_table: str, target_table: str) -> str:
@@ -132,6 +136,34 @@ with DAG(
             )""").strip()
 
 
-    (etl_searchad_report_gfa
-    .partial(configs=read_configs())
-    .expand(credentials=read_credentials()))
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(results: list[dict]) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(results, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_searchad_report_gfa_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_searchad_report_gfa",
+            selector = "searchad_report_gfa",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_results = (etl_searchad_report_gfa
+        .partial(configs=read_configs())
+        .expand(credentials=read_credentials()))
+
+    dbt_date_range = generate_dbt_date_range(etl_results)
+    dbt_run = dbt_bigquery_searchad_report_gfa_group()
+
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

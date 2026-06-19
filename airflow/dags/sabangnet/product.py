@@ -13,11 +13,13 @@ Task를 실행할 때마다 로그인하고, 쿠키와 `access_token`을 발급�
 JSON 또는 엑셀 바이너리 형식의 각각의 데이터를 DuckDB 테이블에 적재한다.
 
 ## 적재(Load)
-Task마다 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+- Task마다 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+- Dag run 실행일 기준 전일부터 현재까지의 기간을 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 from typing import Literal
 import pendulum
@@ -33,7 +35,7 @@ with DAG(
     tags = [
         "priority:medium", "platform:sabangnet",
         "objective:product", "objective:mapping", "credentials:userid",
-        "schedule:weekdays", "time:night", "write:merge"
+        "schedule:weekdays", "time:night", "write:merge", "plugin:dbt"
     ],
 ) as dag:
 
@@ -49,19 +51,31 @@ with DAG(
     def etl_sabangnet_product(ti: TaskInstance, **kwargs) -> dict:
         from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_product(product_type="product", end_date=format_datetime(kwargs), **configs)
+        context = build_context(kwargs)
+        return context | main_product(product_type="product", end_date=format_datetime(kwargs), **configs)
 
     @task(task_id="etl_sabangnet_option", pool="sabangnet_pool")
     def etl_sabangnet_option(ti: TaskInstance, **kwargs) -> dict:
         from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_product(product_type="option", end_date=format_datetime(kwargs), **configs)
+        context = build_context(kwargs)
+        return context | main_product(product_type="option", end_date=format_datetime(kwargs), **configs)
 
     @task(task_id="etl_sabangnet_add_product", pool="sabangnet_pool")
     def etl_sabangnet_add_product(ti: TaskInstance, **kwargs) -> dict:
         from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_product(product_type="add_product", end_date=format_datetime(kwargs), **configs)
+        context = build_context(kwargs)
+        return context | main_product(product_type="add_product", end_date=format_datetime(kwargs), **configs)
+
+    def build_context(kwargs: dict) -> dict:
+        from airflow_utils import format_datetime, today
+        from linkmerce.utils.date import date_range
+        return {
+            "context": {
+                "partitions": date_range(format_datetime(kwargs, subdays=1), str(today().date()))
+            }
+        }
 
     def main_product(
             userid: str,
@@ -102,14 +116,12 @@ with DAG(
                     "end_date": end_date,
                     **({"is_deleted": [False, True]} if include_deleted else dict()),
                 },
-                "results": {
-                    tables[product_type]: merge_table_from_duckdb(
-                        connection = conn,
-                        source_table = source,
-                        target_table = tables[product_type],
-                        **merge[product_type],
-                    )
-                }
+                "result": merge_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables[product_type],
+                    **merge[product_type],
+                )
             }
 
 
@@ -117,7 +129,8 @@ with DAG(
     def etl_sabangnet_mapping(ti: TaskInstance, **kwargs) -> dict:
         from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_mapping(end_date=format_datetime(kwargs), **configs)
+        context = build_context(kwargs)
+        return context | main_mapping(end_date=format_datetime(kwargs), **configs)
 
     def main_mapping(
             userid: str,
@@ -151,13 +164,13 @@ with DAG(
                     "end_date": end_date,
                 },
                 "results": {
-                    tables["mapping_product"]: merge_table_from_duckdb(
+                    "mapping_product": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["product"],
                         target_table = tables["mapping_product"],
                         **merge["mapping_product"],
                     ),
-                    tables["mapping_sku"]: merge_table_from_duckdb(
+                    "mapping_sku": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["sku"],
                         target_table = tables["mapping_sku"],
@@ -167,9 +180,38 @@ with DAG(
             }
 
 
-    read_configs() >> [
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(results: list[dict]) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(results, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_sabangnet_product_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_sabangnet_product",
+            selector = "sabangnet_product",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_results = [
         etl_sabangnet_product(),
         etl_sabangnet_option(),
         etl_sabangnet_add_product(),
         etl_sabangnet_mapping(),
     ]
+
+    dbt_date_range = generate_dbt_date_range(etl_results)
+    dbt_run = dbt_bigquery_sabangnet_product_group()
+
+    read_configs() >> etl_results
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

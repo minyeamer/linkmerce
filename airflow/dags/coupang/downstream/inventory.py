@@ -82,13 +82,11 @@ with DAG(
                     "vendor_id": vendor_id,
                     "hidden_status": None,
                 },
-                "results": {
-                    tables["table"]: load_table_from_duckdb(
-                        connection = conn,
-                        source_table = source,
-                        target_table = tables["table"],
-                    )
-                }
+                "result": load_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables["table"],
+                )
             }
 
 

@@ -12,10 +12,13 @@
 UNION ALL로 하나의 테이블로 병합한다.
 
 ## 적재(Load)
-병합된 테이블의 데이터를 기존 BigQuery/Postgres 테이블을 지우고 덮어쓴다.
+- 병합된 테이블의 데이터를 기존 BigQuery/Postgres 테이블을 지우고 덮어쓴다.
+- Dag run 실행일 기준 전일부터 현재까지의 기간을 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
+from airflow.models.taskinstance import TaskInstance
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 from textwrap import dedent
 import pendulum
@@ -30,7 +33,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:medium", "platform:searchad", "objective:ads", "credentials:api-key",
-        "schedule:weekdays", "time:morning", "write:overwrite"
+        "schedule:weekdays", "time:morning", "write:overwrite", "plugin:dbt"
     ],
 ) as dag:
 
@@ -49,7 +52,11 @@ with DAG(
 
     @task(task_id="etl_searchad_contract", map_index_template="{{ queries['customer_id'] }}")
     def etl_searchad_contract(queries: dict, configs: dict, **kwargs) -> dict:
-        return main(**queries, **configs)
+        from airflow_utils import format_datetime, today
+        from linkmerce.utils.date import date_range
+        partitions = date_range(format_datetime(kwargs, subdays=1), str(today().date()))
+        context = {"context": {"partitions": partitions}}
+        return context | main(**queries, **configs)
 
     def main(
             api_key: str,
@@ -95,17 +102,43 @@ with DAG(
                 "params": {
                     "customer_id": customer_id,
                 },
-                "results": {
-                    tables["table"]: overwrite_table_from_duckdb(
-                        connection = conn,
-                        source_table = sources["contract"],
-                        target_table = tables["table"],
-                        where_clause = f"customer_id = {customer_id}",
-                    )
-                }
+                "result": overwrite_table_from_duckdb(
+                    connection = conn,
+                    source_table = sources["contract"],
+                    target_table = tables["table"],
+                    where_clause = f"customer_id = {customer_id}",
+                )
             }
 
 
-    (etl_searchad_contract
-    .partial(configs=read_configs())
-    .expand(queries=read_credentials()))
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(results: list[dict]) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(results, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_searchad_contract_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_searchad_contract",
+            selector = "searchad_contract",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_results = (etl_searchad_contract
+        .partial(configs=read_configs())
+        .expand(queries=read_credentials()))
+
+    dbt_date_range = generate_dbt_date_range(etl_results)
+    dbt_run = dbt_bigquery_searchad_contract_group()
+
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

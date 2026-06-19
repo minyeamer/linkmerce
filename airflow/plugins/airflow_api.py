@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import IO, Literal, Union
+    from typing import IO, Union
     import pendulum
     import requests
     JsonSerialize = Union[dict, list, bytes, IO]
@@ -152,3 +152,18 @@ def wait_for_completion(
         time.sleep(poke_interval)
         start_time += poke_interval
     return "timeout"
+
+
+def get_xcom_value(
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        access_token: str,
+        key: str = "return_value",
+        timeout: int = 30,
+    ):
+    """DAG Run의 특정 Task에서 XCom 값을 조회한다."""
+    path = f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{key}"
+    response = request("GET", path, access_token, timeout=timeout)
+    response.raise_for_status()
+    return response.json()["value"]

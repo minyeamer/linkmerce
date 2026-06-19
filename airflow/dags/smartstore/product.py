@@ -92,13 +92,13 @@ with DAG(
                     "status_type": ["ALL"],
                 },
                 "results": {
-                    tables["product"]: merge_table_from_duckdb(
+                    "product": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["product"],
                         target_table = tables["product"],
                         **merge["product"],
                     ),
-                    tables["option"]: merge_table_from_duckdb(
+                    "option": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["option"],
                         target_table = tables["option"],

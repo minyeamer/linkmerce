@@ -86,12 +86,12 @@ with DAG(
                     "page": None,
                 },
                 "results": {
-                    tables["table"]: load_table_from_duckdb(
+                    "table": load_table_from_duckdb(
                         connection = conn,
                         source_table = source,
                         target_table = tables["table"],
                     ),
-                    tables["now"]: merge_table_from_duckdb(
+                    "now": merge_table_from_duckdb(
                         connection = conn,
                         source_table = source,
                         target_table = tables["now"],

@@ -64,9 +64,17 @@ with DAG(
         from airflow_utils import format_datetime
         date = format_datetime(kwargs, subdays=1)
         if credentials.get("nca"):
-            return {
+            results = {
                 "pa": main(**credentials, report_type="pa", date=date, **configs),
                 "nca": main(**credentials, report_type="nca", date=date, **configs),
+            }
+            return {
+                "context": {
+                    "partitions": sorted(set(
+                        results["pa"]["context"]["partitions"] + results["nca"]["context"]["partitions"]
+                    )),
+                },
+                **results,
             }
         return main(**credentials, report_type="pa", date=date, **configs)
 
@@ -98,6 +106,9 @@ with DAG(
             )
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, conn.unique(source, "ymd"))),
+                },
                 "params": {
                     "vendor_id": vendor_id,
                     "report_type": report_type,
@@ -105,13 +116,11 @@ with DAG(
                     "date_type": "daily",
                     "report_level": report_level,
                 },
-                "results": {
-                    tables[report_type]: load_table_from_duckdb(
-                        connection = conn,
-                        source_table = source,
-                        target_table = tables[report_type],
-                    )
-                }
+                "result": load_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables[report_type],
+                )
             }
 
 

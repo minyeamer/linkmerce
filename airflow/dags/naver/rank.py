@@ -95,18 +95,18 @@ with DAG(
                     "sort": "sim",
                 },
                 "results": {
-                    tables["rank"]: load_table_from_duckdb(
+                    "rank": load_table_from_duckdb(
                         connection = conn,
                         source_table = sources["rank"],
                         target_table = tables["rank"],
                     ),
-                    tables["now"]: merge_table_from_duckdb(
+                    "now": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["rank"],
                         target_table = tables["now"],
                         **merge["now"],
                     ),
-                    tables["product"]: merge_table_from_duckdb(
+                    "product": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["product"],
                         target_table = tables["product"],

@@ -16,11 +16,13 @@ CJ대한통운 로이스파셀 로그인을 위한 아이디, 비밀번호와
 하나의 DuckDB 테이블에 중복 없이 적재한다.
 
 ## 적재(Load)
-기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 중복 없이 적재한다.
+- 기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 중복 없이 적재한다.
+- 적재 과정에서 수집한 접수일 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 from textwrap import dedent
 import pendulum
@@ -35,7 +37,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:cj-loisparcel", "objective:delivery", "credentials:userid",
-        "schedule:daily", "time:night", "plugin:playwright", "write:merge"
+        "schedule:daily", "time:night", "plugin:playwright", "write:merge", "plugin:dbt"
     ],
 ) as dag:
 
@@ -78,7 +80,8 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from dual_load import merge_table_from_duckdb
         date_by = {"접수일자": "by_register", "집화일자": "by_pickup", "배송완료일자": "by_delivery"}
-        query_dates = {date_type: query_dates[date_type] for date_type in date_by.keys() if date_type in query_dates}
+        query_dates = {date_type: query_dates[date_type]
+                        for date_type in date_by.keys() if date_type in query_dates}
         if not query_dates:
             raise ValueError("조회 기간이 존재하지 않습니다")
 
@@ -91,24 +94,26 @@ with DAG(
             for date_type in list(query_dates.keys())[::-1]:
                 if results[date_type]:
                     conn.execute(insert_query, params={"rows": results[date_type]})
-            date_array = conn.unique(source_table, "register_date")
+
+            partitions = conn.unique(source_table, "register_date")
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, partitions)),
+                },
                 "params": {
                     "userid": userid,
                     **{"2fa_email": mail_info["email"]},
                     **{date_by[date_type]: params for date_type, params in query_dates.items()},
                 },
-                "results": {
-                    tables["table"]: (merge_table_from_duckdb(
-                        connection = conn,
-                        source_table = source_table,
-                        target_table = tables["table"],
-                        **merge["table"],
-                        where_clause = conn.expr_date_range("T.register_date", date_array),
-                        extra_metadata = {"dates": sorted(map(str, date_array))},
-                    ) if date_array else dict()),
-                }
+                "result": merge_table_from_duckdb(
+                    connection = conn,
+                    source_table = source_table,
+                    target_table = tables["table"],
+                    **merge["table"],
+                    where_clause = conn.expr_date_range("T.register_date", partitions),
+                    execute = bool(partitions),
+                )
             }
 
 
@@ -403,4 +408,33 @@ with DAG(
             return retrieve_2fa_code(session, origin, mail_no)
 
 
-    read_configs() >> etl_loisparcel_invoice()
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(result: dict) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(result, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_cj_loisparcel_invoice_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_cj_loisparcel_invoice",
+            selector = "cj_loisparcel_invoice",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_result = etl_loisparcel_invoice()
+
+    dbt_date_range = generate_dbt_date_range(etl_result)
+    dbt_run = dbt_bigquery_cj_loisparcel_invoice_group()
+
+    read_configs() >> etl_result
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

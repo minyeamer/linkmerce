@@ -13,12 +13,15 @@
 TSV 형식의 응답 본문을 파싱하고, 하나의 다차원 보고서로 병합해 DuckDB 테이블에 적재한다.
 
 ## 적재(Load)
-보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+- 보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+- 적재 과정에서 수집한 광고 성과일 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 
 > 주의) 2026년 03월 30일(월)부터 모든 COST에 VAT가 포함된다.
 """
 
 from airflow.sdk import DAG, task
+from airflow.models.taskinstance import TaskInstance
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 import pendulum
 
@@ -32,7 +35,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:searchad", "objective:ads", "credentials:api-key",
-        "schedule:daily", "time:morning", "write:append"
+        "schedule:daily", "time:morning", "write:append", "plugin:dbt"
     ],
 ) as dag:
 
@@ -79,20 +82,49 @@ with DAG(
             )
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, conn.unique(source, "ymd"))),
+                },
                 "params": {
                     "customer_id": customer_id,
                     "date": date,
                 },
-                "results": {
-                    tables["table"]: load_table_from_duckdb(
-                        connection = conn,
-                        source_table = source,
-                        target_table = tables["table"],
-                    )
-                }
+                "result": load_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables["table"],
+                )
             }
 
 
-    (etl_searchad_report_sad
-    .partial(configs=read_configs())
-    .expand(credentials=read_credentials()))
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(results: list[dict]) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(results, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_searchad_report_sad_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_searchad_report_sad",
+            selector = "searchad_report_sad",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_results = (etl_searchad_report_sad
+        .partial(configs=read_configs())
+        .expand(credentials=read_credentials()))
+
+    dbt_date_range = generate_dbt_date_range(etl_results)
+    dbt_run = dbt_bigquery_searchad_report_sad_group()
+
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

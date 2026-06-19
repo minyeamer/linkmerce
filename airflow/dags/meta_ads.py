@@ -16,10 +16,13 @@ JSON 형식의 응답 본문을 파싱하여 캠페인, 광고세트, 광고,
 ## 적재(Load)
 각각의 캠페인, 광고세트, 광고 테이블을 기존 BigQuery/Postgres 테이블과
 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
-성과 보고서 테이블은 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
+- 성과 보고서 테이블은 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
+- 적재 과정에서 수집한 광고 성과일 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
+from airflow.models.taskinstance import TaskInstance
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 import pendulum
 
@@ -33,7 +36,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:meta-ads", "objective:ads", "credentials:api-key",
-        "schedule:daily", "time:morning", "write:append", "write:merge"
+        "schedule:daily", "time:morning", "write:append", "write:merge", "plugin:dbt"
     ],
 ) as dag:
 
@@ -93,14 +96,12 @@ with DAG(
                     "ad_level": ad_level,
                     "account_ids": account_ids,
                 },
-                "results": {
-                    tables[ad_level]: merge_table_from_duckdb(
-                        connection = conn,
-                        source_table = source,
-                        target_table = tables[ad_level],
-                        **merge[ad_level],
-                    )
-                }
+                "result": merge_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables[ad_level],
+                    **merge[ad_level],
+                )
             }
 
 
@@ -143,6 +144,9 @@ with DAG(
             )
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, conn.unique(sources["insights"], "ymd"))),
+                },
                 "params": {
                     "ad_level": "ad",
                     "date": date,
@@ -150,25 +154,25 @@ with DAG(
                     "account_ids": account_ids,
                 },
                 "results": {
-                    tables["campaigns"]: merge_table_from_duckdb(
+                    "campaigns": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["campaigns"],
                         target_table = tables["campaigns"],
                         **merge["campaigns"],
                     ),
-                    tables["adsets"]: merge_table_from_duckdb(
+                    "adsets": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["adsets"],
                         target_table = tables["adsets"],
                         **merge["adsets"],
                     ),
-                    tables["ads"]: merge_table_from_duckdb(
+                    "ads": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["ads"],
                         target_table = tables["ads"],
                         **merge["ads"],
                     ),
-                    tables["insights"]: load_table_from_duckdb(
+                    "insights": load_table_from_duckdb(
                         connection = conn,
                         source_table = sources["insights"],
                         target_table = tables["insights"],
@@ -180,18 +184,48 @@ with DAG(
     configs = read_configs()
     credentials = read_credentials()
 
-    (etl_meta_campaigns
+    etl_campaign_results = (etl_meta_campaigns
     .partial(configs=configs)
     .expand(credentials=credentials))
 
-    (etl_meta_adsets
+    etl_adset_results = (etl_meta_adsets
     .partial(configs=configs)
     .expand(credentials=credentials))
 
-    (etl_meta_ads
+    etl_ad_results = (etl_meta_ads
     .partial(configs=configs)
     .expand(credentials=credentials))
 
-    (etl_meta_insights
+    etl_insight_results = (etl_meta_insights
     .partial(configs=configs)
     .expand(credentials=credentials))
+
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(results: list[dict]) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(results, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_meta_ads_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_meta_ads",
+            selector = "meta_ads",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_results = [etl_campaign_results, etl_adset_results, etl_ad_results, etl_insight_results]
+
+    dbt_date_range = generate_dbt_date_range(etl_results)
+    dbt_run = dbt_bigquery_meta_ads_group()
+
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

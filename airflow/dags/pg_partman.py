@@ -41,10 +41,13 @@ with DAG(
         import psycopg2
 
         pg_conn_id = (dag_run.conf or dict()).get("pg_conn_id") or "postgres"
-        with psycopg2.connect(build_postgres_dsn(pg_conn_id)) as conn:
-            conn.autocommit = True
+        conn = psycopg2.connect(build_postgres_dsn(pg_conn_id))
+        conn.autocommit = True
+        try:
             with conn.cursor() as cursor:
                 cursor.execute("CALL partman.run_maintenance_proc(p_wait := 0, p_analyze := false, p_jobmon := false);")
+        finally:
+            conn.close()
 
         return {"pg_conn_id": pg_conn_id, "status": "success"}
 

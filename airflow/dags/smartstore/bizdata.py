@@ -80,13 +80,11 @@ with DAG(
                     "channel_seq": channel_seq,
                     "date": date,
                 },
-                "results": {
-                    tables["table"]: load_table_from_duckdb(
-                        connection = conn,
-                        source_table = source,
-                        target_table = tables["table"],
-                    )
-                }
+                "result": load_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables["table"],
+                )
             }
 
 

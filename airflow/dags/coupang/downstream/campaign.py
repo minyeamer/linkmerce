@@ -62,8 +62,10 @@ with DAG(
     def etl_coupang_campaign(credentials: dict, configs: dict, **kwargs) -> dict:
         """기본으로 매출 성장(PA) 목표의 캠페인을 가져온다.   
         인증 정보에 `nca=True` 설정된 업체만 신규 구매 고객 확보(NCA) 목표의 캠페인을 추가로 수집한다."""
+        from airflow_utils import format_datetime
+        context = {"context": {"partitions": [format_datetime(kwargs, subdays=1)]}}
         goal_types = ["SALES", "NCA"] if credentials.get("nca") else ["SALES"]
-        return main(**credentials, goal_types=goal_types, **configs)
+        return context | main(**credentials, goal_types=goal_types, **configs)
 
     def main(
             cookies: str,
@@ -116,24 +118,25 @@ with DAG(
                     "is_deleted": [False, True],
                 },
                 "results": {
-                    tables["campaign"]: merge_table_from_duckdb(
+                    "campaign": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["campaign"],
                         target_table = tables["campaign"],
                         **merge["campaign"],
                     ),
-                    tables["adgroup"]: merge_table_from_duckdb(
+                    "adgroup": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["adgroup"],
                         target_table = tables["adgroup"],
                         **merge["adgroup"],
                     ),
-                    tables["creative"]: (merge_table_from_duckdb(
+                    "creative": merge_table_from_duckdb(
                         connection = conn,
                         source_table = sources["creative"],
                         target_table = tables["creative"],
                         **merge["creative"],
-                    ) if nca_campaign_ids else None),
+                        execute = bool(nca_campaign_ids),
+                    ),
                 }
             }
 

@@ -18,11 +18,13 @@ Task를 실행할 때마다 로그인하고, 쿠키와 'access_token'을 발급�
 - 이름, 주소 등을 포함하는 발송 내역을 DuckDB 발송 테이블에 적재한다.
 
 ## 적재(Load)
-각각의 테이블을 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+- 각각의 테이블을 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+- 적재 과정에서 수집한 주문 일자 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 import pendulum
 
@@ -37,7 +39,7 @@ with DAG(
     tags = [
         "priority:high", "platform:sabangnet", "objective:sales", "credentials:userid",
         "schedule:daily", "time:morning", "time:afternoon", "time:night",
-        "write:merge", "upstream:streamlit"
+        "write:merge", "upstream:streamlit", "plugin:dbt"
     ],
 ) as dag:
 
@@ -112,13 +114,19 @@ with DAG(
             )
 
             if download_type == "order":
-                date_column, date_array = "T.order_dt", conn.unique(source, "DATE(order_dt)")
+                date_column = "T.order_dt"
+                partitions = conn.unique(source, "DATE(order_dt)")
             elif download_type == "dispatch":
-                date_column, date_array = "T.register_dt", conn.unique(source, "DATE(register_dt)")
+                date_column = "T.register_dt"
+                partitions = conn.unique(source, "DATE(register_dt)")
             else:
-                date_column, date_array = None, None
+                date_column = None
+                partitions = list()
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, partitions)),
+                },
                 "params": {
                     "start_date": start_date,
                     "end_date": end_date,
@@ -126,17 +134,44 @@ with DAG(
                     "download_no": download_no[download_type],
                     "download_type": download_type,
                 },
-                "results": {
-                    tables[download_type]: (merge_table_from_duckdb(
-                        connection = conn,
-                        source_table = source,
-                        target_table = tables[download_type],
-                        **merge[download_type],
-                        where_clause = (conn.expr_datetime_range(date_column, date_array) if date_column else None),
-                        extra_metadata = ({"dates": sorted(map(str, date_array))} if date_column else dict())
-                    ) if (not date_column) or date_array else dict()),
-                }
+                "result": merge_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables[download_type],
+                    **merge[download_type],
+                    where_clause = (conn.expr_datetime_range(date_column, partitions) if date_column else None),
+                    execute = ((not date_column) or bool(partitions)),
+                )
             }
 
 
-    read_configs() >> [etl_sabangnet_order(), etl_sabangnet_dispatch(), etl_sabangnet_option()]
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(results: list[dict]) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(results, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_sabangnet_order_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_sabangnet_order",
+            selector = "sabangnet_order",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_results = [etl_sabangnet_order(), etl_sabangnet_dispatch(), etl_sabangnet_option()]
+
+    dbt_date_range = generate_dbt_date_range(etl_results)
+    dbt_run = dbt_bigquery_sabangnet_order_group()
+
+    read_configs() >> etl_results
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

@@ -21,6 +21,9 @@
 4. 'coupang_product_option' (Wing)
 5. 'coupang_rocket_sales' (Wing)
 
+## 적재 후처리
+실행된 SubDag 중 dbt 후속 모델이 연결된 대상만 결과 파티션을 수집한 뒤 dbt 모델을 실행한다.
+
 ## Manual 실행 시 필터 설정
 Airflow UI에서 Dag을 트리거할 때 {vendor_id: dag_ids} 형식의 Configuration JSON을 전달해
 특정 판매자 계정이나 특정 SubDag만 선택적으로 실행할 수 있다.
@@ -47,8 +50,10 @@ Airflow UI에서 Dag을 트리거할 때 {vendor_id: dag_ids} 형식의 Configur
 
 from airflow.sdk import DAG, task
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.exceptions import AirflowException
 from airflow.timetables.trigger import MultipleCronTriggerTimetable
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 import pendulum
 
@@ -68,7 +73,7 @@ with DAG(
         "priority:high", "platform:coupang-wing", "platform:coupang-ads", "objective:login",
         "objective:ads", "objective:sales", "objective:product", "credentials:userid",
         "schedule:daily", "time:morning", "time:afternoon", "time:night",
-        "plugin:playwright", "plugin:rest-api"
+        "plugin:playwright", "plugin:rest-api", "plugin:dbt"
     ],
 ) as dag:
 
@@ -139,8 +144,7 @@ with DAG(
             logger.error(f"Failed to authenticate with Airflow API: {exception}")
             raise exception
 
-        result = dict()
-        dag_error_flag = False
+        results = {"context": {"access_token": access_token, "dag_error_flag": False}}
 
         for i, creds in enumerate(credentials):
             if not (isinstance(creds, dict) and ("vendor_id" in creds)):
@@ -156,7 +160,7 @@ with DAG(
             user_info = (creds["userid"], creds["passwd"])
 
             # 3. 쿠팡 Wing/광고 로그인 (최대 10회 재시도)
-            login_error_flag = False
+            login_error_flag = True
             for retry in range(1, 10+1):
                 try:
                     exec_info["cookies"] = login_coupang(*user_info, navigate_to_ads=True, timeout=(30*retry))
@@ -165,13 +169,12 @@ with DAG(
                     login_error_flag = False
                     break
                 except Exception as exception:
-                    login_error_flag = True
                     logger.error(f"[{vendor_id}] Login failed: {exception}")
                     exec_info["login"] = f"failed: {exception}"
                     time.sleep(1)
             if login_error_flag:
-                dag_error_flag |= True
-                result[vendor_id] = exec_info
+                results["context"]["dag_error_flag"] |= True
+                results[vendor_id] = exec_info
                 continue
 
             # 4. 전체 SubDag 흐름 제어
@@ -190,16 +193,143 @@ with DAG(
                 trigger_dagrun(dag_id, run_id, access_token, logical_date, conf)
                 state = wait_for_completion(dag_id, run_id, access_token, poke_interval, timeout=(poke_interval*20))
                 logger.info(f"[{vendor_id}] Dag run {state}: /dags/{dag_id}/runs/{run_id}")
-                exec_info["subdags"][dag_id] = state
-                dag_error_flag |= (state == "failed")
+                exec_info["subdags"][dag_id] = {"run_id": run_id, "state": state}
+                results["context"]["dag_error_flag"] |= (state != "success")
 
-            result[vendor_id] = exec_info
+            results[vendor_id] = exec_info
 
-        if dag_error_flag:
+        return results
+
+
+    def generate_dbt_date_range(results: dict, subdag_id: str) -> dict:
+        """SubDag에 대한 파티션 범위를 계산한다."""
+        from airflow_api import get_xcom_value
+        from dbt_cosmos import generate_dbt_date_range as generate
+        import logging
+        import time
+
+        logger = logging.getLogger(__name__)
+
+        # 1. ETL 작업에서 발급한 `access_token` 재사용
+        access_token = results["context"]["access_token"]
+        return_values = list()
+
+        for vendor_id, vendor_result in results.items():
+            subdag_results = (vendor_result or dict()).get("subdags")
+            for dag_id, result in (subdag_results or dict()).items():
+                # 2. 전체 실행 결과로부터 `dag_id`에 해당하는 SubDag의 실행 내역 확인
+                if dag_id == subdag_id:
+                    try:
+                        # 3. SubDag의 실행 결과(JSON)를 API로 요청
+                        return_values.append(
+                            get_xcom_value(dag_id, result["run_id"], f"etl_{dag_id}", access_token)
+                        ); time.sleep(.5)
+                    except Exception as exception:
+                        if isinstance(result, dict) and result.get("run_id"):
+                            dag_run_id = dag_id + '/' + result["run_id"]
+                        else:
+                            dag_run_id = dag_id + '/' + 'unknown'
+                        logger.warning(f"[{vendor_id}] XCom read failed: {dag_run_id} ({exception})")
+
+        # 4. SubDags의 실행 결과로부터 파티션 범위를 계산하여 반환
+        return generate(return_values, "context.partitions")
+
+
+    # 1. subdag_id = "coupang_rocket_sales"
+
+    @task(task_id="generate_dbt_date_range__rocket_sales")
+    def generate_dbt_date_range__rocket_sales(results: dict) -> dict:
+        return generate_dbt_date_range(results, subdag_id="coupang_rocket_sales")
+
+    @task.short_circuit(task_id="prepare_dbt_run__rocket_sales", ignore_downstream_trigger_rules=False)
+    def prepare_dbt_run__rocket_sales(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range__rocket_sales")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+    def dbt_bigquery_coupang_rocket_sales_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_coupang_rocket_sales",
+            selector = "coupang_rocket_sales",
+            ds_task_id = "generate_dbt_date_range__rocket_sales",
+        )
+
+    # 4. subdag_id = "coupang_adreport"
+
+    @task(task_id="generate_dbt_date_range__adreport")
+    def generate_dbt_date_range__adreport(results: dict) -> dict:
+        return generate_dbt_date_range(results, subdag_id="coupang_adreport")
+
+    @task.short_circuit(task_id="prepare_dbt_run__adreport", ignore_downstream_trigger_rules=False)
+    def prepare_dbt_run__adreport(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range__adreport")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+    def dbt_bigquery_coupang_adreport_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_coupang_adreport",
+            selector = "coupang_adreport",
+            ds_task_id = "generate_dbt_date_range__adreport",
+        )
+
+    # 5. subdag_id = "coupang_campaign"
+
+    @task(task_id="generate_dbt_date_range__campaign")
+    def generate_dbt_date_range__campaign(results: dict) -> dict:
+        return generate_dbt_date_range(results, subdag_id="coupang_campaign")
+
+    @task.short_circuit(task_id="prepare_dbt_run__campaign", ignore_downstream_trigger_rules=False)
+    def prepare_dbt_run__campaign(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range__campaign")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+    def dbt_bigquery_coupang_campaign_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_coupang_campaign",
+            selector = "coupang_campaign",
+            ds_task_id = "generate_dbt_date_range__campaign",
+        )
+
+
+    etl_results = etl_coupang_integration(credentials=read_credentials())
+
+    # 1. subdag_id = "coupang_rocket_sales"
+
+    dbt_date_range__rocket_sales = generate_dbt_date_range__rocket_sales(etl_results)
+    dbt_run__rocket_sales = dbt_bigquery_coupang_rocket_sales_group()
+
+    dbt_date_range__rocket_sales >> prepare_dbt_run__rocket_sales() >> dbt_run__rocket_sales
+
+    # 4. subdag_id = "coupang_adreport"
+
+    dbt_date_range__adreport = generate_dbt_date_range__adreport(etl_results)
+    dbt_run__adreport = dbt_bigquery_coupang_adreport_group()
+
+    dbt_date_range__adreport >> prepare_dbt_run__adreport() >> dbt_run__adreport
+
+    # 5. subdag_id = "coupang_campaign"
+
+    dbt_date_range__campaign = generate_dbt_date_range__campaign(etl_results)
+    dbt_run__campaign = dbt_bigquery_coupang_campaign_group()
+
+    dbt_date_range__campaign >> prepare_dbt_run__campaign() >> dbt_run__campaign
+
+    # Finalize DAG run
+
+    @task(task_id="raise_on_subdag_failure", trigger_rule="all_done")
+    def raise_on_subdag_failure(results: dict):
+        from linkmerce.utils.nested import hier_get
+        if hier_get(results, "context.dag_error_flag", default=False, on_missing="ignore"):
             message = "One or more SubDags failed during execution. Check the 'result' or logs for details."
             raise AirflowException(message)
 
-        return result
-
-
-    etl_coupang_integration(credentials=read_credentials())
+    finalize_dag_run = raise_on_subdag_failure(etl_results)
+    [dbt_run__rocket_sales, dbt_run__adreport, dbt_run__campaign] >> finalize_dag_run

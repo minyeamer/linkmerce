@@ -81,13 +81,11 @@ with DAG(
                     "base_date": base_date,
                     "zero_yn": True,
                 },
-                "results": {
-                    tables["table"]: load_table_from_duckdb(
-                        connection = conn,
-                        source_table = source,
-                        target_table = tables["table"],
-                    )
-                }
+                "result": load_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables["table"],
+                )
             }
 
 

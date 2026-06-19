@@ -108,14 +108,12 @@ with DAG(
                     "is_deleted": [False, True],
                     "see_more": True,
                 },
-                "results": {
-                    tables["table"]: merge_table_from_duckdb(
-                        connection = conn,
-                        source_table = sources["table"],
-                        target_table = tables["table"],
-                        **merge["table"],
-                    )
-                }
+                "result": merge_table_from_duckdb(
+                    connection = conn,
+                    source_table = sources["table"],
+                    target_table = tables["table"],
+                    **merge["table"],
+                )
             }
 
     def insert_rocket_options(table: str, rfm: str) -> str:

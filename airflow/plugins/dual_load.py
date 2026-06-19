@@ -10,9 +10,10 @@ if TYPE_CHECKING:
     from linkmerce.extensions.postgres import PostgresClient
 
     class LoadResult(TypedDict):
-        src_count: int
-        bq_success: bool
-        pg_success: bool
+        count: int
+        table: str
+        pg_success: bool | None
+        bq_success: bool | None
 
     DuckDBTable = TypeVar("DuckDBTable", str)
     BigQueryTable = TypeVar("BigQueryTable", str)
@@ -25,16 +26,18 @@ def load_table_from_duckdb(
         target_table: PgTable,
         columns: Sequence[str] = list(),
         extra_metadata: dict | None = None,
+        execute: bool = True,
         **kwargs
     ) -> LoadResult:
     """DuckDB 테이블 행을 BigQuery/PostgreSQL 테이블에 적재한다."""
     common = (connection, source_table, target_table, columns)
     return {
-        "src_count": connection.count_table(source_table),
+        "table": target_table,
+        "count": (connection.count_table(source_table) if connection.table_exists(source_table) else 0),
         **(extra_metadata if isinstance(extra_metadata, dict) else dict()),
         # 제약 조건이 엄격한 PostgreSQL에 먼저 적재하여 데이터 유효성을 검증한다.
-        "pg_success": load_pg_table_from_duckdb(*common, **kwargs),
-        "bq_success": load_bq_table_from_duckdb(*common, **kwargs),
+        "pg_success": (load_pg_table_from_duckdb(*common, **kwargs) if execute else None),
+        "bq_success": (load_bq_table_from_duckdb(*common, **kwargs) if execute else None),
     }
 
 
@@ -45,6 +48,7 @@ def overwrite_table_from_duckdb(
         columns: Sequence[str] = list(),
         where_clause: str | None = None,
         extra_metadata: dict | None = None,
+        execute: bool = True,
         **kwargs
     ) -> LoadResult:
     """DuckDB 테이블을 스테이징 테이블에 적재한 후,
@@ -55,11 +59,12 @@ def overwrite_table_from_duckdb(
     """
     common = (connection, source_table, target_table, columns, where_clause)
     return {
-        "src_count": connection.count_table(source_table),
+        "count": (connection.count_table(source_table) if connection.table_exists(source_table) else 0),
+        "table": target_table,
         **(extra_metadata if isinstance(extra_metadata, dict) else dict()),
         # 제약 조건이 엄격한 PostgreSQL에 먼저 적재하여 데이터 유효성을 검증한다.
-        "pg_success": overwrite_pg_table_from_duckdb(*common, **kwargs),
-        "bq_success": overwrite_bq_table_from_duckdb(*common, **kwargs),
+        "pg_success": (overwrite_pg_table_from_duckdb(*common, **kwargs) if execute else None),
+        "bq_success": (overwrite_bq_table_from_duckdb(*common, **kwargs) if execute else None),
     }
 
 
@@ -75,6 +80,7 @@ def merge_table_from_duckdb(
             | Literal[":replace_all:", ":do_nothing:"] = ":replace_all:",
         not_matched: str | Sequence[str] | Literal[":insert_all:", ":do_nothing:"] = ":insert_all:",
         extra_metadata: dict | None = None,
+        execute: bool = True,
         **kwargs
     ) -> LoadResult:
     """DuckDB 테이블을 스테이징 테이블에 적재한 후, PostgreSQL/BigQuery 테이블에 MERGE 한다.
@@ -83,11 +89,12 @@ def merge_table_from_duckdb(
     """
     common = (connection, source_table, target_table, columns, where_clause, on_conflict, matched, not_matched)
     return {
-        "src_count": connection.count_table(source_table),
+        "count": (connection.count_table(source_table) if connection.table_exists(source_table) else 0),
+        "table": target_table,
         **(extra_metadata if isinstance(extra_metadata, dict) else dict()),
         # 제약 조건이 엄격한 PostgreSQL에 먼저 적재하여 데이터 유효성을 검증한다.
-        "pg_success": merge_into_pg_table_from_duckdb(*common, **kwargs),
-        "bq_success": merge_into_bq_table_from_duckdb(*common, **kwargs),
+        "pg_success": (merge_into_pg_table_from_duckdb(*common, **kwargs) if execute else None),
+        "bq_success": (merge_into_bq_table_from_duckdb(*common, **kwargs) if execute else None),
     }
 
 
@@ -101,7 +108,7 @@ def bigquery_client(func):
     적재 실패 시 `BadRequest` 예외를 발생시킨다.
     """
     @wraps(func)
-    def wrapper(*args, bigquery_conn_id: str = "bigquery", **kwargs):
+    def wrapper(*args, bigquery_conn_id: str = "gcp_bigquery", **kwargs):
         from linkmerce.extensions.bigquery import BigQueryClient
 
         service_account = _read_google_service_account(bigquery_conn_id)
@@ -114,10 +121,11 @@ def bigquery_client(func):
 
 
 def _read_google_service_account(conn_id: str) -> dict:
+    """Google Cloud 타입의 Connection의 `keyfile_dict`에서 서비스 계정 정보를 읽어온다."""
     from airflow.sdk import Connection
 
     airflow_connection: Connection = Connection.get(conn_id)
-    return airflow_connection.extra_dejson
+    return airflow_connection.extra_dejson["keyfile_dict"]
 
 
 @bigquery_client
@@ -219,6 +227,7 @@ def postgres_client(func):
 
 
 def _read_postgres_dsn(conn_id: str) -> str:
+    """Postgres 타입의 Connection으로부터 Postgres DSN 문자열을 생성한다."""
     from airflow.sdk import Connection
 
     airflow_connection: Connection = Connection.get(conn_id)
