@@ -25,15 +25,15 @@ status_mapping AS (
 
 adgroup_master AS (
   SELECT
-      ad.customer_id
+      grp.customer_id
     , acc.account_name
     -- Campaign attributes
-    , ad.campaign_id
+    , grp.campaign_id
     , cmp.campaign_name
     , campaign_type.label AS campaign_type
     , bidding_strategy.label AS bidding_strategy
     -- Adgroup attributes
-    , ad.adgroup_id
+    , grp.adgroup_id
     , CONCAT(
           IF(status_fin.code = 'REMOVED', '1', '0')
         , COALESCE(FORMAT('%02d', acc.account_seq), '99')
