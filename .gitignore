@@ -315,4 +315,4 @@ postgres/data/
 src/tests/data/
 src/tests/results/
 src/tests/fixtures.yaml
-!chat.log
+.git-credentials
