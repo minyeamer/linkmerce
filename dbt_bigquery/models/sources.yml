@@ -6,6 +6,8 @@ sources:
     tables:
       - name: item
       - name: delivery_group
+      - name: expense
+      - name: extra_sales
       - name: opex
       - name: order_status
 

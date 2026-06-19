@@ -46,9 +46,8 @@ SELECT
   , fact.supply_amount - fact.supply_cost - fact.delivery_fee AS margin_amount
   , fact.delivery_fee
   , fact.ad_cost
-  , (COALESCE(fact.supply_amount - fact.supply_cost - fact.delivery_fee, 0)
-    - COALESCE(fact.ad_cost, 0)
-    ) AS profit
+  , fact.extra_cost
+  , (COALESCE(fact.supply_amount - fact.supply_cost - fact.delivery_fee, 0) - COALESCE(fact.ad_cost, 0)) AS profit
   , fact.order_date
 FROM {{ ref('analytics__sales_daily') }} AS fact
 LEFT JOIN {{ ref('core__product_master') }} AS item

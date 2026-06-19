@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS core.item (
   , model_code TEXT -- 대표코드
   , model_id TEXT -- 식별코드
   , eflexs_item_code TEXT -- 풀필먼트코드
-  , in_stock_yn BOOLEAN -- 입고품여부
+  , in_stock_yn BOOLEAN -- 자사판매여부
   , delivery_group TEXT -- 배송그룹
   , delivery_fee INTEGER -- 배송비
   , org_price INTEGER -- 원가
@@ -81,6 +81,26 @@ CREATE TABLE IF NOT EXISTS core.delivery_group (
   , n_arrival_add INTEGER -- N배송비추가
   , PRIMARY KEY (delivery_group, min_unit)
 );
+
+-- [고정지출]
+CREATE TABLE IF NOT EXISTS core.expense (
+    expense_id BIGINT NOT NULL -- 순번
+  , expense_type TEXT -- 구분
+  , company_name TEXT -- 거래처명
+  , description TEXT -- 내용
+  , amount BIGINT -- 비용
+  , ymd DATE NOT NULL -- 결제일
+  , PRIMARY KEY (ymd, expense_id)
+) PARTITION BY RANGE (ymd);
+
+-- [기타매출]
+CREATE TABLE IF NOT EXISTS core.extra_sales (
+    product_id TEXT NOT NULL -- 품번코드
+  , shop_id TEXT NOT NULL -- 쇼핑몰코드
+  , sales_amount BIGINT -- 매출액
+  , sales_date DATE NOT NULL -- 매출발생일
+  , PRIMARY KEY (sales_date, product_id, shop_id)
+) PARTITION BY RANGE (sales_date);
 
 -- [운영비용]
 CREATE TABLE IF NOT EXISTS core.opex (
@@ -1357,6 +1377,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+SELECT public.bootstrap_daily_partitions('core.expense',		              'ymd',					      '2026-05-01',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('core.extra_sales',              'sales_date',		      '2026-01-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.opex',				              'end_date',			      '2025-01-13',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.order_status',		          'order_date',			    '2025-04-03',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice',			        'pickup_date',			  '2023-05-01',				    '1 day',  35);

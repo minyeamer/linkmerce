@@ -23,5 +23,6 @@ FROM UNNEST([
   , STRUCT(4 AS seq, 5 AS code, '빈박스' AS label, 'delivery_fee' AS metrics)
   , STRUCT(5 AS seq, 7 AS code, '배송' AS label, 'delivery_fee' AS metrics)
   , STRUCT(6 AS seq, 8 AS code, '광고' AS label, 'ad_cost' AS metrics)
+  , STRUCT(7 AS seq, 9 AS code, '비용' AS label, 'extra_cost' AS metrics)
 ])
 {%- endmacro %}

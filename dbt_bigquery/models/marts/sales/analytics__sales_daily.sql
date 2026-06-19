@@ -29,6 +29,7 @@ sabangnet_sales_daily AS (
     , supply_cost
     , delivery_fee
     , NULL AS ad_cost
+    , NULL AS extra_cost
     , order_date
   FROM {{ ref('sabangnet__sales_daily') }}
   WHERE order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
@@ -45,6 +46,7 @@ smartstore_sales_daily AS (
     , supply_cost
     , delivery_fee
     , NULL AS ad_cost
+    , NULL AS extra_cost
     , order_date
   FROM {{ ref('smartstore__sales_daily') }}
   WHERE order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
@@ -61,9 +63,27 @@ coupang_rfm_sales_daily AS (
     , supply_cost
     , delivery_fee
     , NULL AS ad_cost
+    , NULL AS extra_cost
     , order_date
   FROM {{ ref('coupang_rfm__sales_daily') }}
   WHERE order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+),
+
+extra_sales_daily AS (
+  SELECT
+      product_id
+    , shop_id
+    , 0 AS order_status
+    , 0 AS sku_quantity
+    , sales_amount AS payment_amount
+    , 0 AS supply_amount
+    , 0 AS supply_cost
+    , 0 AS delivery_fee
+    , NULL AS ad_cost
+    , NULL AS extra_cost
+    , sales_date AS order_date
+  FROM {{ source('core', 'extra_sales') }}
+  WHERE sales_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
 ),
 
 -- Step 2: prepare ads data
@@ -121,17 +141,6 @@ meta_ads_insight_daily AS (
   FROM {{ ref('meta_ads__insight_daily') }}
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
   GROUP BY ymd, product_id
-),
-
-opex AS (
-  SELECT
-      brand_id AS product_id
-    , IF(dept_id = 1, 'adop0004', 'adop0003') AS shop_id
-    , SUM(amount) AS ad_cost
-    , ymd AS order_date
-  FROM {{ ref('core__opex_daily') }}
-  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd, product_id, dept_id
 ),
 
 -- Step 3: assign searchad cost to the highest-sales shop_id
@@ -270,7 +279,31 @@ coupang_ads_insight_daily_with_shop_mapping AS (
     ON ads.order_date = brd.order_date AND itm.brand_name = brd.brand_name
 ),
 
--- Step 5: concat sales and ads data
+-- Step 6: prepare cost data
+
+expense_daily AS (
+  SELECT
+      '200000' AS product_id
+    , 'adop0005' AS shop_id
+    , SUM(amount) AS extra_cost
+    , ymd AS order_date
+  FROM {{ source('core', 'expense') }}
+  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  GROUP BY ymd
+),
+
+opex_daily AS (
+  SELECT
+      brand_id AS product_id
+    , IF(dept_id = 1, 'adop0004', 'adop0003') AS shop_id
+    , SUM(amount) AS extra_cost
+    , ymd AS order_date
+  FROM {{ ref('core__opex_daily') }}
+  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  GROUP BY ymd, product_id, dept_id
+),
+
+-- Step 5: concat sales, ads, and cost data
 
 insight_daily AS (
   SELECT
@@ -283,6 +316,7 @@ insight_daily AS (
     , NULL AS supply_cost
     , NULL AS delivery_fee
     , ad_cost
+    , NULL AS extra_cost
     , order_date
   FROM (
     (SELECT * FROM searchad_insight_daily_with_shop_mapping)
@@ -292,8 +326,26 @@ insight_daily AS (
     (SELECT * FROM google_ads_insight_daily)
     UNION ALL
     (SELECT * FROM meta_ads_insight_daily)
+  ) AS t_
+),
+
+cost_daily AS (
+  SELECT
+      product_id
+    , shop_id
+    , 9 AS order_status
+    , NULL AS sku_quantity
+    , NULL AS payment_amount
+    , NULL AS supply_amount
+    , NULL AS supply_cost
+    , NULL AS delivery_fee
+    , NULL AS ad_cost
+    , extra_cost
+    , order_date
+  FROM (
+    (SELECT * FROM expense_daily)
     UNION ALL
-    (SELECT * FROM opex)
+    (SELECT * FROM opex_daily)
   ) AS t_
 ),
 
@@ -308,6 +360,7 @@ sales_daily AS (
     , SUM(supply_cost) AS supply_cost
     , SUM(delivery_fee) AS delivery_fee
     , SUM(ad_cost) AS ad_cost
+    , SUM(extra_cost) AS extra_cost
     , order_date
   FROM (
     (SELECT * FROM sabangnet_sales_daily)
@@ -316,7 +369,11 @@ sales_daily AS (
     UNION ALL
     (SELECT * FROM coupang_rfm_sales_daily)
     UNION ALL
+    (SELECT * FROM extra_sales_daily)
+    UNION ALL
     (SELECT * FROM insight_daily)
+    UNION ALL
+    (SELECT * FROM cost_daily)
   )
   GROUP BY order_date, product_id, shop_id, order_status
 )

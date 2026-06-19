@@ -17,7 +17,7 @@
     {"name": "model_code", "type": "STRING", "description": "대표코드"},
     {"name": "model_id", "type": "STRING", "description": "식별코드"},
     {"name": "eflexs_item_code", "type": "STRING", "description": "풀필먼트코드"},
-    {"name": "in_stock_yn", "type": "BOOLEAN", "description": "입고품여부"},
+    {"name": "in_stock_yn", "type": "BOOLEAN", "description": "자사판매여부"},
     {"name": "delivery_group", "type": "STRING", "description": "배송그룹"},
     {"name": "delivery_fee", "type": "INTEGER", "description": "배송비"},
     {"name": "org_price", "type": "INTEGER", "description": "원가/공급가"},
@@ -34,6 +34,23 @@
     {"name": "delivery_fee", "type": "INTEGER", "description": "자체배송비"},
     {"name": "n_arrival_fee", "type": "INTEGER", "description": "N배송비"},
     {"name": "n_arrival_add", "type": "INTEGER", "description": "N배송비추가"}
+  ],
+  "core.expense": [
+    {"name": "expense_id", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
+    {"name": "expense_type", "type": "STRING", "description": "구분"},
+    {"name": "company_name", "type": "STRING", "description": "거래처명"},
+    {"name": "description", "type": "STRING", "description": "내용"},
+    {"name": "amount", "type": "INTEGER", "description": "비용"},
+    {"name": "ymd", "type": "DATE", "description": "결제일", "mode": "REQUIRED"},
+    "PARTITION BY ymd",
+    "CLUSTER BY expense_type"
+  ],
+  "core.extra_sales": [
+    {"name": "product_id", "type": "STRING", "description": "품번코드", "mode": "REQUIRED"},
+    {"name": "shop_id", "type": "STRING", "description": "쇼핑몰코드", "mode": "REQUIRED"},
+    {"name": "sales_amount", "type": "INTEGER", "description": "매출액"},
+    {"name": "sales_date", "type": "DATE", "description": "매출발생일", "mode": "REQUIRED"},
+    "PARTITION BY sales_date"
   ],
   "core.opex": [
     {"name": "expense_id", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
