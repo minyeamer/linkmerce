@@ -144,7 +144,13 @@ with DAG(
             logger.error(f"Failed to authenticate with Airflow API: {exception}")
             raise exception
 
-        results = {"context": {"access_token": access_token, "dag_error_flag": False}}
+        results = {
+            "context": {
+                "access_token": access_token,
+                "login_failed_count": 0,
+                "subdag_failed_count": 0,
+            }
+        }
 
         for i, creds in enumerate(credentials):
             if not (isinstance(creds, dict) and ("vendor_id" in creds)):
@@ -173,7 +179,7 @@ with DAG(
                     exec_info["login"] = f"failed: {exception}"
                     time.sleep(1)
             if login_error_flag:
-                results["context"]["dag_error_flag"] |= True
+                results["context"]["login_failed_count"] += 1
                 results[vendor_id] = exec_info
                 continue
 
@@ -194,7 +200,7 @@ with DAG(
                 state = wait_for_completion(dag_id, run_id, access_token, poke_interval, timeout=(poke_interval*20))
                 logger.info(f"[{vendor_id}] Dag run {state}: /dags/{dag_id}/runs/{run_id}")
                 exec_info["subdags"][dag_id] = {"run_id": run_id, "state": state}
-                results["context"]["dag_error_flag"] |= (state != "success")
+                results["context"]["subdag_failed_count"] += int(state != "success")
 
             results[vendor_id] = exec_info
 
@@ -237,7 +243,7 @@ with DAG(
 
     # 1. subdag_id = "coupang_rocket_sales"
 
-    @task(task_id="generate_dbt_date_range__rocket_sales")
+    @task(task_id="generate_dbt_date_range__rocket_sales", trigger_rule="all_done")
     def generate_dbt_date_range__rocket_sales(results: dict) -> dict:
         return generate_dbt_date_range(results, subdag_id="coupang_rocket_sales")
 
@@ -258,7 +264,7 @@ with DAG(
 
     # 4. subdag_id = "coupang_adreport"
 
-    @task(task_id="generate_dbt_date_range__adreport")
+    @task(task_id="generate_dbt_date_range__adreport", trigger_rule="all_done")
     def generate_dbt_date_range__adreport(results: dict) -> dict:
         return generate_dbt_date_range(results, subdag_id="coupang_adreport")
 
@@ -279,7 +285,7 @@ with DAG(
 
     # 5. subdag_id = "coupang_campaign"
 
-    @task(task_id="generate_dbt_date_range__campaign")
+    @task(task_id="generate_dbt_date_range__campaign", trigger_rule="all_done")
     def generate_dbt_date_range__campaign(results: dict) -> dict:
         return generate_dbt_date_range(results, subdag_id="coupang_campaign")
 
@@ -322,14 +328,18 @@ with DAG(
 
     dbt_date_range__campaign >> prepare_dbt_run__campaign() >> dbt_run__campaign
 
-    # Finalize DAG run
+    # Finalize Dag run
 
-    @task(task_id="raise_on_subdag_failure", trigger_rule="all_done")
-    def raise_on_subdag_failure(results: dict):
-        from linkmerce.utils.nested import hier_get
-        if hier_get(results, "context.dag_error_flag", default=False, on_missing="ignore"):
-            message = "One or more SubDags failed during execution. Check the 'result' or logs for details."
-            raise AirflowException(message)
+    @task(task_id="finalize_dag_run", trigger_rule="all_done")
+    def finalize_dag_run(results: dict, ti: TaskInstance):
+        context = results.get("context") or dict()
 
-    finalize_dag_run = raise_on_subdag_failure(etl_results)
-    [dbt_run__rocket_sales, dbt_run__adreport, dbt_run__campaign] >> finalize_dag_run
+        for key, name in [("login_failed_count", "login task"), ("subdag_failed_count", "SubDag task")]:
+            if (count := context.get(key, 0)):
+                n_failed_task_s = "{} {} task{}".format(count, name, s = 's' if count > 1 else '')
+                raise AirflowException(f"{n_failed_task_s} failed before Dag completion.")
+
+        from dbt_cosmos import raise_on_failure
+        raise_on_failure(ti)
+
+    [dbt_run__rocket_sales, dbt_run__adreport, dbt_run__campaign] >> finalize_dag_run(etl_results)

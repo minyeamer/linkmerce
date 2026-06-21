@@ -152,7 +152,7 @@ with DAG(
             }
 
 
-    @task(task_id="generate_dbt_date_range")
+    @task(task_id="generate_dbt_date_range", trigger_rule="all_done")
     def generate_dbt_date_range(results: list[dict]) -> dict:
         from dbt_cosmos import generate_dbt_date_range as generate
         return generate(results, "context.partitions")
@@ -175,6 +175,12 @@ with DAG(
         )
 
 
+    @task(task_id="finalize_dag_run", trigger_rule="all_done")
+    def finalize_dag_run(ti: TaskInstance):
+        from dbt_cosmos import raise_on_failure
+        raise_on_failure(ti)
+
+
     etl_results = (etl_smartstore_order
         .partial(configs=read_configs())
         .expand(credentials=read_credentials()))
@@ -182,4 +188,4 @@ with DAG(
     dbt_date_range = generate_dbt_date_range(etl_results)
     dbt_run = dbt_bigquery_smartstore_order_group()
 
-    dbt_date_range >> prepare_dbt_run() >> dbt_run
+    dbt_date_range >> prepare_dbt_run() >> dbt_run >> finalize_dag_run()
