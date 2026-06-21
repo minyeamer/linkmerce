@@ -334,9 +334,9 @@ with DAG(
     def finalize_dag_run(results: dict, ti: TaskInstance):
         context = results.get("context") or dict()
 
-        for key, name in [("login_failed_count", "login task"), ("subdag_failed_count", "SubDag task")]:
+        for key, name in [("login_failed_count", "login"), ("subdag_failed_count", "SubDag")]:
             if (count := context.get(key, 0)):
-                n_failed_task_s = "{} {} task{}".format(count, name, s = 's' if count > 1 else '')
+                n_failed_task_s = "{} {} task{}".format(count, name, 's' if count > 1 else '')
                 raise AirflowException(f"{n_failed_task_s} failed before Dag completion.")
 
         from dbt_cosmos import raise_on_failure

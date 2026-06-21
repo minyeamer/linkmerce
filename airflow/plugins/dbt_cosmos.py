@@ -160,5 +160,5 @@ def raise_on_failure(ti: TaskInstance):
 
     for key, name in [("etl", "ETL"), ("dbt", "dbt"), ("unclassified", "Unclassified")]:
         if (count := failed_task_count[key]):
-            n_failed_task_s = "{} {} task{}".format(count, name, s = 's' if count > 1 else '')
+            n_failed_task_s = "{} {} task{}".format(count, name, 's' if count > 1 else '')
             raise AirflowException(f"{n_failed_task_s} failed before Dag completion.")
