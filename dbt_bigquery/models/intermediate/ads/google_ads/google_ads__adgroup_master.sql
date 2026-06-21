@@ -43,6 +43,10 @@ adgroup_master AS (
     , grp.adgroup_name
     , adgroup_type.label AS adgroup_type
     , status_fin.label AS adgroup_status
+    , grp.target_cpa
+    , grp.impression_count_30d
+    , grp.click_count_30d
+    , grp.ad_cost_30d
     , cmp.created_at
   FROM {{ source('google_ads', 'adgroup') }} AS grp
   LEFT JOIN {{ source('google_ads', 'account') }} AS acc

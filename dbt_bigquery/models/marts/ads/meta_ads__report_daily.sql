@@ -23,7 +23,7 @@ SELECT
   -- Ad attributes
   , insight.ad_id
   , master.ad_name
-  , COALESCE(master.ad_status, '-') AS ad_status
+  , COALESCE(master.effective_status, '-') AS effective_status
   -- Product attributes
   , insight.product_id
   , product.item_id

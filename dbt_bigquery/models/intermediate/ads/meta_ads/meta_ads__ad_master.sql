@@ -43,7 +43,7 @@ ad_master AS (
         , COALESCE(FORMAT('%02d', objective.seq), '99')
       ) AS ad_seq
     , ad.ad_name
-    , status_fin.label AS ad_status
+    , status_fin.label AS effective_status
     , COALESCE(
           rel_ad.bundle_product_ids
         , rel_adset.bundle_product_ids

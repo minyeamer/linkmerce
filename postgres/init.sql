@@ -1061,6 +1061,7 @@ CREATE TABLE IF NOT EXISTS searchad.rank_now (
 CREATE TABLE IF NOT EXISTS smartstore.channel (
     channel_seq BIGINT NOT NULL -- 채널번호
   , channel_name TEXT -- 채널명
+  , team_name TEXT -- 영업팀
   , brand_id TEXT -- 연결브랜드ID
   , brand_name TEXT -- 연결브랜드
   , brand_seq BIGINT -- 연결브랜드순번

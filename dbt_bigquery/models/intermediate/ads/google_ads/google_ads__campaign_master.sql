@@ -34,6 +34,10 @@ campaign_master AS (
     , campaign_type.label AS campaign_type
     , campaign_status.label AS campaign_status
     , bidding_strategy.label AS bidding_strategy
+    , cmp.campaign_budget
+    , cmp.impression_count_30d
+    , cmp.click_count_30d
+    , cmp.ad_cost_30d
     , cmp.created_at
   FROM {{ source('google_ads', 'campaign') }} AS cmp
   LEFT JOIN {{ source('google_ads', 'account') }} AS acc

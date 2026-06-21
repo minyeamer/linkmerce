@@ -856,11 +856,13 @@
   "smartstore.channel": [
     {"name": "channel_seq", "type": "INTEGER", "description": "채널번호", "mode": "REQUIRED"},
     {"name": "channel_name", "type": "STRING", "description": "채널명"},
+    {"name": "team_name", "type": "STRING", "description": "영업팀"},
     {"name": "brand_id", "type": "STRING", "description": "연결브랜드ID"},
     {"name": "brand_name", "type": "STRING", "description": "연결브랜드"},
     {"name": "brand_seq", "type": "INTEGER", "description": "연결브랜드순번"},
     {"name": "mall_url", "type": "STRING", "description": "판매처주소"},
-    {"name": "order_start_date", "type": "DATE", "description": "최초주문일"}
+    {"name": "order_start_date", "type": "DATE", "description": "최초주문일"},
+    "CLUSTER BY team_name"
   ],
   "smartstore.product": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},

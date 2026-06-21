@@ -67,6 +67,9 @@ ad_master AS (
         , rel_cmp.bundle_product_ids
         , '200000'
       ) AS bundle_product_ids
+    , ad.impression_count_30d
+    , ad.click_count_30d
+    , ad.ad_cost_30d
     , cmp.created_at
   FROM {{ source('google_ads', 'ad') }} AS ad
   LEFT JOIN {{ source('google_ads', 'account') }} AS acc
