@@ -105,9 +105,10 @@ order_count AS (
       order_id
     , product_order_id
     , product_id
-    , MAX(order_status) AS order_status
+    , shop_id
+    , order_status
     , SUM(order_quantity) AS order_quantity
-    , MAX(order_date) AS order_date
+    , order_date
   FROM (
     (SELECT * EXCEPT (bundle_option_ids)
     FROM bundle_product_order
@@ -115,7 +116,7 @@ order_count AS (
     UNION ALL
     (SELECT * FROM exploded_product_order)
   ) AS t_
-  GROUP BY order_id, product_order_id, product_id
+  GROUP BY order_id, product_order_id, order_date, product_id, shop_id, order_status
 )
 
 SELECT *

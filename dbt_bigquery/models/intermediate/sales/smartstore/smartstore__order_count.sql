@@ -86,12 +86,12 @@ order_count AS (
       order_id
     , product_order_id
     , product_id
-    , MAX(delivery_type) AS delivery_type
-    , MAX(order_status) AS order_status
+    , delivery_type
+    , order_status
     , SUM(order_quantity) AS order_quantity
-    , MAX(order_date) AS order_date
+    , order_date
   FROM exploded_product_order
-  GROUP BY order_id, product_order_id, product_id
+  GROUP BY order_id, product_order_id, order_date, product_id, delivery_type, order_status
 )
 
 SELECT *
