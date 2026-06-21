@@ -180,3 +180,51 @@ selectors:
           value: models/intermediate/sales/smartstore
         - method: fqn
           value: marts.sales.analytics__sales_daily
+
+  # Custom selectors
+  - name: coupang_ads_master
+    description: "전체 쿠팡 광고 마스터 모델 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.coupang_ads.coupang_ads__campaign_master
+        - method: fqn
+          value: intermediate.ads.coupang_ads.coupang_ads__adgroup_master
+        - method: fqn
+          value: intermediate.ads.coupang_ads.coupang_ads__report_daily
+  - name: google_ads_master
+    description: "전체 구글 광고 마스터 모델 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.google_ads.google_ads__campaign_master
+        - method: fqn
+          value: intermediate.ads.google_ads.google_ads__adgroup_master
+        - method: fqn
+          value: intermediate.ads.google_ads.google_ads__ad_master
+        - method: fqn
+          value: intermediate.ads.google_ads.google_ads__report_daily
+  - name: meta_ads_master
+    description: "전체 메타 광고 마스터 모델 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.meta_ads.meta_ads__campaign_master
+        - method: fqn
+          value: intermediate.ads.meta_ads.meta_ads__adset_master
+        - method: fqn
+          value: intermediate.ads.meta_ads.meta_ads__ad_master
+        - method: fqn
+          value: intermediate.ads.meta_ads.meta_ads__report_daily
+  - name: searchad_master
+    description: "전체 네이버 검색광고 마스터 모델 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__campaign_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__adgroup_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__ad_master
+        - method: fqn
+          value: intermediate.ads.esarchad.esarchad__report_daily
