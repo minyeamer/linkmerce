@@ -83,7 +83,7 @@ bundle_product_order AS (
   SELECT
       ord.order_id
     , ord.product_order_id
-    , dlv.invoice_no
+    , COALESCE(dlv.invoice_no, '-') AS invoice_no
     -- Sales dimensions
     , COALESCE(
           rel.bundle_product_ids

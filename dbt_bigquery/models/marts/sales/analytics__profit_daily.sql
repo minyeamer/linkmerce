@@ -43,8 +43,8 @@ SELECT
   , fact.payment_amount
   , fact.supply_amount
   , fact.supply_cost
-  , fact.supply_amount - fact.supply_cost - fact.delivery_fee AS margin_amount
   , fact.delivery_fee
+  , fact.supply_amount - fact.supply_cost - fact.delivery_fee AS margin_amount
   , fact.ad_cost
   , fact.extra_cost
   , (COALESCE(fact.supply_amount - fact.supply_cost - fact.delivery_fee, 0)

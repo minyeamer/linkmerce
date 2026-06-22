@@ -66,8 +66,8 @@ order_status AS (
 
 order_detail AS (
   SELECT
-      ord.order_id
-    , sbn.invoice_no
+      COALESCE(ord.order_id, '-') AS order_id
+    , COALESCE(sbn.invoice_no, '-') AS invoice_no
     , ord.account_no
     -- Sales dimensions
     , acc.shop_id
