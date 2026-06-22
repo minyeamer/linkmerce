@@ -49,6 +49,7 @@
     {"name": "product_id", "type": "STRING", "description": "품번코드", "mode": "REQUIRED"},
     {"name": "shop_id", "type": "STRING", "description": "쇼핑몰코드", "mode": "REQUIRED"},
     {"name": "sales_amount", "type": "INTEGER", "description": "매출액"},
+    {"name": "supply_amount", "type": "INTEGER", "description": "정산금액"},
     {"name": "sales_date", "type": "DATE", "description": "매출발생일", "mode": "REQUIRED"},
     "PARTITION BY sales_date"
   ],

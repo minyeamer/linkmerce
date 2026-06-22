@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS core.extra_sales (
     product_id TEXT NOT NULL -- 품번코드
   , shop_id TEXT NOT NULL -- 쇼핑몰코드
   , sales_amount BIGINT -- 매출액
+  , supply_amount BIGINT -- 정산금액
   , sales_date DATE NOT NULL -- 매출발생일
   , PRIMARY KEY (sales_date, product_id, shop_id)
 ) PARTITION BY RANGE (sales_date);
@@ -1379,7 +1380,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 SELECT public.bootstrap_daily_partitions('core.expense',		              'ymd',					      '2026-05-01',				    '1 day',  35);
-SELECT public.bootstrap_daily_partitions('core.extra_sales',              'sales_date',		      '2026-01-01',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('core.extra_sales',              'sales_date',		      '2026-06-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.opex',				              'end_date',			      '2025-01-13',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.order_status',		          'order_date',			    '2025-04-03',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice',			        'pickup_date',			  '2023-05-01',				    '1 day',  35);
