@@ -64,6 +64,17 @@ selectors:
           value: models/intermediate/ads/google_ads
         - method: fqn
           value: marts.sales.analytics__sales_daily
+  # Airflow Dags - opex
+  - name: opex
+    description: "'opex' DAG 실행 결과를 반영하기 위한 OPEX 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.core__opex_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+        - method: fqn
+          value: marts.sales.analytics__profit_daily
   # Airflow Dags - meta_ads
   - name: meta_ads
     description: "'meta_ads' DAG 실행 결과를 반영하기 위한 메타 광고 후속 모델"
@@ -190,8 +201,6 @@ selectors:
           value: intermediate.ads.coupang_ads.coupang_ads__campaign_master
         - method: fqn
           value: intermediate.ads.coupang_ads.coupang_ads__adgroup_master
-        - method: fqn
-          value: intermediate.ads.coupang_ads.coupang_ads__report_daily
   - name: google_ads_master
     description: "전체 구글 광고 마스터 모델 업데이트"
     definition:
@@ -202,8 +211,6 @@ selectors:
           value: intermediate.ads.google_ads.google_ads__adgroup_master
         - method: fqn
           value: intermediate.ads.google_ads.google_ads__ad_master
-        - method: fqn
-          value: intermediate.ads.google_ads.google_ads__report_daily
   - name: meta_ads_master
     description: "전체 메타 광고 마스터 모델 업데이트"
     definition:
@@ -214,8 +221,6 @@ selectors:
           value: intermediate.ads.meta_ads.meta_ads__adset_master
         - method: fqn
           value: intermediate.ads.meta_ads.meta_ads__ad_master
-        - method: fqn
-          value: intermediate.ads.meta_ads.meta_ads__report_daily
   - name: searchad_master
     description: "전체 네이버 검색광고 마스터 모델 업데이트"
     definition:
@@ -226,5 +231,3 @@ selectors:
           value: intermediate.ads.searchad.searchad__adgroup_master
         - method: fqn
           value: intermediate.ads.searchad.searchad__ad_master
-        - method: fqn
-          value: intermediate.ads.esarchad.esarchad__report_daily

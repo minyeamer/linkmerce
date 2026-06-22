@@ -65,7 +65,6 @@ ad_master AS (
           rel_ad.bundle_product_ids
         , rel_grp.bundle_product_ids
         , rel_cmp.bundle_product_ids
-        , '200000'
       ) AS bundle_product_ids
     , ad.impression_count_30d
     , ad.click_count_30d

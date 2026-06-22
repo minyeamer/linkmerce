@@ -59,7 +59,6 @@ ad_master AS (
         , rel_ad.bundle_product_ids
         , rel_grp.bundle_product_ids
         , rel_cmp.bundle_product_ids
-        , '200000'
       ) AS bundle_product_ids
     , ad.bid_amount
     , COALESCE(cmp.is_enabled AND grp.is_enabled AND ad.is_enabled, ad.is_enabled) AS is_enabled
