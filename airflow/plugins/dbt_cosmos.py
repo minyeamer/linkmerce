@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Sequence
     from cosmos import DbtTaskGroup
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
 
 def generate_date_array(results: Sequence | dict, key_path: str | list[str]) -> list[str]:
@@ -138,19 +138,20 @@ def _parse_operator_args(
     return operator_args
 
 
-def raise_on_failure(ti: TaskInstance):
+def raise_on_failure(ti: RuntimeTaskInstance):
     """Dag 실행 종료 후 `task_id`에 특정 키워드가 포함된 `TaskInstance`의 실패 여부를 체크하고 오류를 발생시킨다.
     
     dbt Task의 trigger_rule을 "all_done"으로 실행하면서 무시된 상위 ETL Task의 실패 여부를 반영하기 위함이다.
     """
     from airflow.exceptions import AirflowException
     failed_task_count = {"etl": 0, "dbt": 0, "unclassified": 0}
+    task_states = ti.get_task_states(dag_id=ti.dag_id, run_ids=[ti.run_id])
 
-    for task_instance in ti.get_dagrun().get_task_instances():
-        if task_instance.state not in {"failed", "upstream_failed"}:
+    for task_id, state in (task_states.get(ti.run_id) or dict()).items():
+        if state not in {"failed", "upstream_failed"}:
             continue
 
-        keywords = task_instance.task_id.split('_')
+        keywords = str(task_id).split('_')
         if "etl" in keywords:
             failed_task_count["etl"] += 1
         elif "dbt" in keywords:

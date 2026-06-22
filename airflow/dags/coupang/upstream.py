@@ -51,6 +51,7 @@ Airflow UI에서 Dag을 트리거할 때 {vendor_id: dag_ids} 형식의 Configur
 from airflow.sdk import DAG, task
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.exceptions import AirflowException
 from airflow.timetables.trigger import MultipleCronTriggerTimetable
 from cosmos import DbtTaskGroup
@@ -331,7 +332,7 @@ with DAG(
     # Finalize Dag run
 
     @task(task_id="finalize_dag_run", trigger_rule="all_done")
-    def finalize_dag_run(results: dict, ti: TaskInstance):
+    def finalize_dag_run(results: dict, ti: RuntimeTaskInstance):
         context = results.get("context") or dict()
 
         for key, name in [("login_failed_count", "login"), ("subdag_failed_count", "SubDag")]:

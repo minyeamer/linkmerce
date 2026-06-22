@@ -21,6 +21,7 @@ MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
 """
 
 from airflow.sdk import DAG, task
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.models.taskinstance import TaskInstance
 from cosmos import DbtTaskGroup
 from datetime import timedelta
@@ -206,7 +207,7 @@ with DAG(
 
 
     @task(task_id="finalize_dag_run", trigger_rule="all_done")
-    def finalize_dag_run(ti: TaskInstance):
+    def finalize_dag_run(ti: RuntimeTaskInstance):
         from dbt_cosmos import raise_on_failure
         raise_on_failure(ti)
 
