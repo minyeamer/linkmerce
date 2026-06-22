@@ -231,3 +231,13 @@ selectors:
           value: intermediate.ads.searchad.searchad__adgroup_master
         - method: fqn
           value: intermediate.ads.searchad.searchad__ad_master
+  - name: ads_ad_master
+    description: "전체 광고 소재 마스터 모델 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.google_ads.google_ads__ad_master
+        - method: fqn
+          value: intermediate.ads.meta_ads.meta_ads__ad_master
+        - method: fqn
+          value: intermediate.ads.searchad.searchad__ad_master

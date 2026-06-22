@@ -1,0 +1,135 @@
+version: 2
+
+models:
+  - name: "core__product_master"
+    description: "`core.item` 테이블에서 품번코드가 존재하는 항목만 추출한 대표상품 마스터 모델"
+
+  # intermediate > ads
+
+  - name: "core__opex_daily"
+    description: "시작/종료 기간 단위로 작성된 비용 데이터를 일자 단위로 분배한 파티션 모델"
+
+  - name: "relation__ad_id_to_ranged_sbn_ids"
+    description: "광고 ID와 사방넷 품번코드 매핑을 리뉴얼 상품 규칙에 따라 시작/종료 기간 단위로 구분한 공통 매핑 모델"
+
+  # intermediate > ads > coupang_ads
+
+  - name: "coupang_ads__campaign_master"
+    description: "쿠팡 광고 캠페인 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "coupang_ads__adgroup_master"
+    description: "쿠팡 광고그룹 테이블과 캠페인 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "coupang_ads__insight_daily"
+    description: "쿠팡 PA/NCA 광고 보고서를 결합하면서 SKU 단위로 세분화하고 집계 기준과 집계 항목만 남긴 일별 파티션 모델"
+
+  # intermediate > ads > google_ads
+
+  - name: "google_ads__campaign_master"
+    description: "구글 광고 캠페인 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "google_ads__adgroup_master"
+    description: "구글 광고그룹 테이블과 캠페인 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "google_ads__ad_master"
+    description: "구글 광고 테이블과 캠페인/광고그룹 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "google_ads__insight_daily"
+    description: "구글 광고 성과를 광고 매칭 기반의 SKU 단위로 세분화하고 집계 기준과 집계 항목만 남긴 일별 파티션 모델"
+
+  # intermediate > ads > meta_ads
+
+  - name: "meta_ads__campaign_master"
+    description: "메타 광고 캠페인 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "meta_ads__adset_master"
+    description: "메타 광고세트 테이블과 캠페인 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "meta_ads__ad_master"
+    description: "메타 광고 테이블과 캠페인/광고세트 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "meta_ads__insight_daily"
+    description: "메타 광고 성과를 광고 매칭 기반의 SKU 단위로 세분화하고 집계 기준과 집계 항목만 남긴 일별 파티션 모델"
+
+  # intermediate > ads > searchad
+
+  - name: "searchad__campaign_master"
+    description: "네이버 검색광고/GFA 캠페인 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "searchad__adgroup_master"
+    description: "네이버 검색광고/GFA 광고그룹 테이블과 캠페인 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "searchad__ad_master"
+    description: "네이버 검색광고/GFA 광고 테이블과 캠페인/광고그룹 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "searchad__contract_master"
+    description: "네이버 검색광고의 전체 기간 브랜드검색/신제품검색 계약 내역에 순번을 추가한 마스터 모델"
+
+  - name: "searchad__contract_daily"
+    description: "시작/종료 기간 단위로 작성된 네이버 검색광고 브랜드검색/신제품검색 계약 내역을 일자 단위로 분배한 파티션 모델"
+
+  - name: "searchad__insight_daily"
+    description: "네이버 검색광고/GFA 보고서를 결합하면서 SKU 단위로 세분화하고 집계 기준과 집계 항목만 남긴 일별 파티션 모델"
+
+  - name: "relation__smt_prd_to_ranged_sbn_ids"
+    description: "스마트스토어 상품코드와 사방넷 품번코드 매핑을 리뉴얼 상품 규칙에 따라 시작/종료 기간 단위로 구분한 공통 매핑 모델"
+
+  # intermediate > delivery
+
+  - name: "cj__invoice"
+    description: "CJ 로이스파셀/eFLEXs 송장 데이터를 매출에 붙이기 위해 송장번호 단위로 운임과 부자재금액을 집계한 모델"
+
+  - name: "cj__invoice_order"
+    description: "CJ 로이스파셀/eFLEXs 송장 데이터를 매출에 붙이기 위해 주문번호 단위로 운임과 부자재금액을 집계한 모델"
+
+  # intermediate > sales > coupang_rfm
+
+  - name: "coupang_rfm__order_count"
+    description: "쿠팡 로켓정산 내역에서 SKU별 주문건수를 집계하기 위해 주문번호 단위로 정리한 일별 파티션 모델"
+
+  - name: "coupang_rfm__sales_daily"
+    description: "쿠팡 로켓정산 내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
+
+  # intermediate > sales > sabangnet
+
+  - name: "sabangnet__order_count"
+    description: "사방넷 주문내역에서 SKU별 주문건수를 집계하기 위해 주문번호 단위로 정리한 일별 파티션 모델"
+
+  - name: "sabangnet__sales_daily"
+    description: "사방넷 주문내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
+
+  # intermediate > sales > smartstore
+
+  - name: "smartstore__order_count"
+    description: "스마트스토어 주문내역에서 SKU별 주문건수를 집계하기 위해 주문번호 단위로 정리한 일별 파티션 모델"
+
+  - name: "smartstore__sales_daily"
+    description: "스마트스토어 주문내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
+
+  - name: "relation__smt_opt_to_sbn_ids"
+    description: "스마트스토어 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 사방넷 매핑 규칙에 따라 자동 매칭한 모델"
+
+  # marts > ads
+
+  - name: "coupang_ads__report_daily"
+    description: "일별로 요약된 쿠팡 PA/NCA 광고 보고서와 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
+
+  - name: "google_ads__report_daily"
+    description: "일별로 요약된 구글 광고 성과와 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
+
+  - name: "meta_ads__report_daily"
+    description: "일별로 요약된 메타 광고 성과와 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
+
+  - name: "searchad__report_daily"
+    description: "일별로 요약된 검색광고/GFA 보고서 및 계약 내역과 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
+
+  # marts > sales
+
+  - name: "analytics__order_count"
+    description: "주문번호 단위로 집계된 사방넷, 스마트스토어, 쿠팡 로켓 주문내역과 상품/쇼핑몰 마스터 테이블을 결합해 주문건수를 조회하기 위한 테이블 함수"
+
+  - name: "analytics__sales_daily"
+    description: "각종 플랫폼에서 요약된 매출, 광고, 비용 데이터를 결합하고 SKU 및 쇼핑몰별로 집계한 일별 파티션 모델"
+
+  - name: "analytics__profit_daily"
+    description: "통합된 일별 매출, 광고, 비용 데이터에 상품/쇼핑몰 마스터 테이블을 결합하고 마진금액과 영업이익을 계산한 테이블 함수"
