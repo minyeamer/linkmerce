@@ -357,6 +357,11 @@ def overwrite_table_from_gsheets(
                 record[key] = func(record[key])
         rows.append({column: record[column] for column in columns} if columns else record)
 
+    # >> 테스트 모드의 경우 적재 작업을 중단한다.
+    from airflow_patches import is_test_mode
+    if is_test_mode():
+        return new_rows
+
     # 2. PostgreSQL 테이블에 데이터를 덮어쓰기로 적재한다.
     with PostgresClient(_read_postgres_dsn(postgres_conn_id)) as pg_client:
         with pg_client.conn.cursor() as cursor:
