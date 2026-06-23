@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from functools import wraps
 
 if TYPE_CHECKING:
-    from typing import Literal, Sequence, TypedDict, TypeVar
+    from typing import Any, Callable, Literal, Sequence, TypedDict, TypeVar
     from linkmerce.common.load import DuckDBConnection
     from linkmerce.extensions.bigquery import BigQueryClient
     from linkmerce.extensions.postgres import PostgresClient
@@ -313,3 +313,73 @@ def merge_into_pg_table_from_duckdb(
         if_source_table_empty, if_target_table_not_found, cleanup_staging_table,
         install_extension=True
     )
+
+
+###################################################################
+######################## from Google Sheets #######################
+###################################################################
+
+def overwrite_table_from_gsheets(
+        key: str,
+        sheet: str,
+        table: str,
+        columns: Sequence[str],
+        primary_key: Sequence[str] | None = None,
+        not_null: Sequence[str] | None = None,
+        apply_func: dict[str, Callable[[Any], Any]] | None = None,
+        gcp_conn_id: str = "gcp_bigquery",
+        postgres_conn_id: str = "postgres",
+        head: int = 1,
+        numericise_ignore: Sequence[int] | bool = list(),
+        **read_options
+    ) -> list[dict]:
+    """구글시트를 읽어 PostgreSQL 및 BigQuery 테이블에 적재한다. 신규 행이 있다면 반환한다."""
+    from linkmerce.extensions.gsheets import WorksheetClient
+    from linkmerce.extensions.postgres import PostgresClient
+    from linkmerce.extensions.bigquery import BigQueryClient
+
+    account = _read_google_service_account(gcp_conn_id)
+    gs = WorksheetClient(account, key, sheet)
+    rows, new_rows, unique = list(), list(), set()
+
+    # 1. 구글시트에서 특정 시트를 읽어오면서 PK, NOT NULL 등 제약 조건을 검증한다.
+    for record in gs.get_all_records(head=head, numericise_ignore=numericise_ignore, **read_options):
+        if primary_key:
+            identifier = tuple(record[key] for key in primary_key if record[key])
+            if (not identifier) or (identifier in unique):
+                continue
+            unique.add(identifier)
+        if not_null:
+            if not [record[key] for key in not_null if record[key]]:
+                continue
+        if apply_func:
+            for key, func in apply_func.items():
+                record[key] = func(record[key])
+        rows.append({column: record[column] for column in columns} if columns else record)
+
+    # 2. PostgreSQL 테이블에 데이터를 덮어쓰기로 적재한다.
+    with PostgresClient(_read_postgres_dsn(postgres_conn_id)) as pg_client:
+        with pg_client.conn.cursor() as cursor:
+            pg_client.execute("BEGIN;", cursor=cursor)
+            try:
+                pg_client.execute(f"TRUNCATE TABLE {table};", cursor=cursor)
+                pg_client.insert_into_table_from_json(table, rows, cursor=cursor)
+                pg_client.execute("COMMIT;", cursor=cursor)
+            except:
+                pg_client.execute("ROLLBACK;", cursor=cursor)
+                raise
+
+    # 3. BigQuery 테이블에 데이터를 덮어쓰기로 적재한다.
+    with BigQueryClient(account) as bq_client:
+        # 3-1. PK 또는 전체 행을 기준으로 기존 데이터와 비교하여 신규 행을 특정한다.
+        criteria = primary_key if primary_key else columns
+        query = f"SELECT DISTINCT {', '.join(criteria)} FROM {table};"
+        exists = bq_client.fetch_all_to_csv(query, header=False)
+        for row in rows:
+            identifier = tuple(row[key] for key in criteria if row[key])
+            if identifier not in exists:
+                new_rows.append(row)
+
+        bq_client.load_table_from_json(table, rows, write="truncate")
+
+    return new_rows

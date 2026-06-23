@@ -336,22 +336,23 @@ def dual_load(
         sheet: str,
         postgres_dsn: str,
         table: str,
-        columns: Sequence[str] | None = None,
+        columns: Sequence[str],
         primary_key: Sequence[str] | None = None,
         not_null: Sequence[str] | None = None,
+        apply_func: dict[str, Callable[[Any], Any]] | None = None,
         head: int = 1,
         numericise_ignore: Sequence[int] | bool = list(),
-        apply_func: dict[str, Callable[[Any], Any]] | None = None,
-        **kwargs
-    ):
-    """워크시트를 읽어 PostgreSQL 및 BigQuery 테이블에 적재한다."""
+        **read_options
+    ) -> list[dict]:
+    """워크시트를 읽어 PostgreSQL 및 BigQuery 테이블에 적재한다. 신규 행이 있다면 반환한다."""
     from linkmerce.extensions.postgres import PostgresClient
     from linkmerce.extensions.bigquery import BigQueryClient
 
     gs = WorksheetClient(account, key, sheet)
-    values, unique = list(), set()
+    rows, new_rows, unique = list(), list(), set()
 
-    for record in gs.get_all_records(head=head, numericise_ignore=numericise_ignore, **kwargs):
+    # 1. 구글시트에서 특정 시트를 읽어오면서 PK, NOT NULL 등 제약 조건을 검증한다.
+    for record in gs.get_all_records(head=head, numericise_ignore=numericise_ignore, **read_options):
         if primary_key:
             identifier = tuple(record[key] for key in primary_key if record[key])
             if (not identifier) or (identifier in unique):
@@ -363,18 +364,31 @@ def dual_load(
         if apply_func:
             for key, func in apply_func.items():
                 record[key] = func(record[key])
-        values.append({column: record[column] for column in columns} if columns else record)
+        rows.append({column: record[column] for column in columns})
 
+    # 2. PostgreSQL 테이블에 데이터를 덮어쓰기로 적재한다.
     with PostgresClient(postgres_dsn) as pg_client:
         with pg_client.conn.cursor() as cursor:
             pg_client.execute("BEGIN;", cursor=cursor)
             try:
                 pg_client.execute(f"TRUNCATE TABLE {table};", cursor=cursor)
-                pg_client.insert_into_table_from_json(table, values, cursor=cursor)
+                pg_client.insert_into_table_from_json(table, rows, cursor=cursor)
                 pg_client.execute("COMMIT;", cursor=cursor)
             except:
                 pg_client.execute("ROLLBACK;", cursor=cursor)
                 raise
 
+    # 3. BigQuery 테이블에 데이터를 덮어쓰기로 적재한다.
     with BigQueryClient(account) as bq_client:
-        bq_client.load_table_from_json(table, values, write="truncate")
+        # 3-1. PK 또는 전체 행을 기준으로 기존 데이터와 비교하여 신규 행을 특정한다.
+        criteria = primary_key if primary_key else columns
+        query = f"SELECT DISTINCT {', '.join(criteria)} FROM {table};"
+        exists = bq_client.fetch_all_to_csv(query, header=False)
+        for row in rows:
+            identifier = tuple(row[key] for key in criteria if row[key])
+            if identifier not in exists:
+                new_rows.append(row)
+
+        bq_client.load_table_from_json(table, rows, write="truncate")
+
+    return new_rows

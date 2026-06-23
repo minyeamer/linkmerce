@@ -1,4 +1,13 @@
 selectors:
+  # Airflow Dags - core
+  - name: gsheets_opex
+    description: "'gsheets_opex' DAG 실행 결과를 반영하기 위한 운영비용 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.core__opex_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
     description: "'cj_loisparcel_invoice' DAG 실행 결과를 반영하기 위한 CJ 송장 후속 모델"

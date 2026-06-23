@@ -48,7 +48,7 @@ with DAG(
     ],
 ) as dag:
 
-    PATH = "public.stock_report"
+    PATH = "core.stock_report"
     AM_PM_CUTOFF_HOUR = 17
     COUPANG_CREDENTIALS = "coupang.vendor"
 
