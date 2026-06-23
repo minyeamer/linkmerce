@@ -45,6 +45,12 @@
     "PARTITION BY ymd",
     "CLUSTER BY expense_type"
   ],
+  "core.extra_ads": [
+    {"name": "shop_id", "type": "STRING", "description": "쇼핑몰코드", "mode": "REQUIRED"},
+    {"name": "brand_id", "type": "STRING", "description": "연결브랜드ID", "mode": "REQUIRED"},
+    {"name": "ad_cost", "type": "INTEGER", "description": "광고비"},
+    {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"}
+  ],
   "core.extra_sales": [
     {"name": "product_id", "type": "STRING", "description": "품번코드", "mode": "REQUIRED"},
     {"name": "shop_id", "type": "STRING", "description": "쇼핑몰코드", "mode": "REQUIRED"},

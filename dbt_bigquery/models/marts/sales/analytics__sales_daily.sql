@@ -76,7 +76,7 @@ extra_sales_daily AS (
     , 0 AS order_status
     , 0 AS sku_quantity
     , sales_amount AS payment_amount
-    , 0 AS supply_amount
+    , supply_amount
     , 0 AS supply_cost
     , 0 AS delivery_fee
     , NULL AS ad_cost
@@ -141,6 +141,16 @@ meta_ads_insight_daily AS (
   FROM {{ ref('meta_ads__insight_daily') }}
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
   GROUP BY ymd, product_id
+),
+
+extra_ads_insight_daily AS (
+  SELECT
+      brand_id AS product_id
+    , shop_id
+    , ad_cost
+    , ymd AS order_date
+  FROM {{ source('core', 'extra_ads') }}
+  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
 ),
 
 -- Step 3: assign searchad cost to the highest-sales shop_id
@@ -326,6 +336,8 @@ insight_daily AS (
     (SELECT * FROM google_ads_insight_daily)
     UNION ALL
     (SELECT * FROM meta_ads_insight_daily)
+    UNION ALL
+    (SELECT * FROM extra_ads_insight_daily)
   ) AS t_
 ),
 

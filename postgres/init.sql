@@ -93,6 +93,15 @@ CREATE TABLE IF NOT EXISTS core.expense (
   , PRIMARY KEY (ymd, expense_id)
 ) PARTITION BY RANGE (ymd);
 
+-- [기타광고 (임시)]
+CREATE TABLE IF NOT EXISTS core.extra_ads (
+    shop_id TEXT NOT NULL -- 쇼핑몰코드
+  , brand_id TEXT NOT NULL -- 연결브랜드ID
+  , ad_cost TEXT -- 광고비
+  , ymd DATE NOT NULL -- 날짜
+  , PRIMARY KEY (ymd, shop_id, brand_id)
+);
+
 -- [기타매출]
 CREATE TABLE IF NOT EXISTS core.extra_sales (
     product_id TEXT NOT NULL -- 품번코드

@@ -38,15 +38,15 @@ SELECT
   , COALESCE(shop.shop_group, '-') AS shop_group
   , COALESCE(shop.shop_alias, '-') AS shop_name
   , COALESCE(order_status.label, '알 수 없음') AS order_status
-  , fact.sku_quantity * COALESCE(item.unit_scale, 1) AS unit_quantity
-  , fact.sku_quantity
-  , fact.payment_amount
-  , fact.supply_amount
-  , fact.supply_cost
-  , fact.delivery_fee
-  , fact.supply_amount - fact.supply_cost - fact.delivery_fee AS margin_amount
-  , fact.ad_cost
-  , fact.extra_cost
+  , COALESCE(fact.sku_quantity * COALESCE(item.unit_scale, 1), 0) AS unit_quantity
+  , COALESCE(fact.sku_quantity, 0) AS sku_quantity
+  , COALESCE(fact.payment_amount, 0) AS payment_amount
+  , COALESCE(fact.supply_amount, 0) AS supply_amount
+  , COALESCE(fact.supply_cost, 0) AS supply_cost
+  , COALESCE(fact.delivery_fee, 0) AS delivery_fee
+  , COALESCE(fact.supply_amount - fact.supply_cost - fact.delivery_fee, 0) AS margin_amount
+  , COALESCE(fact.ad_cost, 0) AS ad_cost
+  , COALESCE(fact.extra_cost, 0) AS extra_cost
   , (COALESCE(fact.supply_amount - fact.supply_cost - fact.delivery_fee, 0)
       - COALESCE(fact.ad_cost, 0)
       - COALESCE(fact.extra_cost, 0)
