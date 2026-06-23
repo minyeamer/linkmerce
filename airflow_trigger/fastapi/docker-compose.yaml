@@ -1,0 +1,12 @@
+services:
+  airflow-trigger:
+    build: .
+    image: ${AIRFLOW_TRIGGER_IMAGE_NAME:-linkmerce-airflow-trigger:latest}
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "${AIRFLOW_TRIGGER_PORT:-16160}:16160"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

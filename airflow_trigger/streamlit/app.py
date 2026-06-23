@@ -34,28 +34,33 @@ class DagExecutor:
     def __init__(self, session: requests.Session):
         self.session = session
 
-    def auth_token(self):
+    @property
+    def auth_headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+    def auth_airflow(self):
         url = "{}/auth/token".format(AIRFLOW_SERVER_URL)
-        body = dict(username=AIRFLOW_USERNAME, password=AIRFLOW_PASSWORD)
+        body = {"username": AIRFLOW_USERNAME, "password": AIRFLOW_PASSWORD}
         with self.session.post(url, json=body) as response:
             if response.ok:
                 self.access_token = response.json()["access_token"]
 
     def get_dag_run(self, dag_id: str, logical_date: dt.datetime, **kwargs) -> dict:
         url = "{}/api/v2/dags/{}/dagRuns".format(AIRFLOW_SERVER_URL, dag_id)
-        params = dict(logical_date_gte = kst_to_utc(logical_date), logical_date_lte = kst_to_utc(logical_date))
-        headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
-        with self.session.get(url, params=params, headers=headers) as response:
+        params = {"logical_date_gte": kst_to_utc(logical_date), "logical_date_lte": kst_to_utc(logical_date)}
+        with self.session.get(url, params=params, headers=self.auth_headers) as response:
             dag_runs = response.json()["dag_runs"]
             return dag_runs[0]["dag_run_id"] if dag_runs else None
 
     def delete_dag_run(self, dag_id: str, dag_run_id: str, **kwargs) -> int:
         url = "{}/api/v2/dags/{}/dagRuns/{}".format(AIRFLOW_SERVER_URL, dag_id, dag_run_id)
-        headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
-        with self.session.delete(url, headers=headers) as response:
+        with self.session.delete(url, headers=self.auth_headers) as response:
             return response.status_code
 
-    def dag_run(
+    def trigger_dag_run(
             self,
             dag_id: str,
             dag_run_id: str,
@@ -69,20 +74,19 @@ class DagExecutor:
             self.delete_dag_run(dag_id, existing_dag_run)
 
         url = "{}/api/v2/dags/{}/dagRuns".format(AIRFLOW_SERVER_URL, dag_id)
-        headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
-        body = dict(
-            dag_run_id = dag_run_id,
-            logical_date = kst_to_utc(logical_date),
-            data_interval_start = kst_to_utc(data_interval_start),
-            data_interval_end = kst_to_utc(data_interval_end),
-        )
-        with self.session.post(url, json=body, headers=headers) as response:
+        body = {
+            "dag_run_id": dag_run_id,
+            "logical_date": kst_to_utc(logical_date),
+            "data_interval_start": kst_to_utc(data_interval_start),
+            "data_interval_end": kst_to_utc(data_interval_end),
+        }
+        with self.session.post(url, json=body, headers=self.auth_headers) as response:
             if response.ok:
                 results = response.json()
                 results["status_code"] = response.status_code
                 return results
             else:
-                return dict(state="failed", status_code=response.status_code, message=response.text)
+                return {"state": "failed", "status_code": response.status_code, "message": response.text}
 
 
 def kst_to_utc(datetime: dt.datetime) -> str:
@@ -156,9 +160,9 @@ def build():
         if st.button("실행", type="primary"):
             with requests.Session() as session:
                 executor = DagExecutor(session)
-                executor.auth_token()
+                executor.auth_airflow()
                 if executor.access_token:
-                    response = executor.dag_run(
+                    response = executor.trigger_dag_run(
                         dag_id = dag_id[dag_name],
                         dag_run_id = "api__{}__{}".format(order_name, kst_to_utc(round_dt(end_date))[:-1]+"+00:00"),
                         logical_date = start_date,

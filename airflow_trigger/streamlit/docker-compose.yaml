@@ -1,8 +1,9 @@
 services:
   streamlit:
-    image: ${STREAMLIT_IMAGE_NAME:-streamlit:1.56.0}
+    build: .
+    image: ${AIRFLOW_STREAMLIT_IMAGE_NAME:-linkmerce-airflow-streamlit:latest}
     ports:
-      - "${STREAMLIT_PORT:-8501}:8501"
+      - "${AIRFLOW_STREAMLIT_PORT:-8501}:8501"
     volumes:
       - ${STREAMLIT_APP_DIR:-.}/app.py:/app/app.py
       - ${STREAMLIT_APP_DIR:-.}/.streamlit:/app/.streamlit
