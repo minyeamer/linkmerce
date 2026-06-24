@@ -40,8 +40,15 @@ SELECT
   , COALESCE(product.category_name4, '-') AS category_name4
   , COALESCE(product.color, '-') AS color
   , COALESCE(product.product_name, '-') AS product_name
-  -- Insight attributes
+  -- Option attributes
   , insight.option_id
+  , (CASE
+      WHEN option.option_name IS NOT NULL
+        THEN CONCAT(option.product_name, ' / ', option.option_name)
+      ELSE option.product_name
+    END) AS option_name
+  , option.category_name AS category_name_cpg
+  -- Insight attributes
   , COALESCE(placement_group.label, '-') AS placement_group
   , insight.impression_count
   , insight.click_count
@@ -58,4 +65,6 @@ LEFT JOIN {{ ref('coupang_ads__campaign_master') }} AS master
   ON insight.campaign_id = master.campaign_id
 LEFT JOIN {{ ref('core__product_master') }} AS product
   ON insight.product_id = product.product_id
+LEFT JOIN {{ source('coupang', 'option') }} AS option
+  ON insight.option_id = option.option_id
 WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE
