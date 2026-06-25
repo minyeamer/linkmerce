@@ -15,6 +15,8 @@
 
 WITH
 
+-- order_status IN (0, 1, 2, 3, 5, 6)
+
 order_status_smt AS (
   SELECT
       smt.product_order_id
@@ -46,10 +48,10 @@ bundle_product_order AS (
         , '200000'
       ) AS bundle_product_ids
     , (CASE
-        WHEN status_smt.order_status IN (6, 8) THEN -1
         WHEN status_cor.order_status IS NOT NULL THEN status_cor.order_status
         WHEN status_smt.order_status = 7 THEN 1
         WHEN status_smt.order_status = 5 THEN 2
+        WHEN status_smt.order_status IN (6, 8) THEN 3
         ELSE 0
       END) AS order_status
     , IF(ord.delivery_type = 7, 7, 0) AS delivery_type
@@ -94,6 +96,4 @@ order_count AS (
   GROUP BY order_id, product_order_id, order_date, product_id, delivery_type, order_status
 )
 
-SELECT *
-FROM order_count
-WHERE order_status = 0 AND order_quantity > 0
+SELECT * FROM order_count

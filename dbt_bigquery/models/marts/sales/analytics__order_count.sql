@@ -71,6 +71,7 @@ order_count AS (
     UNION ALL
     (SELECT * FROM coupang_rfm_order_count)
   ) AS t_
+  WHERE order_status = 0 AND order_quantity != 0
 )
 
 SELECT

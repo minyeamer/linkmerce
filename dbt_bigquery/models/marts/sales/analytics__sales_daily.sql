@@ -293,19 +293,43 @@ coupang_ads_insight_daily_with_shop_mapping AS (
 
 expense_daily AS (
   SELECT
-      '200000' AS product_id
-    , 'adop0005' AS shop_id
-    , SUM(amount) AS extra_cost
-    , ymd AS order_date
-  FROM {{ source('core', 'expense') }}
-  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd
+      cost.product_id
+    , cost.shop_id
+    , sales.delivery_fee
+    , cost.extra_cost
+    , cost.order_date
+  FROM (
+    SELECT
+        '200000' AS product_id
+      , 'adop0005' AS shop_id
+      , SUM(amount) AS extra_cost
+      , ymd AS order_date
+    FROM {{ source('core', 'expense') }}
+    WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+    GROUP BY ymd
+  ) AS cost
+  LEFT JOIN (
+    SELECT
+        -- Adjust for delivery_fee double-counted in sales
+        SUM(delivery_fee) * - 1 AS delivery_fee
+      , order_date
+    FROM (
+      (SELECT * FROM sabangnet_sales_daily)
+      UNION ALL
+      (SELECT * FROM smartstore_sales_daily)
+      UNION ALL
+      (SELECT * FROM coupang_rfm_sales_daily)
+    ) AS t_
+    GROUP BY order_date
+  ) AS sales
+  ON cost.order_date = sales.order_date
 ),
 
 opex_daily AS (
   SELECT
       brand_id AS product_id
     , IF(dept_id = 1, 'adop0004', 'adop0003') AS shop_id
+    , NULL AS delivery_fee
     , SUM(amount) AS extra_cost
     , ymd AS order_date
   FROM {{ ref('core__opex_daily') }}
@@ -350,7 +374,7 @@ cost_daily AS (
     , NULL AS payment_amount
     , NULL AS supply_amount
     , NULL AS supply_cost
-    , NULL AS delivery_fee
+    , delivery_fee
     , NULL AS ad_cost
     , extra_cost
     , order_date

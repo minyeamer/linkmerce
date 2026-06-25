@@ -13,7 +13,11 @@
   )
 }}
 
-WITH rocket_sales AS (
+WITH
+
+-- order_status IN (0, 1, 3, 6)
+
+rocket_sales AS (
   SELECT
       order_id
     , option_id
@@ -54,8 +58,8 @@ exploded_product_order AS (
       ord.order_id
     , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
     , (CASE
-        WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 3
-        ELSE ord.order_status
+        WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
+        ELSE LEAST(ord.order_status, 3)
       END) AS order_status
     , ord.order_quantity
     , ord.order_date
@@ -74,6 +78,4 @@ order_count AS (
   GROUP BY order_id, order_date, product_id, order_status
 )
 
-SELECT *
-FROM order_count
-WHERE order_status = 0 AND order_quantity != 0
+SELECT * FROM order_count

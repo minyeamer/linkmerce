@@ -15,6 +15,8 @@
 
 WITH
 
+-- order_status IN (0, 1, 2, 3, 5)
+
 order_invoice AS (
   SELECT
       order_seq
@@ -64,7 +66,6 @@ order_detail AS (
   -- Filter orders
   WHERE ord.order_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND ord.order_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
-    AND COALESCE(sbn.order_status, 1) NOT IN (7, 10, 999)
     AND acc.shop_id NOT IN ('shop0055', 'chop0022')
     AND NOT STARTS_WITH(ord.order_id, '병원출고_')
 ),
@@ -119,6 +120,4 @@ order_count AS (
   GROUP BY order_id, product_order_id, order_date, product_id, shop_id, order_status
 )
 
-SELECT *
-FROM order_count
-WHERE order_status = 0 AND order_quantity > 0
+SELECT * FROM order_count

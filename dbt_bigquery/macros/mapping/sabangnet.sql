@@ -14,6 +14,7 @@ CASE
   WHEN order_status_cor IS NOT NULL THEN order_status_cor
   WHEN order_status_sbn IN (9, 12, 25, 26) THEN 1
   WHEN order_status_sbn IN (8, 11, 21, 22, 23, 24) THEN 2
+  WHEN order_status_sbn IN (7, 10, 999) THEN 3
   ELSE 0
 END
 {%- endmacro %}
@@ -27,8 +28,6 @@ END
 
 {% macro sabangnet__payment_amount_rules() -%}
 CASE
-  WHEN (order_status_cor IS NOT NULL) AND (order_status_cor IN (1, 2, 5)) THEN 0
-  WHEN order_status_sbn > 4 THEN 0
   WHEN (shop_id = 'shop0666') AND (SUM(payment_amount) OVER (PARTITION BY account_no, order_id) < 19800)
     THEN SUM(payment_amount) OVER (PARTITION BY account_no, order_id) + 3000
   WHEN ROW_NUMBER() OVER (PARTITION BY account_no, order_id) = 1

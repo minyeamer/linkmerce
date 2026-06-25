@@ -15,6 +15,8 @@
 
 WITH
 
+-- order_status IN (0, 1, 2, 3, 5)
+
 delivery_group AS (
   SELECT
       dlv.delivery_group
@@ -98,7 +100,6 @@ order_detail AS (
   -- Filter orders
   WHERE ord.order_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND ord.order_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
-    AND COALESCE(sbn.order_status, 1) NOT IN (7, 10, 999)
     AND acc.shop_id NOT IN ('shop0055', 'chop0022')
     AND NOT STARTS_WITH(ord.order_id, '병원출고_')
 ),
@@ -267,13 +268,10 @@ product_order_with_cj_delivery AS (
     , ord.product_id
     , ord.order_status
     -- Sales metrics
-    , IF(ord.order_status = 0, ord.sku_quantity, 0) AS sku_quantity
+    , ord.sku_quantity
     , ord.payment_amount
     , ord.supply_amount
-    , (CASE
-        WHEN ord.order_status IN (0, 2, 3) THEN ord.org_price * ord.sku_quantity
-        ELSE 0
-      END) AS supply_cost
+    , ord.org_price * ord.sku_quantity AS supply_cost
     -- Delivery data
     , ord.org_price
     , ord.delivery_group

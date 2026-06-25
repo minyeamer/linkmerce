@@ -15,6 +15,8 @@
 
 WITH
 
+-- order_status IN (0, 1, 2, 3, 5, 6)
+
 delivery_group AS (
   SELECT
       dlv.delivery_group
@@ -92,10 +94,10 @@ bundle_product_order AS (
       ) AS bundle_product_ids
     , IF(ord.delivery_type = 7, 7, 0) AS delivery_type
     , (CASE
-        WHEN status_smt.order_status IN (6, 8) THEN -1
         WHEN status_cor.order_status IS NOT NULL THEN status_cor.order_status
         WHEN status_smt.order_status = 7 THEN 1
         WHEN status_smt.order_status = 5 THEN 2
+        WHEN status_smt.order_status IN (6, 8) THEN 3
         ELSE 0
       END) AS order_status
     -- Sales metrics
@@ -131,7 +133,7 @@ exploded_product_order AS (
       *
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY product_order_id) AS bundle_product_count
-    , IF(order_status = 3, 0, org_price * sku_quantity) AS cost_amount
+    , IF(order_status = 6, 0, org_price * sku_quantity) AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -141,15 +143,15 @@ exploded_product_order AS (
       , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
       , ord.delivery_type
       , (CASE
-          WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 3
+          WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
           ELSE ord.order_status
         END) AS order_status
       -- Sales metrics
       , (ord.order_quantity
           * COALESCE(SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64), 1)
         ) AS sku_quantity
-      , IF(ord.order_status = 0, ord.payment_amount, 0) AS payment_amount
-      , IF(ord.order_status = 0, ord.supply_amount, 0) AS supply_amount
+      , ord.payment_amount
+      , ord.supply_amount
       -- Cost data
       , COALESCE(prd.org_price, itm.org_price, 0) + COALESCE(itm.extra_cost, 0) AS org_price
       , COALESCE(itm.delivery_group, '-') AS delivery_group
@@ -162,7 +164,6 @@ exploded_product_order AS (
       ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = prd.product_id
     LEFT JOIN {{ source('core', 'item') }} AS itm
       ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = itm.product_id
-    WHERE ord.order_status != -1
   ) AS t_
 ),
 
@@ -227,13 +228,10 @@ product_order_with_cj_delivery AS (
     , ord.delivery_type
     , ord.order_status
     -- Sales metrics
-    , IF(ord.order_status = 0, ord.sku_quantity, 0) AS sku_quantity
+    , ord.sku_quantity
     , ord.payment_amount
     , ord.supply_amount
-    , (CASE
-        WHEN ord.order_status IN (0, 2, 3) THEN ord.org_price * ord.sku_quantity
-        ELSE 0
-      END) AS supply_cost
+    , ord.org_price * ord.sku_quantity AS supply_cost
     -- Delivery data
     , ord.org_price
     , ord.delivery_group
@@ -316,10 +314,7 @@ product_order_with_max_delivery AS (
     , ord.supply_cost
     -- Delivery data
     , ord.org_price
-    , (CASE
-        WHEN ord.order_status IN (0, 1, 2, 5, 7) THEN dlv.delivery_fee
-        ELSE 0
-      END) AS delivery_fee
+    , dlv.delivery_fee
     -- Sales partition key
     , ord.order_date
     -- Allocation metrics

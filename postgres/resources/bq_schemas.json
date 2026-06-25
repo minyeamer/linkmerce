@@ -96,8 +96,7 @@
     {"name": "service_cost", "type": "INTEGER", "description": "서비스운임"},
     {"name": "box_cost", "type": "INTEGER", "description": "부자재금액"},
     {"name": "pickup_date", "type": "DATE", "description": "집하일자", "mode": "REQUIRED"},
-    "PARTITION BY pickup_date",
-    "< cjlogistics.eflexs_invoice"
+    "PARTITION BY pickup_date"
   ],
   "cj_eflexs.invoice_order": [
     {"name": "invoice_no", "type": "STRING", "description": "운송장번호", "mode": "REQUIRED"},
@@ -107,8 +106,7 @@
     {"name": "box_cost", "type": "INTEGER", "description": "부자재금액"},
     {"name": "order_date", "type": "DATE", "description": "주문일자", "mode": "REQUIRED"},
     {"name": "pickup_date", "type": "DATE", "description": "집하일자", "mode": "REQUIRED"},
-    "PARTITION BY order_date",
-    "< cjlogistics.eflexs_order"
+    "PARTITION BY order_date"
   ],
   "cj_eflexs.stock": [
     {"name": "item_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
@@ -129,8 +127,7 @@
     {"name": "inbound_date", "type": "DATE", "description": "입고확정일자"},
     {"name": "updated_at", "type": "DATETIME", "description": "갱신일시", "mode": "REQUIRED"},
     "PARTITION BY DATE(updated_at)",
-    "CLUSTER BY customer_id",
-    "< cjlogistics.eflexs_stock"
+    "CLUSTER BY customer_id"
   ],
   "cj_loisparcel.invoice": [
     {"name": "invoice_no", "type": "STRING", "description": "운송장번호", "mode": "REQUIRED"},
@@ -153,8 +150,7 @@
     {"name": "register_date", "type": "DATE", "description": "접수일자", "mode": "REQUIRED"},
     {"name": "pickup_date", "type": "DATE", "description": "집화일자"},
     {"name": "delivery_date", "type": "DATE", "description": "배송일자"},
-    "PARTITION BY register_date",
-    "< cjlogistics.loisparcel"
+    "PARTITION BY register_date"
   ],
   "coupang.option": [
     {"name": "vendor_inventory_id", "type": "INTEGER", "description": "등록상품ID", "mode": "REQUIRED"},
@@ -203,8 +199,7 @@
     {"name": "roas_target", "type": "INTEGER", "description": "목표수익률"},
     {"name": "created_at", "type": "DATETIME", "description": "등록일시"},
     {"name": "updated_at", "type": "DATETIME", "description": "수정일시"},
-    "CLUSTER BY vendor_id, goal_type",
-    "< coupang.campaign"
+    "CLUSTER BY vendor_id, goal_type"
   ],
   "coupang_ads.adgroup": [
     {"name": "adgroup_id", "type": "INTEGER", "description": "광고그룹ID", "mode": "REQUIRED"},
@@ -217,8 +212,7 @@
     {"name": "roas_target", "type": "INTEGER", "description": "목표수익률"},
     {"name": "created_at", "type": "DATETIME", "description": "등록일시"},
     {"name": "updated_at", "type": "DATETIME", "description": "수정일시"},
-    "CLUSTER BY vendor_id, goal_type",
-    "< coupang.adgroup"
+    "CLUSTER BY vendor_id, goal_type"
   ],
   "coupang_ads.creative": [
     {"name": "creative_id", "type": "INTEGER", "description": "소재ID", "mode": "REQUIRED"},
@@ -227,8 +221,7 @@
     {"name": "creative_type", "type": "STRING", "description": "영역구분"},
     {"name": "headline", "type": "STRING", "description": "소재이름"},
     {"name": "ordering", "type": "INTEGER", "description": "순서"},
-    "CLUSTER BY vendor_id",
-    "< coupang.creative"
+    "CLUSTER BY vendor_id"
   ],
   "coupang_ads.report_pa": [
     {"name": "campaign_id", "type": "INTEGER", "description": "캠페인ID", "mode": "REQUIRED"},
@@ -245,8 +238,7 @@
     {"name": "direct_conv_amount", "type": "INTEGER", "description": "직접전환매출액"},
     {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
     "PARTITION BY ymd",
-    "CLUSTER BY vendor_id",
-    "< coupang.adreport_pa"
+    "CLUSTER BY vendor_id"
   ],
   "coupang_ads.report_nca": [
     {"name": "campaign_id", "type": "INTEGER", "description": "캠페인ID", "mode": "REQUIRED"},
@@ -262,8 +254,7 @@
     {"name": "stay_time", "type": "NUMERIC", "description": "평균재생시간"},
     {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
     "PARTITION BY ymd",
-    "CLUSTER BY vendor_id",
-    "< coupang.adreport_nca"
+    "CLUSTER BY vendor_id"
   ],
   "coupang_rfm.inventory": [
     {"name": "vendor_inventory_id", "type": "INTEGER", "description": "등록상품ID", "mode": "REQUIRED"},
@@ -282,8 +273,7 @@
     {"name": "fee_amount", "type": "INTEGER", "description": "이번달 누적보관료"},
     {"name": "updated_at", "type": "DATETIME", "description": "갱신일시", "mode": "REQUIRED"},
     "PARTITION BY DATE(updated_at)",
-    "CLUSTER BY vendor_id",
-    "< coupang.inventory"
+    "CLUSTER BY vendor_id"
   ],
   "coupang_rfm.inventory_exp": [
     {"name": "option_id", "type": "INTEGER", "description": "노출옵션ID", "mode": "REQUIRED"},
@@ -309,8 +299,7 @@
     {"name": "sales_date", "type": "DATE", "description": "매출인식일", "mode": "REQUIRED"},
     {"name": "settlement_date", "type": "DATE", "description": "정산종료일"},
     "PARTITION BY sales_date",
-    "CLUSTER BY vendor_id",
-    "< coupang.rocket_sales"
+    "CLUSTER BY vendor_id"
   ],
   "coupang_rfm.shipping": [
     {"name": "order_id", "type": "INTEGER", "description": "주문ID", "mode": "REQUIRED"},
@@ -328,8 +317,7 @@
     {"name": "shipping_date", "type": "DATE", "description": "매출인식일"},
     {"name": "settlement_date", "type": "DATE", "description": "정산종료일"},
     "PARTITION BY sales_date",
-    "CLUSTER BY vendor_id",
-    "< coupang.rocket_shipping"
+    "CLUSTER BY vendor_id"
   ],
   "ecount.inventory": [
     {"name": "product_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
@@ -376,8 +364,7 @@
     {"name": "click_count_30d", "type": "INTEGER", "description": "클릭수"},
     {"name": "ad_cost_30d", "type": "INTEGER", "description": "비용"},
     {"name": "created_at", "type": "DATETIME", "description": "등록일시"},
-    "CLUSTER BY customer_id",
-    "< google.campaign"
+    "CLUSTER BY customer_id"
   ],
   "google_ads.adgroup": [
     {"name": "adgroup_id", "type": "STRING", "description": "광고그룹ID", "mode": "REQUIRED"},
@@ -390,8 +377,7 @@
     {"name": "impression_count_30d", "type": "INTEGER", "description": "노출수"},
     {"name": "click_count_30d", "type": "INTEGER", "description": "클릭수"},
     {"name": "ad_cost_30d", "type": "INTEGER", "description": "비용"},
-    "CLUSTER BY customer_id, campaign_id",
-    "< google.adgroup"
+    "CLUSTER BY customer_id, campaign_id"
   ],
   "google_ads.ad": [
     {"name": "ad_id", "type": "STRING", "description": "광고ID", "mode": "REQUIRED"},
@@ -404,8 +390,7 @@
     {"name": "impression_count_30d", "type": "INTEGER", "description": "노출수"},
     {"name": "click_count_30d", "type": "INTEGER", "description": "클릭수"},
     {"name": "ad_cost_30d", "type": "INTEGER", "description": "비용"},
-    "CLUSTER BY customer_id, campaign_id, adgroup_id",
-    "< google.ad"
+    "CLUSTER BY customer_id, campaign_id, adgroup_id"
   ],
   "google_ads.insight": [
     {"name": "customer_id", "type": "INTEGER", "description": "고객ID", "mode": "REQUIRED"},
@@ -418,8 +403,7 @@
     {"name": "ad_cost", "type": "INTEGER", "description": "비용"},
     {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
     "PARTITION BY ymd",
-    "CLUSTER BY customer_id, campaign_id, adgroup_id",
-    "< google.insight"
+    "CLUSTER BY customer_id, campaign_id, adgroup_id"
   ],
   "google_ads.asset": [
     {"name": "asset_id", "type": "STRING", "description": "애셋ID", "mode": "REQUIRED"},
@@ -427,8 +411,7 @@
     {"name": "customer_id", "type": "INTEGER", "description": "고객ID", "mode": "REQUIRED"},
     {"name": "asset_type", "type": "STRING", "description": "애셋유형"},
     {"name": "asset_url", "type": "STRING", "description": "URL"},
-    "CLUSTER BY customer_id",
-    "< google.asset"
+    "CLUSTER BY customer_id"
   ],
   "meta_ads.account": [
     {"name": "account_id", "type": "STRING", "description": "계정ID", "mode": "REQUIRED"},
@@ -444,8 +427,7 @@
     {"name": "objective", "type": "STRING", "description": "캠페인목표"},
     {"name": "effective_status", "type": "STRING", "description": "캠페인상태"},
     {"name": "created_at", "type": "DATETIME", "description": "등록일시"},
-    "CLUSTER BY account_id",
-    "< meta.campaigns"
+    "CLUSTER BY account_id"
   ],
   "meta_ads.adset": [
     {"name": "adset_id", "type": "STRING", "description": "광고세트ID", "mode": "REQUIRED"},
@@ -455,8 +437,7 @@
     {"name": "effective_status", "type": "STRING", "description": "광고세트상태"},
     {"name": "daily_budget", "type": "INTEGER", "description": "일일예산"},
     {"name": "created_at", "type": "DATETIME", "description": "등록일시"},
-    "CLUSTER BY account_id, campaign_id",
-    "< meta.adsets"
+    "CLUSTER BY account_id, campaign_id"
   ],
   "meta_ads.ad": [
     {"name": "ad_id", "type": "STRING", "description": "광고ID", "mode": "REQUIRED"},
@@ -466,8 +447,7 @@
     {"name": "adset_id", "type": "STRING", "description": "광고세트ID", "mode": "REQUIRED"},
     {"name": "effective_status", "type": "STRING", "description": "광고상태"},
     {"name": "created_at", "type": "DATETIME", "description": "등록일시"},
-    "CLUSTER BY account_id, campaign_id, adset_id",
-    "< meta.ads"
+    "CLUSTER BY account_id, campaign_id, adset_id"
   ],
   "meta_ads.insight": [
     {"name": "account_id", "type": "STRING", "description": "계정ID", "mode": "REQUIRED"},
@@ -481,8 +461,7 @@
     {"name": "ad_cost", "type": "INTEGER", "description": "광고비"},
     {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
     "PARTITION BY ymd",
-    "CLUSTER BY account_id, campaign_id, adset_id",
-    "< meta.insights"
+    "CLUSTER BY account_id, campaign_id, adset_id"
   ],
   "naver_shp.category": [
     {"name": "category_id", "type": "INTEGER", "description": "카테고리코드", "mode": "REQUIRED"},
@@ -497,8 +476,7 @@
     {"name": "category_name4", "type": "STRING", "description": "세분류"},
     {"name": "depth", "type": "INTEGER", "description": "카테고리단계", "mode": "REQUIRED"},
     "PARTITION BY RANGE_BUCKET(depth, GENERATE_ARRAY(1, 4, 1))",
-    "CLUSTER BY category_id1, category_id2, category_id3",
-    "< nshopping.category"
+    "CLUSTER BY category_id1, category_id2, category_id3"
   ],
   "naver_shp.keyword": [
     {"name": "keyword", "type": "STRING", "description": "키워드", "mode": "REQUIRED"},
@@ -511,8 +489,7 @@
     {"name": "is_deleted", "type": "BOOLEAN", "description": "삭제여부"},
     {"name": "updated_at", "type": "DATETIME", "description": "갱신일시"},
     {"name": "deleted_at", "type": "DATETIME", "description": "삭제일시"},
-    "CLUSTER BY keyword_group",
-    "< nshopping.keyword"
+    "CLUSTER BY keyword_group"
   ],
   "naver_shp.product": [
     {"name": "nv_mid", "type": "INTEGER", "description": "쇼핑상품ID", "mode": "REQUIRED"},
@@ -525,8 +502,7 @@
     {"name": "brand_name", "type": "STRING", "description": "브랜드"},
     {"name": "sales_price", "type": "INTEGER", "description": "판매가"},
     {"name": "updated_at", "type": "DATETIME", "description": "갱신일시"},
-    "CLUSTER BY product_type",
-    "< nshopping.product"
+    "CLUSTER BY product_type"
   ],
   "naver_shp.rank": [
     {"name": "keyword", "type": "STRING", "description": "키워드", "mode": "REQUIRED"},
@@ -536,8 +512,7 @@
     {"name": "display_rank", "type": "INTEGER", "description": "노출순위", "mode": "REQUIRED"},
     {"name": "created_at", "type": "DATETIME", "description": "수집일시", "mode": "REQUIRED"},
     "PARTITION BY DATE(created_at)",
-    "CLUSTER BY keyword",
-    "< nshopping.rank"
+    "CLUSTER BY keyword"
   ],
   "naver_shp.rank_now": [
     {"name": "keyword", "type": "STRING", "description": "키워드", "mode": "REQUIRED"},
@@ -546,8 +521,7 @@
     {"name": "product_type", "type": "INTEGER", "description": "상품종류"},
     {"name": "display_rank", "type": "INTEGER", "description": "노출순위", "mode": "REQUIRED"},
     {"name": "created_at", "type": "DATETIME", "description": "수집일시", "mode": "REQUIRED"},
-    "CLUSTER BY keyword",
-    "< nshopping.rank_now"
+    "CLUSTER BY keyword"
   ],
   "relation.ad_id_to_sbn_ids": [
     {"name": "ad_id", "type": "STRING", "description": "광고ID", "mode": "REQUIRED"},
@@ -563,18 +537,16 @@
   "relation.nsh_kwd_to_prd_id": [
     {"name": "keyword", "type": "STRING", "description": "키워드", "mode": "REQUIRED"},
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
-    "CLUSTER BY keyword",
-    "< nshopping.kwd_pid"
+    "CLUSTER BY keyword"
   ],
   "relation.nsh_prd_to_ctl_id": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
     {"name": "catalog_id", "type": "INTEGER", "description": "카탈로그코드", "mode": "REQUIRED"},
-    {"name": "created_at", "type": "DATETIME", "description": "수집일시", "mode": "REQUIRED"},
-    "< nshopping.pid_cid"
+    {"name": "created_at", "type": "DATETIME", "description": "수집일시", "mode": "REQUIRED"}
   ],
   "relation.smt_opt_to_sbn_ids": [
     {"name": "option_id", "type": "INTEGER", "description": "옵션코드", "mode": "REQUIRED"},
-    {"name": "bundle_option_ids", "type": "STRING", "description": "연결상품코드", "mode": "REQUIRED"}
+    {"name": "bundle_product_ids", "type": "STRING", "description": "연결품번코드", "mode": "REQUIRED"}
   ],
   "relation.smt_prd_to_sbn_ids": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
@@ -806,8 +778,7 @@
     {"name": "direct_conv_amount", "type": "INTEGER", "description": "직접전환매출액(원)"},
     {"name": "ymd", "type": "DATE", "description": "일별", "mode": "REQUIRED"},
     "PARTITION BY ymd",
-    "CLUSTER BY customer_id",
-    "< searchad.report"
+    "CLUSTER BY customer_id"
   ],
   "searchad.report_gfa": [
     {"name": "campaign_no", "type": "INTEGER", "description": "캠페인ID", "mode": "REQUIRED"},
@@ -997,8 +968,7 @@
     {"name": "payment_amount", "type": "INTEGER", "description": "결제금액"},
     {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
     "PARTITION BY ymd",
-    "CLUSTER BY channel_seq, device_category, nt_source, nt_medium",
-    "< smt_bizdata.marketing_channel"
+    "CLUSTER BY channel_seq, device_category, nt_source, nt_medium"
   ],
   "ss_hcenter.category_group": [
     {"name": "seq", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
@@ -1009,8 +979,7 @@
     {"name": "mapping_keyword", "type": "STRING", "description": "맵핑키워드"},
     {"name": "mapping_depth", "type": "INTEGER", "description": "맵핑단계", "mode": "REQUIRED"},
     "PARTITION BY RANGE_BUCKET(mapping_depth, GENERATE_ARRAY(2, 4, 1))",
-    "CLUSTER BY brand_name, group_name",
-    "< nscenter.category"
+    "CLUSTER BY brand_name, group_name"
   ],
   "ss_hcenter.mall": [
     {"name": "mall_seq", "type": "INTEGER", "description": "판매처순번", "mode": "REQUIRED"},
@@ -1018,8 +987,7 @@
     {"name": "mall_group", "type": "STRING", "description": "판매처그룹", "mode": "REQUIRED"},
     {"name": "mall_url", "type": "STRING", "description": "판매처주소", "mode": "REQUIRED"},
     {"name": "sales_date", "type": "DATE", "description": "매출수집일"},
-    "CLUSTER BY mall_group",
-    "< nscenter.mall"
+    "CLUSTER BY mall_group"
   ],
   "ss_hcenter.product": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
@@ -1030,8 +998,7 @@
     {"name": "sales_price", "type": "INTEGER", "description": "판매가"},
     {"name": "register_date", "type": "DATE", "description": "등록일자"},
     {"name": "update_date", "type": "DATE", "description": "갱신일자"},
-    "CLUSTER BY mall_seq",
-    "< nscenter.product"
+    "CLUSTER BY mall_seq"
   ],
   "ss_hcenter.price": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
@@ -1040,15 +1007,13 @@
     {"name": "sales_price", "type": "INTEGER", "description": "판매가", "mode": "REQUIRED"},
     {"name": "created_at", "type": "DATETIME", "description": "수집일시", "mode": "REQUIRED"},
     "PARTITION BY DATE(created_at)",
-    "CLUSTER BY mall_seq",
-    "< nscenter.price"
+    "CLUSTER BY mall_seq"
   ],
   "ss_hcenter.product_catalog": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
     {"name": "catalog_id", "type": "INTEGER", "description": "카탈로그코드", "mode": "REQUIRED"},
     {"name": "created_at", "type": "DATETIME", "description": "수집일시", "mode": "REQUIRED"},
-    "PARTITION BY DATE(created_at)",
-    "< nscenter.pid_cid"
+    "PARTITION BY DATE(created_at)"
   ],
   "ss_hcenter.pageview": [
     {"name": "mall_seq", "type": "INTEGER", "description": "판매처순번", "mode": "REQUIRED"},
@@ -1058,8 +1023,7 @@
     {"name": "time_on_site", "type": "INTEGER", "description": "체류시간(초)"},
     {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
     "PARTITION BY ymd",
-    "CLUSTER BY mall_seq",
-    "< nscenter.pageview"
+    "CLUSTER BY mall_seq"
   ],
   "ss_hcenter.sales": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
@@ -1070,8 +1034,7 @@
     {"name": "payment_amount", "type": "INTEGER", "description": "결제금액"},
     {"name": "payment_date", "type": "DATE", "description": "결제일자", "mode": "REQUIRED"},
     "PARTITION BY payment_date",
-    "CLUSTER BY mall_seq",
-    "< nscenter.sales"
+    "CLUSTER BY mall_seq"
   ],
   "ss_hcenter.stock": [
     {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
@@ -1082,7 +1045,6 @@
     {"name": "review_score", "type": "FLOAT", "description": "평점"},
     {"name": "soldout", "type": "BOOLEAN", "description": "품절여부"},
     {"name": "created_at", "type": "DATETIME", "description": "수집일시", "mode": "REQUIRED"},
-    "PARTITION BY DATE(created_at)",
-    "< nscenter.stock"
+    "PARTITION BY DATE(created_at)"
   ]
 }

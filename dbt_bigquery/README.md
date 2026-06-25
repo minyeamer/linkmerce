@@ -21,7 +21,7 @@
 
 `dbt_bigquery/`는 LinkMerce가 BigQuery에 적재한 원천 dataset를 읽어, 운영 분석에 사용하는 BigQuery 산출물을 만드는 dbt 프로젝트다.
 
-이 프로젝트는 채널별 주문·배송·광고 데이터를 중간 모델로 정리한 뒤, 이를 통합한 일별 매출 mart와 채널별 보고용 table function을 생성한다. PostgreSQL 프로젝트와 달리 BigQuery 환경에 맞춘 partition overwrite incremental 전략과 custom table function materialization을 사용한다.
+이 프로젝트는 채널별 주문·배송·광고 데이터를 중간 모델로 정리한 뒤, 이를 통합한 일별 매출 mart와 주문수/수익성 조회용 sales table function, 채널별 광고 보고용 table function을 생성한다. PostgreSQL 프로젝트와 달리 BigQuery 환경에 맞춘 partition overwrite incremental 전략과 custom table function materialization을 사용한다.
 
 현재 모델은 크게 3가지 역할로 나뉜다.
 
@@ -36,7 +36,7 @@
 | dbt project name | `linkmerce_bigquery` |
 | profile | `dbt_bigquery` |
 | adapter | `dbt-bigquery` |
-| 모델 수 | 36개 |
+| 모델 수 | 40개 |
 | 원천 참조 | BigQuery dataset `source()` |
 | 모델 참조 | dbt `ref()` |
 | 주요 산출 schema | `core`, `xfm_sales`, `xfm_ads`, `analytics`, 각 매체 전용 schema |
@@ -157,11 +157,21 @@ dbt_bigquery/
 #### 1. Sales marts
 
 - `analytics__sales_daily`
+- `analytics__order_count`
 - `analytics__profit_daily`
+- `analytics__profit_monthly`
+- `analytics__profit_mom`
 
 `analytics__sales_daily`는 Sabangnet, Smartstore, Coupang RFM 매출과 광고비, 운영비를 합친 통합 일별 mart다.
 
-`analytics__profit_daily`는 이 통합 mart를 기반으로 상품 마스터와 결합해 수익성 조회에 사용하는 BigQuery table function이다.
+`analytics__order_count`는 채널별 주문건수를 통합하고 상품/쇼핑몰 마스터를 결합해
+주문수 조회에 사용하는 BigQuery table function이다.
+
+`analytics__profit_daily`와 `analytics__profit_monthly`는 통합 매출 mart를 기반으로
+상품 마스터와 결합해 일별/월별 수익성 조회에 사용하는 BigQuery table function이다.
+
+`analytics__profit_mom`은 지정 기간 결과와 이전 월 구간을 함께 비교할 수 있도록
+metric 단위로 펼친 BigQuery table function이다.
 
 #### 2. Ads marts
 
@@ -181,7 +191,7 @@ BigQuery 프로젝트는 모델 성격에 따라 `view`, `table`, `incremental`,
 | Helper view | `core__product_master`, `cj__invoice`, `relation__ad_id_to_ranged_sbn_ids` | `view` |
 | 기준성 table | `core__opex_daily`, 각종 `*_master`, `searchad__contract_daily`, `relation__smt_opt_to_sbn_ids` | `table` |
 | 일별 fact | `*_sales_daily`, `*_order_count`, `*_insight_daily`, `analytics__sales_daily` | `incremental` |
-| 최종 보고 함수 | `analytics__profit_daily`, `*_report_daily` | `tvf` |
+| 최종 보고 함수 | `analytics__order_count`, `analytics__profit_*`, `*_report_daily` | `tvf` |
 
 ### Partition overwrite incremental
 
@@ -249,6 +259,10 @@ quoting:
 
 - `ds_start_datetime`
 - `ds_end_datetime`
+
+BigQuery table function 파라미터는 dbt vars와 별개로 정의한다.
+현재 sales TVF는 기본적으로 `DS_START_DATE`, `DS_END_DATE`를 사용하고,
+`analytics__profit_mom`은 `DS_INTERVAL_MONTH`를 추가로 받는다.
 
 대표 예시는 다음과 같다.
 

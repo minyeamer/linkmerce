@@ -6,7 +6,7 @@
       {'name': 'DS_END_DATE', 'type': 'date'}
     ],
     schema = 'analytics',
-    alias = 'profit_daily'
+    alias = 'profit_monthly'
   )
 }}
 
@@ -16,27 +16,30 @@ order_status_mapping AS (
   {{ core__order_status_mapping() }}
 ),
 
-sales_daily AS (
+sales_monthly AS (
   SELECT
       product_id
     , shop_id
     , order_status
-    , IF(order_status IN (0, 6), COALESCE(sku_quantity, 0), 0) AS sku_quantity
-    , (CASE
+    , SUM(IF(order_status IN (0, 6), COALESCE(sku_quantity, 0), 0)) AS sku_quantity
+    , SUM(CASE
         WHEN shop_id = 'adop9000' THEN 0
         ELSE IF(order_status IN (0, 6), COALESCE(payment_amount, 0), 0)
       END) AS payment_amount
-    , IF(order_status IN (0, 6), COALESCE(supply_amount, 0), 0) AS supply_amount
-    , IF(order_status IN (0, 2, 6), COALESCE(supply_cost, 0), 0) AS supply_cost
-    , IF(order_status IN (0, 1, 2, 5, 6, 7, 9), COALESCE(delivery_fee, 0), 0) AS delivery_fee
-    , COALESCE(ad_cost, 0) AS ad_cost
-    , COALESCE(extra_cost, 0) AS extra_cost
-    , order_date
+    , SUM(IF(order_status IN (0, 6), COALESCE(supply_amount, 0), 0)) AS supply_amount
+    , SUM(IF(order_status IN (0, 2, 6), COALESCE(supply_cost, 0), 0)) AS supply_cost
+    , SUM(IF(order_status IN (0, 1, 2, 5, 6, 7, 9), COALESCE(delivery_fee, 0), 0)) AS delivery_fee
+    , SUM(COALESCE(ad_cost, 0)) AS ad_cost
+    , SUM(COALESCE(extra_cost, 0)) AS extra_cost
+    , FORMAT_DATE('%Y-%m', order_date) AS order_ym
+    , MIN(order_date) AS order_start_date
+    , MAX(order_date) AS order_end_date
   FROM {{ ref('analytics__sales_daily') }}
   WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
+  GROUP BY FORMAT_DATE('%Y-%m', order_date), product_id, shop_id, order_status
 ),
 
-profit_daily AS (
+profit_monthly AS (
   SELECT
       fact.product_id
     -- Item attributes
@@ -72,8 +75,10 @@ profit_daily AS (
     , fact.ad_cost
     , fact.extra_cost
     , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS profit
-    , fact.order_date
-  FROM sales_daily AS fact
+    , fact.order_ym
+    , fact.order_start_date
+    , fact.order_end_date
+  FROM sales_monthly AS fact
   LEFT JOIN {{ ref('core__product_master') }} AS item
     ON fact.product_id = item.product_id
   LEFT JOIN {{ source('sabangnet', 'shop') }} AS shop
@@ -82,4 +87,4 @@ profit_daily AS (
     ON fact.order_status = order_status.code
 )
 
-SELECT * FROM profit_daily
+SELECT * FROM profit_monthly

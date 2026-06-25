@@ -15,6 +15,8 @@
 
 WITH
 
+-- order_status IN (0, 1, 3, 6, 7)
+
 delivery_group AS (
   SELECT
       dlv.delivery_group
@@ -85,7 +87,7 @@ rocket_sales_shipping AS (
     , ANY_VALUE(COALESCE(sales.vendor_id, shipping.vendor_id)) AS vendor_id
     , (CASE
         WHEN MAX(sales.order_status) IS NULL THEN 7
-        ELSE MAX(sales.order_status)
+        ELSE LEAST(MAX(sales.order_status), 3)
       END) AS order_status
     , SUM(COALESCE(sales.order_quantity, 0)) AS order_quantity
     , SUM(COALESCE(sales.sales_amount, 0)) AS sales_amount
@@ -134,15 +136,15 @@ exploded_product_order AS (
     -- Sales dimensions
     , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
     , (CASE
-        WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 3
+        WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
         ELSE ord.order_status
       END) AS order_status
     -- Sales metrics
     , (ord.order_quantity
         * COALESCE(SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64), 1)
       ) AS sku_quantity
-    , IF(LEFT(bundle_product, 1) = '9', 0, ord.payment_amount) AS payment_amount
-    , IF(LEFT(bundle_product, 1) = '9', 0, ord.supply_amount) AS supply_amount
+    , ord.payment_amount
+    , ord.supply_amount
     , COALESCE(prd.org_price, itm.org_price, 0) + COALESCE(itm.extra_cost, 0) AS org_price
     , ord.delivery_fee
     , itm.delivery_group
@@ -169,7 +171,7 @@ product_order_with_delivery_extra AS (
     , ord.sku_quantity
     , ord.payment_amount
     , ord.supply_amount
-    , ord.org_price
+    , ord.org_price * ord.sku_quantity AS supply_cost
     , (ord.delivery_fee
         + COALESCE(MAX(dlv.extra_cost) OVER (PARTITION BY order_id, option_id), 0)
       ) AS delivery_fee
@@ -177,7 +179,7 @@ product_order_with_delivery_extra AS (
     , ord.order_date
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY ord.order_id, ord.option_id) AS bundle_product_count
-    , IF(ord.order_status = 3, 0, ord.org_price * ord.sku_quantity) AS cost_amount
+    , IF(ord.order_status = 6, 0, ord.org_price * ord.sku_quantity) AS cost_amount
   FROM exploded_product_order AS ord
   LEFT JOIN product_delivery_unit AS unit
     ON ord.product_id = unit.product_id
@@ -204,7 +206,7 @@ product_order_with_split_amount AS (
     , (supply_amount_split + IF(order_option_offset = 1
         , supply_amount - SUM(supply_amount_split) OVER (PARTITION BY order_id, option_id), 0)
       ) AS supply_amount
-    , org_price
+    , supply_cost
     , (delivery_fee_split + IF(order_option_offset = 1
         , delivery_fee - SUM(delivery_fee_split) OVER (PARTITION BY order_id, option_id), 0)
       ) AS delivery_fee
@@ -235,13 +237,10 @@ sales_daily AS (
   SELECT
       product_id
     , order_status
-    , SUM(IF(order_status = 0, sku_quantity, 0)) AS sku_quantity
+    , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
     , SUM(supply_amount) AS supply_amount
-    , SUM(CASE
-        WHEN order_status IN (0, 2, 3) THEN org_price * sku_quantity
-        ELSE 0
-      END) AS supply_cost
+    , SUM(supply_cost) AS supply_cost
     , SUM(delivery_fee) AS delivery_fee
     , order_date
   FROM (
