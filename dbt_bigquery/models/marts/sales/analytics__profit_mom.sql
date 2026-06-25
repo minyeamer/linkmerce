@@ -17,6 +17,14 @@ order_status_mapping AS (
   {{ core__order_status_mapping() }}
 ),
 
+unpivot_metric_mapping AS (
+  {{ core__unpivot_metric_mapping() }}
+),
+
+dayofweek_name_mapping AS (
+  {{ core__dayofweek_name_mapping() }}
+),
+
 -- Step 1: load daily sales for the lookback window ending on DS_END_DATE
 
 sales_daily AS (
@@ -65,7 +73,7 @@ sales_ds_range AS (
 
 -- Step 3: aggregate monthly sales for dates before the DS_END_DATE month
 
-sales_monthly AS (
+sales_monthly_lookback AS (
   SELECT
       product_id
     , shop_id
@@ -80,12 +88,56 @@ sales_monthly AS (
     , FORMAT_DATE('%Y-%m', order_date) AS order_ym
     , MIN(order_date) AS order_start_date
     , MAX(order_date) AS order_end_date
-  FROM {{ ref('analytics__sales_daily') }}
+  FROM sales_daily
   WHERE order_date < DATE_TRUNC(DS_END_DATE, MONTH)
   GROUP BY FORMAT_DATE('%Y-%m', order_date), product_id, shop_id, order_status
 ),
 
--- Step 4: combine the requested date-range summary with monthly summaries and unpivot metrics
+-- Step 4: combine monthly sales and add custom metrics for reporting
+
+sales_monthly AS (
+  SELECT
+      fact.product_id
+    , fact.shop_id
+    , fact.order_status
+    -- Primary metrics
+    , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS profit
+    , IF(fact.shop_id = 'adop0005', fact.extra_cost, 0) AS extra_cost__expense
+    -- Secondary metrics
+    , COALESCE(fact.sku_quantity * COALESCE(item.unit_scale, 1), 0) AS unit_quantity
+    , fact.payment_amount
+    , fact.supply_amount
+    , fact.supply_cost
+    , fact.delivery_fee
+    , fact.supply_amount - fact.supply_cost - fact.delivery_fee AS margin_amount
+    -- Ad metrics
+    , fact.ad_cost
+    , IF(fact.shop_id IN ('shop0055', 'shop9000'), fact.ad_cost, 0) AS ad_cost__searchad
+    , IF(fact.shop_id IN ('shop0075', 'shop9001'), fact.ad_cost, 0) AS ad_cost__coupang
+    , IF(fact.shop_id = 'adop0001', fact.ad_cost, 0) AS ad_cost__google
+    , IF(fact.shop_id = 'adop0002', fact.ad_cost, 0) AS ad_cost__meta
+    , IF(fact.shop_id = 'adop0006', fact.ad_cost, 0) AS ad_cost__tiktok
+    -- Cost metrics
+    , fact.extra_cost
+    , IF(fact.shop_id = 'adop0003', fact.extra_cost, 0) AS extra_cost__marketing
+    , IF(fact.shop_id = 'adop0004', fact.extra_cost, 0) AS extra_cost__sales
+    -- Roi fractions
+    , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS roi__top
+    , fact.ad_cost + fact.extra_cost AS roi__bottom
+    -- Date attributes
+    , fact.order_ym
+    , MIN(fact.order_start_date) OVER (PARTITION BY fact.order_ym) AS order_start_date
+    , MAX(fact.order_end_date) OVER (PARTITION BY fact.order_ym) AS order_end_date
+  FROM (
+    (SELECT * FROM sales_ds_range)
+    UNION ALL
+    (SELECT * FROM sales_monthly_lookback)
+  ) AS fact
+  LEFT JOIN {{ ref('core__product_master') }} AS item
+    ON fact.product_id = item.product_id
+),
+
+-- Step 5: unpivot monthly metrics into metric_name and metric_value for reporting
 
 sales_monthly_unpivot AS (
   SELECT
@@ -95,22 +147,30 @@ sales_monthly_unpivot AS (
     , metric_name
     , metric_value
     , order_ym
-    , order_start_date
-    , order_end_date
-  FROM (
-    (SELECT * FROM sales_ds_range)
-    UNION ALL
-    (SELECT * FROM sales_monthly)
-  )
+    , MIN(order_start_date) OVER (PARTITION BY order_ym) AS order_start_date
+    , MAX(order_end_date) OVER (PARTITION BY order_ym) AS order_end_date
+  FROM sales_monthly
   UNPIVOT (
     metric_value FOR metric_name IN (
-        sku_quantity
+        profit
+      , extra_cost__expense
+      , unit_quantity
       , payment_amount
       , supply_amount
       , supply_cost
       , delivery_fee
+      , margin_amount
       , ad_cost
+      , ad_cost__searchad
+      , ad_cost__coupang
+      , ad_cost__google
+      , ad_cost__meta
+      , ad_cost__tiktok
       , extra_cost
+      , extra_cost__marketing
+      , extra_cost__sales
+      , roi__top
+      , roi__bottom
     )
   )
 ),
@@ -143,11 +203,26 @@ profit_mom AS (
     , COALESCE(shop.shop_alias, '-') AS shop_name
     -- Sales attributes
     , COALESCE(order_status.label, '알 수 없음') AS order_status
-    , fact.metric_name
+    -- Unpivot metrics
+    , fact.metric_name AS metric_name_en
+    , CONCAT(FORMAT('%02d', metric.seq), '. ', metric.name_ko) AS metric_name_ko
     , fact.metric_value
+    -- Date attributes
     , fact.order_ym
     , fact.order_start_date
     , fact.order_end_date
+    , CONCAT(
+        IF(fact.order_start_date = fact.order_end_date
+          , '\n'
+          , CONCAT(
+                FORMAT_DATE('%y/%m/%d', order_start_date)
+              , start_day.name_ko
+              , '\n ~ '
+            )
+          )
+        , FORMAT_DATE('%y/%m/%d', fact.order_end_date)
+        , end_day.name_ko
+      ) AS order_date_range
   FROM sales_monthly_unpivot AS fact
   LEFT JOIN {{ ref('core__product_master') }} AS item
     ON fact.product_id = item.product_id
@@ -155,6 +230,12 @@ profit_mom AS (
     ON fact.shop_id = shop.shop_id
   LEFT JOIN order_status_mapping AS order_status
     ON fact.order_status = order_status.code
+  LEFT JOIN unpivot_metric_mapping AS metric
+    ON fact.metric_name = metric.name_en
+  LEFT JOIN dayofweek_name_mapping AS start_day
+    ON EXTRACT(DAYOFWEEK FROM fact.order_start_date) = start_day.dayofweek
+  LEFT JOIN dayofweek_name_mapping AS end_day
+    ON EXTRACT(DAYOFWEEK FROM fact.order_end_date) = end_day.dayofweek
 )
 
 SELECT * FROM profit_mom
