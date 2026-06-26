@@ -77,6 +77,8 @@ order_count AS (
 SELECT
     fact.order_id
   , fact.product_order_id
+  , fact.product_id
+  -- Item attributes
   , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
   , COALESCE(item.item_seq, 99999999) AS item_seq
   , COALESCE(item.team_name, '담당팀 없음') AS team_name
@@ -86,7 +88,6 @@ SELECT
   , COALESCE(item.category_name3, '-') AS category_name3
   , COALESCE(item.category_name4, '-') AS category_name4
   , COALESCE(item.color, '-') AS color
-  , fact.product_id
   , COALESCE(item.product_name, '매칭 불가 상품') AS product_name
   , COALESCE(
       IF(item.unit_name IS NULL
@@ -94,9 +95,11 @@ SELECT
         , CONCAT(item.category_name3, ' (', item.unit_name, ')'))
       , '-'
     ) AS category_unit_name
+  -- Shop attributes
   , fact.shop_id
   , COALESCE(shop.shop_group, '-') AS shop_group
   , COALESCE(shop.shop_alias, '-') AS shop_name
+  -- Order attributes
   , COALESCE(order_status.label, '알 수 없음') AS order_status
   , fact.order_quantity
   , fact.order_date
