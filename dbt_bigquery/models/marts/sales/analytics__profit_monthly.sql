@@ -21,22 +21,18 @@ sales_monthly AS (
       product_id
     , shop_id
     , order_status
-    , SUM(IF(order_status IN (0, 6), COALESCE(sku_quantity, 0), 0)) AS sku_quantity
-    , SUM(CASE
-        WHEN shop_id = 'adop9000' THEN 0
-        ELSE IF(order_status IN (0, 6), COALESCE(payment_amount, 0), 0)
-      END) AS payment_amount
-    , SUM(IF(order_status IN (0, 6), COALESCE(supply_amount, 0), 0)) AS supply_amount
-    , SUM(IF(order_status IN (0, 2, 6), COALESCE(supply_cost, 0), 0)) AS supply_cost
-    , SUM(IF(order_status IN (0, 1, 2, 5, 6, 7, 9), COALESCE(delivery_fee, 0), 0)) AS delivery_fee
-    , SUM(COALESCE(ad_cost, 0)) AS ad_cost
-    , SUM(COALESCE(extra_cost, 0)) AS extra_cost
-    , FORMAT_DATE('%Y-%m', order_date) AS order_ym
+    , SUM(sku_quantity) AS sku_quantity
+    , SUM(payment_amount) AS payment_amount
+    , SUM(supply_amount) AS supply_amount
+    , SUM(supply_cost) AS supply_cost
+    , SUM(delivery_fee) AS delivery_fee
+    , SUM(ad_cost) AS ad_cost
+    , SUM(extra_cost) AS extra_cost
     , MIN(order_date) AS order_start_date
     , MAX(order_date) AS order_end_date
-  FROM {{ ref('analytics__sales_daily') }}
-  WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
-  GROUP BY FORMAT_DATE('%Y-%m', order_date), product_id, shop_id, order_status
+    , DATE_TRUNC(order_date, MONTH) AS order_ym
+  FROM {{ ref('analytics__sales_daily_adjusted') }}(DS_START_DATE, DS_END_DATE)
+  GROUP BY DATE_TRUNC(order_date, MONTH), product_id, shop_id, order_status
 ),
 
 profit_monthly AS (
@@ -75,9 +71,9 @@ profit_monthly AS (
     , fact.ad_cost
     , fact.extra_cost
     , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS profit
-    , fact.order_ym
     , fact.order_start_date
     , fact.order_end_date
+    , fact.order_ym
   FROM sales_monthly AS fact
   LEFT JOIN {{ ref('core__product_master') }} AS item
     ON fact.product_id = item.product_id

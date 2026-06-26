@@ -25,31 +25,7 @@ dayofweek_name_mapping AS (
   {{ core__dayofweek_name_mapping() }}
 ),
 
--- Step 1: load daily sales for the lookback window ending on DS_END_DATE
-
-sales_daily AS (
-  SELECT
-      product_id
-    , shop_id
-    , order_status
-    , IF(order_status IN (0, 6), COALESCE(sku_quantity, 0), 0) AS sku_quantity
-    , (CASE
-        WHEN shop_id = 'adop9000' THEN 0
-        ELSE IF(order_status IN (0, 6), COALESCE(payment_amount, 0), 0)
-      END) AS payment_amount
-    , IF(order_status IN (0, 6), COALESCE(supply_amount, 0), 0) AS supply_amount
-    , IF(order_status IN (0, 2, 6), COALESCE(supply_cost, 0), 0) AS supply_cost
-    , IF(order_status IN (0, 1, 2, 5, 6, 7, 9), COALESCE(delivery_fee, 0), 0) AS delivery_fee
-    , COALESCE(ad_cost, 0) AS ad_cost
-    , COALESCE(extra_cost, 0) AS extra_cost
-    , order_date
-  FROM {{ ref('analytics__sales_daily') }}
-  WHERE order_date
-    BETWEEN DATE_TRUNC(DATE_SUB(DS_END_DATE, INTERVAL DS_INTERVAL_MONTH MONTH), MONTH)
-    AND DS_END_DATE
-),
-
--- Step 2: aggregate sales within the requested DS_START_DATE to DS_END_DATE range
+-- Step 1: aggregate sales within the requested DS_START_DATE to DS_END_DATE range
 
 sales_ds_range AS (
   SELECT
@@ -63,15 +39,14 @@ sales_ds_range AS (
     , SUM(delivery_fee) AS delivery_fee
     , SUM(ad_cost) AS ad_cost
     , SUM(extra_cost) AS extra_cost
-    , FORMAT_DATE('%Y-%m', DS_END_DATE) AS order_ym
     , MIN(order_date) AS order_start_date
     , MAX(order_date) AS order_end_date
-  FROM sales_daily
-  WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
+    , DATE_TRUNC(DS_END_DATE, MONTH) AS order_ym
+  FROM {{ ref('analytics__sales_daily_adjusted') }}(DS_START_DATE, DS_END_DATE)
   GROUP BY product_id, shop_id, order_status
 ),
 
--- Step 3: aggregate monthly sales for dates before the DS_END_DATE month
+-- Step 2: aggregate monthly sales for dates before the DS_END_DATE month
 
 sales_monthly_lookback AS (
   SELECT
@@ -85,12 +60,14 @@ sales_monthly_lookback AS (
     , SUM(delivery_fee) AS delivery_fee
     , SUM(ad_cost) AS ad_cost
     , SUM(extra_cost) AS extra_cost
-    , FORMAT_DATE('%Y-%m', order_date) AS order_ym
     , MIN(order_date) AS order_start_date
     , MAX(order_date) AS order_end_date
-  FROM sales_daily
-  WHERE order_date < DATE_TRUNC(DS_END_DATE, MONTH)
-  GROUP BY FORMAT_DATE('%Y-%m', order_date), product_id, shop_id, order_status
+    , DATE_TRUNC(order_date, MONTH) AS order_ym
+  FROM {{ ref('analytics__sales_daily_adjusted') }}(
+      DATE_TRUNC(DATE_SUB(DS_END_DATE, INTERVAL DS_INTERVAL_MONTH MONTH), MONTH)
+    , DATE_SUB(DATE_TRUNC(DS_END_DATE, MONTH), INTERVAL 1 DAY)
+  )
+  GROUP BY DATE_TRUNC(order_date, MONTH), product_id, shop_id, order_status
 ),
 
 -- Step 4: combine monthly sales and add custom metrics for reporting
@@ -102,8 +79,7 @@ sales_monthly AS (
     , fact.order_status
     -- Primary metrics
     , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS profit
-    , IF(fact.shop_id = 'adop0005', fact.extra_cost, 0) AS extra_cost__expense
-    -- Secondary metrics
+    -- Sales metrics
     , COALESCE(fact.sku_quantity * COALESCE(item.unit_scale, 1), 0) AS unit_quantity
     , fact.payment_amount
     , fact.supply_amount
@@ -121,13 +97,14 @@ sales_monthly AS (
     , fact.extra_cost
     , IF(fact.shop_id = 'adop0003', fact.extra_cost, 0) AS extra_cost__marketing
     , IF(fact.shop_id = 'adop0004', fact.extra_cost, 0) AS extra_cost__sales
+    , IF(fact.shop_id = 'adop0005', fact.extra_cost, 0) AS extra_cost__expense
     -- Roi fractions
     , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS roi__top
     , fact.ad_cost + fact.extra_cost AS roi__bottom
     -- Date attributes
-    , fact.order_ym
     , MIN(fact.order_start_date) OVER (PARTITION BY fact.order_ym) AS order_start_date
     , MAX(fact.order_end_date) OVER (PARTITION BY fact.order_ym) AS order_end_date
+    , fact.order_ym
   FROM (
     (SELECT * FROM sales_ds_range)
     UNION ALL
@@ -153,7 +130,6 @@ sales_monthly_unpivot AS (
   UNPIVOT (
     metric_value FOR metric_name IN (
         profit
-      , extra_cost__expense
       , unit_quantity
       , payment_amount
       , supply_amount
@@ -169,6 +145,7 @@ sales_monthly_unpivot AS (
       , extra_cost
       , extra_cost__marketing
       , extra_cost__sales
+      , extra_cost__expense
       , roi__top
       , roi__bottom
     )
@@ -205,21 +182,28 @@ profit_mom AS (
     , COALESCE(order_status.label, '알 수 없음') AS order_status
     -- Unpivot metrics
     , fact.metric_name AS metric_name_en
-    , CONCAT(FORMAT('%02d', metric.seq), '. ', metric.name_ko) AS metric_name_ko
+    , CONCAT(
+          FORMAT('%02d', metric.sort_seq)
+        , COALESCE(CONCAT('-', FORMAT('%01d', metric.sub_seq)), '')
+        , '. '
+        , metric.name_ko
+      ) AS metric_name_ko
     , fact.metric_value
     -- Date attributes
     , fact.order_ym
     , fact.order_start_date
     , fact.order_end_date
     , CONCAT(
-        IF(fact.order_start_date = fact.order_end_date
-          , '\n'
-          , CONCAT(
-                FORMAT_DATE('%y/%m/%d', order_start_date)
-              , start_day.name_ko
-              , '\n ~ '
+          FORMAT_DATE('[ %y년 %m월 ]', fact.order_end_date)
+        , '\n'
+        , IF(fact.order_start_date != fact.order_end_date
+            , CONCAT(
+                  FORMAT_DATE('%y/%m/%d', fact.order_start_date)
+                , start_day.name_ko
+                , '\n~ '
+              )
+            , '\n'
             )
-          )
         , FORMAT_DATE('%y/%m/%d', fact.order_end_date)
         , end_day.name_ko
       ) AS order_date_range
