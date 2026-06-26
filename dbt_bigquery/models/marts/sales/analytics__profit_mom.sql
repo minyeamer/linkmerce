@@ -123,9 +123,9 @@ sales_monthly_unpivot AS (
     , order_status
     , metric_name
     , metric_value
-    , order_ym
     , MIN(order_start_date) OVER (PARTITION BY order_ym) AS order_start_date
     , MAX(order_end_date) OVER (PARTITION BY order_ym) AS order_end_date
+    , order_ym
   FROM sales_monthly
   UNPIVOT (
     metric_value FOR metric_name IN (
@@ -190,9 +190,9 @@ profit_mom AS (
       ) AS metric_name_ko
     , fact.metric_value
     -- Date attributes
-    , fact.order_ym
     , fact.order_start_date
     , fact.order_end_date
+    , fact.order_ym
     , CONCAT(
           FORMAT_DATE('[ %y년 %m월 ]', fact.order_end_date)
         , '\n'

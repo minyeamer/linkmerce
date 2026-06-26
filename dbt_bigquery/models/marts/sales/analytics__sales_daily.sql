@@ -313,52 +313,6 @@ opex_daily AS (
   GROUP BY ymd, product_id, dept_id
 ),
 
--- Step 6: adjust for delivery_fee double-counted in sales and cost
-
-delivery_fee_daily AS (
-  SELECT
-      product_id
-    , order_status
-    , SUM(delivery_fee) AS delivery_fee
-    , order_date
-  FROM (
-    (SELECT * FROM sabangnet_sales_daily)
-    UNION ALL
-    (SELECT * FROM smartstore_sales_daily)
-    UNION ALL
-    (SELECT * FROM coupang_rfm_sales_daily)
-  ) AS t_
-  GROUP BY order_date, product_id, order_status
-),
-
-delivery_fee_adj_target_monthly AS (
-  SELECT
-    DISTINCT DATE_TRUNC(ymd, MONTH) AS order_ym
-  FROM {{ source('core', 'expense') }}
-  WHERE ymd
-    BETWEEN DATE_TRUNC(DATE('{{ var("ds_start_date") }}'), MONTH)
-    AND DATE('{{ var("ds_end_date") }}')
-  QUALIFY MAX(UPPER(company_name) = 'CJ대한통운') OVER (PARTITION BY DATE_TRUNC(ymd, MONTH))
-),
-
-delivery_fee_adjusted_daily AS (
-  SELECT
-      product_id
-    , 'adop0005' AS shop_id
-    , order_status
-    , NULL AS sku_quantity
-    , NULL AS payment_amount
-    , NULL AS supply_amount
-    , NULL AS supply_cost
-    , dlv.delivery_fee * -1 AS delivery_fee
-    , NULL AS ad_cost
-    , NULL AS extra_cost
-    , order_date
-  FROM delivery_fee_daily AS dlv
-  INNER JOIN delivery_fee_adj_target_monthly AS tgt
-    ON DATE_TRUNC(dlv.order_date, MONTH) = tgt.order_ym
-),
-
 -- Step 7: concat sales, ads, and cost data
 
 insight_daily AS (
@@ -432,8 +386,6 @@ sales_daily AS (
     (SELECT * FROM insight_daily)
     UNION ALL
     (SELECT * FROM cost_daily)
-    UNION ALL
-    (SELECT * FROM delivery_fee_adjusted_daily)
   )
   GROUP BY order_date, product_id, shop_id, order_status
 )
