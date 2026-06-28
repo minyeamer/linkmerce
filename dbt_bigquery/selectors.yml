@@ -1,13 +1,4 @@
 selectors:
-  # Airflow Dags - core
-  - name: gsheets_opex
-    description: "'gsheets_opex' DAG 실행 결과를 반영하기 위한 운영비용 후속 모델"
-    definition:
-      union:
-        - method: fqn
-          value: intermediate.ads.core__opex_daily
-        - method: fqn
-          value: marts.sales.analytics__sales_daily
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
     description: "'cj_loisparcel_invoice' DAG 실행 결과를 반영하기 위한 CJ 송장 후속 모델"
@@ -73,17 +64,6 @@ selectors:
           value: models/intermediate/ads/google_ads
         - method: fqn
           value: marts.sales.analytics__sales_daily
-  # Airflow Dags - opex
-  - name: opex
-    description: "'opex' DAG 실행 결과를 반영하기 위한 OPEX 후속 모델"
-    definition:
-      union:
-        - method: fqn
-          value: intermediate.ads.core__opex_daily
-        - method: fqn
-          value: marts.sales.analytics__sales_daily
-        - method: fqn
-          value: marts.sales.analytics__profit_daily
   # Airflow Dags - meta_ads
   - name: meta_ads
     description: "'meta_ads' DAG 실행 결과를 반영하기 위한 메타 광고 후속 모델"
@@ -201,6 +181,48 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
 
+  # Airflow Dags - gsheets
+  - name: sync_gsheets__expense
+    description: "'sync_gsheets__expense' DAG 실행 결과를 반영하기 위한 고정지출 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: sync_gsheets__extra_ads
+    description: "'sync_gsheets__extra_ads' DAG 실행 결과를 반영하기 위한 기타광고 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: sync_gsheets__extra_sales
+    description: "'sync_gsheets__extra_sales' DAG 실행 결과를 반영하기 위한 기타매출 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: sync_gsheets__opex
+    description: "'sync_gsheets__opex' DAG 실행 결과를 반영하기 위한 운영비용 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.core__opex_daily
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+  - name: sync_gsheets__order_status
+    description: "'sync_gsheets__order_status' DAG 실행 결과를 반영하기 위한 주문상태 후속 모델"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.sales.sabangnet.sabangnet__sales_daily
+        - method: fqn
+          value: intermediate.sales.sabangnet.sabangnet__order_count
+        - method: fqn
+          value: intermediate.sales.smartstore.smartstore__sales_daily
+        - method: fqn
+          value: intermediate.sales.smartstore.smartstore__order_count
+        - method: fqn
+          value: marts.sales.analytics__sales_daily
+
   # Custom selectors
   - name: coupang_ads_master
     description: "전체 쿠팡 광고 마스터 모델 업데이트"
@@ -238,15 +260,5 @@ selectors:
           value: intermediate.ads.searchad.searchad__campaign_master
         - method: fqn
           value: intermediate.ads.searchad.searchad__adgroup_master
-        - method: fqn
-          value: intermediate.ads.searchad.searchad__ad_master
-  - name: ads_ad_master
-    description: "전체 광고 소재 마스터 모델 업데이트"
-    definition:
-      union:
-        - method: fqn
-          value: intermediate.ads.google_ads.google_ads__ad_master
-        - method: fqn
-          value: intermediate.ads.meta_ads.meta_ads__ad_master
         - method: fqn
           value: intermediate.ads.searchad.searchad__ad_master
