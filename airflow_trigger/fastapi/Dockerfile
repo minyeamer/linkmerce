@@ -8,9 +8,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py .
+COPY app ./app
 COPY templates ./templates
 
 EXPOSE 16160
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "16160"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "16160"]

@@ -72,9 +72,10 @@
   <script>
     async function run() {
       try {
-        const dagId = {{ dag_id | tojson }};
-        const params = new URLSearchParams({ dag_id: dagId, wait: "true" });
-        const response = await fetch("/api/trigger?" + params.toString(), {
+        const apiPath = {{ api_path | tojson }};
+        const params = new URLSearchParams(window.location.search);
+        params.set("wait", "true");
+        const response = await fetch(apiPath + "?" + params.toString(), {
           headers: { "Accept": "application/json" }
         });
         const result = await response.json();
