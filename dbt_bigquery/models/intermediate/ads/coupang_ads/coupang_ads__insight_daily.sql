@@ -19,6 +19,19 @@ product_renewal_mapping AS (
   {{ core__product_renewal_mapping() }}
 ),
 
+cpg_opt_to_sbn_ids AS (
+  SELECT
+      option_id
+    , ARRAY_TO_STRING(
+        ARRAY(
+          SELECT SPLIT(bundle_product_id, ':')[OFFSET(0)]
+          FROM UNNEST(SPLIT(bundle_product_ids, ',')) AS bundle_product_id
+        ),
+        ','
+      ) AS bundle_product_ids
+  FROM {{ source('relation', 'cpg_opt_to_sbn_ids') }}
+),
+
 insight_pa_daily AS (
   SELECT
       pa.campaign_id
@@ -38,7 +51,7 @@ insight_pa_daily AS (
     , pa.direct_conv_amount
     , pa.ymd
   FROM {{ source('coupang_ads', 'report_pa') }} AS pa
-  LEFT JOIN {{ source('relation', 'cpg_opt_to_sbn_ids') }} AS rel_opt
+  LEFT JOIN cpg_opt_to_sbn_ids AS rel_opt
     ON pa.option_id = rel_opt.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON pa.vendor_id = vdr.vendor_id
@@ -66,7 +79,7 @@ insight_nca_daily AS (
   FROM {{ source('coupang_ads', 'report_nca') }} AS nca
   LEFT JOIN {{ source('coupang_ads', 'creative') }} AS ad
     ON nca.creative_id = ad.creative_id
-  LEFT JOIN {{ source('relation', 'cpg_opt_to_sbn_ids') }} AS rel_opt
+  LEFT JOIN cpg_opt_to_sbn_ids AS rel_opt
     ON COALESCE(nca.option_id, ad.option_id) = rel_opt.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON nca.vendor_id = vdr.vendor_id
