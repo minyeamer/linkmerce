@@ -326,7 +326,7 @@ def overwrite_table_from_gsheets(
         columns: Sequence[str],
         primary_key: Sequence[str] | None = None,
         not_null: Sequence[str] | None = None,
-        apply_func: dict[str, Callable[[Any], Any]] | None = None,
+        apply_func: dict[str, Callable[[Any], Any] | str] | None = None,
         gcp_conn_id: str = "gcp_bigquery",
         postgres_conn_id: str = "postgres",
         head: int = 1,
@@ -342,15 +342,23 @@ def overwrite_table_from_gsheets(
     gs = WorksheetClient(account, key, sheet)
     rows, new_rows, unique = list(), list(), set()
 
+    # 설정 파일에서 문자열로 직렬화된 람다 표현식을 함수 객체로 변환한다.
+    if apply_func:
+        for key, func in apply_func.items():
+            if isinstance(func, str) and func.startswith("lambda"):
+                if "datetime." in func:
+                    import datetime
+                apply_func[key] = eval(func)
+
     # 1. 구글시트에서 특정 시트를 읽어오면서 PK, NOT NULL 등 제약 조건을 검증한다.
     for record in gs.get_all_records(head=head, numericise_ignore=numericise_ignore, **read_options):
         if primary_key:
-            identifier = tuple(record[key] for key in primary_key if record[key])
-            if (not identifier) or (identifier in unique):
+            identifier = tuple(record[key] for key in primary_key)
+            if (None in identifier) or (identifier in unique):
                 continue
             unique.add(identifier)
         if not_null:
-            if not [record[key] for key in not_null if record[key]]:
+            if None in (record[key] for key in not_null):
                 continue
         if apply_func:
             for key, func in apply_func.items():
@@ -381,7 +389,7 @@ def overwrite_table_from_gsheets(
         query = f"SELECT DISTINCT {', '.join(criteria)} FROM {table};"
         exists = bq_client.fetch_all_to_csv(query, header=False)
         for row in rows:
-            identifier = tuple(row[key] for key in criteria if row[key])
+            identifier = tuple(row[key] for key in criteria)
             if identifier not in exists:
                 new_rows.append(row)
 

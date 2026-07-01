@@ -354,12 +354,12 @@ def dual_load(
     # 1. 구글시트에서 특정 시트를 읽어오면서 PK, NOT NULL 등 제약 조건을 검증한다.
     for record in gs.get_all_records(head=head, numericise_ignore=numericise_ignore, **read_options):
         if primary_key:
-            identifier = tuple(record[key] for key in primary_key if record[key])
-            if (not identifier) or (identifier in unique):
+            identifier = tuple(record[key] for key in primary_key)
+            if (None in identifier) or (identifier in unique):
                 continue
             unique.add(identifier)
         if not_null:
-            if not [record[key] for key in not_null if record[key]]:
+            if None in (record[key] for key in not_null):
                 continue
         if apply_func:
             for key, func in apply_func.items():
@@ -385,7 +385,7 @@ def dual_load(
         query = f"SELECT DISTINCT {', '.join(criteria)} FROM {table};"
         exists = bq_client.fetch_all_to_csv(query, header=False)
         for row in rows:
-            identifier = tuple(row[key] for key in criteria if row[key])
+            identifier = tuple(row[key] for key in criteria)
             if identifier not in exists:
                 new_rows.append(row)
 
