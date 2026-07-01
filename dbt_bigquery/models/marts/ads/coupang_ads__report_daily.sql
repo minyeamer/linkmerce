@@ -1,10 +1,12 @@
 {{
   config(
     materialized = 'tvf',
-    params = [
-      {'name': 'DS_START_DATE', 'type': 'date'},
-      {'name': 'DS_END_DATE', 'type': 'date'}
-    ],
+    meta = {
+      'params': [
+        {'name': 'DS_START_DATE', 'type': 'date'},
+        {'name': 'DS_END_DATE', 'type': 'date'}
+      ]
+    },
     schema = 'coupang_ads',
     alias = 'report_daily'
   )

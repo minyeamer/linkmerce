@@ -1,11 +1,13 @@
 {{
   config(
     materialized = 'tvf',
-    params = [
-      {'name': 'DS_START_DATE', 'type': 'date'},
-      {'name': 'DS_END_DATE', 'type': 'date'},
-      {'name': 'DS_INTERVAL_MONTH', 'type': 'int64'}
-    ],
+    meta = {
+      'params': [
+        {'name': 'DS_START_DATE', 'type': 'date'},
+        {'name': 'DS_END_DATE', 'type': 'date'},
+        {'name': 'DS_INTERVAL_MONTH', 'type': 'int64'}
+      ]
+    },
     schema = 'analytics',
     alias = 'order_count_mom'
   )

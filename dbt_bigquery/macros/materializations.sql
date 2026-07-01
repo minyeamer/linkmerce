@@ -1,6 +1,6 @@
 {% materialization tvf, adapter='bigquery' -%}
   -- Load params from model configuration
-  {%- set params = config.get('params', []) -%}
+  {%- set params = config.get('meta', {}).get('params', []) -%}
   {%- set declared_params = [] -%}
   {%- for param in params -%}
     {%- do declared_params.append(param['name'] ~ ' ' ~ param['type']) -%}
