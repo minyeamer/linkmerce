@@ -1,9 +1,33 @@
 {% macro smartstore__product_type_mapping() -%}
 SELECT *
 FROM UNNEST([
-    STRUCT(0 AS seq, 0 AS code, '단일상품' AS label)
+    STRUCT(0 AS seq, 0 AS code, '단품상품' AS label)
   , STRUCT(1 AS seq, 1 AS code, '옵션상품' AS label)
-  , STRUCT(2 AS seq, 2 AS code, '추가구성상품' AS label)
+  , STRUCT(2 AS seq, 2 AS code, '추가상품' AS label)
+])
+{%- endmacro %}
+
+{% macro smartstore__product_status_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'WAIT' AS code, '판매대기' AS label)
+  , STRUCT(1 AS seq, 'SALE' AS code, '판매중' AS label)
+  , STRUCT(2 AS seq, 'OUTOFSTOCK' AS code, '품절' AS label)
+  , STRUCT(3 AS seq, 'UNADMISSION' AS code, '승인대기' AS label)
+  , STRUCT(4 AS seq, 'REJECTION' AS code, '승인거부' AS label)
+  , STRUCT(5 AS seq, 'SUSPENSION' AS code, '판매중지' AS label)
+  , STRUCT(6 AS seq, 'CLOSE' AS code, '판매종료' AS label)
+  , STRUCT(7 AS seq, 'PROHIBITION' AS code, '판매금지' AS label)
+  , STRUCT(8 AS seq, 'DELETE' AS code, '삭제' AS label)
+])
+{%- endmacro %}
+
+{% macro smartstore__display_type_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 'WAIT' AS code, '전시대기' AS label)
+  , STRUCT(1 AS seq, 'ON' AS code, '전시중' AS label)
+  , STRUCT(2 AS seq, 'SUSPENSION' AS code, '전시중지' AS label)
 ])
 {%- endmacro %}
 

@@ -1,4 +1,5 @@
 selectors:
+
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
     description: "'cj_loisparcel_invoice' DAG 실행 결과를 반영하기 위한 CJ 송장 후속 모델"
@@ -12,6 +13,7 @@ selectors:
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
           value: marts.sales.analytics__sales_daily
+
   # Airflow Dags - coupang
   - name: coupang_adreport
     description: "'coupang' >> 'coupang_adreport' DAG 실행 결과를 반영하기 위한 쿠팡 광고 실적 후속 모델"
@@ -42,6 +44,7 @@ selectors:
           value: models/intermediate/sales/coupang_rfm
         - method: fqn
           value: marts.sales.analytics__sales_daily
+
   # Airflow Dags - ecount
   - name: ecount_product
     description: "'ecount_product' DAG 실행 결과를 반영하기 위한 상품 기준 매출 후속 모델"
@@ -55,6 +58,7 @@ selectors:
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
           value: marts.sales.analytics__sales_daily
+
   # Airflow Dags - google_ads
   - name: google_ads
     description: "'google_ads' DAG 실행 결과를 반영하기 위한 구글 광고 후속 모델"
@@ -64,6 +68,7 @@ selectors:
           value: models/intermediate/ads/google_ads
         - method: fqn
           value: marts.sales.analytics__sales_daily
+
   # Airflow Dags - meta_ads
   - name: meta_ads
     description: "'meta_ads' DAG 실행 결과를 반영하기 위한 메타 광고 후속 모델"
@@ -73,6 +78,7 @@ selectors:
           value: models/intermediate/ads/meta_ads
         - method: fqn
           value: marts.sales.analytics__sales_daily
+
   # Airflow Dags - sabangnet
   - name: sabangnet_invoice
     description: "'sabangnet_invoice' DAG 실행 결과를 반영하기 위한 사방넷 송장 후속 모델"
@@ -100,6 +106,7 @@ selectors:
           value: models/intermediate/sales/smartstore
         - method: fqn
           value: marts.sales.analytics__sales_daily
+
   # Airflow Dags - searchad
   - name: searchad_contract
     description: "'searchad_contract' DAG 실행 결과를 반영하기 위한 검색광고 계약 후속 모델"
@@ -163,6 +170,7 @@ selectors:
           value: intermediate.ads.searchad.searchad__insight_daily
         - method: fqn
           value: marts.sales.analytics__sales_daily
+
   # Airflow Dags - smartstore
   - name: smartstore_invoice
     description: "'smartstore_invoice' DAG 실행 결과를 반영하기 위한 스마트스토어 배송 후속 모델"
@@ -181,7 +189,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
 
-  # Airflow Dags - gsheets
+  # Airflow Dags - sync_gsheets
   - name: sync_gsheets__expense
     description: "'sync_gsheets__expense' DAG 실행 결과를 반영하기 위한 고정지출 후속 모델"
     definition:
@@ -223,9 +231,9 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
 
-  # Custom selectors
+  # Airflow Dags - sync_gsheets__ads_master
   - name: coupang_ads_master
-    description: "전체 쿠팡 광고 마스터 모델 업데이트"
+    description: "쿠팡 광고 캠페인/광고그룹 마스터 모델 업데이트"
     definition:
       union:
         - method: fqn
@@ -233,7 +241,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.coupang_ads.coupang_ads__adgroup_master
   - name: google_ads_master
-    description: "전체 구글 광고 마스터 모델 업데이트"
+    description: "구글 광고 캠페인/광고그룹/소재 마스터 모델 업데이트"
     definition:
       union:
         - method: fqn
@@ -243,7 +251,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.google_ads.google_ads__ad_master
   - name: meta_ads_master
-    description: "전체 메타 광고 마스터 모델 업데이트"
+    description: "메타 광고 캠페인/광고세트/광고 마스터 모델 업데이트"
     definition:
       union:
         - method: fqn
@@ -253,7 +261,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.meta_ads.meta_ads__ad_master
   - name: searchad_master
-    description: "전체 네이버 검색광고 마스터 모델 업데이트"
+    description: "네이버 검색광고 캠페인/광고그룹/소재 마스터 모델 업데이트"
     definition:
       union:
         - method: fqn
@@ -262,3 +270,19 @@ selectors:
           value: intermediate.ads.searchad.searchad__adgroup_master
         - method: fqn
           value: intermediate.ads.searchad.searchad__ad_master
+
+  # Custom
+  - name: coupang_master
+    description: "쿠팡 옵션 마스터 모델 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: marts.product.coupang__option_master
+  - name: smartstore_master
+    description: "스마트스토어 상품/옵션 마스터 모델 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: marts.product.smartstore__product_master
+        - method: fqn
+          value: marts.product.smartstore__option_master
