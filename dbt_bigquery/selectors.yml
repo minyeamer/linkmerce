@@ -2,7 +2,7 @@ selectors:
 
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
-    description: "'cj_loisparcel_invoice' DAG 실행 결과를 반영하기 위한 CJ 송장 후속 모델"
+    description: "'cj_loisparcel_invoice' DAG 실행 후 CJ 송장번호 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -16,7 +16,7 @@ selectors:
 
   # Airflow Dags - coupang
   - name: coupang_adreport
-    description: "'coupang' >> 'coupang_adreport' DAG 실행 결과를 반영하기 위한 쿠팡 광고 실적 후속 모델"
+    description: "'coupang' >> 'coupang_adreport' DAG 실행 후 쿠팡 광고 실적 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -24,7 +24,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: coupang_campaign
-    description: "'coupang' >> 'coupang_campaign' DAG 실행 결과를 반영하기 위한 쿠팡 광고 마스터 후속 모델"
+    description: "'coupang' >> 'coupang_campaign' DAG 실행 후 쿠팡 광고 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -37,7 +37,7 @@ selectors:
         # - method: fqn
         #   value: marts.sales.analytics__sales_daily
   - name: coupang_rocket_sales
-    description: "'coupang' >> 'coupang_rocket_sales' DAG 실행 결과를 반영하기 위한 쿠팡 로켓정산 후속 모델"
+    description: "'coupang' >> 'coupang_rocket_sales' DAG 실행 후 쿠팡 로켓정산 내역 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -47,7 +47,7 @@ selectors:
 
   # Airflow Dags - ecount
   - name: ecount_product
-    description: "'ecount_product' DAG 실행 결과를 반영하기 위한 상품 기준 매출 후속 모델"
+    description: "'ecount_product' DAG 실행 후 상품별 원가 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -61,7 +61,7 @@ selectors:
 
   # Airflow Dags - google_ads
   - name: google_ads
-    description: "'google_ads' DAG 실행 결과를 반영하기 위한 구글 광고 후속 모델"
+    description: "'google_ads' DAG 실행 후 구글 광고 목록 및 실적 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -71,7 +71,7 @@ selectors:
 
   # Airflow Dags - meta_ads
   - name: meta_ads
-    description: "'meta_ads' DAG 실행 결과를 반영하기 위한 메타 광고 후속 모델"
+    description: "'meta_ads' DAG 실행 후 메타 광고 목록 및 실적 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -81,7 +81,7 @@ selectors:
 
   # Airflow Dags - sabangnet
   - name: sabangnet_invoice
-    description: "'sabangnet_invoice' DAG 실행 결과를 반영하기 위한 사방넷 송장 후속 모델"
+    description: "'sabangnet_invoice' DAG 실행 후 사방넷 송장번호 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -89,7 +89,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: sabangnet_order
-    description: "'sabangnet_order' DAG 실행 결과를 반영하기 위한 사방넷 주문 후속 모델"
+    description: "'sabangnet_order' DAG 실행 후 사방넷 주문 내역 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -97,7 +97,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: sabangnet_product
-    description: "'sabangnet_product' DAG 실행 결과를 반영하기 위한 사방넷 상품/매핑 후속 모델"
+    description: "'sabangnet_product' DAG 실행 후 사방넷 상품/매핑 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -109,7 +109,7 @@ selectors:
 
   # Airflow Dags - searchad
   - name: searchad_contract
-    description: "'searchad_contract' DAG 실행 결과를 반영하기 위한 검색광고 계약 후속 모델"
+    description: "'searchad_contract' DAG 실행 후 네이버 검색광고 계약 정보 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -119,7 +119,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: searchad_master_gfa
-    description: "'searchad_master_gfa' DAG 실행 결과를 반영하기 위한 GFA 광고 마스터 후속 모델"
+    description: "'searchad_master_gfa' DAG 실행 후 네이버 성과형 광고 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -137,7 +137,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: searchad_master_sad
-    description: "'searchad_master_sad' DAG 실행 결과를 반영하기 위한 검색광고 마스터 후속 모델"
+    description: "'searchad_master_sad' DAG 실행 후 네이버 검색광고 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -155,7 +155,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: searchad_report_gfa
-    description: "'searchad_report_gfa' DAG 실행 결과를 반영하기 위한 GFA 광고 실적 후속 모델"
+    description: "'searchad_report_gfa' DAG 실행 후 네이버 성과형 광고 실적 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -163,7 +163,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: searchad_report_sad
-    description: "'searchad_report_sad' DAG 실행 결과를 반영하기 위한 검색광고 실적 후속 모델"
+    description: "'searchad_report_sad' DAG 실행 후 네이버 검색광고 실적 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -173,7 +173,7 @@ selectors:
 
   # Airflow Dags - smartstore
   - name: smartstore_invoice
-    description: "'smartstore_invoice' DAG 실행 결과를 반영하기 위한 스마트스토어 배송 후속 모델"
+    description: "'smartstore_invoice' DAG 실행 후 스마트스토어 송장번호 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -181,7 +181,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: smartstore_order
-    description: "'smartstore_order' DAG 실행 결과를 반영하기 위한 스마트스토어 주문 후속 모델"
+    description: "'smartstore_order' DAG 실행 후 스마트스토어 주문 내역 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -191,25 +191,22 @@ selectors:
 
   # Airflow Dags - sync_gsheets
   - name: sync_gsheets__expense
-    description: "'sync_gsheets__expense' DAG 실행 결과를 반영하기 위한 고정지출 후속 모델"
+    description: "'sync_gsheets__expense' DAG 실행 후 고정지출 변동을 매출에 반영"
     definition:
-      union:
-        - method: fqn
-          value: marts.sales.analytics__sales_daily
+      method: fqn
+      value: marts.sales.analytics__sales_daily
   - name: sync_gsheets__extra_ads
-    description: "'sync_gsheets__extra_ads' DAG 실행 결과를 반영하기 위한 기타광고 후속 모델"
+    description: "'sync_gsheets__extra_ads' DAG 실행 후 기타광고 변동을 매출에 반영"
     definition:
-      union:
-        - method: fqn
-          value: marts.sales.analytics__sales_daily
+      method: fqn
+      value: marts.sales.analytics__sales_daily
   - name: sync_gsheets__extra_sales
-    description: "'sync_gsheets__extra_sales' DAG 실행 결과를 반영하기 위한 기타매출 후속 모델"
+    description: "'sync_gsheets__extra_sales' DAG 실행 후 기타매출 변동을 매출에 반영"
     definition:
-      union:
-        - method: fqn
-          value: marts.sales.analytics__sales_daily
+      method: fqn
+      value: marts.sales.analytics__sales_daily
   - name: sync_gsheets__opex
-    description: "'sync_gsheets__opex' DAG 실행 결과를 반영하기 위한 운영비용 후속 모델"
+    description: "'sync_gsheets__opex' DAG 실행 후 운영비용 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -217,7 +214,7 @@ selectors:
         - method: fqn
           value: marts.sales.analytics__sales_daily
   - name: sync_gsheets__order_status
-    description: "'sync_gsheets__order_status' DAG 실행 결과를 반영하기 위한 주문상태 후속 모델"
+    description: "'sync_gsheets__order_status' DAG 실행 후 주문상태 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -233,7 +230,7 @@ selectors:
 
   # Airflow Dags - sync_gsheets__ads_master
   - name: coupang_ads_master
-    description: "쿠팡 광고 캠페인/광고그룹 마스터 모델 업데이트"
+    description: "쿠팡 광고 캠페인/광고그룹 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -241,7 +238,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.coupang_ads.coupang_ads__adgroup_master
   - name: google_ads_master
-    description: "구글 광고 캠페인/광고그룹/소재 마스터 모델 업데이트"
+    description: "구글 광고 캠페인/광고그룹/소재 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -251,7 +248,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.google_ads.google_ads__ad_master
   - name: meta_ads_master
-    description: "메타 광고 캠페인/광고세트/광고 마스터 모델 업데이트"
+    description: "메타 광고 캠페인/광고세트/광고 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -261,7 +258,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.meta_ads.meta_ads__ad_master
   - name: searchad_master
-    description: "네이버 검색광고 캠페인/광고그룹/소재 마스터 모델 업데이트"
+    description: "네이버 검색광고 캠페인/광고그룹/소재 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -272,26 +269,31 @@ selectors:
           value: intermediate.ads.searchad.searchad__ad_master
 
   # Custom
+  - name: order_count
+    description: "일별 주문 내역 업데이트"
+    definition:
+      method: fqn
+      value: marts.sales.analytics__order_count.sql
+      parents: true
+  - name: sales
+    description: "일별 매출 보고서 업데이트"
+    definition:
+      method: fqn
+      value: marts.sales.analytics__sales_daily.sql
+      parents: true
   - name: profit
-    description: "영업이익 테이블 함수 모델 업데이트"
+    description: "일별 영업이익 보고서 업데이트"
     definition:
-      union:
-        - method: fqn
-          value: marts.sales.analytics__profit_base
-        - method: fqn
-          value: marts.sales.analytics__profit_daily
-        - method: fqn
-          value: marts.sales.analytics__profit_mom
-        - method: fqn
-          value: marts.sales.analytics__profit_monthly
+      method: fqn
+      value: marts.sales.analytics__profit_base
+      children: true
   - name: coupang_master
-    description: "쿠팡 옵션 마스터 모델 업데이트"
+    description: "쿠팡 옵션 목록 업데이트"
     definition:
-      union:
-        - method: fqn
-          value: marts.product.coupang__option_master
+      method: fqn
+      value: marts.product.coupang__option_master
   - name: smartstore_master
-    description: "스마트스토어 상품/옵션 마스터 모델 업데이트"
+    description: "스마트스토어 상품/옵션 목록 업데이트"
     definition:
       union:
         - method: fqn
