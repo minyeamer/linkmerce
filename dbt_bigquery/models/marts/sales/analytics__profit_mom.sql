@@ -37,12 +37,14 @@ sales_ds_range AS (
     , SUM(supply_amount) AS supply_amount
     , SUM(supply_cost) AS supply_cost
     , SUM(delivery_fee) AS delivery_fee
+    , SUM(margin_amount) AS margin_amount
     , SUM(ad_cost) AS ad_cost
     , SUM(extra_cost) AS extra_cost
+    , SUM(profit) AS profit
     , MIN(order_date) AS order_start_date
     , MAX(order_date) AS order_end_date
     , DATE_TRUNC(DS_END_DATE, MONTH) AS order_ym
-  FROM {{ ref('analytics__sales_daily_adjusted') }}(DS_START_DATE, DS_END_DATE)
+  FROM {{ ref('analytics__profit_base') }}(DS_START_DATE, DS_END_DATE)
   GROUP BY product_id, shop_id, order_status
 ),
 
@@ -58,12 +60,14 @@ sales_monthly_lookback AS (
     , SUM(supply_amount) AS supply_amount
     , SUM(supply_cost) AS supply_cost
     , SUM(delivery_fee) AS delivery_fee
+    , SUM(margin_amount) AS margin_amount
     , SUM(ad_cost) AS ad_cost
     , SUM(extra_cost) AS extra_cost
+    , SUM(profit) AS profit
     , MIN(order_date) AS order_start_date
     , MAX(order_date) AS order_end_date
     , DATE_TRUNC(order_date, MONTH) AS order_ym
-  FROM {{ ref('analytics__sales_daily_adjusted') }}(
+  FROM {{ ref('analytics__profit_base') }}(
       DATE_TRUNC(DATE_SUB(DS_END_DATE, INTERVAL DS_INTERVAL_MONTH MONTH), MONTH)
     , DATE_SUB(DATE_TRUNC(DS_END_DATE, MONTH), INTERVAL 1 DAY)
   )
@@ -78,14 +82,14 @@ sales_monthly AS (
     , fact.shop_id
     , fact.order_status
     -- Primary metrics
-    , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS profit
+    , fact.profit
     -- Sales metrics
     , COALESCE(fact.sku_quantity * COALESCE(item.unit_scale, 1), 0) AS unit_quantity
     , fact.payment_amount
     , fact.supply_amount
     , fact.supply_cost
     , fact.delivery_fee
-    , fact.supply_amount - fact.supply_cost - fact.delivery_fee AS margin_amount
+    , fact.margin_amount
     -- Ad metrics
     , fact.ad_cost
     , IF(fact.shop_id IN ('shop0055', 'shop9000'), fact.ad_cost, 0) AS ad_cost__searchad
@@ -99,7 +103,7 @@ sales_monthly AS (
     , IF(fact.shop_id = 'adop0004', fact.extra_cost, 0) AS extra_cost__sales
     , IF(fact.shop_id = 'adop0005', fact.extra_cost, 0) AS extra_cost__expense
     -- Roi fractions
-    , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS roi__top
+    , fact.profit + 0 AS roi__top -- Column names in UNPIVOT IN clause cannot be repeated
     , fact.ad_cost + fact.extra_cost AS roi__bottom
     -- Date attributes
     , MIN(fact.order_start_date) OVER (PARTITION BY fact.order_ym) AS order_start_date

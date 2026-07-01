@@ -26,12 +26,14 @@ sales_monthly AS (
     , SUM(supply_amount) AS supply_amount
     , SUM(supply_cost) AS supply_cost
     , SUM(delivery_fee) AS delivery_fee
+    , SUM(margin_amount) AS margin_amount
     , SUM(ad_cost) AS ad_cost
     , SUM(extra_cost) AS extra_cost
+    , SUM(profit) AS profit
     , MIN(order_date) AS order_start_date
     , MAX(order_date) AS order_end_date
     , DATE_TRUNC(order_date, MONTH) AS order_ym
-  FROM {{ ref('analytics__sales_daily_adjusted') }}(DS_START_DATE, DS_END_DATE)
+  FROM {{ ref('analytics__profit_base') }}(DS_START_DATE, DS_END_DATE)
   GROUP BY DATE_TRUNC(order_date, MONTH), product_id, shop_id, order_status
 ),
 
@@ -67,10 +69,10 @@ profit_monthly AS (
     , fact.supply_amount
     , fact.supply_cost
     , fact.delivery_fee
-    , fact.supply_amount - fact.supply_cost - fact.delivery_fee AS margin_amount
+    , fact.margin_amount
     , fact.ad_cost
     , fact.extra_cost
-    , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS profit
+    , fact.profit
     , fact.order_start_date
     , fact.order_end_date
     , fact.order_ym

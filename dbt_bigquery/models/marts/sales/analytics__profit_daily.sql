@@ -47,12 +47,12 @@ SELECT
   , fact.supply_amount
   , fact.supply_cost
   , fact.delivery_fee
-  , fact.supply_amount - fact.supply_cost - fact.delivery_fee AS margin_amount
+  , fact.margin_amount
   , fact.ad_cost
   , fact.extra_cost
-  , fact.supply_amount - fact.supply_cost - fact.delivery_fee - fact.ad_cost - fact.extra_cost AS profit
+  , fact.profit
   , fact.order_date
-FROM {{ ref('analytics__sales_daily_adjusted') }}(DS_START_DATE, DS_END_DATE) AS fact
+FROM {{ ref('analytics__profit_base') }}(DS_START_DATE, DS_END_DATE) AS fact
 LEFT JOIN {{ ref('core__product_master') }} AS item
   ON fact.product_id = item.product_id
 LEFT JOIN {{ source('sabangnet', 'shop') }} AS shop

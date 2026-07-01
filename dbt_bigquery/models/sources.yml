@@ -8,6 +8,7 @@ sources:
       - name: delivery_group
       - name: expense
       - name: extra_ads
+      - name: extra_profit
       - name: extra_sales
       - name: opex
       - name: order_status

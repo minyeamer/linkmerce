@@ -272,6 +272,18 @@ selectors:
           value: intermediate.ads.searchad.searchad__ad_master
 
   # Custom
+  - name: profit
+    description: "영업이익 테이블 함수 모델 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: marts.sales.analytics__profit_base
+        - method: fqn
+          value: marts.sales.analytics__profit_daily
+        - method: fqn
+          value: marts.sales.analytics__profit_mom
+        - method: fqn
+          value: marts.sales.analytics__profit_monthly
   - name: coupang_master
     description: "쿠팡 옵션 마스터 모델 업데이트"
     definition:
