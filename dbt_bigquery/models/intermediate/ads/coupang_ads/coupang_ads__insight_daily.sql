@@ -44,7 +44,7 @@ insight_pa_daily AS (
       ) AS bundle_product_ids
     , pa.impression_count
     , pa.click_count
-    , pa.ad_cost
+    , SAFE_CAST(pa.ad_cost * 1.1 AS INT64) AS ad_cost
     , pa.conv_count
     , pa.direct_conv_count
     , pa.conv_amount
@@ -70,7 +70,7 @@ insight_nca_daily AS (
       ) AS bundle_product_ids
     , nca.impression_count
     , nca.click_count
-    , nca.ad_cost
+    , SAFE_CAST(nca.ad_cost * 1.1 AS INT64) AS ad_cost
     , SAFE_CAST(NULL AS INT64) AS conv_count
     , SAFE_CAST(NULL AS INT64) AS direct_conv_count
     , SAFE_CAST(NULL AS INT64) AS conv_amount
