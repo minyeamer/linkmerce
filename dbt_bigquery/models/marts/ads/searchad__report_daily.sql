@@ -19,25 +19,25 @@ device_type_mapping AS (
 )
 
 SELECT
-    master.customer_id
-  , master.account_name
-  , master.account_type
+    COALESCE(ad.customer_id, cmp.customer_id) AS customer_id
+  , COALESCE(ad.account_name, cmp.account_name) AS account_name
+  , COALESCE(ad.account_type, cmp.account_type) AS account_type
   -- Campaign attributes
-  , master.campaign_id
-  , master.campaign_name
-  , COALESCE(master.campaign_type, '캠페인 없음') AS campaign_type
+  , insight.campaign_id
+  , COALESCE(ad.campaign_name, cmp.campaign_name) AS campaign_name
+  , COALESCE(ad.campaign_type, cmp.campaign_type, '캠페인 없음') AS campaign_type
   -- Adgroup attributes
-  , master.adgroup_id
-  , master.adgroup_name
-  , COALESCE(master.adgroup_type, '그룹 없음') AS adgroup_type
+  , ad.adgroup_id
+  , ad.adgroup_name
+  , COALESCE(ad.adgroup_type, CONCAT(cmp.account_type, '-기타'), '그룹 없음') AS adgroup_type
   -- Ad attributes
   , insight.ad_id
-  , master.title
-  , master.description
-  , COALESCE(master.ad_type, '유형 없음') AS ad_type
-  , master.is_enabled
-  , master.is_deleted
-  , master.mall_product_id
+  , ad.title
+  , ad.description
+  , COALESCE(ad.ad_type, cmp.ad_type, '유형 없음') AS ad_type
+  , COALESCE(ad.is_enabled, cmp.is_enabled) AS is_enabled
+  , COALESCE(ad.is_deleted, cmp.is_deleted) AS is_deleted
+  , ad.mall_product_id
   -- Product attributes
   , insight.product_id
   , product.item_id
@@ -64,8 +64,10 @@ SELECT
 FROM {{ ref('searchad__insight_daily') }} AS insight
 LEFT JOIN device_type_mapping AS device_type
   ON insight.device_type = device_type.code
-LEFT JOIN {{ ref('searchad__ad_master') }} AS master
-  ON insight.ad_id = master.ad_id
+LEFT JOIN {{ ref('searchad__campaign_master') }} AS cmp
+  ON insight.campaign_id = cmp.campaign_id
+LEFT JOIN {{ ref('searchad__ad_master') }} AS ad
+  ON insight.ad_id = ad.ad_id
 LEFT JOIN {{ ref('core__product_master') }} AS product
   ON insight.product_id = product.product_id
 WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE

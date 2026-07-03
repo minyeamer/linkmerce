@@ -17,6 +17,26 @@ FROM UNNEST([
 ])
 {%- endmacro %}
 
+-- fallback mapping for campaign ads
+{% macro searchad__campaign_ad_type_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 1 AS code, '파워링크-단일형 소재' AS label)
+  , STRUCT(1 AS seq, 2 AS code, '쇼핑검색-상품형 소재' AS label)
+  , STRUCT(2 AS seq, 3 AS code, '파워컨텐츠-정보형 소재' AS label)
+  , STRUCT(3 AS seq, 4 AS code, '브랜드검색-일반형 소재' AS label)
+  , STRUCT(4 AS seq, 5 AS code, '플레이스-플레이스 검색 소재' AS label)
+  , STRUCT(5 AS seq, 101 AS code, '웹사이트 전환' AS label)
+  , STRUCT(6 AS seq, 102 AS code, '성과형-기타' AS label)
+  , STRUCT(7 AS seq, 103 AS code, '성과형-기타' AS label)
+  , STRUCT(8 AS seq, 104 AS code, '성과형-동영상' AS label)
+  , STRUCT(9 AS seq, 105 AS code, '성과형-카탈로그' AS label)
+  , STRUCT(10 AS seq, 106 AS code, '성과형-기타' AS label)
+  , STRUCT(11 AS seq, 107 AS code, '성과형-기타' AS label)
+  , STRUCT(12 AS seq, 108 AS code, '성과형-ADVoost 소재' AS label)
+])
+{%- endmacro %}
+
 {% macro searchad__adgroup_type_mapping() -%}
 SELECT *
 FROM UNNEST([
