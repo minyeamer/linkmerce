@@ -12,7 +12,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - coupang
   - name: coupang_adreport
@@ -22,7 +22,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.coupang_ads.coupang_ads__insight_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: coupang_campaign
     description: "'coupang' >> 'coupang_campaign' DAG 실행 후 쿠팡 광고 목록 업데이트"
     definition:
@@ -35,7 +35,7 @@ selectors:
         # - method: fqn
         #   value: intermediate.ads.coupang_ads.coupang_ads__insight_daily
         # - method: fqn
-        #   value: marts.sales.analytics__sales_daily
+        #   value: intermediate.sales.core__sales_daily
   - name: coupang_rocket_sales
     description: "'coupang' >> 'coupang_rocket_sales' DAG 실행 후 쿠팡 로켓정산 내역 변동을 매출에 반영"
     definition:
@@ -43,7 +43,7 @@ selectors:
         - method: path
           value: models/intermediate/sales/coupang_rfm
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - ecount
   - name: ecount_product
@@ -57,7 +57,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - google_ads
   - name: google_ads
@@ -67,7 +67,7 @@ selectors:
         - method: path
           value: models/intermediate/ads/google_ads
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - meta_ads
   - name: meta_ads
@@ -77,7 +77,7 @@ selectors:
         - method: path
           value: models/intermediate/ads/meta_ads
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - sabangnet
   - name: sabangnet_invoice
@@ -87,7 +87,7 @@ selectors:
         - method: path
           value: models/intermediate/sales/sabangnet
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: sabangnet_order
     description: "'sabangnet_order' DAG 실행 후 사방넷 주문 내역 변동을 매출에 반영"
     definition:
@@ -95,7 +95,7 @@ selectors:
         - method: path
           value: models/intermediate/sales/sabangnet
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: sabangnet_product
     description: "'sabangnet_product' DAG 실행 후 사방넷 상품/매핑 변동을 매출에 반영"
     definition:
@@ -105,7 +105,7 @@ selectors:
         - method: path
           value: models/intermediate/sales/smartstore
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - searchad
   - name: searchad_contract
@@ -117,7 +117,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.searchad.searchad__contract_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: searchad_master_gfa
     description: "'searchad_master_gfa' DAG 실행 후 네이버 성과형 광고 목록 업데이트"
     definition:
@@ -135,7 +135,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.searchad.searchad__insight_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: searchad_master_sad
     description: "'searchad_master_sad' DAG 실행 후 네이버 검색광고 목록 업데이트"
     definition:
@@ -153,7 +153,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.searchad.searchad__insight_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: searchad_report_gfa
     description: "'searchad_report_gfa' DAG 실행 후 네이버 성과형 광고 실적 변동을 매출에 반영"
     definition:
@@ -161,7 +161,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.searchad.searchad__insight_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: searchad_report_sad
     description: "'searchad_report_sad' DAG 실행 후 네이버 검색광고 실적 변동을 매출에 반영"
     definition:
@@ -169,7 +169,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.searchad.searchad__insight_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - smartstore
   - name: smartstore_invoice
@@ -179,7 +179,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: smartstore_order
     description: "'smartstore_order' DAG 실행 후 스마트스토어 주문 내역 변동을 매출에 반영"
     definition:
@@ -187,24 +187,24 @@ selectors:
         - method: path
           value: models/intermediate/sales/smartstore
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - sync_gsheets
   - name: sync_gsheets__expense
     description: "'sync_gsheets__expense' DAG 실행 후 고정지출 변동을 매출에 반영"
     definition:
       method: fqn
-      value: marts.sales.analytics__sales_daily
+      value: intermediate.sales.core__sales_daily
   - name: sync_gsheets__extra_ads
     description: "'sync_gsheets__extra_ads' DAG 실행 후 기타광고 변동을 매출에 반영"
     definition:
       method: fqn
-      value: marts.sales.analytics__sales_daily
+      value: intermediate.sales.core__sales_daily
   - name: sync_gsheets__extra_sales
     description: "'sync_gsheets__extra_sales' DAG 실행 후 기타매출 변동을 매출에 반영"
     definition:
       method: fqn
-      value: marts.sales.analytics__sales_daily
+      value: intermediate.sales.core__sales_daily
   - name: sync_gsheets__opex
     description: "'sync_gsheets__opex' DAG 실행 후 운영비용 변동을 매출에 반영"
     definition:
@@ -212,7 +212,7 @@ selectors:
         - method: fqn
           value: intermediate.ads.core__opex_daily
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
   - name: sync_gsheets__order_status
     description: "'sync_gsheets__order_status' DAG 실행 후 주문상태 변동을 매출에 반영"
     definition:
@@ -226,7 +226,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__order_count
         - method: fqn
-          value: marts.sales.analytics__sales_daily
+          value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - sync_gsheets__ads_master
   - name: coupang_ads_master
@@ -273,13 +273,13 @@ selectors:
     description: "일별 주문 내역 업데이트"
     definition:
       method: fqn
-      value: marts.sales.analytics__order_count.sql
+      value: marts.sales.analytics__order_count
       parents: true
   - name: sales
     description: "일별 매출 보고서 업데이트"
     definition:
       method: fqn
-      value: marts.sales.analytics__sales_daily.sql
+      value: intermediate.sales.core__sales_daily
       parents: true
   - name: profit
     description: "일별 영업이익 보고서 업데이트"

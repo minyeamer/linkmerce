@@ -1,6 +1,7 @@
 {{
   config(
     materialized = 'incremental',
+    schema = 'xfm_sales',
     incremental_strategy = 'insert_overwrite',
     partition_by = {
       "field": "order_date",
@@ -8,9 +9,7 @@
       "granularity": "day"
     },
     partitions = bq_date_partitions('ds_start_date', 'ds_end_date'),
-    require_partition_filter = true,
-    schema = "analytics",
-    alias = "sales_daily"
+    require_partition_filter = true
   )
 }}
 

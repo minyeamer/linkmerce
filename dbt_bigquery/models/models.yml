@@ -82,6 +82,11 @@ models:
   - name: "cj__invoice_order"
     description: "CJ 로이스파셀/eFLEXs 송장 데이터를 매출에 붙이기 위해 주문번호 단위로 운임과 부자재금액을 집계한 모델"
 
+  # intermediate > sales
+
+  - name: "core__sales_daily"
+    description: "각종 플랫폼에서 요약된 매출, 광고, 비용 데이터를 결합하고 SKU 및 쇼핑몰별로 집계한 일별 파티션 모델"
+
   # intermediate > sales > coupang_rfm
 
   - name: "coupang_rfm__order_count"
@@ -130,9 +135,6 @@ models:
 
   - name: "analytics__order_count_mom"
     description: "지정된 기간에 대한 주문건수와 기간 종료일로부터 n개월 전까지의 월별 주문건수를 비교하기 위한 테이블 함수"
-
-  - name: "analytics__sales_daily"
-    description: "각종 플랫폼에서 요약된 매출, 광고, 비용 데이터를 결합하고 SKU 및 쇼핑몰별로 집계한 일별 파티션 모델"
 
   - name: "analytics__profit_base"
     description: "통합된 일별 매출, 광고, 비용 데이터에서 주문상태 등 조건에 따라 일부 값을 제외하고 마진금액과 영업이익을 계산한 테이블 함수"
