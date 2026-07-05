@@ -1,3 +1,11 @@
+{% macro smartstore__delivery_product_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(7 AS delivery_type, '100177' AS original_product_id, '100732' AS delivery_product_id)
+  , STRUCT(7 AS delivery_type, '100182' AS original_product_id, '100733' AS delivery_product_id)
+])
+{%- endmacro %}
+
 {% macro smartstore__product_type_mapping() -%}
 SELECT *
 FROM UNNEST([

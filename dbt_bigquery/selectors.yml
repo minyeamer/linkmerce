@@ -287,6 +287,20 @@ selectors:
       method: fqn
       value: marts.sales.analytics__profit_base
       children: true
+  - name: stock
+    description: "재고수량 및 기간 판매량 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.stock.core__sold_qty_30d_daily
+        - method: fqn
+          value: intermediate.stock.core__stock_qty_batch
+          parents: true
+  - name: stock_report
+    description: "재고-소비기한 보고서 업데이트"
+    definition:
+      method: fqn
+      value: marts.stock.analytics__stock_report
   - name: coupang_master
     description: "쿠팡 옵션 목록 업데이트"
     definition:

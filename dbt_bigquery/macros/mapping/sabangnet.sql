@@ -1,3 +1,10 @@
+{% macro sabangnet__shop_id_rules() -%}
+CASE
+  WHEN STARTS_WITH(order_id, '병원출고') THEN 'chop9022'
+  ELSE shop_id
+END
+{%- endmacro %}
+
 {% macro sabangnet__bundle_option_rules() -%}
 CASE
   WHEN (option_id = '100345-0001') AND (sku_quantity >= 100) THEN '100330-0001:1'

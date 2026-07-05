@@ -114,6 +114,25 @@ models:
   - name: "relation__smt_opt_to_sbn_ids"
     description: "스마트스토어 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 사방넷 매핑 규칙에 따라 자동 매칭한 모델"
 
+  # intermediate > stock
+
+  - name: "core__sold_qty_30d_daily"
+    description: "각종 플랫폼에서 요약된 판매수량을 SKU별 피벗 테이블로 가공한 일별 파티션 모델"
+
+  - name: "core__stock_qty_batch"
+    description: "각종 플랫폼에서 요약된 재고수량을 SKU 및 차수별 피벗 테이블로 가공한 일별 파티션 모델"
+
+  # intermediate > stock > sources
+
+  - name: "cj_eflexs__stock_qty_batch"
+    description: "CJ eFLEXs 재고수량을 SKU 및 차수별로 집계한 일별 파티션 모델"
+
+  - name: "coupang_rfm__stock_qty_batch"
+    description: "쿠팡 로켓 재고수량을 SKU 및 차수별로 집계한 일별 파티션 모델"
+
+  - name: "ecount__stock_qty_batch"
+    description: "이카운트 재고수량을 SKU 및 차수별로 집계한 일별 파티션 모델"
+
   # marts > ads
 
   - name: "coupang_ads__report_daily"
@@ -147,3 +166,8 @@ models:
 
   - name: "analytics__profit_mom"
     description: "지정된 기간에 대한 월별 매출 및 영업이익을 n개월 전부터 기간 종료일까지 조회하여 비교하기 위한 테이블 함수"
+
+  # marts > stock
+
+  - name: "analytics__stock_report"
+    description: "이카운트 상품을 기준으로 재고수량과 판매수량을 결합하고 판매가능일과 예상소진일을 포함한 보고서를 제공하는 테이블 함수"

@@ -21,7 +21,7 @@ FROM UNNEST([
   , STRUCT(2 AS seq, 2 AS code, '교환' AS label, 'supply_cost, delivery_fee' AS metrics)
   , STRUCT(3 AS seq, 3 AS code, '취소' AS label, '' AS metrics)
   , STRUCT(4 AS seq, 5 AS code, '빈박스' AS label, 'delivery_fee' AS metrics)
-  , STRUCT(5 AS seq, 6 AS code, '증정' AS label, '0 AS sku_quantity, 0 AS payment_amount, 0 AS supply_amount, supply_cost, 0 AS delivery_fee' AS metrics)
+  , STRUCT(5 AS seq, 6 AS code, '증정' AS label, 'supply_cost' AS metrics)
   , STRUCT(6 AS seq, 7 AS code, '배송' AS label, 'delivery_fee' AS metrics)
   , STRUCT(7 AS seq, 8 AS code, '광고' AS label, 'ad_cost' AS metrics)
   , STRUCT(8 AS seq, 9 AS code, '비용' AS label, 'extra_cost' AS metrics)

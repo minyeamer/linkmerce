@@ -100,8 +100,7 @@ order_detail AS (
   -- Filter orders
   WHERE ord.order_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND ord.order_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
-    AND acc.shop_id NOT IN ('shop0055', 'chop0022')
-    AND NOT STARTS_WITH(ord.order_id, '병원출고_')
+    AND acc.shop_id != 'shop0055'
 ),
 
 -- Step 2: apply bundle product rules
@@ -117,7 +116,7 @@ bundle_product_order AS (
       , invoice_no
       , account_no
       -- Sales dimensions
-      , shop_id
+      , ({{ sabangnet__shop_id_rules() }}) AS shop_id
       , product_id
       , option_id
       , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
