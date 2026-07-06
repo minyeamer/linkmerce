@@ -118,7 +118,7 @@ with DAG(
         return generate(results, "context.partitions")
 
 
-    @task.short_circuit(task_id="prepare_dbt_run")
+    @task.short_circuit(task_id="prepare_dbt_run", ignore_downstream_trigger_rules=False)
     def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
         date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
         if isinstance(date_range, dict):
