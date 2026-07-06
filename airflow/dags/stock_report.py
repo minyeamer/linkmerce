@@ -27,6 +27,7 @@ from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.timetables.trigger import MultipleCronTriggerTimetable
 from datetime import timedelta
+from typing import TypedDict
 import pendulum
 
 
@@ -54,6 +55,11 @@ with DAG(
 
     SENSOR_POKE_INTERVAL = 30
     SENSOR_TIMEOUT = int(timedelta(minutes=59).total_seconds())
+
+    class ReportTimes(TypedDict):
+        last_updated_at: pendulum.DateTime
+        order_start_date: pendulum.Date
+        order_end_date: pendulum.Date
 
 
     def check_prior_run(ti: TaskInstance, data_interval_end: pendulum.DateTime, **kwargs) -> str:
@@ -95,17 +101,29 @@ with DAG(
 
             if datetime < afternoon_start:
                 return {
-                    "datetime": datetime.isoformat(),
-                    "start_time": start_of_day.isoformat(),
-                    "end_time": afternoon_start.subtract(microseconds=1).isoformat(),
-                    "expected_coupang_dag_runs": num_vendors,
+                    "upstream": {
+                        "datetime": datetime.isoformat(),
+                        "start_time": start_of_day.isoformat(),
+                        "end_time": afternoon_start.subtract(microseconds=1).isoformat(),
+                        "expected_coupang_dag_runs": num_vendors,
+                    },
+                    "downstream": {
+                        "report_date": datetime.format("YYYY-MM-DD"),
+                        "report_batch": 10,
+                    },
                 }
             else:
                 return {
-                    "datetime": datetime.isoformat(),
-                    "start_time": afternoon_start.isoformat(),
-                    "end_time": datetime.end_of("day").isoformat(),
-                    "expected_coupang_dag_runs": num_vendors,
+                    "upstream": {
+                        "datetime": datetime.isoformat(),
+                        "start_time": afternoon_start.isoformat(),
+                        "end_time": datetime.end_of("day").isoformat(),
+                        "expected_coupang_dag_runs": num_vendors,
+                    },
+                    "downstream": {
+                        "report_date": datetime.format("YYYY-MM-DD"),
+                        "report_batch": 20,
+                    },
                 }
 
 
@@ -115,7 +133,7 @@ with DAG(
             import logging
 
             logger = logging.getLogger(__name__)
-            states = ti.xcom_pull(task_ids="external_task_sensor.init_sensor_states")
+            states = ti.xcom_pull(task_ids="external_task_sensor.init_sensor_states")["upstream"]
             params = {
                 "access_token": authenticate(),
                 "logical_date_gte": pendulum.parse(states["start_time"]),
@@ -219,11 +237,10 @@ with DAG(
             return main(datetime=get_datetime(kwargs), **config)
 
         def main(
-                report_query: str,
-                uptime_query: str,
+                stock_report_tvf: str,
+                last_time_table: str,
                 slack_conn_id: str,
                 channel_id: str,
-                datetime: pendulum.DateTime,
                 sensor_states: dict,
                 service_account: dict,
                 max_fetch_retries: int = 10,
@@ -232,42 +249,32 @@ with DAG(
             ) -> dict:
             from linkmerce.extensions.bigquery import BigQueryClient
             from linkmerce.utils.excel import csv2excel, save_excel_to_tempfile
-            import datetime as dt
             import time
 
-            # [SET DATE] BigQuery에서 실행할 쿼리에 조회할 칼럼 및 재고/판매량 기간을 동적으로 포맷팅한다.
-            query_dates, rows = make_query_dates(sensor_states), list()
-            report_query = report_query.format(
-                COLUMNS = ', '.join([header[0] for header in expected_headers()]),
-                STOCK_START_DATE = query_dates["stock"]["start_time"].format("YYYY-MM-DD HH:mm:ss"),
-                STOCK_END_DATE = query_dates["stock"]["end_time"].format("YYYY-MM-DD HH:mm:ss"),
-                ORDER_START_DATE = query_dates["order"]["start_time"].format("YYYY-MM-DD HH:mm:ss"),
-                ORDER_END_DATE = query_dates["order"]["end_time"].format("YYYY-MM-DD HH:mm:ss"),
-            )
+            states, rows = sensor_states["downstream"], list()
 
             # [LOAD DATA] BigQuery 테이블에 업로드된 3가지 플랫폼의 재고 내역을 테이블 함수로 병합해 가져온다.
             with BigQueryClient(service_account) as client:
+                tbl_columns = ", ".join(["last_updated_at", "order_start_date", "order_end_date"])
+                times = client.fetch_all_to_json(f"SELECT {tbl_columns} FROM {last_time_table};")
+                report_times = parse_time_table(times, states)
+
+                tvf_columns = ", ".join([header[0] for header in expected_headers()])
+                params = "'{}', {}".format(states["report_date"], states["report_batch"])
+                report_query = f"SELECT {tvf_columns} FROM {stock_report_tvf}({params});"
+
                 for i in range(1, max_fetch_retries+1): # CJ eFLEXs 재고 수량 반영이 늦어 최대 n회 재시도
                     rows = client.fetch_all_to_csv(report_query, header=True)
                     if sum_eflexs_quantity(rows) > 0:
                         break
                     time.sleep(delay_increment * i)
 
-                if not rows:
-                    raise AirflowException(f"No rows returned after {max_fetch_retries} fetch attempts")
-
-                # [UPDATE DATE] 조회 기간 내 재고 내역에서 마지막 업데이트 시간을 추출 및 반영한다.
-                uptime_query = uptime_query.format(
-                    STOCK_START_DATE = query_dates["stock"]["start_time"].format("YYYY-MM-DD HH:mm:ss"),
-                    STOCK_END_DATE = query_dates["stock"]["end_time"].format("YYYY-MM-DD HH:mm:ss"),
-                )
-                uptime: dt.datetime | None = client.fetch_one(uptime_query)
-                stock_end_time = pendulum.instance(uptime, tz="Asia/Seoul") if uptime else datetime
-                query_dates["stock"]["end_time"] = stock_end_time
+            if not rows:
+                raise AirflowException(f"No rows returned after {max_fetch_retries} fetch attempts")
 
             # [PARSE DATA] 조회한 데이터에서 영어 헤더를 2단계 한글 헤더로 변경한다.
             headers0, headers1 = list(), list()
-            for header, (expected, (header0, header1)) in zip(rows[0], expected_headers(query_dates)):
+            for header, (expected, (header0, header1)) in zip(rows[0], expected_headers(report_times)):
                 if header != expected:
                     raise ValueError(f"Expected header '{expected}' do not match actual column '{header}'")
                 headers0.append(header0)
@@ -288,7 +295,7 @@ with DAG(
                 merge_cells = merge_headers,
                 range_styles = hedaer_styles,
                 column_filters = {"range": "A2:X"},
-                freeze_panes = "F3",
+                freeze_panes = "G3",
                 zoom_scale = 85,
             )
 
@@ -297,61 +304,71 @@ with DAG(
                 slack_conn_id = slack_conn_id,
                 channel_id = channel_id,
                 file = save_excel_to_tempfile(wb),
-                datetime = stock_end_time,
+                datetime = report_times["last_updated_at"],
                 total = (len(rows) - 1),
                 counts = count_by_brand(rows),
             )
 
 
-        def make_query_dates(sensor_states: dict) -> dict[str, dict[str, pendulum.DateTime]]:
-            """재고 수집 이벤트 범위로부터 재고/판매량 조회 기간을 생성한다."""
-            return {
-                "stock": {
-                    "start_time": (start_time := pendulum.parse(sensor_states["start_time"])),
-                    "end_time": (end_time := pendulum.parse(sensor_states["end_time"])),
-                },
-                "order": {
-                    "start_time": start_time.start_of("day").subtract(days=30),
-                    "end_time": end_time.end_of("day").subtract(days=1),
+        def parse_time_table(times: list[dict], states: dict) -> ReportTimes:
+            """재고 내역의 최근 업데이트 날짜를 Dag 기준일에 맞춰 보정한다."""
+            info = times[0]
+            logical_date: pendulum.Date = pendulum.parse(states["report_date"]).date()
+
+            last_updated_at: pendulum.DateTime = pendulum.instance(info["last_updated_at"], tz="Asia/Seoul")
+            order_start_date: pendulum.Date = pendulum.instance(info["order_start_date"])
+            order_end_date: pendulum.Date = pendulum.instance(info["order_end_date"])
+
+            if logical_date != last_updated_at.date():
+                diff_days = (logical_date - last_updated_at.date()).days
+                return {
+                    "last_updated_at": last_updated_at.add(days=diff_days),
+                    "order_start_date": order_start_date.add(days=diff_days),
+                    "order_end_date": order_end_date.add(days=diff_days),
                 }
-            }
+            else:
+                return {
+                    "last_updated_at": last_updated_at,
+                    "order_start_date": order_start_date,
+                    "order_end_date": order_end_date,
+                }
 
 
-        def make_header_dates(query_dates: dict[str, dict[str, pendulum.DateTime]]) -> dict[str, str]:
+        def make_header_dates(report_times: ReportTimes) -> dict[str, str]:
             """재고/판매량 조회 기간을 헤더에 삽입할 날짜 문자열로 변환한다."""
             return {
-                "stock_end_time": query_dates["stock"]["end_time"].format("YYYY-MM-DD(dd) HH:mm", locale="ko"),
-                "order_start_time": query_dates["order"]["start_time"].format("YYYY-MM-DD(dd)", locale="ko"),
-                "order_end_time": query_dates["order"]["end_time"].format("YYYY-MM-DD(dd)", locale="ko"),
+                "last_updated_at": report_times["last_updated_at"].format("YYYY-MM-DD(dd) HH:mm", locale="ko"),
+                "order_start_date": report_times["order_start_date"].format("YYYY-MM-DD(dd)", locale="ko"),
+                "order_end_date": report_times["order_end_date"].format("YYYY-MM-DD(dd)", locale="ko"),
             }
 
-        def expected_headers(query_dates: dict | None = None) -> list[tuple[str, tuple[str, str]]]:
+        def expected_headers(report_times: ReportTimes | None = None) -> list[tuple[str, tuple[str, str]]]:
             """테이블 함수 조회 결과의 전체 열 목록을 검증하고 2단계 한글 헤더로 변경하기 위한 자료구조를 생성한다."""
-            header_dates = make_header_dates(query_dates) if query_dates else dict()
-            order_dates = (header_dates.get("order_start_time"), header_dates.get("order_end_time"))
+            header_dates = make_header_dates(report_times) if report_times else dict()
+            order_dates = [header_dates.get("order_start_date"), header_dates.get("order_end_date")]
             return [
-                ("brand_name", ("재고 기준: {}".format(header_dates.get("stock_end_time")), "브랜드")),
-                ("option_id", (None, "사방넷\n품번코드")),
-                ("remarks", (None, "아이인리치코드")),
+                ("brand_name", ("재고 기준: {}".format(header_dates.get("last_updated_at")), "브랜드")),
+                ("product_id", (None, "사방넷\n품번코드")),
+                ("product_remarks", (None, "아이인리치코드")),
                 ("product_code", ("판매량 기준: {} ~ {}".format(*order_dates), "품목코드")),
                 ("product_name", (None, "품목명")),
                 ("expiration_date", (None, "소비기한")),
-                ("ecount_quantity", ("본사창고", "본사재고")),
-                ("sabangnet_sold_30d", (None, "총 판매량\n(최근 30일)")),
-                ("sabangnet_avg_sold_30d", (None, "일 평균 판매량\n(최근 30일)")),
-                ("ecount_remain_days", (None, "판매 가능일")),
-                ("eflexs_quantity", ("N배송", "풀필재고")),
-                ("eflexs_sold_30d", (None, "총 판매량\n(최근 30일)")),
-                ("eflexs_avg_sold_30d", (None, "일 평균 판매량\n(최근 30일)")),
-                ("eflexs_remain_days", (None, "판매 가능일")),
-                ("rocket_quantity", ("로켓그로스", "그로스재고")),
-                ("rocket_sold_30d", (None, "총 판매량\n(최근 30일)")),
-                ("rocket_avg_sold_30d", (None, "일 평균 판매량\n(최근 30일)")),
-                ("rocket_remain_days", (None, "판매 가능일")),
-                ("total_quantity", ("소비기한별 재고소진 예상일", "총 재고")),
-                ("total_sold_30d", (None, "총 판매량\n(최근 30일)")),
-                ("total_avg_sold_30d", (None, "일 평균 판매량\n(최근 30일)")),
-                ("total_remain_days", (None, "판매 가능일")),
+                ("ecount__stock_qty", ("본사창고", "본사재고")),
+                ("sabangnet__sold_qty_30d", (None, "총 판매량\n(최근 30일)")),
+                ("sabangnet__avg_sold_qty_30d", (None, "일 평균 판매량\n(최근 30일)")),
+                ("ecount__remain_days", (None, "판매 가능일")),
+                ("cj_eflexs__stock_qty", ("N배송", "풀필재고")),
+                ("cj_eflexs__sold_qty_30d", (None, "총 판매량\n(최근 30일)")),
+                ("cj_eflexs__avg_sold_qty_30d", (None, "일 평균 판매량\n(최근 30일)")),
+                ("cj_eflexs__remain_days", (None, "판매 가능일")),
+                ("coupang_rfm__stock_qty", ("로켓그로스", "그로스재고")),
+                ("coupang_rfm__sold_qty_30d", (None, "총 판매량\n(최근 30일)")),
+                ("coupang_rfm__avg_sold_qty_30d", (None, "일 평균 판매량\n(최근 30일)")),
+                ("coupang_rfm__remain_days", (None, "판매 가능일")),
+                ("stock_qty", ("소비기한별 재고소진 예상일", "총 재고")),
+                ("sold_qty_30d", (None, "총 판매량\n(최근 30일)")),
+                ("avg_sold_qty_30d", (None, "일 평균 판매량\n(최근 30일)")),
+                ("remain_days", (None, "판매 가능일")),
                 ("expected_date", (None, "예상 소진일")),
                 ("performance", (None, "재고 알림")),
             ]

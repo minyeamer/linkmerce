@@ -78,6 +78,9 @@ with DAG(
             )
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, conn.unique(source, "DATE(updated_at)"))),
+                },
                 "params": {
                     "vendor_id": vendor_id,
                     "hidden_status": None,

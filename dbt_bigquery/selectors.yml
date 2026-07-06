@@ -1,5 +1,19 @@
 selectors:
 
+  # Airflow Dags - cj_eflexs
+  - name: cj_eflexs_stock
+    description: "'cj_eflexs_stock' DAG 실행 후 CJ 풀필먼트 재고수량 변동을 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.stock.sources.cj_eflexs__stock_qty_batch
+        - method: fqn
+          value: intermediate.stock.core__sold_qty_30d_daily
+        - method: fqn
+          value: intermediate.stock.core__stock_qty_batch
+        - method: fqn
+          value: intermediate.stock.core__stock_last_updated_at
+
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
     description: "'cj_loisparcel_invoice' DAG 실행 후 CJ 송장번호 변동을 매출에 반영"
@@ -36,6 +50,18 @@ selectors:
         #   value: intermediate.ads.coupang_ads.coupang_ads__insight_daily
         # - method: fqn
         #   value: intermediate.sales.core__sales_daily
+  - name: coupang_inventory
+    description: "'coupang' >> 'coupang_inventory' DAG 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.stock.sources.coupang_rfm__stock_qty_batch
+        - method: fqn
+          value: intermediate.stock.core__sold_qty_30d_daily
+        - method: fqn
+          value: intermediate.stock.core__stock_qty_batch
+        - method: fqn
+          value: intermediate.stock.core__stock_last_updated_at
   - name: coupang_rocket_sales
     description: "'coupang' >> 'coupang_rocket_sales' DAG 실행 후 쿠팡 로켓정산 내역 변동을 매출에 반영"
     definition:
@@ -46,6 +72,18 @@ selectors:
           value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - ecount
+  - name: ecount_inventory
+    description: "'ecount_inventory' DAG 실행 후 이카운트 재고수량 변동을 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.stock.sources.ecount__stock_qty_batch
+        - method: fqn
+          value: intermediate.stock.core__sold_qty_30d_daily
+        - method: fqn
+          value: intermediate.stock.core__stock_qty_batch
+        - method: fqn
+          value: intermediate.stock.core__stock_last_updated_at
   - name: ecount_product
     description: "'ecount_product' DAG 실행 후 상품별 원가 변동을 매출에 반영"
     definition:
@@ -58,6 +96,8 @@ selectors:
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
           value: intermediate.sales.core__sales_daily
+        - method: fqn
+          value: intermediate.stock.core__stock_qty_batch
 
   # Airflow Dags - google_ads
   - name: google_ads
@@ -294,10 +334,10 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__sold_qty_30d_daily
         - method: fqn
-          value: intermediate.stock.core__stock_last_updated_at
-        - method: fqn
           value: intermediate.stock.core__stock_qty_batch
           parents: true
+        - method: fqn
+          value: intermediate.stock.core__stock_last_updated_at
   - name: stock_report
     description: "재고-소비기한 보고서 업데이트"
     definition:

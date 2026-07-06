@@ -14,12 +14,14 @@ CJ대한통운 eFLEXs 로그인을 위한 아이디, 비밀번호와
 JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
 
 ## 적재(Load)
-데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
+- 데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
+- 적재 과정에서 수집한 날짜 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
 from airflow.models.taskinstance import TaskInstance
 from airflow.timetables.trigger import MultipleCronTriggerTimetable
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 import pendulum
 
@@ -38,7 +40,7 @@ with DAG(
     tags = [
         "priority:high", "platform:cj-eflexs", "objective:stock", "credentials:userid",
         "schedule:daily", "time:morning", "time:afternoon", "write:append",
-        "plugin:playwright"
+        "plugin:playwright", "plugin:dbt"
     ],
 ) as dag:
 
@@ -86,6 +88,9 @@ with DAG(
             )
 
             return {
+                "context": {
+                    "partitions": sorted(map(str, conn.unique(source, "DATE(updated_at)"))),
+                },
                 "params": {
                     "customer_id": customer_id,
                     "start_date": start_date,
@@ -99,4 +104,33 @@ with DAG(
             }
 
 
-    read_configs() >> etl_eflexs_stock()
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(result: dict) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(result, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_cj_eflexs_stock_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_cj_eflexs_stock",
+            selector = "cj_eflexs_stock",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_result = etl_eflexs_stock()
+
+    dbt_date_range = generate_dbt_date_range(etl_result)
+    dbt_run = dbt_bigquery_cj_eflexs_stock_group()
+
+    read_configs() >> etl_result
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

@@ -263,6 +263,27 @@ with DAG(
             ds_task_id = "generate_dbt_date_range__rocket_sales",
         )
 
+    # 2. subdag_id = "coupang_inventory"
+
+    @task(task_id="generate_dbt_date_range__inventory", trigger_rule="all_done")
+    def generate_dbt_date_range__inventory(results: dict) -> dict:
+        return generate_dbt_date_range(results, subdag_id="coupang_inventory")
+
+    @task.short_circuit(task_id="prepare_dbt_run__inventory", ignore_downstream_trigger_rules=False)
+    def prepare_dbt_run__inventory(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range__inventory")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+    def dbt_bigquery_coupang_inventory_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_coupang_inventory",
+            selector = "coupang_inventory",
+            ds_task_id = "generate_dbt_date_range__inventory",
+        )
+
     # 4. subdag_id = "coupang_adreport"
 
     @task(task_id="generate_dbt_date_range__adreport", trigger_rule="all_done")
@@ -315,6 +336,13 @@ with DAG(
 
     dbt_date_range__rocket_sales >> prepare_dbt_run__rocket_sales() >> dbt_run__rocket_sales
 
+    # 2. subdag_id = "coupang_inventory"
+
+    dbt_date_range__inventory = generate_dbt_date_range__inventory(etl_results)
+    dbt_run__inventory = dbt_bigquery_coupang_inventory_group()
+
+    dbt_date_range__inventory >> prepare_dbt_run__inventory() >> dbt_run__inventory
+
     # 4. subdag_id = "coupang_adreport"
 
     dbt_date_range__adreport = generate_dbt_date_range__adreport(etl_results)
@@ -343,4 +371,5 @@ with DAG(
         from dbt_cosmos import raise_on_failure
         raise_on_failure(ti)
 
-    [dbt_run__rocket_sales, dbt_run__adreport, dbt_run__campaign] >> finalize_dag_run(etl_results)
+    dbt_runs = [dbt_run__rocket_sales, dbt_run__inventory, dbt_run__adreport, dbt_run__campaign]
+    dbt_runs >> finalize_dag_run(etl_results)

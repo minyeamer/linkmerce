@@ -1,6 +1,9 @@
 """
 # 스마트스토어 상품/마케팅 채널 데이터 ETL 파이프라인
 
+> 안내) 26-07-01 이후 서비스 종료로 이용 불가 (리뉴얼하여 오픈 예정),
+> [공지사항](https://sell.smartstore.naver.com/#/center-notice/detail/200000933)
+
 ## 인증(Credentials)
 스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.
 

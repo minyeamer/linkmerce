@@ -18,21 +18,21 @@ FROM (
   (
     SELECT 0 AS group_id, updated_at
     FROM `ecount.inventory`
-    WHERE updated_at >= DATETIME('{{ var("ds_start_date") }}')
-      AND updated_at < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
+    WHERE updated_at >= DATETIME(DATE_SUB(CURRENT_DATE('Asia/Seoul'), INTERVAL 6 DAY))
+      AND updated_at < DATETIME(DATE_ADD(CURRENT_DATE('Asia/Seoul'), INTERVAL 1 DAY))
   )
   UNION ALL
   (
     SELECT 1 AS group_id, updated_at
     FROM `cj_eflexs.stock`
-    WHERE updated_at >= DATETIME('{{ var("ds_start_date") }}')
-      AND updated_at < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
+    WHERE updated_at >= DATETIME(DATE_SUB(CURRENT_DATE('Asia/Seoul'), INTERVAL 6 DAY))
+      AND updated_at < DATETIME(DATE_ADD(CURRENT_DATE('Asia/Seoul'), INTERVAL 1 DAY))
   )
   UNION ALL
   (
     SELECT 2 AS group_id, updated_at
     FROM `coupang_rfm.inventory`
-    WHERE updated_at >= DATETIME('{{ var("ds_start_date") }}')
-      AND updated_at < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
+    WHERE updated_at >= DATETIME(DATE_SUB(CURRENT_DATE('Asia/Seoul'), INTERVAL 6 DAY))
+      AND updated_at < DATETIME(DATE_ADD(CURRENT_DATE('Asia/Seoul'), INTERVAL 1 DAY))
   )
 )
