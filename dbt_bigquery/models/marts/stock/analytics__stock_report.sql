@@ -12,6 +12,23 @@
   )
 }}
 
+-- Query latest stock report:
+--
+-- DECLARE report_date DATE;
+-- DECLARE report_batch INT64;
+--
+-- SET (report_date, report_batch) = (
+--   SELECT AS STRUCT report_date, report_batch
+--   FROM xfm_stock.core__stock_last_updated_at
+-- );
+--
+-- SELECT *
+-- FROM analytics.stock_report(
+--   REPORT_DATE => report_date,
+--   REPORT_BATCH => report_batch
+-- );
+--
+
 WITH
 
 ecount_product AS (
@@ -44,10 +61,10 @@ core_product AS (
 stock_qty_batch AS (
   SELECT
       product_code
+    , stock_qty
     , ecount__stock_qty
     , cj_eflexs__stock_qty
     , coupang_rfm__stock_qty
-    , stock_qty
   FROM {{ ref('core__stock_qty_batch') }}
   WHERE ymd = REPORT_DATE
     AND batch = REPORT_BATCH
@@ -56,10 +73,10 @@ stock_qty_batch AS (
 sold_qty_daily_30d AS (
   SELECT
       product_id
+    , sold_qty_30d
     , sabangnet__sold_qty_30d
     , cj_eflexs__sold_qty_30d
     , coupang_rfm__sold_qty_30d
-    , sold_qty_30d
   FROM {{ ref('core__sold_qty_30d_daily') }}
   WHERE ymd = REPORT_DATE
 ),
@@ -72,10 +89,10 @@ stock_report_with_stock_qty AS (
     , product.product_id
     , product.expiration_date
     -- Stock metrics
+    , COALESCE(qty.stock_qty, 0) AS stock_qty
     , COALESCE(qty.ecount__stock_qty, 0) AS ecount__stock_qty
     , COALESCE(qty.cj_eflexs__stock_qty, 0) AS cj_eflexs__stock_qty
     , COALESCE(qty.coupang_rfm__stock_qty, 0) AS coupang_rfm__stock_qty
-    , COALESCE(qty.stock_qty, 0) AS stock_qty
     -- Join metrics
     , SUM(qty.stock_qty) OVER (PARTITION BY product.product_id) AS product__stock_qty
     , ROW_NUMBER() OVER (
@@ -95,10 +112,10 @@ stock_report_with_schedule AS (
     , report.product_id
     , report.expiration_date
     -- Stock metrics
+    , report.stock_qty
     , report.ecount__stock_qty
     , report.cj_eflexs__stock_qty
     , report.coupang_rfm__stock_qty
-    , report.stock_qty
     -- Schedule attributes
     , schedule.order_date
     , schedule.delivery_date
@@ -126,7 +143,13 @@ stock_report_with_sold_qty AS (
       report.product_code
     , report.product_id
     , report.expiration_date
-    -- Stock metrics
+    -- Stock metrics (total)
+    , report.stock_qty
+    , COALESCE(qty.sold_qty_30d, 0) AS sold_qty_30d
+    , NULLIF(
+        SUM(qty.sold_qty_30d) OVER (PARTITION BY report.product_id)
+      , 0) / 30 AS avg_sold_qty_30d
+    -- Stock metrics (partial)
     , report.ecount__stock_qty
     , COALESCE(qty.sabangnet__sold_qty_30d, 0) AS sabangnet__sold_qty_30d
     , NULLIF(
@@ -142,11 +165,6 @@ stock_report_with_sold_qty AS (
     , NULLIF(
         SUM(qty.coupang_rfm__sold_qty_30d) OVER (PARTITION BY report.product_id)
       , 0) / 30 AS coupang_rfm__avg_sold_qty_30d
-    , report.stock_qty
-    , COALESCE(qty.sold_qty_30d, 0) AS sold_qty_30d
-    , NULLIF(
-        SUM(qty.sold_qty_30d) OVER (PARTITION BY report.product_id)
-      , 0) / 30 AS avg_sold_qty_30d
     -- Schedule attributes
     , report.order_date
     , report.delivery_date
@@ -166,10 +184,10 @@ stock_report_with_sold_qty AS (
 stock_qty_cumsum AS (
   SELECT
       base.product_code
+    , SUM(cumsum.stock_qty) AS stock_qty
     , SUM(cumsum.ecount__stock_qty) AS ecount__stock_qty
     , SUM(cumsum.cj_eflexs__stock_qty) AS cj_eflexs__stock_qty
     , SUM(cumsum.coupang_rfm__stock_qty) AS coupang_rfm__stock_qty
-    , SUM(cumsum.stock_qty) AS stock_qty
   FROM stock_report_with_sold_qty AS base
   INNER JOIN stock_report_with_sold_qty AS cumsum
     ON base.product_id = cumsum.product_id
@@ -182,7 +200,18 @@ stock_report_with_remain_days AS (
       report.product_code
     , report.product_id
     , report.expiration_date
-    -- Stock metrics
+    -- Stock metrics (total)
+    , report.stock_qty
+    , report.sold_qty_30d
+    , COALESCE(
+        SAFE_CAST(report.avg_sold_qty_30d AS INT64)
+      , 0) AS avg_sold_qty_30d
+    , COALESCE(
+        SAFE_CAST(
+          FLOOR(cumsum.stock_qty / report.avg_sold_qty_30d)
+        AS INT64)
+      , 0) AS remain_days
+    -- Stock metrics (partial)
     , report.ecount__stock_qty
     , report.sabangnet__sold_qty_30d
     , COALESCE(
@@ -213,16 +242,6 @@ stock_report_with_remain_days AS (
           FLOOR(cumsum.coupang_rfm__stock_qty / report.coupang_rfm__avg_sold_qty_30d)
         AS INT64)
       , 0) AS coupang_rfm__remain_days
-    , report.stock_qty
-    , report.sold_qty_30d
-    , COALESCE(
-        SAFE_CAST(report.avg_sold_qty_30d AS INT64)
-      , 0) AS avg_sold_qty_30d
-    , COALESCE(
-        SAFE_CAST(
-          FLOOR(cumsum.stock_qty / report.avg_sold_qty_30d)
-        AS INT64)
-      , 0) AS remain_days
     -- Schedule attributes
     , report.order_date
     , report.delivery_date
@@ -274,7 +293,12 @@ stock_report_final AS (
     , product.product_keyword
     , report.expiration_date
     , dates.expiration_dates
-    -- Stock metrics
+    -- Stock metrics (total)
+    , report.stock_qty
+    , report.sold_qty_30d
+    , report.avg_sold_qty_30d
+    , report.remain_days
+    -- Stock metrics (partial)
     , report.ecount__stock_qty
     , report.sabangnet__sold_qty_30d
     , report.sabangnet__avg_sold_qty_30d
@@ -287,10 +311,6 @@ stock_report_final AS (
     , report.coupang_rfm__sold_qty_30d
     , report.coupang_rfm__avg_sold_qty_30d
     , report.coupang_rfm__remain_days
-    , report.stock_qty
-    , report.sold_qty_30d
-    , report.avg_sold_qty_30d
-    , report.remain_days
     -- Expected date
     , report.expected_date
     , (CASE

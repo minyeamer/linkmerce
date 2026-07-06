@@ -90,10 +90,10 @@ stock_qty_batch AS (
       ymd
     , batch
     , product_code
+    , SUM(stock_quantity) AS stock_qty
     , SUM(IF(group_id = 0, stock_quantity, NULL)) AS ecount__stock_qty
     , SUM(IF(group_id = 1, stock_quantity, NULL)) AS cj_eflexs__stock_qty
     , SUM(IF(group_id = 2, stock_quantity, NULL)) AS coupang_rfm__stock_qty
-    , SUM(stock_quantity) AS stock_qty
   FROM (
     (SELECT * FROM ecount_stock_qty_batch)
     UNION ALL

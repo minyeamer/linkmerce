@@ -294,6 +294,8 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__sold_qty_30d_daily
         - method: fqn
+          value: intermediate.stock.core__stock_last_updated_at
+        - method: fqn
           value: intermediate.stock.core__stock_qty_batch
           parents: true
   - name: stock_report

@@ -86,12 +86,12 @@ coupang_rfm_sold_qty_daily AS (
 
 sold_qty_daily AS (
   SELECT
-      product_id
+      order_date
+    , product_id
+    , SUM(sku_quantity) AS sold_qty
     , SUM(IF(group_id = 0, sku_quantity, NULL)) AS sabangnet__sold_qty
     , SUM(IF(group_id = 1, sku_quantity, NULL)) AS cj_eflexs__sold_qty
     , SUM(IF(group_id = 2, sku_quantity, NULL)) AS coupang_rfm__sold_qty
-    , SUM(sku_quantity) AS sold_qty
-    , order_date
   FROM (
     (SELECT * FROM sabangnet_sold_qty_daily)
     UNION ALL
@@ -106,12 +106,12 @@ sold_qty_daily AS (
 
 sold_qty_daily_30d AS (
   SELECT
-      qty.product_id
+      dates.ymd
+    , qty.product_id
+    , SUM(qty.sold_qty) AS sold_qty_30d
     , SUM(qty.sabangnet__sold_qty) AS sabangnet__sold_qty_30d
     , SUM(qty.cj_eflexs__sold_qty) AS cj_eflexs__sold_qty_30d
     , SUM(qty.coupang_rfm__sold_qty) AS coupang_rfm__sold_qty_30d
-    , SUM(qty.sold_qty) AS sold_qty_30d
-    , dates.ymd
   FROM ds_date_range AS dates
   INNER JOIN sold_qty_daily AS qty
     ON qty.order_date
