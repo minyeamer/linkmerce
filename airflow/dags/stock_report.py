@@ -238,7 +238,7 @@ with DAG(
 
         def main(
                 stock_report_tvf: str,
-                last_time_table: str,
+                stock_time_table: str,
                 slack_conn_id: str,
                 channel_id: str,
                 sensor_states: dict,
@@ -252,16 +252,20 @@ with DAG(
             import time
 
             states, rows = sensor_states["downstream"], list()
+            ymd, batch = "'{}'".format(states["report_date"]), states["report_batch"]
 
             # [LOAD DATA] BigQuery 테이블에 업로드된 3가지 플랫폼의 재고 내역을 테이블 함수로 병합해 가져온다.
             with BigQueryClient(service_account) as client:
-                tbl_columns = ", ".join(["last_updated_at", "order_start_date", "order_end_date"])
-                times = client.fetch_all_to_json(f"SELECT {tbl_columns} FROM {last_time_table};")
-                report_times = parse_time_table(times, states)
+                tbl_query = f"SELECT max_updated_at FROM {stock_time_table} WHERE ymd = {ymd} AND batch = {batch};"
+                if (tbl_result := client.fetch_one(tbl_query)) is None:
+                    raise AirflowException(
+                        f"Stock report cannot start: no stock update time found in "
+                        f"{stock_time_table} for ymd={ymd} and batch={batch}"
+                    )
+                updated_at = pendulum.instance(tbl_result, tz="Asia/Seoul")
 
                 tvf_columns = ", ".join([header[0] for header in expected_headers()])
-                params = "'{}', {}".format(states["report_date"], states["report_batch"])
-                report_query = f"SELECT {tvf_columns} FROM {stock_report_tvf}({params});"
+                report_query = f"SELECT {tvf_columns} FROM {stock_report_tvf}({ymd}, {batch});"
 
                 for i in range(1, max_fetch_retries+1): # CJ eFLEXs 재고 수량 반영이 늦어 최대 n회 재시도
                     rows = client.fetch_all_to_csv(report_query, header=True)
@@ -274,7 +278,7 @@ with DAG(
 
             # [PARSE DATA] 조회한 데이터에서 영어 헤더를 2단계 한글 헤더로 변경한다.
             headers0, headers1 = list(), list()
-            for header, (expected, (header0, header1)) in zip(rows[0], expected_headers(report_times)):
+            for header, (expected, (header0, header1)) in zip(rows[0], expected_headers(updated_at)):
                 if header != expected:
                     raise ValueError(f"Expected header '{expected}' do not match actual column '{header}'")
                 headers0.append(header0)
@@ -304,53 +308,30 @@ with DAG(
                 slack_conn_id = slack_conn_id,
                 channel_id = channel_id,
                 file = save_excel_to_tempfile(wb),
-                datetime = report_times["last_updated_at"],
+                datetime = updated_at,
                 total = (len(rows) - 1),
                 counts = count_by_brand(rows),
             )
 
 
-        def parse_time_table(times: list[dict], states: dict) -> ReportTimes:
-            """재고 내역의 최근 업데이트 날짜를 Dag 기준일에 맞춰 보정한다."""
-            info = times[0]
-            logical_date: pendulum.Date = pendulum.parse(states["report_date"]).date()
-
-            last_updated_at: pendulum.DateTime = pendulum.instance(info["last_updated_at"], tz="Asia/Seoul")
-            order_start_date: pendulum.Date = pendulum.instance(info["order_start_date"])
-            order_end_date: pendulum.Date = pendulum.instance(info["order_end_date"])
-
-            if logical_date != last_updated_at.date():
-                diff_days = (logical_date - last_updated_at.date()).days
-                return {
-                    "last_updated_at": last_updated_at.add(days=diff_days),
-                    "order_start_date": order_start_date.add(days=diff_days),
-                    "order_end_date": order_end_date.add(days=diff_days),
-                }
-            else:
-                return {
-                    "last_updated_at": last_updated_at,
-                    "order_start_date": order_start_date,
-                    "order_end_date": order_end_date,
-                }
-
-
-        def make_header_dates(report_times: ReportTimes) -> dict[str, str]:
-            """재고/판매량 조회 기간을 헤더에 삽입할 날짜 문자열로 변환한다."""
+        def make_header_dates(updated_at: pendulum.DateTime) -> dict[str, str]:
+            """재고 내역의 최근 업데이트 날짜를 헤더에 삽입할 날짜 문자열로 변환한다."""
             return {
-                "last_updated_at": report_times["last_updated_at"].format("YYYY-MM-DD(dd) HH:mm", locale="ko"),
-                "order_start_date": report_times["order_start_date"].format("YYYY-MM-DD(dd)", locale="ko"),
-                "order_end_date": report_times["order_end_date"].format("YYYY-MM-DD(dd)", locale="ko"),
+                "stock_updated_at": updated_at.format("YYYY-MM-DD(dd) HH:mm", locale="ko"),
+                "order_date_range": "{} ~ {}".format(
+                    updated_at.subtract(days=30).format("YYYY-MM-DD(dd)", locale="ko"),
+                    updated_at.subtract(days=1).format("YYYY-MM-DD(dd)", locale="ko"),
+                )
             }
 
-        def expected_headers(report_times: ReportTimes | None = None) -> list[tuple[str, tuple[str, str]]]:
+        def expected_headers(updated_at: pendulum.DateTime | None = None) -> list[tuple[str, tuple[str, str]]]:
             """테이블 함수 조회 결과의 전체 열 목록을 검증하고 2단계 한글 헤더로 변경하기 위한 자료구조를 생성한다."""
-            header_dates = make_header_dates(report_times) if report_times else dict()
-            order_dates = [header_dates.get("order_start_date"), header_dates.get("order_end_date")]
+            dates = make_header_dates(updated_at) if updated_at is not None else dict()
             return [
-                ("brand_name", ("재고 기준: {}".format(header_dates.get("last_updated_at")), "브랜드")),
+                ("brand_name", ("재고 기준: {}".format(dates.get("stock_updated_at", str())), "브랜드")),
                 ("product_id", (None, "사방넷\n품번코드")),
                 ("product_remarks", (None, "아이인리치코드")),
-                ("product_code", ("판매량 기준: {} ~ {}".format(*order_dates), "품목코드")),
+                ("product_code", ("판매량 기준: {}".format(dates.get("order_date_range", str())), "품목코드")),
                 ("product_name", (None, "품목명")),
                 ("expiration_date", (None, "소비기한")),
                 ("ecount__stock_qty", ("본사창고", "본사재고")),

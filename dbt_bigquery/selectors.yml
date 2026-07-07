@@ -12,7 +12,7 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__stock_qty_batch
         - method: fqn
-          value: intermediate.stock.core__stock_last_updated_at
+          value: intermediate.stock.core__stock_time_batch
 
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
@@ -61,7 +61,7 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__stock_qty_batch
         - method: fqn
-          value: intermediate.stock.core__stock_last_updated_at
+          value: intermediate.stock.core__stock_time_batch
   - name: coupang_rocket_sales
     description: "'coupang' >> 'coupang_rocket_sales' DAG 실행 후 쿠팡 로켓정산 내역 변동을 매출에 반영"
     definition:
@@ -83,7 +83,7 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__stock_qty_batch
         - method: fqn
-          value: intermediate.stock.core__stock_last_updated_at
+          value: intermediate.stock.core__stock_time_batch
   - name: ecount_product
     description: "'ecount_product' DAG 실행 후 상품별 원가 변동을 매출에 반영"
     definition:
@@ -337,12 +337,17 @@ selectors:
           value: intermediate.stock.core__stock_qty_batch
           parents: true
         - method: fqn
-          value: intermediate.stock.core__stock_last_updated_at
+          value: intermediate.stock.core__stock_time_batch
   - name: stock_report
     description: "재고-소비기한 보고서 업데이트"
     definition:
-      method: fqn
-      value: marts.stock.analytics__stock_report
+      union:
+        - method: fqn
+          value: marts.stock.analytics__stock_report
+        - method: fqn
+          value: marts.stock.analytics__stock_report_ds
+        - method: fqn
+          value: marts.stock.analytics__stock_time_ds
   - name: coupang_master
     description: "쿠팡 옵션 목록 업데이트"
     definition:

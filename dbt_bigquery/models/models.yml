@@ -122,6 +122,9 @@ models:
   - name: "core__stock_qty_batch"
     description: "각종 플랫폼에서 요약된 재고수량을 SKU 및 차수별 피벗 테이블로 가공한 일별 파티션 모델"
 
+  - name: "core__stock_time_batch"
+    description: "각종 플랫폼의 재고수량 업데이트 시간을 차수별로 누적하는 일별 파티션 모델"
+
   # intermediate > stock > sources
 
   - name: "cj_eflexs__stock_qty_batch"
@@ -171,3 +174,9 @@ models:
 
   - name: "analytics__stock_report"
     description: "이카운트 상품을 기준으로 재고수량과 판매수량을 결합하고 판매가능일과 예상소진일을 포함한 보고서를 제공하는 테이블 함수"
+
+  - name: "analytics__stock_report_ds"
+    description: "대시보드에서 재고-소비기한 보고서를 조회할 때 날짜 지정 없이 최근 보고서를 조회할 수 있도록 지원하는 테이블 함수"
+
+  - name: "analytics__stock_time_ds"
+    description: "대시보드에서 재고수량의 업데이트 시간을 조회할 때 날짜 지정 없이 최근 업데이트 시간을 조회할 수 있도록 지원하는 테이블 함수"

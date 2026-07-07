@@ -12,23 +12,6 @@
   )
 }}
 
--- Query latest stock report:
---
--- DECLARE report_date DATE;
--- DECLARE report_batch INT64;
---
--- SET (report_date, report_batch) = (
---   SELECT AS STRUCT report_date, report_batch
---   FROM xfm_stock.core__stock_last_updated_at
--- );
---
--- SELECT *
--- FROM analytics.stock_report(
---   REPORT_DATE => report_date,
---   REPORT_BATCH => report_batch
--- );
---
-
 WITH
 
 ecount_product AS (
@@ -67,7 +50,16 @@ stock_qty_batch AS (
     , coupang_rfm__stock_qty
   FROM {{ ref('core__stock_qty_batch') }}
   WHERE ymd = REPORT_DATE
-    AND batch = REPORT_BATCH
+    AND batch = (
+      CASE
+        WHEN REPORT_BATCH IN (10, 20) THEN REPORT_BATCH
+        ELSE (
+          SELECT MAX(batch)
+          FROM {{ ref('core__stock_qty_batch') }}
+          WHERE ymd = REPORT_DATE
+        )
+      END
+    )
 ),
 
 sold_qty_daily_30d AS (
@@ -297,7 +289,10 @@ stock_report_final AS (
     , report.stock_qty
     , report.sold_qty_30d
     , report.avg_sold_qty_30d
-    , report.remain_days
+    , (CASE
+        WHEN CONTAINS_SUBSTR(product.product_keyword, '1포') THEN NULL
+        ELSE report.remain_days
+      END) AS remain_days
     -- Stock metrics (partial)
     , report.ecount__stock_qty
     , report.sabangnet__sold_qty_30d
