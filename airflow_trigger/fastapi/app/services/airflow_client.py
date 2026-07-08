@@ -29,7 +29,7 @@ def run_airflow_dag(
 
     access_token = _auth_airflow()
     logical_date = _utc_now()
-    dag_run_id = "api__{}__{}".format(dag_id, logical_date.replace("-", "").replace(":", "").replace("+00:00", "Z"))
+    dag_run_id = f"api__{logical_date}"
 
     result = _trigger_dag_run(
         dag_id = dag_id,
@@ -156,7 +156,7 @@ def _timeout() -> int:
 def _utc_now(offset_seconds: int = 0) -> str:
     """현재 UTC 시각을 Airflow API가 기대하는 ISO 문자열로 반환한다."""
     now = dt.datetime.now(dt.UTC) + dt.timedelta(seconds=offset_seconds)
-    return now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return now.isoformat(timespec="seconds")
 
 
 def _env(name: str, default: str | None = None) -> str:
