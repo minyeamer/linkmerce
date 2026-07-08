@@ -26,7 +26,6 @@ ecount_product AS (
     , SAFE.PARSE_DATE('%Y%m%d', expiration_date) AS expiration_date
   FROM {{ source('ecount', 'product') }} AS eco
   WHERE COALESCE(option_id, '') != ''
-    AND NOT REGEXP_CONTAINS(eco.product_name, '1포|불량|비가용')
 ),
 
 core_product AS (
@@ -309,6 +308,12 @@ stock_report_final AS (
     -- Expected date
     , report.expected_date
     , (CASE
+        WHEN CONTAINS_SUBSTR(product.product_name, '1포')
+          THEN '제외 상품 - 1포'
+        WHEN CONTAINS_SUBSTR(product.product_name, '불량')
+          THEN '제외 상품 - 불량'
+        WHEN CONTAINS_SUBSTR(product.product_name, '비가용')
+          THEN '제외 상품 - 비가용'
         WHEN report.expiration_date IS NULL
           THEN '소비기한 없음'
         WHEN REPORT_DATE > report.expiration_date
@@ -323,7 +328,7 @@ stock_report_final AS (
       END) AS performance
     -- Product metrics
     , product.org_price
-    , product.org_price * report.stock_qty AS total_cost
+    , product.org_price * report.stock_qty AS stock_cost
     , item.in_stock_yn
     -- Schedule attributes
     , report.order_date

@@ -348,6 +348,8 @@ selectors:
           value: marts.stock.analytics__stock_report_ds
         - method: fqn
           value: marts.stock.analytics__stock_time_ds
+        - method: fqn
+          value: marts.stock.analytics__stock_cost_mom
   - name: coupang_master
     description: "쿠팡 옵션 목록 업데이트"
     definition:

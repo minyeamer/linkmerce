@@ -265,7 +265,8 @@ with DAG(
                 updated_at = pendulum.instance(tbl_result, tz="Asia/Seoul")
 
                 tvf_columns = ", ".join([header[0] for header in expected_headers()])
-                report_query = f"SELECT {tvf_columns} FROM {stock_report_tvf}({ymd}, {batch});"
+                where = "WHERE NOT STARTS_WITH(performance, '제외 상품')"
+                report_query = f"SELECT {tvf_columns} FROM {stock_report_tvf}({ymd}, {batch}) {where};"
 
                 for i in range(1, max_fetch_retries+1): # CJ eFLEXs 재고 수량 반영이 늦어 최대 n회 재시도
                     rows = client.fetch_all_to_csv(report_query, header=True)

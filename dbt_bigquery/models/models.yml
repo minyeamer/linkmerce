@@ -180,3 +180,6 @@ models:
 
   - name: "analytics__stock_time_ds"
     description: "대시보드에서 재고수량의 업데이트 시간을 조회할 때 날짜 지정 없이 최근 업데이트 시간을 조회할 수 있도록 지원하는 테이블 함수"
+
+  - name: "analytics__stock_cost_mom"
+    description: "매월 말 또는 기간 종료일 기준 재고 비용을 n개월 전부터 기간 종료일까지 조회하여 비교하기 위한 테이블 함수"
