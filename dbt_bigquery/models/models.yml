@@ -1,6 +1,9 @@
 version: 2
 
 models:
+  - name: "core__brand_master"
+    description: "`core.item` 테이블에서 품번코드가 '2'로 시작하는 항목만 추출한 브랜드 마스터 모델"
+
   - name: "core__product_master"
     description: "`core.item` 테이블에서 품번코드가 존재하는 항목만 추출한 대표상품 마스터 모델"
 
@@ -149,6 +152,23 @@ models:
 
   - name: "searchad__report_daily"
     description: "일별로 요약된 검색광고/GFA 보고서 및 계약 내역과 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
+
+  # marts > product
+
+  - name: "coupang__option_master"
+    description: "쿠팡 윙 옵션 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "sabangnet__option_master"
+    description: "사방넷 옵션 테이블과 상품 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "sabangnet__product_master"
+    description: "사방넷 상품 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "smartstore__option_master"
+    description: "스마트스토어 옵션 테이블과 상품 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "smartstore__product_master"
+    description: "스마트스토어 상품 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
 
   # marts > sales
 

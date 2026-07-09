@@ -308,7 +308,30 @@ selectors:
         - method: fqn
           value: intermediate.ads.searchad.searchad__ad_master
 
-  # Custom
+  # Custom - product
+  - name: coupang_master
+    description: "쿠팡 옵션 목록 업데이트"
+    definition:
+      method: fqn
+      value: marts.product.coupang__option_master
+  - name: sabangnet_master
+    description: "사방넷 상품/옵션 목록 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: marts.product.sabangnet__product_master
+        - method: fqn
+          value: marts.product.sabangnet__option_master
+  - name: smartstore_master
+    description: "스마트스토어 상품/옵션 목록 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: marts.product.smartstore__product_master
+        - method: fqn
+          value: marts.product.smartstore__option_master
+
+  # Custom - sales
   - name: order_count
     description: "일별 주문 내역 업데이트"
     definition:
@@ -327,6 +350,8 @@ selectors:
       method: fqn
       value: marts.sales.analytics__profit_base
       children: true
+
+  # Custom - stock
   - name: stock
     description: "재고수량 및 기간 판매량 업데이트"
     definition:
@@ -350,16 +375,3 @@ selectors:
           value: marts.stock.analytics__stock_time_ds
         - method: fqn
           value: marts.stock.analytics__stock_cost_mom
-  - name: coupang_master
-    description: "쿠팡 옵션 목록 업데이트"
-    definition:
-      method: fqn
-      value: marts.product.coupang__option_master
-  - name: smartstore_master
-    description: "스마트스토어 상품/옵션 목록 업데이트"
-    definition:
-      union:
-        - method: fqn
-          value: marts.product.smartstore__product_master
-        - method: fqn
-          value: marts.product.smartstore__option_master

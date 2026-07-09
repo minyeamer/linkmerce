@@ -248,7 +248,7 @@ brand_order AS (
   SELECT
       brand_name
     , MIN(brand_seq) AS brand_seq
-  FROM {{ source('smartstore', 'channel') }}
+  FROM {{ ref('core__brand_master') }}
   GROUP BY brand_name
 ),
 

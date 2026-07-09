@@ -28,7 +28,7 @@ END
 
 {% macro sabangnet__sku_quantity_rules() -%}
 CASE
-  WHEN option_id IN ('100330-0001','100741-0001') THEN order_quantity
+  WHEN option_id IN ('100330-0001', '100741-0001') THEN order_quantity
   ELSE sku_quantity
 END
 {%- endmacro %}
@@ -50,4 +50,37 @@ CASE
     AND order_dt BETWEEN '2025-10-30 17:00:00' AND '2025-11-02 23:59:59' THEN 0.9
   ELSE 1.0 - commission_rate
 END
+{%- endmacro %}
+
+{% macro sabangnet__product_status_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 1 AS code, '대기중' AS label)
+  , STRUCT(1 AS seq, 2 AS code, '공급중' AS label)
+  , STRUCT(2 AS seq, 3 AS code, '일시중지' AS label)
+  , STRUCT(3 AS seq, 4 AS code, '완전품절' AS label)
+  , STRUCT(4 AS seq, 5 AS code, '미사용' AS label)
+  , STRUCT(5 AS seq, 6 AS code, '삭제' AS label)
+  , STRUCT(6 AS seq, 7 AS code, '자료없음' AS label)
+  , STRUCT(7 AS seq, 8 AS code, '비노출' AS label)
+])
+{%- endmacro %}
+
+{% macro sabangnet__option_status_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 1 AS code, '판매' AS label)
+  , STRUCT(1 AS seq, 2 AS code, '일시품절' AS label)
+  , STRUCT(2 AS seq, 3 AS code, '미사용' AS label)
+])
+{%- endmacro %}
+
+{% macro sabangnet__option_type_mapping() -%}
+SELECT *
+FROM UNNEST([
+    STRUCT(0 AS seq, 0 AS code, '대표' AS label) -- custom type
+  , STRUCT(1 AS seq, 1 AS code, '세트' AS label)
+  , STRUCT(2 AS seq, 2 AS code, '모음전' AS label)
+  , STRUCT(3 AS seq, 3 AS code, '일반' AS label)
+])
 {%- endmacro %}
