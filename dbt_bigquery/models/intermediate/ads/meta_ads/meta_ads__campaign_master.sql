@@ -21,15 +21,16 @@ campaign_master AS (
     , acc.account_name
     -- Campaign attributes
     , cmp.campaign_id
-    , CONCAT(
-          IF(cmp.effective_status = 'DELETED', '1', '0')
-        , COALESCE(FORMAT('%02d', acc.account_seq), '99')
-        , COALESCE(FORMAT('%02d', objective.seq), '99')
-      ) AS campaign_seq
     , cmp.campaign_name
     , objective.label AS objective
     , effective_status.label AS effective_status
     , cmp.created_at
+    -- Sort key
+    , (
+        IF(cmp.effective_status = 'DELETED', 2, 1)  * 100 * 100
+        + COALESCE(acc.account_seq, 99)             * 100
+        + COALESCE(objective.seq, 99)
+      ) AS sort_key
   FROM {{ source('meta_ads', 'campaign') }} AS cmp
   LEFT JOIN {{ source('meta_ads', 'account') }} AS acc
     ON cmp.account_id = acc.account_id

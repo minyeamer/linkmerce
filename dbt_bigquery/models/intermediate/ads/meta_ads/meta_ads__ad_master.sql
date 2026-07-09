@@ -37,11 +37,6 @@ ad_master AS (
     , adset.adset_name
     -- Ad attributes
     , ad.ad_id
-    , CONCAT(
-          IF(status_fin.code = 'DELETED', '1', '0')
-        , COALESCE(FORMAT('%02d', acc.account_seq), '99')
-        , COALESCE(FORMAT('%02d', objective.seq), '99')
-      ) AS ad_seq
     , ad.ad_name
     , status_fin.label AS effective_status
     , COALESCE(
@@ -50,6 +45,12 @@ ad_master AS (
         , rel_cmp.bundle_product_ids
       ) AS bundle_product_ids
     , COALESCE(ad.created_at, adset.created_at, cmp.created_at) AS created_at
+    -- Sort key
+    , (
+        IF(status_fin.code = 'DELETED', 2, 1) * 100 * 100
+        + COALESCE(acc.account_seq, 99)       * 100
+        + COALESCE(objective.seq, 99)
+      ) AS sort_key
   FROM {{ source('meta_ads', 'ad') }} AS ad
   LEFT JOIN {{ source('meta_ads', 'account') }} AS acc
     ON ad.account_id = acc.account_id

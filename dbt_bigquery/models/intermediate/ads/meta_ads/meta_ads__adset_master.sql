@@ -25,15 +25,16 @@ adset_master AS (
     , objective.label AS objective
     -- Adset attributes
     , adset.adset_id
-    , CONCAT(
-          IF(status_fin.code = 'DELETED', '1', '0')
-        , COALESCE(FORMAT('%02d', acc.account_seq), '99')
-        , COALESCE(FORMAT('%02d', objective.seq), '99')
-      ) AS adset_seq
     , adset.adset_name
     , status_fin.label AS effective_status
     , adset.daily_budget
     , COALESCE(adset.created_at, cmp.created_at) AS created_at
+    -- Sort key
+    , (
+        IF(status_fin.code = 'DELETED', 2, 1) * 100 * 100
+        + COALESCE(acc.account_seq, 99)       * 100
+        + COALESCE(objective.seq, 99)
+      ) AS sort_key
   FROM {{ source('meta_ads', 'adset') }} AS adset
   LEFT JOIN {{ source('meta_ads', 'account') }} AS acc
     ON adset.account_id = acc.account_id

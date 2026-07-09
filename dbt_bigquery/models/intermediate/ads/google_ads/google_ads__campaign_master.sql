@@ -25,11 +25,6 @@ campaign_master AS (
     , acc.account_name
     -- Campaign attributes
     , cmp.campaign_id
-    , CONCAT(
-          IF(cmp.campaign_status = 'REMOVED', '1', '0')
-        , COALESCE(FORMAT('%02d', acc.account_seq), '99')
-        , COALESCE(FORMAT('%02d', campaign_type.seq), '99')
-      ) AS campaign_seq
     , cmp.campaign_name
     , campaign_type.label AS campaign_type
     , campaign_status.label AS campaign_status
@@ -39,6 +34,12 @@ campaign_master AS (
     , cmp.click_count_30d
     , cmp.ad_cost_30d
     , cmp.created_at
+    -- Sort key
+    , (
+        IF(cmp.campaign_status = 'REMOVED', 2, 1) * 100 * 100
+        + COALESCE(acc.account_seq, 99)           * 100
+        + COALESCE(campaign_type.seq, 99)
+      ) AS sort_key
   FROM {{ source('google_ads', 'campaign') }} AS cmp
   LEFT JOIN {{ source('google_ads', 'account') }} AS acc
     ON cmp.customer_id = acc.customer_id

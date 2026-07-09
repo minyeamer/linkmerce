@@ -27,11 +27,6 @@ campaign_master AS (
     , vendor_type.label AS vendor_type
     -- Campaign attributes
     , cmp.campaign_id
-    , CONCAT(
-          IF(cmp.is_deleted, '1', '0')
-        , COALESCE(FORMAT('%02d', vdr.vendor_seq), '99')
-        , COALESCE(FORMAT('%01d', goal_type.seq), '9')
-      ) AS campaign_seq
     , cmp.campaign_name
     , COALESCE(campaign_type.label, cmp.campaign_type) AS campaign_type
     , goal_type.label AS goal_type
@@ -40,6 +35,12 @@ campaign_master AS (
     , cmp.roas_target
     , cmp.created_at
     , cmp.updated_at
+    -- Sort key
+    , (
+        IF(cmp.is_deleted, 2, 1)        * 10 * 100
+        + COALESCE(vdr.vendor_seq, 99)  * 10
+        + COALESCE(goal_type.seq, 9)
+      ) AS sort_key
   FROM {{ source('coupang_ads', 'campaign') }} AS cmp
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON cmp.vendor_id = vdr.vendor_id

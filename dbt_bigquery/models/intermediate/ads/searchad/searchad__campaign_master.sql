@@ -22,11 +22,6 @@ campaign_master AS (
     , acc.account_type
     -- Campaign attributes
     , cmp.campaign_id
-    , CONCAT(
-          IF(cmp.is_deleted, '2', '1')
-        , COALESCE(FORMAT('%02d', acc.account_seq), '99')
-        , COALESCE(FORMAT('%02d', campaign_type.seq), '99')
-      ) AS campaign_seq
     , cmp.campaign_name
     , campaign_type.label AS campaign_type
     , campaign_ad_type.label AS ad_type
@@ -34,6 +29,12 @@ campaign_master AS (
     , cmp.is_deleted
     , cmp.created_at
     , cmp.deleted_at
+    -- Sort key
+    , (
+        IF(cmp.is_deleted, 2, 1)        * 100 * 100
+        + COALESCE(acc.account_seq, 99) * 100
+        + COALESCE(campaign_type.seq, 99)
+      ) AS sort_key
   FROM {{ source('searchad', 'campaign') }} AS cmp
   LEFT JOIN {{ source('searchad', 'account') }} AS acc
     ON cmp.customer_id = acc.customer_id

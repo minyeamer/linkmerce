@@ -34,12 +34,6 @@ contract_master AS (
     , adgroup_type.label AS adgroup_type
     -- Ad attributes
     , sad.contract_id
-    , CONCAT(
-          COALESCE(FORMAT('%02d', acc.account_seq), '99')
-        , COALESCE(FORMAT('%02d', campaign_type.seq), '99')
-        , COALESCE(FORMAT('%02d', adgroup_type.seq), '99')
-        , COALESCE(FORMAT('%01d', contract_type.seq), '9')
-      ) AS contract_seq
     , sad.contract_name
     , contract_type.label AS contract_type
     , sad.contract_amount
@@ -48,6 +42,14 @@ contract_master AS (
     , sad.exposure_start_date
     , sad.exposure_end_date
     , sad.cancel_date
+    -- Sort key
+    , (
+        IF(sad.cancel_date IS NULL, 1, 2) * 10 * 100 * 100 * 100
+        + COALESCE(acc.account_seq, 99)   * 10 * 100 * 100
+        + COALESCE(campaign_type.seq, 99) * 10 * 100
+        + COALESCE(adgroup_type.seq, 99)  * 10
+        + COALESCE(contract_type.seq, 9)
+      ) AS sort_key
   FROM {{ source('searchad', 'contract') }} AS sad
   LEFT JOIN {{ source('searchad', 'account') }} AS acc
     ON sad.customer_id = acc.customer_id

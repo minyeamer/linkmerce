@@ -25,19 +25,9 @@ product_master AS (
       prd.product_id
     , prd.product_no
     , prd.catalog_id
-    , CONCAT(
-          FORMAT('%02d', COALESCE(chl.brand_seq, 99))
-        , FORMAT('%02d', COALESCE(prd.delivery_type, 99))
-        , CAST(COALESCE(product_status.seq, 9) AS STRING)
-        , '-'
-        , FORMAT(
-              CONCAT('%0', CAST(LENGTH(CAST(
-                MAX(prd.product_id) OVER () - MIN(prd.product_id) OVER () AS STRING)) AS STRING), 'd')
-            , prd.product_id - MIN(prd.product_id) OVER ())
-      ) AS product_seq
-    , prd.product_name
     , chl.team_name
     , chl.brand_name
+    , prd.product_name
     , product_status.label AS status_type
     , display_type.label AS display_type
     , delivery_type.label AS delivery_type
@@ -52,6 +42,12 @@ product_master AS (
     , prd.delivery_fee
     , prd.register_dt
     , prd.modify_dt
+    -- Sort key
+    , (
+        COALESCE(chl.brand_seq, 99)       * 10 * 100
+        + COALESCE(prd.delivery_type, 99) * 10
+        + COALESCE(product_status.seq, 9)
+      ) AS sort_key
   FROM {{ source('smartstore', 'product') }} AS prd
   LEFT JOIN {{ source('smartstore', 'channel') }} AS chl
     ON prd.channel_seq = chl.channel_seq

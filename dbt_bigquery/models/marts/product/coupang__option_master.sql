@@ -9,22 +9,6 @@
 SELECT
     opt.product_id
   , opt.option_id
-  , CONCAT(
-        FORMAT('%02d', COALESCE(vdr.vendor_seq, 99))
-      , COALESCE(IF(opt.is_deleted, '1', '0'), '2')
-      , '-'
-      , FORMAT(
-            CONCAT('%0', CAST(LENGTH(CAST(
-              MAX(opt.product_id) OVER () - MIN(opt.product_id) OVER () AS STRING)) AS STRING), 'd')
-          , opt.product_id - MIN(opt.product_id) OVER ())
-      , '-'
-      , COALESCE(opt.product_status, 9)
-      , '-'
-      , FORMAT(
-            CONCAT('%0', CAST(LENGTH(CAST(
-              MAX(opt.option_id) OVER () - MIN(opt.option_id) OVER () AS STRING)) AS STRING), 'd')
-          , opt.option_id - MIN(opt.option_id) OVER ())
-    ) AS option_seq
   , itm.team_name
   , COALESCE(itm.brand_name, opt.brand_name) AS brand_name
   , opt.product_name
@@ -41,6 +25,12 @@ SELECT
   , opt.sales_price
   , opt.register_dt
   , opt.modify_dt
+  -- Sort key
+  , (
+      IF(opt.is_deleted, 2, 1) * 100
+      + COALESCE(vdr.vendor_seq, 99)
+    ) AS sort_key1
+  , COALESCE(opt.product_status, 9) AS sort_key2
 FROM {{ source('coupang', 'option') }} AS opt
 LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
   ON opt.vendor_id = vdr.vendor_id

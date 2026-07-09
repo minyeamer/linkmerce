@@ -51,13 +51,6 @@ ad_master AS (
     , adgroup_type.label AS adgroup_type
     -- Ad attributes
     , ad.ad_id
-    , CONCAT(
-          IF(status_fin.code = 'REMOVED', '1', '0')
-        , COALESCE(FORMAT('%02d', acc.account_seq), '99')
-        , COALESCE(FORMAT('%02d', campaign_type.seq), '99')
-        , COALESCE(FORMAT('%02d', adgroup_type.seq), '99')
-        , COALESCE(FORMAT('%02d', ad_type.seq), '99')
-      ) AS ad_seq
     , ad.ad_name
     , ad_type.label AS ad_type
     , status_fin.label AS ad_status
@@ -70,6 +63,14 @@ ad_master AS (
     , ad.click_count_30d
     , ad.ad_cost_30d
     , cmp.created_at
+    -- Sort key
+    , (
+        IF(status_fin.code = 'REMOVED', 2, 1) * 100 * 100 * 100 * 100
+        + COALESCE(acc.account_seq, 99)       * 100 * 100 * 100
+        + COALESCE(campaign_type.seq, 99)     * 100 * 100
+        + COALESCE(adgroup_type.seq, 99)      * 100
+        + COALESCE(ad_type.seq, 99)
+      ) AS sort_key
   FROM {{ source('google_ads', 'ad') }} AS ad
   LEFT JOIN {{ source('google_ads', 'account') }} AS acc
     ON ad.customer_id = acc.customer_id

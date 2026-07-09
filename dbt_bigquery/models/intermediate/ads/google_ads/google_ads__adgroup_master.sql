@@ -34,12 +34,6 @@ adgroup_master AS (
     , bidding_strategy.label AS bidding_strategy
     -- Adgroup attributes
     , grp.adgroup_id
-    , CONCAT(
-          IF(status_fin.code = 'REMOVED', '1', '0')
-        , COALESCE(FORMAT('%02d', acc.account_seq), '99')
-        , COALESCE(FORMAT('%02d', campaign_type.seq), '99')
-        , COALESCE(FORMAT('%02d', adgroup_type.seq), '99')
-      ) AS adgroup_seq
     , grp.adgroup_name
     , adgroup_type.label AS adgroup_type
     , status_fin.label AS adgroup_status
@@ -48,6 +42,13 @@ adgroup_master AS (
     , grp.click_count_30d
     , grp.ad_cost_30d
     , cmp.created_at
+    -- Sort key
+    , (
+        IF(status_fin.code = 'REMOVED', 2, 1) * 100 * 100 * 100
+        + COALESCE(acc.account_seq, 99)       * 100 * 100
+        + COALESCE(campaign_type.seq, 99)     * 100
+        + COALESCE(adgroup_type.seq, 99)
+      ) AS sort_key
   FROM {{ source('google_ads', 'adgroup') }} AS grp
   LEFT JOIN {{ source('google_ads', 'account') }} AS acc
     ON grp.customer_id = acc.customer_id

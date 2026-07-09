@@ -32,17 +32,18 @@ adgroup_master AS (
     -- Adgroup attributes
     , grp.adgroup_id
     , grp.adgroup_name
-    , CONCAT(
-          IF(grp.is_deleted, '1', '0')
-        , COALESCE(FORMAT('%02d', vdr.vendor_seq), '99')
-        , COALESCE(FORMAT('%01d', goal_type.seq), '9')
-      ) AS campaign_seq
     , goal_type.label AS goal_type
     , grp.is_active
     , grp.is_deleted
     , grp.roas_target
     , grp.created_at
     , grp.updated_at
+    -- Sort key
+    , (
+        IF(grp.is_deleted, 2, 1)        * 100 * 10
+        + COALESCE(vdr.vendor_seq, 99)  * 10
+        + COALESCE(goal_type.seq, 9)
+      ) AS sort_key
   FROM {{ source('coupang_ads', 'adgroup') }} AS grp
   LEFT JOIN {{ source('coupang_ads', 'campaign') }} AS cmp
     ON grp.campaign_id = cmp.campaign_id
