@@ -38,6 +38,117 @@ def login(userid: str, passwd: str) -> dict[str, str]:
     return auth.login(userid, passwd)
 
 
+@with_duckdb_connection(table="sabangnet_account")
+def account(
+        userid: str,
+        passwd: str,
+        domain: int,
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv", "json", "parquet", "none"] = "json",
+        extract_options: tuple[dict | None, dict | None, dict | None] = (None, None, None),
+        transform_options: tuple[dict | None, dict | None, dict | None] = (None, None, None),
+    ) -> DuckDBResult | None:
+    """사방넷 쇼핑몰로그인 메뉴의 쇼핑몰 계정 목록을 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    **Table** ( *table_key: table_name* ):
+        `table: sabangnet_account`
+
+    Parameters
+    ----------
+    userid: str
+        사방넷 아이디
+    passwd: str
+        사방넷 비밀번호
+    domain: int
+        사방넷 시스템 도메인 번호
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    request_delay: float | int | tuple[int, int]
+        페이지 요청 간 대기 시간(초). 기본값은 `0.3`
+    progress: bool
+        페이지 순회 작업의 진행도 출력 여부. 기본값은 `True`
+    return_type: str
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션. `(Account, ShopNormal, AccountNormal)` 순서로 튜플을 구성한다.
+    transform_options: dict | None
+        `Transformer` 초기화 옵션. `(Account, ShopNormal, AccountNormal)` 순서로 튜플을 구성한다.
+
+    Returns
+    -------
+    DuckDBResult | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 테이블 조회 결과를 CSV 형식의 `list[tuple]`로 반환한다.
+            - `"json"`: 테이블 조회 결과를 JSON 형식의 `list[dict]`로 반환한다. (기본값)
+            - `"parquet"`: 테이블 조회 결과를 Parquet 바이너리로 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    if return_type == "raw":
+        return None
+
+    ACCOUNT, SHOP_NORMAL, ACCOUNT_NORMAL = 0, 1, 2
+    configs = _get_login_configs(userid, passwd, domain)
+    options = {
+        "request_delay": request_delay,
+        "tqdm_options": {"disable": (not progress)}
+    }
+
+    from linkmerce.core.sabangnet.admin.account.extract import Account
+    from linkmerce.core.sabangnet.admin.account.transform import Account as T1
+    from linkmerce.api.common import get_table
+    account_table = get_table(transform_options[ACCOUNT], default="sabangnet_account")
+
+    extractor = Account(**prepare_duckdb_extract(
+        T1, connection, extract_options[ACCOUNT], transform_options[ACCOUNT], return_type,
+        configs = configs,
+        options = {"PaginateAll": options},
+    ))
+    extractor.extract(region_type="auto")
+    extractor.extract(region_type="global")
+
+    from linkmerce.core.sabangnet.admin.account.extract import ShopNormal
+    from linkmerce.core.sabangnet.admin.account.transform import ShopNormal as T2
+    from linkmerce.api.common import get_table
+    shop_table = get_table(transform_options[SHOP_NORMAL], default="sabangnet_shop_normal")
+
+    ShopNormal(**prepare_duckdb_extract(
+        T2, connection, extract_options[SHOP_NORMAL], transform_options[SHOP_NORMAL], return_type,
+        configs = configs,
+        options = {"PaginateAll": options},
+    )).extract()
+
+    shop_id = connection.fetch_values(f"SELECT DISTINCT shop_id FROM {shop_table}", axis=1)
+    if not shop_id:
+        return
+
+    from linkmerce.core.sabangnet.admin.account.extract import AccountNormal
+    from linkmerce.core.sabangnet.admin.account.transform import AccountNormal as T3
+    transform_options_ = (transform_options[ACCOUNT_NORMAL] or dict()) | {"tables": {"table": account_table}}
+
+    AccountNormal(**prepare_duckdb_extract(
+        T3, connection, extract_options[ACCOUNT_NORMAL], transform_options_, return_type,
+        configs = configs,
+        options = {"RequestEach": options},
+    )).extract(shop_id)
+
+    from textwrap import dedent
+
+    connection.execute(dedent(f"""
+        UPDATE {account_table} AS account
+        SET
+            shop_name = COALESCE(account.shop_name, shop.shop_name),
+            shop_group = COALESCE(account.shop_group, shop.shop_group),
+            shop_seq = COALESCE(account.shop_seq, shop.shop_seq),
+            corp_name = COALESCE(account.corp_name, shop.rep_name),
+            use_yn = COALESCE(account.use_yn, shop.use_yn)
+        FROM {shop_table} AS shop
+        WHERE account.shop_id = shop.shop_id
+    """))
+
+
 @with_duckdb_connection(table="sabangnet_order_detail")
 def order(
         userid: str,
@@ -798,6 +909,7 @@ def add_product(
         start_date: dt.date | str | Literal[":base_date:", ":today:"] = ":base_date:",
         end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
         shop_id: str = str(),
+        *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int = 1,
         progress: bool = True,

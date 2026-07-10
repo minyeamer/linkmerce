@@ -342,6 +342,7 @@ def rocket_option(
         vendor_id: str,
         hidden_status: Literal["VISIBLE", "HIDDEN"] | None = None, 
         see_more: bool = False,
+        *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int = 0.3,
         progress: bool = True,
