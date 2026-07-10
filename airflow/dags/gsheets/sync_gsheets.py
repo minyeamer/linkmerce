@@ -53,7 +53,10 @@ with DAG(
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
     doc_md = __doc__,
-    tags = ["priority:medium", "platform:gsheets", "schedule:none", "write:overwrite", "plugin:dbt"],
+    tags = [
+        "priority:medium", "platform:gsheets", "schedule:none",
+        "write:overwrite", "upstream:fastapi", "plugin:dbt"
+    ],
 ) as dag:
 
     PATH = "gsheets"

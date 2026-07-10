@@ -31,7 +31,10 @@ with DAG(
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,
     doc_md = __doc__,
-    tags = ["priority:medium", "platform:gsheets", "objective:ads", "schedule:none", "write:overwrite", "plugin:dbt"],
+    tags = [
+        "priority:medium", "platform:gsheets", "objective:ads", "schedule:none",
+        "write:overwrite", "upstream:fastapi", "plugin:dbt"
+    ],
 ) as dag:
 
     PATH = "gsheets.relation__ad_id_to_sbn_ids"

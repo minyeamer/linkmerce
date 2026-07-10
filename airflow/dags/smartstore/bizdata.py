@@ -31,7 +31,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:low", "platform:smartstore", "objective:statistics", "credentials:api-key",
-        "schedule:daily", "time:morning", "write:append"
+        "schedule:daily", "time:morning", "write:append", "status:disabled"
     ],
 ) as dag:
 
