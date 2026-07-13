@@ -32,7 +32,6 @@ sabangnet_sales_daily AS (
     , order_date
   FROM {{ ref('sabangnet__sales_daily') }}
   WHERE order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-    AND shop_id NOT IN ('chop0022', 'chop9022')
 ),
 
 smartstore_sales_daily AS (

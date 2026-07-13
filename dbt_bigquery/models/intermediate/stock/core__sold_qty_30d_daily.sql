@@ -39,7 +39,6 @@ sabangnet_sold_qty_daily AS (
   WHERE (order_date
       BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 30 DAY)
       AND DATE_SUB(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
-    AND shop_id NOT IN ('chop0022', 'chop9022')
     AND (order_status = 0)
   GROUP BY order_date, product_id
 ),

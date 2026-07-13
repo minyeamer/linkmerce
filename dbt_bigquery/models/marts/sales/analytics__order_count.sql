@@ -29,7 +29,6 @@ sabangnet_order_count AS (
     , order_date
   FROM {{ ref('sabangnet__order_count') }}
   WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
-    AND shop_id NOT IN ('chop0022', 'chop9022')
 ),
 
 smartstore_order_count AS (

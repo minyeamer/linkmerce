@@ -66,22 +66,26 @@ order_detail AS (
   -- Filter orders
   WHERE ord.order_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND ord.order_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
-    AND acc.shop_id != 'shop0055'
+    AND acc.shop_id NOT IN ('shop0055', 'chop0022', 'chop0027', 'chop0028', 'chop0029')
 ),
 
 -- Step 2: apply bundle product rules
 
 bundle_product_order AS (
-  SELECT
-      order_id
-    , product_order_id
-    , ({{ sabangnet__shop_id_rules() }}) AS shop_id
-    , product_id
-    , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
-    , ({{ sabangnet__order_status_rules() }}) AS order_status
-    , order_quantity
-    , order_date
-  FROM order_detail AS ord
+  SELECT *
+  FROM (
+    SELECT
+        order_id
+      , product_order_id
+      , ({{ sabangnet__shop_id_rules() }}) AS shop_id
+      , product_id
+      , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
+      , ({{ sabangnet__order_status_rules() }}) AS order_status
+      , order_quantity
+      , order_date
+    FROM order_detail
+  ) AS t_
+  WHERE shop_id != 'chop9022'
 ),
 
 -- Step 3: explode orders with bundle options
