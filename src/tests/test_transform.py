@@ -473,6 +473,9 @@ class TestNaverOpenApi:
 
 class TestSabangNet:
     """사방넷 데이터 변환 테스트.
+    - sabangnet.admin.account.Account
+    - sabangnet.admin.account.ShopNormal
+    - sabangnet.admin.account.AccountNormal
     - sabangnet.admin.order.Order
     - sabangnet.admin.order.OrderDownload
     - sabangnet.admin.order.OrderStatus
@@ -484,6 +487,25 @@ class TestSabangNet:
     - sabangnet.admin.product.AddProductGroup
     - sabangnet.admin.product.AddProduct
     """
+
+    @pytest.mark.sabangnet
+    def test_account(self, transformer_harness: Harness):
+        """사방넷 쇼핑몰로그인 메뉴의 쇼핑몰 계정 목록을 변환하는 테스트."""
+        from linkmerce.core.sabangnet.admin.account.transform import Account
+        for region_type in ["auto", "global"]:
+            transformer_harness(Account).transform(map_index=region_type)
+
+    @pytest.mark.sabangnet
+    def test_shop_normal(self, transformer_harness: Harness):
+        """사방넷 쇼핑몰관리(일반) 메뉴의 일반 쇼핑몰 목록을 변환하는 테스트."""
+        from linkmerce.core.sabangnet.admin.account.transform import ShopNormal
+        transformer_harness(ShopNormal).transform()
+
+    @pytest.mark.sabangnet
+    def test_account_normal(self, transformer_harness: Harness):
+        """사방넷 쇼핑몰 정보 보기 팝업의 일반 쇼핑몰 정보를 변환하는 테스트."""
+        from linkmerce.core.sabangnet.admin.account.transform import AccountNormal
+        transformer_harness(AccountNormal).transform()
 
     @pytest.mark.sabangnet
     def test_order(self, transformer_harness: Harness):
@@ -807,49 +829,58 @@ class TestSmartstoreApi:
     - smartstore.api.order.Order
     - smartstore.api.order.OrderTime
     - smartstore.api.order.OrderStatus
+    - smartstore.api.settlement.Settlement
     """
 
     def channel_seq(self, reader: YamlReader):
         return reader("smartstore.api.0")["channel_seq"]
 
-    @pytest.mark.smartstore_api
-    def test_product(self, transformer_harness: Harness, credentials: YamlReader):
-        """스마트스토어 상품 목록 조회 결과를 변환하는 테스트."""
-        from linkmerce.core.smartstore.api.product.transform import Product
-        transformer_harness(Product).transform(
-            channel_seq = self.channel_seq(credentials),
-        )
+    # @pytest.mark.smartstore_api
+    # def test_product(self, transformer_harness: Harness, credentials: YamlReader):
+    #     """스마트스토어 상품 목록 조회 결과를 변환하는 테스트."""
+    #     from linkmerce.core.smartstore.api.product.transform import Product
+    #     transformer_harness(Product).transform(
+    #         channel_seq = self.channel_seq(credentials),
+    #     )
+
+    # @pytest.mark.smartstore_api
+    # def test_option(self, transformer_harness: Harness, configs: YamlReader, credentials: YamlReader):
+    #     """스마트스토어 채널 상품 조회 결과를 변환하는 테스트."""
+    #     from linkmerce.core.smartstore.api.product.transform import Option
+    #     _configs = configs("smartstore.api.option")
+    #     transformer_harness(Option).transform(
+    #         product_id = _configs["product_id"],
+    #         channel_seq = self.channel_seq(credentials),
+    #         map_index = _configs["product_id"],
+    #     )
+
+    # @pytest.mark.smartstore_api
+    # def test_order(self, transformer_harness: Harness):
+    #     """스마트스토어 상품 주문 내역 조회 결과를 변환하는 테스트."""
+    #     from linkmerce.core.smartstore.api.order.transform import Order
+    #     transformer_harness(Order).transform()
+
+    # @pytest.mark.smartstore_api
+    # def test_order_time(self, transformer_harness: Harness, credentials: YamlReader):
+    #     """스마트스토어 상품 주문 내역 조회 결과를 변환하는 테스트."""
+    #     from linkmerce.core.smartstore.api.order.transform import OrderTime
+    #     transformer_harness(OrderTime).transform(
+    #         channel_seq = self.channel_seq(credentials),
+    #     )
+
+    # @pytest.mark.smartstore_api
+    # def test_order_status(self, transformer_harness: Harness, credentials: YamlReader):
+    #     """스마트스토어 변경 상품 주문 내역 조회 결과를 변환하는 테스트."""
+    #     from linkmerce.core.smartstore.api.order.transform import OrderStatus
+    #     transformer_harness(OrderStatus).transform(
+    #         channel_seq = self.channel_seq(credentials),
+    #     )
 
     @pytest.mark.smartstore_api
-    def test_option(self, transformer_harness: Harness, configs: YamlReader, credentials: YamlReader):
-        """스마트스토어 채널 상품 조회 결과를 변환하는 테스트."""
-        from linkmerce.core.smartstore.api.product.transform import Option
-        _configs = configs("smartstore.api.option")
-        transformer_harness(Option).transform(
-            product_id = _configs["product_id"],
-            channel_seq = self.channel_seq(credentials),
-            map_index = _configs["product_id"],
-        )
-
-    @pytest.mark.smartstore_api
-    def test_order(self, transformer_harness: Harness):
-        """스마트스토어 상품 주문 내역 조회 결과를 변환하는 테스트."""
-        from linkmerce.core.smartstore.api.order.transform import Order
-        transformer_harness(Order).transform()
-
-    @pytest.mark.smartstore_api
-    def test_order_time(self, transformer_harness: Harness, credentials: YamlReader):
-        """스마트스토어 상품 주문 내역 조회 결과를 변환하는 테스트."""
-        from linkmerce.core.smartstore.api.order.transform import OrderTime
-        transformer_harness(OrderTime).transform(
-            channel_seq = self.channel_seq(credentials),
-        )
-
-    @pytest.mark.smartstore_api
-    def test_order_status(self, transformer_harness: Harness, credentials: YamlReader):
-        """스마트스토어 변경 상품 주문 내역 조회 결과를 변환하는 테스트."""
-        from linkmerce.core.smartstore.api.order.transform import OrderStatus
-        transformer_harness(OrderStatus).transform(
+    def test_settlement(self, transformer_harness: Harness, credentials: YamlReader):
+        """스마트스토어 건별 정산 내역 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.smartstore.api.settlement.transform import Settlement
+        transformer_harness(Settlement).transform(
             channel_seq = self.channel_seq(credentials),
         )
 

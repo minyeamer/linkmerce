@@ -259,6 +259,13 @@ sabangnet/
 └── admin/
     ├─x SabangnetAdmin(Extractor)::common
     ├─x SabangnetLogin(LoginHandler)::common
+    ├── account/
+    │   ├── Account(SabangnetAdmin)::extract
+    │   │   └── Account(DuckDBTransformer)::transform >> json
+    │   ├── ShopNormal(SabangnetAdmin)::extract
+    │   │   └── ShopNormal(DuckDBTransformer)::transform >> json
+    │   └── AccountNormal(SabangnetAdmin)::extract
+    │       └── AccountNormal(DuckDBTransformer)::transform >> json
     ├── order/
     │   ├── Order(SabangnetAdmin)::extract
     │   │   └── Order(DuckDBTransformer)::transform >> json
@@ -385,6 +392,9 @@ smartstore/
 │   │   │   └── OrderTime(Order)::transform >> json
 │   │   └── OrderStatus(SmartstoreApi)::extract
 │   │       └── OrderStatus(DuckDBTransformer)::transform >> json
+│   ├── settlement/
+│   │   └── Settlement(SmartstoreApi)::extract
+│   │       └── Settlement(DuckDBTransformer)::transform >> json
 │   └── bizdata/
 │       └── MarketingChannel(SmartstoreApi)::extract
 │           └── MarketingChannel(DuckDBTransformer)::transform >> json

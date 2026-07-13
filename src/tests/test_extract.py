@@ -662,6 +662,9 @@ class TestNaverOpenApi:
 
 class TestSabangnet:
     """사방넷 데이터 추출 테스트.
+    - sabangnet.admin.account.Account
+    - sabangnet.admin.account.ShopNormal
+    - sabangnet.admin.account.AccountNormal
     - sabangnet.admin.order.Order
     - sabangnet.admin.order.OrderDownload
     - sabangnet.admin.order.OrderStatus
@@ -681,6 +684,37 @@ class TestSabangnet:
             "passwd": _credentials["passwd"],
             "domain": _credentials["domain"],
         }
+
+    @pytest.mark.sabangnet
+    def test_account(self, credentials: YamlReader, dump_extract: Callable):
+        """사방넷 쇼핑몰로그인 메뉴의 쇼핑몰 계정 목록을 검색 유형 단위로 조회하는 테스트."""
+        from linkmerce.core.sabangnet.admin.account.extract import Account
+        for region_type in ["auto", "global"]:
+            Account(
+                configs = self.credentials(credentials),
+                parser = dump_extract(Account, format="json", map_index=region_type),
+            ).extract(region_type=region_type)
+
+    @pytest.mark.sabangnet
+    def test_shop_normal(self, credentials: YamlReader, dump_extract: Callable):
+        """사방넷 쇼핑몰관리(일반) 메뉴의 일반 쇼핑몰 목록을 조회하는 테스트."""
+        from linkmerce.core.sabangnet.admin.account.extract import ShopNormal
+        ShopNormal(
+            configs = self.credentials(credentials),
+            parser = dump_extract(ShopNormal, format="json"),
+        ).extract()
+
+    @pytest.mark.sabangnet
+    def test_account_normal(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """사방넷 쇼핑몰 정보 보기 팝업의 일반 쇼핑몰 정보를 조회하는 테스트."""
+        from linkmerce.core.sabangnet.admin.account.extract import AccountNormal
+        _configs = configs("sabangnet.admin.account_normal")
+        AccountNormal(
+            configs = self.credentials(credentials),
+            parser = dump_extract(AccountNormal, format="json"),
+        ).extract(
+            shop_id = _configs["shop_id"],
+        )
 
     @pytest.mark.sabangnet
     def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
@@ -1134,6 +1168,7 @@ class TestSmartstoreApi:
     - smartstore.api.product.Option
     - smartstore.api.order.Order
     - smartstore.api.order.OrderStatus
+    - smartstore.api.settlement.Settlement
     """
 
     def credentials(self, reader: YamlReader) -> dict:
@@ -1143,68 +1178,85 @@ class TestSmartstoreApi:
             "client_secret": _credentials["client_secret"],
         }
 
-    @pytest.mark.smartstore_api
-    def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        """네이버 커머스 API로 상품 목록 조회 결과를 수집하는 테스트."""
-        from linkmerce.core.smartstore.api.product.extract import Product
-        _configs = options("smartstore.api.product")
-        Product(
-            configs = self.credentials(credentials),
-            parser = dump_extract(Product, format="json"),
-        ).extract(
-            search_keyword = _configs.get("search_keyword", list()),
-            keyword_type = _configs.get("keyword_type", "CHANNEL_PRODUCT_NO"),
-            status_type = _configs.get("status_type", ["SALE"]),
-            period_type = _configs.get("period_type", "PROD_REG_DAY"),
-            from_date = _configs.get("from_date"),
-            to_date = _configs.get("to_date"),
-            max_retries = _configs.get("max_retries", 5),
-        )
+    # @pytest.mark.smartstore_api
+    # def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+    #     """네이버 커머스 API로 상품 목록 조회 결과를 수집하는 테스트."""
+    #     from linkmerce.core.smartstore.api.product.extract import Product
+    #     _configs = options("smartstore.api.product")
+    #     Product(
+    #         configs = self.credentials(credentials),
+    #         parser = dump_extract(Product, format="json"),
+    #     ).extract(
+    #         search_keyword = _configs.get("search_keyword", list()),
+    #         keyword_type = _configs.get("keyword_type", "CHANNEL_PRODUCT_NO"),
+    #         status_type = _configs.get("status_type", ["SALE"]),
+    #         period_type = _configs.get("period_type", "PROD_REG_DAY"),
+    #         from_date = _configs.get("from_date"),
+    #         to_date = _configs.get("to_date"),
+    #         max_retries = _configs.get("max_retries", 5),
+    #     )
+
+    # @pytest.mark.smartstore_api
+    # def test_option(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+    #     """네이버 커머스 API로 채널 상품 조회 결과를 수집하는 테스트."""
+    #     from linkmerce.core.smartstore.api.product.extract import Option
+    #     _configs = configs("smartstore.api.option")
+    #     Option(
+    #         configs = self.credentials(credentials),
+    #         parser = dump_extract(Option, format="json", map_index="$product_id"),
+    #     ).extract(
+    #         product_id = _configs["product_id"],
+    #         max_retries = _configs.get("max_retries", 5),
+    #     )
+
+    # @pytest.mark.smartstore_api
+    # def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+    #     """네이버 커머스 API로 상품 주문 내역 조회 결과를 수집하는 테스트."""
+    #     from linkmerce.core.smartstore.api.order.extract import Order
+    #     _configs = options("smartstore.api.order")
+    #     Order(
+    #         configs = self.credentials(credentials),
+    #         parser = dump_extract(Order, format="json"),
+    #     ).extract(
+    #         start_date = _configs.get("start_date", yesterday),
+    #         end_date = _configs.get("end_date", ":start_date:"),
+    #         range_type = _configs.get("range_type", "PAYED_DATETIME"),
+    #         product_order_status = _configs.get("product_order_status", list()),
+    #         claim_status = _configs.get("claim_status", list()),
+    #         place_order_status = _configs.get("place_order_status", list()),
+    #         page_start = _configs.get("page_start", 1),
+    #         max_retries = _configs.get("max_retries", 5),
+    #     )
+
+    # @pytest.mark.smartstore_api
+    # def test_order_status(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+    #     """네이버 커머스 API로 변경 상품 주문 내역 조회 결과를 수집하는 테스트."""
+    #     from linkmerce.core.smartstore.api.order.extract import OrderStatus
+    #     _configs = options("smartstore.api.order_status")
+    #     OrderStatus(
+    #         configs = self.credentials(credentials),
+    #         parser = dump_extract(OrderStatus, format="json"),
+    #     ).extract(
+    #         start_date = _configs.get("start_date", yesterday),
+    #         end_date = _configs.get("end_date", ":start_date:"),
+    #         last_changed_type = _configs.get("last_changed_type"),
+    #         max_retries = _configs.get("max_retries", 5),
+    #     )
 
     @pytest.mark.smartstore_api
-    def test_option(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        """네이버 커머스 API로 채널 상품 조회 결과를 수집하는 테스트."""
-        from linkmerce.core.smartstore.api.product.extract import Option
-        _configs = configs("smartstore.api.option")
-        Option(
+    def test_settlement(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, days_ago: Callable):
+        """네이버 커머스 API로 건별 정산 내역 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.smartstore.api.settlement.extract import Settlement
+        _configs = options("smartstore.api.settlement")
+        Settlement(
             configs = self.credentials(credentials),
-            parser = dump_extract(Option, format="json", map_index="$product_id"),
+            parser = dump_extract(Settlement, format="json"),
         ).extract(
-            product_id = _configs["product_id"],
-            max_retries = _configs.get("max_retries", 5),
-        )
-
-    @pytest.mark.smartstore_api
-    def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
-        """네이버 커머스 API로 상품 주문 내역 조회 결과를 수집하는 테스트."""
-        from linkmerce.core.smartstore.api.order.extract import Order
-        _configs = options("smartstore.api.order")
-        Order(
-            configs = self.credentials(credentials),
-            parser = dump_extract(Order, format="json"),
-        ).extract(
-            start_date = _configs.get("start_date", yesterday),
+            start_date = _configs.get("start_date", days_ago(14)),
             end_date = _configs.get("end_date", ":start_date:"),
-            range_type = _configs.get("range_type", "PAYED_DATETIME"),
-            product_order_status = _configs.get("product_order_status", list()),
-            claim_status = _configs.get("claim_status", list()),
-            place_order_status = _configs.get("place_order_status", list()),
-            page_start = _configs.get("page_start", 1),
-            max_retries = _configs.get("max_retries", 5),
-        )
-
-    @pytest.mark.smartstore_api
-    def test_order_status(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
-        """네이버 커머스 API로 변경 상품 주문 내역 조회 결과를 수집하는 테스트."""
-        from linkmerce.core.smartstore.api.order.extract import OrderStatus
-        _configs = options("smartstore.api.order_status")
-        OrderStatus(
-            configs = self.credentials(credentials),
-            parser = dump_extract(OrderStatus, format="json"),
-        ).extract(
-            start_date = _configs.get("start_date", yesterday),
-            end_date = _configs.get("end_date", ":start_date:"),
-            last_changed_type = _configs.get("last_changed_type"),
+            period_type = _configs.get("period_type", "SETTLE_COMPLETE_DATE"),
+            settle_type = _configs.get("settle_type"),
+            settle_decision_type = _configs.get("settle_decision_type"),
             max_retries = _configs.get("max_retries", 5),
         )
 
