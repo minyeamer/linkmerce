@@ -259,12 +259,16 @@ dbt_bigquery/models/marts/sales/
 ├── analytics__profit_base
 ├── analytics__profit_daily
 ├── analytics__profit_monthly
-└── analytics__profit_mom
+├── analytics__profit_mom
+└── analytics__sales_target
 ```
 
 `analytics__profit_base` 모델은 `core__sales_daily` 모델에서
 주문 상태 등의 조건에 따라 값을 조정하고 마진금액과 영업이익을 계산하는 테이블 함수를 생성한다.
 대시보드에서 참조하는 나머지 `analytics__profit` 모델에서 공통적으로 참조된다.
+
+`analytics__sales_target` 모델은 항상 전일 날짜를 기준으로 전월과 당월의 매출,
+그리고 담당자가 지정한 당월의 목표 매출을 비교하기 위한 뷰 테이블을 생성한다.
 
 `analytics__order_count` 모델은 플랫폼별 `order_count` 모델을 동일한 수준에서 병합하고
 `core__product_master` 모델로부터 카테고리 등 대표상품의 측정 기준을 연결한 테이블 함수를 생성한다.

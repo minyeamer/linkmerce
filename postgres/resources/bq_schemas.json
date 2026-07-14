@@ -67,6 +67,11 @@
     {"name": "sales_date", "type": "DATE", "description": "매출발생일", "mode": "REQUIRED"},
     "PARTITION BY sales_date"
   ],
+  "core.target_sales": [
+    {"name": "brand_id", "type": "STRING", "description": "브랜드ID", "mode": "REQUIRED"},
+    {"name": "shop_id", "type": "STRING", "description": "쇼핑몰코드", "mode": "REQUIRED"},
+    {"name": "monthly_amount", "type": "INTEGER", "description": "목표매출(월간)"}
+  ],
   "core.opex": [
     {"name": "expense_id", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
     {"name": "expense_name", "type": "STRING", "description": "명칭"},

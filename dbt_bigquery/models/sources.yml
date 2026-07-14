@@ -10,6 +10,7 @@ sources:
       - name: extra_ads
       - name: extra_profit
       - name: extra_sales
+      - name: target_sales
       - name: opex
       - name: order_status
 

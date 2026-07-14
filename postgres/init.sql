@@ -121,6 +121,14 @@ CREATE TABLE IF NOT EXISTS core.extra_sales (
   , PRIMARY KEY (sales_date, product_id, shop_id)
 ) PARTITION BY RANGE (sales_date);
 
+-- [목표매출]
+CREATE TABLE IF NOT EXISTS core.target_sales (
+    brand_id TEXT NOT NULL -- 브랜드ID
+  , shop_id TEXT NOT NULL -- 쇼핑몰코드
+  , monthly_amount BIGINT -- 목표매출(월간)
+  , PRIMARY KEY (brand_id, shop_id)
+);
+
 -- [운영비용]
 CREATE TABLE IF NOT EXISTS core.opex (
     expense_id BIGINT NOT NULL -- 순번
