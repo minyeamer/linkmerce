@@ -17,3 +17,4 @@ FROM {{ source('core', 'item') }}
 WHERE STARTS_WITH(product_id, '2')
   AND brand_name IS NOT NULL
 QUALIFY ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY item_seq) = 1
+  AND ROW_NUMBER() OVER (PARTITION BY brand_name ORDER BY item_seq) = 1

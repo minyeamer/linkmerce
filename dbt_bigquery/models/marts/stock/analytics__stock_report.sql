@@ -244,14 +244,6 @@ stock_report_with_remain_days AS (
 
 -- Step 6: complete stock report
 
-brand_order AS (
-  SELECT
-      brand_name
-    , MIN(brand_seq) AS brand_seq
-  FROM {{ ref('core__brand_master') }}
-  GROUP BY brand_name
-),
-
 product_group_dates AS (
   SELECT
       product_id
@@ -342,7 +334,7 @@ stock_report_final AS (
     ON report.product_code = product.product_code
   LEFT JOIN core_product AS item
     ON product.product_id = item.product_id
-  LEFT JOIN brand_order AS brand
+  LEFT JOIN {{ ref('core__brand_master') }} AS brand
     ON product.brand_name = brand.brand_name
   LEFT JOIN product_group_dates AS dates
     ON report.product_id = dates.product_id

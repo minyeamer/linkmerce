@@ -1,6 +1,6 @@
 {{
   config(
-    materialized = 'tvf',
+    materialized = 'view',
     schema = 'sabangnet',
     alias = 'option_master'
   )
@@ -76,7 +76,7 @@ option_master AS (
         , CAST(REPEAT('9', LENGTH(CAST(MAX(prd.sort_key) OVER () AS STRING))) AS INT64)
       ) AS sort_key
   FROM {{ source('sabangnet', 'option') }} AS opt
-  LEFT JOIN {{ ref('sabangnet__product_master') }}() AS prd
+  LEFT JOIN {{ ref('sabangnet__product_master') }} AS prd
     ON SPLIT(opt.option_id, '-')[0] = prd.product_id
   LEFT JOIN primary_option AS main
     ON opt.option_id = main.option_id

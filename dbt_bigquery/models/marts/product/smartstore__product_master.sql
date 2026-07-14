@@ -1,6 +1,6 @@
 {{
   config(
-    materialized = 'tvf',
+    materialized = 'view',
     schema = 'smartstore',
     alias = 'product_master'
   )

@@ -1,6 +1,6 @@
 {{
   config(
-    materialized = 'tvf',
+    materialized = 'view',
     schema = 'smartstore',
     alias = 'option_master'
   )
@@ -35,7 +35,7 @@ option_master AS (
   FROM {{ source('smartstore', 'order_option') }} AS opt
   LEFT JOIN {{ source('smartstore', 'channel') }} AS chl
     ON opt.channel_seq = chl.channel_seq
-  LEFT JOIN {{ ref('smartstore__product_master') }}() AS prd
+  LEFT JOIN {{ ref('smartstore__product_master') }} AS prd
     ON opt.product_id = prd.product_id
   LEFT JOIN product_type_mapping AS product_type
     ON opt.product_type = product_type.code

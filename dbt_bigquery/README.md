@@ -284,7 +284,7 @@ dbt_bigquery/models/marts/product/
 ```
 
 `product_master` 및 `option_master` 모델은 쿠팡, 사방넷, 스마트스토어에 대해
-전체 상품 및 옵션 목록을 조회하기 위한 테이블 함수를 생성한다.
+전체 상품 및 옵션 목록을 조회하기 위한 뷰 테이블을 생성한다.
 
 `product_master` 모델에는 유형 또는 상태 코드를 조합한 `sort_key`가 포함되며,
 `option_master` 모델은 상품코드를 기준으로 `product_master` 모델을 결합해

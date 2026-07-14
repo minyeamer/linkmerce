@@ -1,6 +1,6 @@
 {{
   config(
-    materialized = 'tvf',
+    materialized = 'view',
     schema = 'coupang',
     alias = 'option_master'
   )

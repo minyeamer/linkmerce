@@ -1,6 +1,6 @@
 {{
   config(
-    materialized = 'tvf',
+    materialized = 'view',
     schema = 'sabangnet',
     alias = 'product_master'
   )
@@ -14,14 +14,6 @@ product_status_mapping AS (
 
 option_type_mapping AS (
   {{ sabangnet__option_type_mapping() }}
-),
-
-brand_order AS (
-  SELECT
-      brand_name
-    , MIN(item_seq) AS item_seq
-  FROM {{ ref('core__brand_master') }}
-  GROUP BY brand_name
 ),
 
 primary_option AS (
@@ -101,7 +93,7 @@ product_master AS (
     ON prd.product_status = product_status.code
   LEFT JOIN option_type_mapping AS option_type
     ON opt.option_type = option_type.code
-  LEFT JOIN brand_order AS brd
+  LEFT JOIN {{ ref('core__brand_master') }} AS brd
     ON prd.brand_name = brd.brand_name
   CROSS JOIN max_quantity AS quantity
 )
