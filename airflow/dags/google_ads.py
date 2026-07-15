@@ -160,29 +160,6 @@ with DAG(
             }
 
 
-    configs = read_configs()
-    credentials = read_credentials()
-
-    etl_campaign_results = (etl_google_campaign
-    .partial(configs=configs)
-    .expand(credentials=credentials))
-
-    etl_adgroup_results = (etl_google_adgroup
-    .partial(configs=configs)
-    .expand(credentials=credentials))
-
-    etl_ad_results = (etl_google_ad
-    .partial(configs=configs)
-    .expand(credentials=credentials))
-
-    etl_asset_results = (etl_google_asset
-    .partial(configs=configs)
-    .expand(credentials=credentials))
-
-    etl_insight_results = (etl_google_insight
-    .partial(configs=configs)
-    .expand(credentials=credentials))
-
     @task(task_id="generate_dbt_date_range", trigger_rule="all_done")
     def generate_dbt_date_range(results: list[dict]) -> dict:
         from dbt_cosmos import generate_dbt_date_range as generate
@@ -212,9 +189,33 @@ with DAG(
         raise_on_failure(ti)
 
 
-    etl_results = [etl_campaign_results, etl_adgroup_results, etl_ad_results, etl_asset_results, etl_insight_results]
+    configs = read_configs()
+    credentials = read_credentials()
 
-    dbt_date_range = generate_dbt_date_range(etl_results)
+    etl_campaign_results = (etl_google_campaign
+    .partial(configs=configs)
+    .expand(credentials=credentials))
+
+    etl_adgroup_results = (etl_google_adgroup
+    .partial(configs=configs)
+    .expand(credentials=credentials))
+
+    etl_ad_results = (etl_google_ad
+    .partial(configs=configs)
+    .expand(credentials=credentials))
+
+    etl_asset_results = (etl_google_asset
+    .partial(configs=configs)
+    .expand(credentials=credentials))
+
+    etl_insight_results = (etl_google_insight
+    .partial(configs=configs)
+    .expand(credentials=credentials))
+
+    etl_object_results = [etl_campaign_results, etl_adgroup_results, etl_ad_results, etl_asset_results]
+    etl_object_results >> etl_insight_results
+
+    dbt_date_range = generate_dbt_date_range(etl_insight_results)
     dbt_run = dbt_bigquery_google_ads_group()
 
     dbt_date_range >> prepare_dbt_run() >> dbt_run >> finalize_dag_run()
