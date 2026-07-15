@@ -5,25 +5,25 @@
   )
 }}
 
-WITH
+WITH{{var("line_break")
 
-campaign_type_mapping AS (
+}} campaign_type_mapping AS (
   {{ google_ads__campaign_type_mapping() }}
-),
+),{{var("line_break")
 
-bidding_strategy_mapping AS (
+}} bidding_strategy_mapping AS (
   {{ google_ads__bidding_strategy_mapping() }}
-),
+),{{var("line_break")
 
-adgroup_type_mapping AS (
+}} adgroup_type_mapping AS (
   {{ google_ads__adgroup_type_mapping() }}
-),
+),{{var("line_break")
 
-status_mapping AS (
+}} status_mapping AS (
   {{ google_ads__status_mapping() }}
-),
+),{{var("line_break")
 
-adgroup_master AS (
+}} adgroup_master AS (
   SELECT
       grp.customer_id
     , acc.account_name
@@ -44,9 +44,9 @@ adgroup_master AS (
     , cmp.created_at
     -- Sort key
     , (
-        IF(status_fin.code = 'REMOVED', 2, 1) * 100 * 100 * 100
-        + COALESCE(acc.account_seq, 99)       * 100 * 100
-        + COALESCE(campaign_type.seq, 99)     * 100
+        (CASE WHEN status_fin.code = 'REMOVED' THEN 2 ELSE 1 END) * 100 * 100 * 100
+        + COALESCE(acc.account_seq, 99)                           * 100 * 100
+        + COALESCE(campaign_type.seq, 99)                         * 100
         + COALESCE(adgroup_type.seq, 99)
       ) AS sort_key
   FROM {{ source('google_ads', 'adgroup') }} AS grp
@@ -67,7 +67,7 @@ adgroup_master AS (
   LEFT JOIN status_mapping AS status_grp
     ON grp.adgroup_status = status_grp.code
   LEFT JOIN status_mapping AS status_fin
-    ON GREATEST(COALESCE(status_cmp.seq, -1), COALESCE(status_grp.seq, -1)) = status_fin.seq
-)
+    ON GREATEST(status_cmp.seq, status_grp.seq) = status_fin.seq
+){{var("line_break")
 
-SELECT * FROM adgroup_master
+}} SELECT * FROM adgroup_master

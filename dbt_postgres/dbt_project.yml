@@ -42,7 +42,7 @@ models:
       +materialized: view
       +schema: transformed
     marts:
-      +materialized: table
+      +materialized: view
       +schema: analytics
 
 # Configuring variables

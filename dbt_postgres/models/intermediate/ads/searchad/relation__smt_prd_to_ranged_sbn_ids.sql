@@ -10,37 +10,37 @@ WITH original_relation AS (
       product_id AS product_id_shop
     , bundle_product_ids
   FROM {{ source('relation', 'smt_prd_to_sbn_ids') }}
-),
+),{{var("line_break")
 
-default_ranged_relation AS (
+}} default_ranged_relation AS (
   SELECT
       product_id_shop
     , bundle_product_ids
-    , DATE('2000-01-01') AS start_date
-    , DATE('2999-12-31') AS end_date
+    , DATE '2000-01-01' AS start_date
+    , DATE '2999-12-31' AS end_date
   FROM original_relation
   WHERE NOT EXISTS (
     SELECT 1
-    FROM UNNEST(SPLIT(original_relation.bundle_product_ids, ',')) AS product_id
+    FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t(product_id)
     WHERE product_id = '100088'
   )
-),
+),{{var("line_break")
 
-rule1_pre_relation AS (
+}} rule1_pre_relation AS (
   SELECT
       product_id_shop
     , bundle_product_ids
-    , DATE('2000-01-01') AS start_date
-    , DATE('2026-06-09') AS end_date
+    , DATE '2000-01-01' AS start_date
+    , DATE '2026-06-09' AS end_date
   FROM original_relation
   WHERE EXISTS (
     SELECT 1
-    FROM UNNEST(SPLIT(original_relation.bundle_product_ids, ',')) AS product_id
+    FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t(product_id)
     WHERE product_id = '100088'
   )
-),
+),{{var("line_break")
 
-rule1_post_relation AS (
+}} rule1_post_relation AS (
   SELECT
       product_id_shop
     , (CASE
@@ -48,30 +48,27 @@ rule1_post_relation AS (
           THEN '100081,100082,100083,100084,100085,100086,100087'
         ELSE NULLIF(
           COALESCE(
-            ARRAY_TO_STRING(
-              ARRAY(
-                SELECT product_id
-                FROM UNNEST(SPLIT(bundle_product_ids, ',')) AS product_id
-                WHERE product_id != '100088'
-              ),
-              ','
+            (
+              SELECT string_agg(product_id, ',')
+              FROM unnest(string_to_array(bundle_product_ids, ',')) AS t1(product_id)
+              WHERE product_id != '100088'
             ),
             ''
           ),
           ''
         )
       END) AS bundle_product_ids
-    , DATE('2026-06-10') AS start_date
-    , DATE('2999-12-31') AS end_date
+    , DATE '2026-06-10' AS start_date
+    , DATE '2999-12-31' AS end_date
   FROM original_relation
   WHERE EXISTS (
     SELECT 1
-    FROM UNNEST(SPLIT(original_relation.bundle_product_ids, ',')) AS product_id
+    FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t2(product_id)
     WHERE product_id = '100088'
   )
-)
+){{var("line_break")
 
-SELECT
+}} SELECT
     product_id_shop AS product_id
   , bundle_product_ids
   , start_date

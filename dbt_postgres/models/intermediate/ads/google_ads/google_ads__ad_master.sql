@@ -5,38 +5,38 @@
   )
 }}
 
-WITH
+WITH{{var("line_break")
 
-ad_id_to_sbn_ids AS (
+}} ad_id_to_sbn_ids AS (
   SELECT
       ad_id
     , ad_level
     , bundle_product_ids
   FROM {{ source('relation', 'ad_id_to_sbn_ids') }}
   WHERE platform_name = '구글'
-),
+),{{var("line_break")
 
-campaign_type_mapping AS (
+}} campaign_type_mapping AS (
   {{ google_ads__campaign_type_mapping() }}
-),
+),{{var("line_break")
 
-bidding_strategy_mapping AS (
+}} bidding_strategy_mapping AS (
   {{ google_ads__bidding_strategy_mapping() }}
-),
+),{{var("line_break")
 
-adgroup_type_mapping AS (
+}} adgroup_type_mapping AS (
   {{ google_ads__adgroup_type_mapping() }}
-),
+),{{var("line_break")
 
-ad_type_mapping AS (
+}} ad_type_mapping AS (
   {{ google_ads__ad_type_mapping() }}
-),
+),{{var("line_break")
 
-status_mapping AS (
+}} status_mapping AS (
   {{ google_ads__status_mapping() }}
-),
+),{{var("line_break")
 
-ad_master AS (
+}} ad_master AS (
   SELECT
       ad.customer_id
     , acc.account_name
@@ -65,10 +65,10 @@ ad_master AS (
     , cmp.created_at
     -- Sort key
     , (
-        IF(status_fin.code = 'REMOVED', 2, 1) * 100 * 100 * 100 * 100
-        + COALESCE(acc.account_seq, 99)       * 100 * 100 * 100
-        + COALESCE(campaign_type.seq, 99)     * 100 * 100
-        + COALESCE(adgroup_type.seq, 99)      * 100
+        (CASE WHEN status_fin.code = 'REMOVED' THEN 2 ELSE 1 END) * 100 * 100 * 100 * 100
+        + COALESCE(acc.account_seq, 99)                           * 100 * 100 * 100
+        + COALESCE(campaign_type.seq, 99)                         * 100 * 100
+        + COALESCE(adgroup_type.seq, 99)                          * 100
         + COALESCE(ad_type.seq, 99)
       ) AS sort_key
   FROM {{ source('google_ads', 'ad') }} AS ad
@@ -95,7 +95,7 @@ ad_master AS (
   LEFT JOIN status_mapping AS status_ad
     ON ad.ad_status = status_ad.code
   LEFT JOIN status_mapping AS status_fin
-    ON GREATEST(COALESCE(status_cmp.seq, -1), COALESCE(status_grp.seq, -1), COALESCE(status_ad.seq, -1)) = status_fin.seq
+    ON GREATEST(status_cmp.seq, status_grp.seq, status_ad.seq) = status_fin.seq
   -- Resolve bundle_product_ids
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 0) AS rel_cmp
     ON ad.campaign_id = rel_cmp.ad_id
@@ -103,6 +103,6 @@ ad_master AS (
     ON ad.adgroup_id = rel_grp.ad_id
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 2) AS rel_ad
     ON ad.ad_id = rel_ad.ad_id
-)
+){{var("line_break")
 
-SELECT * FROM ad_master
+}} SELECT * FROM ad_master

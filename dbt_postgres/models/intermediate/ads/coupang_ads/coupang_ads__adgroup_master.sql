@@ -5,21 +5,21 @@
   )
 }}
 
-WITH
+WITH{{var("line_break")
 
-vendor_type_mapping AS (
+}} vendor_type_mapping AS (
   {{ coupang_ads__vendor_type_mapping() }}
-),
+),{{var("line_break")
 
-campaign_type_mapping AS (
+}} campaign_type_mapping AS (
   {{ coupang_ads__campaign_type_mapping() }}
-),
+),{{var("line_break")
 
-goal_type_mapping AS (
+}} goal_type_mapping AS (
   {{ coupang_ads__goal_type_mapping() }}
-),
+),{{var("line_break")
 
-adgroup_master AS (
+}} adgroup_master AS (
   SELECT
       grp.vendor_id
     , vdr.vendor_name
@@ -40,8 +40,8 @@ adgroup_master AS (
     , grp.updated_at
     -- Sort key
     , (
-        IF(grp.is_deleted, 2, 1)        * 10 * 100
-        + COALESCE(vdr.vendor_seq, 99)  * 10
+        (CASE WHEN grp.is_deleted THEN 2 ELSE 1 END)  * 10 * 100
+        + COALESCE(vdr.vendor_seq, 99)                * 10
         + COALESCE(goal_type.seq, 9)
       ) AS sort_key
   FROM {{ source('coupang_ads', 'adgroup') }} AS grp
@@ -56,6 +56,6 @@ adgroup_master AS (
     ON cmp.campaign_type = campaign_type.code
   LEFT JOIN goal_type_mapping AS goal_type
     ON grp.goal_type = goal_type.code
-)
+){{var("line_break")
 
-SELECT * FROM adgroup_master
+}} SELECT * FROM adgroup_master

@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: "core__brand_master"
-    description: "`core.item` 테이블에서 품번코드가 '2'로 시작하는 항목만 추출한 브랜드 마스터 모델"
+    description: "`core.item` 테이블에서 품번코드가 '2'로 시작하는 항목만 추출한 브랜드 마스터 모델 ('브랜드 없음' 항목은 제외)"
 
   - name: "core__product_master"
     description: "`core.item` 테이블에서 품번코드가 존재하는 항목만 추출한 대표상품 마스터 모델"

@@ -5,17 +5,17 @@
   )
 }}
 
-WITH
+WITH{{var("line_break")
 
-objective_mapping AS (
+}} objective_mapping AS (
   {{ meta_ads__objective_mapping() }}
-),
+),{{var("line_break")
 
-effective_status_mapping AS (
+}} effective_status_mapping AS (
   {{ meta_ads__effective_status_mapping() }}
-),
+),{{var("line_break")
 
-adset_master AS (
+}} adset_master AS (
   SELECT
       adset.account_id
     , acc.account_name
@@ -31,8 +31,8 @@ adset_master AS (
     , COALESCE(adset.created_at, cmp.created_at) AS created_at
     -- Sort key
     , (
-        IF(status_fin.code = 'DELETED', 2, 1) * 100 * 100
-        + COALESCE(acc.account_seq, 99)       * 100
+        (CASE WHEN status_fin.code = 'DELETED' THEN 2 ELSE 1 END) * 100 * 100
+        + COALESCE(acc.account_seq, 99)                           * 100
         + COALESCE(objective.seq, 99)
       ) AS sort_key
   FROM {{ source('meta_ads', 'adset') }} AS adset
@@ -49,7 +49,7 @@ adset_master AS (
   LEFT JOIN effective_status_mapping AS status_adset
     ON adset.effective_status = status_adset.code
   LEFT JOIN effective_status_mapping AS status_fin
-    ON GREATEST(COALESCE(status_cmp.seq, -1), COALESCE(status_adset.seq, -1)) = status_fin.seq
-)
+    ON GREATEST(status_cmp.seq, status_adset.seq) = status_fin.seq
+){{var("line_break")
 
-SELECT * FROM adset_master
+}} SELECT * FROM adset_master
