@@ -48,6 +48,5 @@ models:
 # Configuring variables
 # Full documentation: https://docs.getdbt.com/docs/build/project-variables
 vars:
-  line_break: ""
   ds_start_date: "2999-12-31"
   ds_end_date: "2999-12-31"

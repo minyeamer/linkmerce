@@ -5,30 +5,30 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} ad_id_to_sbn_ids AS (
+#} ad_id_to_sbn_ids AS (
   SELECT
       ad_id
     , ad_level
     , bundle_product_ids
   FROM {{ source('relation', 'ad_id_to_sbn_ids') }}
   WHERE platform_name = '네이버'
-),{{var("line_break")
+),{#
 
-}} campaign_type_mapping AS (
+#} campaign_type_mapping AS (
   {{ searchad__campaign_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} adgroup_type_mapping AS (
+#} adgroup_type_mapping AS (
   {{ searchad__adgroup_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} ad_type_mapping AS (
+#} ad_type_mapping AS (
   {{ searchad__ad_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} ad_master AS (
+#} ad_master AS (
   SELECT
       ad.customer_id
     , acc.account_name
@@ -91,6 +91,6 @@ WITH{{var("line_break")
     ON ad.ad_id = rel_ad.ad_id
   LEFT JOIN {{ source('relation', 'smt_prd_to_sbn_ids') }} AS rel_prd
     ON ad.product_id = rel_prd.product_id
-){{var("line_break")
+){#
 
-}} SELECT * FROM ad_master
+#} SELECT * FROM ad_master

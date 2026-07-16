@@ -5,21 +5,21 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} campaign_type_mapping AS (
+#} campaign_type_mapping AS (
   {{ searchad__campaign_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} adgroup_type_mapping AS (
+#} adgroup_type_mapping AS (
   {{ searchad__adgroup_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} contract_type_mapping AS (
+#} contract_type_mapping AS (
   {{ searchad__contract_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} contract_master AS (
+#} contract_master AS (
   SELECT
       sad.customer_id
     , acc.account_name
@@ -64,6 +64,6 @@ WITH{{var("line_break")
     ON grp.adgroup_type = adgroup_type.code
   LEFT JOIN contract_type_mapping AS contract_type
     ON sad.contract_type = contract_type.code
-){{var("line_break")
+){#
 
-}} SELECT * FROM contract_master
+#} SELECT * FROM contract_master

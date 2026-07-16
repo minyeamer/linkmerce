@@ -5,18 +5,18 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} original_relation AS (
+#} original_relation AS (
   SELECT
       ad_id
     , ad_level
     , bundle_product_ids
     , platform_name
   FROM {{ source('relation', 'ad_id_to_sbn_ids') }}
-),{{var("line_break")
+),{#
 
-}} default_ranged_relation AS (
+#} default_ranged_relation AS (
   SELECT
       ad_id
     , ad_level
@@ -30,9 +30,9 @@ WITH{{var("line_break")
     FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t(product_id)
     WHERE product_id = '100088'
   )
-),{{var("line_break")
+),{#
 
-}} rule1_pre_relation AS (
+#} rule1_pre_relation AS (
   SELECT
       ad_id
     , ad_level
@@ -46,9 +46,9 @@ WITH{{var("line_break")
     FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t(product_id)
     WHERE product_id = '100088'
   )
-),{{var("line_break")
+),{#
 
-}} rule1_post_relation AS (
+#} rule1_post_relation AS (
   SELECT
       ad_id
     , ad_level
@@ -76,9 +76,9 @@ WITH{{var("line_break")
     FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t2(product_id)
     WHERE product_id = '100088'
   )
-){{var("line_break")
+){#
 
-}} SELECT
+#} SELECT
     ad_id
   , ad_level
   , bundle_product_ids

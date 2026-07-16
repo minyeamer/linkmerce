@@ -5,17 +5,17 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} objective_mapping AS (
+#} objective_mapping AS (
   {{ meta_ads__objective_mapping() }}
-),{{var("line_break")
+),{#
 
-}} effective_status_mapping AS (
+#} effective_status_mapping AS (
   {{ meta_ads__effective_status_mapping() }}
-),{{var("line_break")
+),{#
 
-}} campaign_master AS (
+#} campaign_master AS (
   SELECT
       cmp.account_id
     , acc.account_name
@@ -39,6 +39,6 @@ WITH{{var("line_break")
     ON cmp.objective = objective.code
   LEFT JOIN effective_status_mapping AS effective_status
     ON cmp.effective_status = effective_status.code
-){{var("line_break")
+){#
 
-}} SELECT * FROM campaign_master
+#} SELECT * FROM campaign_master

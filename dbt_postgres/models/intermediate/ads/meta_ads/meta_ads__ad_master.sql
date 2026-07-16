@@ -5,26 +5,26 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} ad_id_to_sbn_ids AS (
+#} ad_id_to_sbn_ids AS (
   SELECT
       ad_id
     , ad_level
     , bundle_product_ids
   FROM {{ source('relation', 'ad_id_to_sbn_ids') }}
   WHERE platform_name = '메타'
-),{{var("line_break")
+),{#
 
-}} objective_mapping AS (
+#} objective_mapping AS (
   {{ meta_ads__objective_mapping() }}
-),{{var("line_break")
+),{#
 
-}} effective_status_mapping AS (
+#} effective_status_mapping AS (
   {{ meta_ads__effective_status_mapping() }}
-),{{var("line_break")
+),{#
 
-}} ad_master AS (
+#} ad_master AS (
   SELECT
       ad.account_id
     , acc.account_name
@@ -77,6 +77,6 @@ WITH{{var("line_break")
     ON ad.adset_id = rel_adset.ad_id
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 2) AS rel_ad
     ON ad.ad_id = rel_ad.ad_id
-){{var("line_break")
+){#
 
-}} SELECT * FROM ad_master
+#} SELECT * FROM ad_master

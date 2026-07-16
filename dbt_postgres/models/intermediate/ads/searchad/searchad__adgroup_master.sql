@@ -5,17 +5,17 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} campaign_type_mapping AS (
+#} campaign_type_mapping AS (
   {{ searchad__campaign_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} adgroup_type_mapping AS (
+#} adgroup_type_mapping AS (
   {{ searchad__adgroup_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} adgroup_master AS (
+#} adgroup_master AS (
   SELECT
       grp.customer_id
     , acc.account_name
@@ -50,6 +50,6 @@ WITH{{var("line_break")
     ON cmp.campaign_type = campaign_type.code
   LEFT JOIN adgroup_type_mapping AS adgroup_type
     ON grp.adgroup_type = adgroup_type.code
-){{var("line_break")
+){#
 
-}} SELECT * FROM adgroup_master
+#} SELECT * FROM adgroup_master

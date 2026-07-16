@@ -10,9 +10,9 @@ WITH original_relation AS (
       product_id AS product_id_shop
     , bundle_product_ids
   FROM {{ source('relation', 'smt_prd_to_sbn_ids') }}
-),{{var("line_break")
+),{#
 
-}} default_ranged_relation AS (
+#} default_ranged_relation AS (
   SELECT
       product_id_shop
     , bundle_product_ids
@@ -24,9 +24,9 @@ WITH original_relation AS (
     FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t(product_id)
     WHERE product_id = '100088'
   )
-),{{var("line_break")
+),{#
 
-}} rule1_pre_relation AS (
+#} rule1_pre_relation AS (
   SELECT
       product_id_shop
     , bundle_product_ids
@@ -38,9 +38,9 @@ WITH original_relation AS (
     FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t(product_id)
     WHERE product_id = '100088'
   )
-),{{var("line_break")
+),{#
 
-}} rule1_post_relation AS (
+#} rule1_post_relation AS (
   SELECT
       product_id_shop
     , (CASE
@@ -66,9 +66,9 @@ WITH original_relation AS (
     FROM unnest(string_to_array(original_relation.bundle_product_ids, ',')) AS t2(product_id)
     WHERE product_id = '100088'
   )
-){{var("line_break")
+){#
 
-}} SELECT
+#} SELECT
     product_id_shop AS product_id
   , bundle_product_ids
   , start_date

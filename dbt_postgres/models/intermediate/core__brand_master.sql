@@ -24,7 +24,7 @@ FROM (
     , ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY item_seq) AS rn1
     , ROW_NUMBER() OVER (PARTITION BY brand_name ORDER BY item_seq) AS rn2
   FROM {{ source('core', 'item') }}
-  WHERE product_id LIKE '2%'
+  WHERE starts_with(product_id, '2')
     AND NULLIF(brand_name, '브랜드 없음') IS NOT NULL
 ) AS t_
 WHERE rn1 = 1 AND rn2 = 1

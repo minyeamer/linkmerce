@@ -5,21 +5,21 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} vendor_type_mapping AS (
+#} vendor_type_mapping AS (
   {{ coupang_ads__vendor_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} campaign_type_mapping AS (
+#} campaign_type_mapping AS (
   {{ coupang_ads__campaign_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} goal_type_mapping AS (
+#} goal_type_mapping AS (
   {{ coupang_ads__goal_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} adgroup_master AS (
+#} adgroup_master AS (
   SELECT
       grp.vendor_id
     , vdr.vendor_name
@@ -56,6 +56,6 @@ WITH{{var("line_break")
     ON cmp.campaign_type = campaign_type.code
   LEFT JOIN goal_type_mapping AS goal_type
     ON grp.goal_type = goal_type.code
-){{var("line_break")
+){#
 
-}} SELECT * FROM adgroup_master
+#} SELECT * FROM adgroup_master

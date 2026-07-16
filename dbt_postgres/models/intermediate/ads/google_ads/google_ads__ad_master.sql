@@ -5,38 +5,38 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} ad_id_to_sbn_ids AS (
+#} ad_id_to_sbn_ids AS (
   SELECT
       ad_id
     , ad_level
     , bundle_product_ids
   FROM {{ source('relation', 'ad_id_to_sbn_ids') }}
   WHERE platform_name = '구글'
-),{{var("line_break")
+),{#
 
-}} campaign_type_mapping AS (
+#} campaign_type_mapping AS (
   {{ google_ads__campaign_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} bidding_strategy_mapping AS (
+#} bidding_strategy_mapping AS (
   {{ google_ads__bidding_strategy_mapping() }}
-),{{var("line_break")
+),{#
 
-}} adgroup_type_mapping AS (
+#} adgroup_type_mapping AS (
   {{ google_ads__adgroup_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} ad_type_mapping AS (
+#} ad_type_mapping AS (
   {{ google_ads__ad_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} status_mapping AS (
+#} status_mapping AS (
   {{ google_ads__status_mapping() }}
-),{{var("line_break")
+),{#
 
-}} ad_master AS (
+#} ad_master AS (
   SELECT
       ad.customer_id
     , acc.account_name
@@ -103,6 +103,6 @@ WITH{{var("line_break")
     ON ad.adgroup_id = rel_grp.ad_id
   LEFT JOIN (SELECT * FROM ad_id_to_sbn_ids WHERE ad_level = 2) AS rel_ad
     ON ad.ad_id = rel_ad.ad_id
-){{var("line_break")
+){#
 
-}} SELECT * FROM ad_master
+#} SELECT * FROM ad_master

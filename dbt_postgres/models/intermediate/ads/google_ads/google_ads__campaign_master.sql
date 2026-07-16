@@ -5,21 +5,21 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} campaign_type_mapping AS (
+#} campaign_type_mapping AS (
   {{ google_ads__campaign_type_mapping() }}
-),{{var("line_break")
+),{#
 
-}} bidding_strategy_mapping AS (
+#} bidding_strategy_mapping AS (
   {{ google_ads__bidding_strategy_mapping() }}
-),{{var("line_break")
+),{#
 
-}} status_mapping AS (
+#} status_mapping AS (
   {{ google_ads__status_mapping() }}
-),{{var("line_break")
+),{#
 
-}} campaign_master AS (
+#} campaign_master AS (
   SELECT
       cmp.customer_id
     , acc.account_name
@@ -50,6 +50,6 @@ WITH{{var("line_break")
     ON cmp.bidding_strategy = bidding_strategy.code
   LEFT JOIN status_mapping AS campaign_status
     ON cmp.campaign_status = campaign_status.code
-){{var("line_break")
+){#
 
-}} SELECT * FROM campaign_master
+#} SELECT * FROM campaign_master

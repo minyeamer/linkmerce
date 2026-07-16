@@ -5,17 +5,17 @@
   )
 }}
 
-WITH{{var("line_break")
+WITH{#
 
-}} objective_mapping AS (
+#} objective_mapping AS (
   {{ meta_ads__objective_mapping() }}
-),{{var("line_break")
+),{#
 
-}} effective_status_mapping AS (
+#} effective_status_mapping AS (
   {{ meta_ads__effective_status_mapping() }}
-),{{var("line_break")
+),{#
 
-}} adset_master AS (
+#} adset_master AS (
   SELECT
       adset.account_id
     , acc.account_name
@@ -50,6 +50,6 @@ WITH{{var("line_break")
     ON adset.effective_status = status_adset.code
   LEFT JOIN effective_status_mapping AS status_fin
     ON GREATEST(status_cmp.seq, status_adset.seq) = status_fin.seq
-){{var("line_break")
+){#
 
-}} SELECT * FROM adset_master
+#} SELECT * FROM adset_master
