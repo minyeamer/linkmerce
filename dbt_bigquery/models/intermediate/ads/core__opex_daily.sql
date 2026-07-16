@@ -33,7 +33,8 @@ opex_daily AS (
     , expense_name
     , dept_id
     , brand_id
-    , IF(date_count > 1, SAFE_CAST(amount / date_count AS INT64), amount) AS amount
+    , (DIV(amount, date_count)
+      + IF(date_offset = 0, MOD(amount, date_count), 0)) AS amount
     , DATE_ADD(start_date, INTERVAL date_offset DAY) AS ymd
   FROM opex_source,
     UNNEST(GENERATE_ARRAY(0, date_count - 1)) AS date_offset

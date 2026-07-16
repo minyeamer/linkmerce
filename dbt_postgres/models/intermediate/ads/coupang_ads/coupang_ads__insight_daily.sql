@@ -1,38 +1,33 @@
 {{
   config(
-    materialized = 'incremental',
+    materialized = 'partitioned_table',
     schema = 'xfm_ads',
-    incremental_strategy = 'insert_overwrite',
     partition_by = {
       "field": "ymd",
       "data_type": "date",
       "granularity": "day"
     },
-    partitions = bq_date_partitions('ds_start_date', 'ds_end_date'),
-    require_partition_filter = true
+    partitions = pg_date_partitions('ds_start_date', 'ds_end_date')
   )
 }}
 
-WITH
+WITH{#
 
-product_renewal_mapping AS (
+#} product_renewal_mapping AS (
   {{ core__product_renewal_mapping() }}
-),
+),{#
 
-cpg_opt_to_sbn_ids AS (
+#} cpg_opt_to_sbn_ids AS (
   SELECT
       option_id
-    , ARRAY_TO_STRING(
-        ARRAY(
-          SELECT SPLIT(bundle_product_id, ':')[SAFE_OFFSET(0)]
-          FROM UNNEST(SPLIT(bundle_product_ids, ',')) AS bundle_product_id
-        ),
-        ','
+    , (
+        SELECT string_agg((string_to_array(bundle_product_id, ':'))[1], ',')
+        FROM unnest(string_to_array(bundle_product_ids, ',')) AS t(bundle_product_id)
       ) AS bundle_product_ids
   FROM {{ source('relation', 'cpg_opt_to_sbn_ids') }}
-),
+),{#
 
-insight_pa_daily AS (
+#} insight_pa_daily AS (
   SELECT
       pa.campaign_id
     , pa.option_id
@@ -44,7 +39,7 @@ insight_pa_daily AS (
       ) AS bundle_product_ids
     , pa.impression_count
     , pa.click_count
-    , SAFE_CAST(pa.ad_cost * 1.1 AS INT64) AS ad_cost
+    , CAST(pa.ad_cost * 1.1 AS INTEGER) AS ad_cost
     , pa.conv_count
     , pa.direct_conv_count
     , pa.conv_amount
@@ -55,10 +50,10 @@ insight_pa_daily AS (
     ON pa.option_id = rel_opt.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON pa.vendor_id = vdr.vendor_id
-  WHERE pa.ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-),
+  WHERE pa.ymd BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
+),{#
 
-insight_nca_daily AS (
+#} insight_nca_daily AS (
   SELECT
       nca.campaign_id
     , COALESCE(nca.option_id, ad.option_id) AS option_id
@@ -70,11 +65,11 @@ insight_nca_daily AS (
       ) AS bundle_product_ids
     , nca.impression_count
     , nca.click_count
-    , SAFE_CAST(nca.ad_cost * 1.1 AS INT64) AS ad_cost
-    , SAFE_CAST(NULL AS INT64) AS conv_count
-    , SAFE_CAST(NULL AS INT64) AS direct_conv_count
-    , SAFE_CAST(NULL AS INT64) AS conv_amount
-    , SAFE_CAST(NULL AS INT64) AS direct_conv_amount
+    , CAST(nca.ad_cost * 1.1 AS INTEGER) AS ad_cost
+    , NULL::integer AS conv_count
+    , NULL::integer AS direct_conv_count
+    , NULL::integer AS conv_amount
+    , NULL::integer AS direct_conv_amount
     , nca.ymd
   FROM {{ source('coupang_ads', 'report_nca') }} AS nca
   LEFT JOIN {{ source('coupang_ads', 'creative') }} AS ad
@@ -83,10 +78,10 @@ insight_nca_daily AS (
     ON COALESCE(nca.option_id, ad.option_id) = rel_opt.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON nca.vendor_id = vdr.vendor_id
-  WHERE nca.ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-),
+  WHERE nca.ymd BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
+),{#
 
-bundle_product_insight AS (
+#} bundle_product_insight AS (
   SELECT
       campaign_id
     , option_id
@@ -106,40 +101,44 @@ bundle_product_insight AS (
     SELECT * FROM insight_nca_daily
   ) AS t_
   GROUP BY ymd, campaign_id, option_id, placement_group
-),
+),{#
 
-exploded_product_insight AS (
+#} exploded_product_insight AS (
   SELECT
       campaign_id
     , option_id
     , placement_group
     , bundle_product_id AS product_id
     , (DIV(impression_count, bundle_product_count)
-      + IF(bundle_product_offset = 0, MOD(impression_count, bundle_product_count), 0)) AS impression_count
+      + (CASE WHEN bundle_product_offset = 1 THEN MOD(impression_count, bundle_product_count) ELSE 0 END)) AS impression_count
     , (DIV(click_count, bundle_product_count)
-      + IF(bundle_product_offset = 0, MOD(click_count, bundle_product_count), 0)) AS click_count
+      + (CASE WHEN bundle_product_offset = 1 THEN MOD(click_count, bundle_product_count) ELSE 0 END)) AS click_count
     , (DIV(ad_cost, bundle_product_count)
-      + IF(bundle_product_offset = 0, MOD(ad_cost, bundle_product_count), 0)) AS ad_cost
+      + (CASE WHEN bundle_product_offset = 1 THEN MOD(ad_cost, bundle_product_count) ELSE 0 END)) AS ad_cost
     , (DIV(conv_count, bundle_product_count)
-      + IF(bundle_product_offset = 0, MOD(conv_count, bundle_product_count), 0)) AS conv_count
+      + (CASE WHEN bundle_product_offset = 1 THEN MOD(conv_count, bundle_product_count) ELSE 0 END)) AS conv_count
     , (DIV(direct_conv_count, bundle_product_count)
-      + IF(bundle_product_offset = 0, MOD(direct_conv_count, bundle_product_count), 0)) AS direct_conv_count
+      + (CASE WHEN bundle_product_offset = 1 THEN MOD(direct_conv_count, bundle_product_count) ELSE 0 END)) AS direct_conv_count
     , (DIV(conv_amount, bundle_product_count)
-      + IF(bundle_product_offset = 0, MOD(conv_amount, bundle_product_count), 0)) AS conv_amount
+      + (CASE WHEN bundle_product_offset = 1 THEN MOD(conv_amount, bundle_product_count) ELSE 0 END)) AS conv_amount
     , (DIV(direct_conv_amount, bundle_product_count)
-      + IF(bundle_product_offset = 0, MOD(direct_conv_amount, bundle_product_count), 0)) AS direct_conv_amount
+      + (CASE WHEN bundle_product_offset = 1 THEN MOD(direct_conv_amount, bundle_product_count) ELSE 0 END)) AS direct_conv_amount
     , ymd
   FROM (
     SELECT
         insight.*
       , COALESCE(renewal.product_id_old, bundle_product_id) AS bundle_product_id
       , bundle_product_offset
-      , ARRAY_LENGTH(SPLIT(insight.bundle_product_ids, ',')) AS bundle_product_count
+      , cardinality(string_to_array(insight.bundle_product_ids, ',')) AS bundle_product_count
     FROM bundle_product_insight AS insight
-    CROSS JOIN UNNEST(SPLIT(insight.bundle_product_ids, ',')) AS bundle_product_id WITH OFFSET AS bundle_product_offset
+    CROSS JOIN LATERAL (
+      SELECT bundle_product_id, bundle_product_offset
+      FROM unnest(string_to_array(insight.bundle_product_ids, ','))
+      WITH ORDINALITY AS t(bundle_product_id, bundle_product_offset)
+    ) AS t1_
     LEFT JOIN product_renewal_mapping AS renewal
       ON (bundle_product_id = renewal.product_id_new) AND (insight.ymd < renewal.renewal_date)
-  ) AS t_
-)
+  ) AS t2_
+){#
 
-SELECT * FROM exploded_product_insight
+#} SELECT * FROM exploded_product_insight

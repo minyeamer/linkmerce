@@ -1,25 +1,24 @@
 {{
   config(
-    materialized = 'table',
+    materialized = 'partitioned_table',
     schema = 'xfm_ads',
     partition_by = {
       "field": "ymd",
       "data_type": "date",
       "granularity": "day"
-    },
-    require_partition_filter = false
+    }
   )
 }}
 
-WITH
+WITH{#
 
-product_renewal_mapping AS (
+#} product_renewal_mapping AS (
   {{ core__product_renewal_mapping() }}
-),
+),{#
 
 -- Step 1: prepare relations
 
-ad_id_to_ranged_sbn_ids AS (
+#} ad_id_to_ranged_sbn_ids AS (
   SELECT
       ad_id
     , ad_level
@@ -28,40 +27,40 @@ ad_id_to_ranged_sbn_ids AS (
     , end_date
   FROM {{ ref('relation__ad_id_to_ranged_sbn_ids') }}
   WHERE platform_name = '네이버'
-),
+),{#
 
-smt_prd_to_ranged_sbn_ids AS (
+#} smt_prd_to_ranged_sbn_ids AS (
   SELECT
       product_id
     , bundle_product_ids
     , start_date
     , end_date
   FROM {{ ref('relation__smt_prd_to_ranged_sbn_ids') }}
-),
+),{#
 
-smt_prd_to_ranged_prd_ids AS (
+#} smt_prd_to_ranged_prd_ids AS (
   SELECT
       product_id
     , bundle_product_ids
     , start_date
     , end_date
   FROM smt_prd_to_ranged_sbn_ids
-  WHERE NOT STARTS_WITH(bundle_product_ids, '2')
-),
+  WHERE NOT starts_with(bundle_product_ids, '2')
+),{#
 
-smt_prd_to_ranged_brd_ids AS (
+#} smt_prd_to_ranged_brd_ids AS (
   SELECT
       product_id
     , bundle_product_ids AS bundle_brand_ids
     , start_date
     , end_date
   FROM smt_prd_to_ranged_sbn_ids
-  WHERE STARTS_WITH(bundle_product_ids, '2')
-),
+  WHERE starts_with(bundle_product_ids, '2')
+),{#
 
 -- Step 2: prepare contracts and expand them by day
 
-contract_base AS (
+#} contract_base AS (
   SELECT
       sad.contract_id
     , sad.adgroup_id
@@ -69,70 +68,66 @@ contract_base AS (
     , sad.contract_amount - COALESCE(sad.refund_amount, 0) AS ad_cost
     , sad.exposure_start_date
     , sad.exposure_end_date
-    , DATE_DIFF(sad.exposure_end_date, sad.exposure_start_date, DAY) + 1 AS date_count
+    , sad.exposure_end_date - sad.exposure_start_date + 1 AS date_count
   FROM {{ source('searchad', 'contract') }} AS sad
-  WHERE sad.contract_end_date >= DATE('{{ var("ds_start_date") }}')
+  WHERE sad.contract_end_date >= DATE '{{ var("ds_start_date") }}'
     AND sad.exposure_start_date IS NOT NULL
     AND sad.exposure_end_date IS NOT NULL
-),
+),{#
 
-contract_expand AS (
+#} contract_expand AS (
   SELECT
       sad.contract_id
     , sad.adgroup_id
     , sad.customer_id
     , (DIV(sad.ad_cost, sad.date_count)
-      + IF(date_offset = 0, MOD(sad.ad_cost, sad.date_count), 0)) AS ad_cost
-    , DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY) AS ymd
+      + (CASE WHEN date_offset = 0 THEN MOD(sad.ad_cost, sad.date_count) ELSE 0 END)) AS ad_cost
+    , sad.exposure_start_date + date_offset AS ymd
   FROM contract_base AS sad
-  CROSS JOIN UNNEST(GENERATE_ARRAY(0, sad.date_count - 1)) AS date_offset
-  WHERE DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY)
-    BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-),
+  CROSS JOIN generate_series(0, sad.date_count - 1) AS t(date_offset)
+  WHERE sad.exposure_start_date + date_offset
+    BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
+),{#
 
-contract_dates AS (
+#} contract_dates AS (
   SELECT DISTINCT
       adgroup_id
     , ymd
   FROM contract_expand
-),
+),{#
 
 -- Step 3: build adgroup-level bundle mappings from ad-level ranged rules
 
-adgroup_ad_id_to_ranged_sbn_ids AS (
-  SELECT
+#} adgroup_ad_id_to_ranged_sbn_ids AS (
+  (SELECT
       ad.adgroup_id
     , rel_ad.bundle_product_ids
     , rel_ad.start_date
     , rel_ad.end_date
   FROM {{ source('searchad', 'ad') }} AS ad
   INNER JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 2) AS rel_ad
-    ON ad.ad_id = rel_ad.ad_id
-
+    ON ad.ad_id = rel_ad.ad_id)
   UNION ALL
-
-  SELECT
+  (SELECT
       ad.adgroup_id
     , rel_prd.bundle_product_ids
     , rel_prd.start_date
     , rel_prd.end_date
   FROM {{ source('searchad', 'ad') }} AS ad
   INNER JOIN smt_prd_to_ranged_prd_ids AS rel_prd
-    ON ad.product_id = rel_prd.product_id
-
+    ON ad.product_id = rel_prd.product_id)
   UNION ALL
-
-  SELECT
+  (SELECT
       ad.adgroup_id
     , rel_brd.bundle_brand_ids AS bundle_product_ids
     , rel_brd.start_date
     , rel_brd.end_date
   FROM {{ source('searchad', 'ad') }} AS ad
   INNER JOIN smt_prd_to_ranged_brd_ids AS rel_brd
-    ON ad.product_id = rel_brd.product_id
-),
+    ON ad.product_id = rel_brd.product_id)
+),{#
 
-adgroup_ad_id_to_daily_sbn_ids AS (
+#} adgroup_ad_id_to_daily_sbn_ids AS (
   SELECT
       rel.adgroup_id
     , NULLIF(TRIM(bundle_product_id), '') AS bundle_product_id
@@ -141,34 +136,34 @@ adgroup_ad_id_to_daily_sbn_ids AS (
   INNER JOIN contract_dates AS dates
     ON rel.adgroup_id = dates.adgroup_id
     AND dates.ymd BETWEEN rel.start_date AND rel.end_date
-  CROSS JOIN UNNEST(SPLIT(rel.bundle_product_ids, ',')) AS bundle_product_id
+  CROSS JOIN LATERAL unnest(string_to_array(rel.bundle_product_ids, ',')) AS t(bundle_product_id)
   WHERE rel.bundle_product_ids IS NOT NULL
     AND bundle_product_id != '200000'
-),
+),{#
 
-adgroup_ad_id_to_daily_prd_ids AS (
+#} adgroup_ad_id_to_daily_prd_ids AS (
   SELECT
       adgroup_id
-    , STRING_AGG(DISTINCT bundle_product_id, ',') AS bundle_product_ids
+    , string_agg(DISTINCT bundle_product_id, ',') AS bundle_product_ids
     , ymd
   FROM adgroup_ad_id_to_daily_sbn_ids
-  WHERE NOT STARTS_WITH(bundle_product_id, '2')
+  WHERE NOT starts_with(bundle_product_id, '2')
   GROUP BY adgroup_id, ymd
-),
+),{#
 
-adgroup_ad_id_to_daily_brd_ids AS (
+#} adgroup_ad_id_to_daily_brd_ids AS (
   SELECT
       adgroup_id
-    , STRING_AGG(DISTINCT bundle_product_id, ',') AS bundle_product_ids
+    , string_agg(DISTINCT bundle_product_id, ',') AS bundle_product_ids
     , ymd
   FROM adgroup_ad_id_to_daily_sbn_ids
-  WHERE STARTS_WITH(bundle_product_id, '2')
+  WHERE starts_with(bundle_product_id, '2')
   GROUP BY adgroup_id, ymd
-),
+),{#
 
 -- Step 4: attach bundle_product_ids to each daily contract row
 
-bundle_product_contract AS (
+#} bundle_product_contract AS (
   SELECT
       sad.contract_id
     , sad.adgroup_id
@@ -202,29 +197,33 @@ bundle_product_contract AS (
   -- Resolve bundle_product_ids using customer_id
   LEFT JOIN {{ source('searchad', 'account') }} AS acc
     ON sad.customer_id = acc.customer_id
-),
+),{#
 
 -- Step 5: explode bundle products and allocate contract cost with equal weight
 
-exploded_product_contract AS (
+#} exploded_product_contract AS (
   SELECT
       contract_id
     , adgroup_id
     , bundle_product_id AS product_id
     , (DIV(ad_cost, bundle_product_count)
-      + IF(bundle_product_offset = 0, MOD(ad_cost, bundle_product_count), 0)) AS ad_cost
+      + (CASE WHEN bundle_product_offset = 1 THEN MOD(ad_cost, bundle_product_count) ELSE 0 END)) AS ad_cost
     , ymd
   FROM (
     SELECT
         sad.*
       , COALESCE(renewal.product_id_old, bundle_product_id) AS bundle_product_id
       , bundle_product_offset
-      , ARRAY_LENGTH(SPLIT(sad.bundle_product_ids, ',')) AS bundle_product_count
+      , cardinality(string_to_array(sad.bundle_product_ids, ',')) AS bundle_product_count
     FROM bundle_product_contract AS sad
-    CROSS JOIN UNNEST(SPLIT(sad.bundle_product_ids, ',')) AS bundle_product_id WITH OFFSET AS bundle_product_offset
+    CROSS JOIN LATERAL (
+      SELECT bundle_product_id, bundle_product_offset
+      FROM unnest(string_to_array(sad.bundle_product_ids, ','))
+      WITH ORDINALITY AS t(bundle_product_id, bundle_product_offset)
+    ) AS t1_
     LEFT JOIN product_renewal_mapping AS renewal
       ON (bundle_product_id = renewal.product_id_new) AND (sad.ymd < renewal.renewal_date)
-  ) AS t_
-)
+  ) AS t2_
+){#
 
-SELECT * FROM exploded_product_contract
+#} SELECT * FROM exploded_product_contract
