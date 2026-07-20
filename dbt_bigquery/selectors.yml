@@ -126,6 +126,7 @@ selectors:
       union:
         - method: path
           value: models/intermediate/sales/sabangnet
+          parents: true
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: sabangnet_order
@@ -134,6 +135,7 @@ selectors:
       union:
         - method: path
           value: models/intermediate/sales/sabangnet
+          parents: true
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: sabangnet_product
@@ -218,6 +220,7 @@ selectors:
       union:
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__sales_daily
+          parents: true
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: smartstore_order
@@ -226,6 +229,7 @@ selectors:
       union:
         - method: path
           value: models/intermediate/sales/smartstore
+          parents: true
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
