@@ -24,6 +24,7 @@ ecount_product AS (
     , remarks AS product_remarks
     , org_price
     , SAFE.PARSE_DATE('%Y%m%d', expiration_date) AS expiration_date
+    , IF(REGEXP_CONTAINS(eco.product_name, '1포|불량|비가용'), 0, 1) AS priority
   FROM {{ source('ecount', 'product') }} AS eco
   WHERE COALESCE(option_id, '') != ''
 ),
@@ -85,10 +86,11 @@ stock_report_with_stock_qty AS (
     , COALESCE(qty.cj_eflexs__stock_qty, 0) AS cj_eflexs__stock_qty
     , COALESCE(qty.coupang_rfm__stock_qty, 0) AS coupang_rfm__stock_qty
     -- Join metrics
+    , product.priority
     , SUM(qty.stock_qty) OVER (PARTITION BY product.product_id) AS product__stock_qty
     , ROW_NUMBER() OVER (
         PARTITION BY product.product_id
-        ORDER BY product.expiration_date ASC NULLS LAST, product.product_code ASC
+        ORDER BY product.priority DESC, product.expiration_date ASC NULLS LAST, product.product_code ASC
       ) AS product_seq
   FROM ecount_product AS product
   LEFT JOIN stock_qty_batch AS qty
@@ -112,9 +114,10 @@ stock_report_with_schedule AS (
     , schedule.delivery_date
     , COALESCE(schedule.remarks, '-') AS schedule_remarks
     -- Join metrics
+    , report.priority
     , ROW_NUMBER() OVER (
         PARTITION BY report.product_id
-        ORDER BY report.expiration_date ASC NULLS LAST, report.product_code ASC
+        ORDER BY report.priority DESC, report.expiration_date ASC NULLS LAST, report.product_code ASC
       ) AS product_seq
   FROM stock_report_with_stock_qty AS report
   LEFT JOIN {{ source('ecount', 'schedule') }} AS schedule
@@ -161,9 +164,10 @@ stock_report_with_sold_qty AS (
     , report.delivery_date
     , report.schedule_remarks
     -- Join metrics
+    , report.priority
     , ROW_NUMBER() OVER (
         PARTITION BY report.product_id
-        ORDER BY report.expiration_date ASC NULLS LAST, report.product_code ASC
+        ORDER BY report.priority DESC, report.expiration_date ASC NULLS LAST, report.product_code ASC
       ) AS cumsum_seq
   FROM stock_report_with_schedule AS report
   LEFT JOIN sold_qty_daily_30d AS qty
@@ -237,6 +241,8 @@ stock_report_with_remain_days AS (
     , report.order_date
     , report.delivery_date
     , report.schedule_remarks
+    -- Order priority
+    , report.priority
   FROM stock_report_with_sold_qty AS report
   LEFT JOIN stock_qty_cumsum AS cumsum
     ON report.product_code = cumsum.product_code
@@ -264,6 +270,7 @@ stock_report_final AS (
         ORDER BY
             brand.brand_seq ASC NULLS LAST
           , item.item_seq ASC NULLS LAST
+          , report.priority DESC
           , report.expiration_date ASC NULLS LAST
           , report.product_code ASC
       ) AS lot_seq
