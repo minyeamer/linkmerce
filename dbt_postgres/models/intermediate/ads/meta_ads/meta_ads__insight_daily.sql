@@ -56,7 +56,7 @@ WITH{#
     AND insight.ymd BETWEEN rel_ad.start_date AND rel_ad.end_date
   LEFT JOIN {{ source('meta_ads', 'account') }} AS acc
     ON insight.account_id = acc.account_id
-  WHERE insight.ymd BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
+  WHERE insight.ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
 ),{#
 
 #} bundle_product_insight AS (

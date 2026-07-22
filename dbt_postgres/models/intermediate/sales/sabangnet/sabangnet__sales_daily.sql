@@ -1,23 +1,21 @@
 {{
   config(
-    materialized = 'incremental',
+    materialized = 'partitioned_table',
     schema = 'xfm_sales',
-    incremental_strategy = 'insert_overwrite',
     partition_by = {
       "field": "order_date",
       "data_type": "date",
       "granularity": "day"
     },
-    partitions = bq_date_partitions('ds_start_date', 'ds_end_date'),
-    require_partition_filter = true
+    partitions = pg_date_partitions('ds_start_date', 'ds_end_date')
   )
 }}
 
-WITH
+WITH{#
 
 -- order_status IN (0, 1, 2, 3, 5)
 
-delivery_group AS (
+#} delivery_group AS (
   SELECT
       dlv.delivery_group
     , COALESCE(dlv.min_unit, 1) AS min_unit
@@ -29,44 +27,44 @@ delivery_group AS (
     , (COALESCE(dlv.coolant_cost, 0) + COALESCE(dlv.label_cost, 0)
       + COALESCE(dlv.wrap_cost, 0) + COALESCE(dlv.box_cost, 0)) AS extra_cost
   FROM {{ source('core', 'delivery_group') }} AS dlv
-),
+),{#
 
-ecount_product AS (
-  SELECT
+#} ecount_product AS (
+  SELECT DISTINCT ON (option_id)
       option_id
     , org_price
   FROM {{ source('ecount', 'product') }}
-  QUALIFY ROW_NUMBER() OVER (PARTITION BY option_id ORDER BY expiration_date ASC, product_code DESC) = 1
-),
+  ORDER BY option_id, expiration_date ASC, product_code DESC
+),{#
 
-product_delivery_unit AS (
+#} product_delivery_unit AS (
   {{ core__product_delivery_unit() }}
-),
+),{#
 
 -- Step 1: prepare orders
 
-order_invoice AS (
+#} order_invoice AS (
   SELECT
       order_seq
     , ANY_VALUE(invoice_no) AS invoice_no
     , MAX(order_status) AS order_status
   FROM {{ source('sabangnet', 'order_invoice') }}
-  WHERE order_dt >= DATETIME('{{ var("ds_start_date") }}')
-    AND order_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
+  WHERE order_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
+    AND order_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone
   GROUP BY order_seq
-),
+),{#
 
-order_status AS (
+#} order_status AS (
   SELECT
       cor.order_id
     , MAX(cor.order_status) AS order_status
   FROM {{ source('core', 'order_status') }} AS cor
-  WHERE cor.order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  WHERE cor.order_date BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
     AND cor.shop_name != '스마트스토어'
   GROUP BY cor.order_id
-),
+),{#
 
-order_detail AS (
+#} order_detail AS (
   SELECT
       ord.order_seq
     , COALESCE(ord.order_id, '-') AS order_id
@@ -74,7 +72,7 @@ order_detail AS (
     , ord.account_no
     -- Sales dimensions
     , acc.shop_id
-    , SPLIT(ord.option_id, '-')[SAFE_OFFSET(0)] AS product_id
+    , (string_to_array(ord.option_id, '-'))[1] AS product_id
     , ord.option_id
     , opt.bundle_option_ids
     , ord.product_id_shop
@@ -99,17 +97,28 @@ order_detail AS (
   LEFT JOIN order_status AS cor
     ON ord.order_id = cor.order_id
   -- Filter orders
-  WHERE ord.order_dt >= DATETIME('{{ var("ds_start_date") }}')
-    AND ord.order_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
+  WHERE ord.order_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
+    AND ord.order_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone
     AND acc.shop_id NOT IN ('shop0055', 'chop0022', 'chop0027', 'chop0028', 'chop0029')
-),
+),{#
 
 -- Step 2: apply bundle product rules
 
-bundle_product_order AS (
+#} bundle_product_order AS (
   SELECT
-      * EXCEPT (net_rate, order_date)
-    , SAFE_CAST(payment_amount * net_rate AS INT64) AS supply_amount
+      order_seq
+    , order_id
+    , invoice_no
+    , account_no
+    , shop_id
+    , product_id
+    , option_id
+    , bundle_option_ids
+    , order_status
+    , order_quantity
+    , sku_quantity
+    , payment_amount
+    , (payment_amount * net_rate)::integer AS supply_amount
     , order_date
   FROM (
     SELECT
@@ -129,15 +138,15 @@ bundle_product_order AS (
       , ({{ sabangnet__payment_amount_rules() }}) AS payment_amount
       , ({{ sabangnet__net_rate_rules() }}) AS net_rate
       -- Sales partition key
-      , DATE(order_dt) AS order_date
+      , (order_dt)::date AS order_date
     FROM order_detail
   ) AS t_
   WHERE shop_id != 'chop9022'
-),
+),{#
 
 -- Step 3: explode bundle products with bundle options
 
-exploded_product_order AS (
+#} exploded_product_order AS (
   SELECT
       ord.order_seq
     , ord.order_id
@@ -145,30 +154,37 @@ exploded_product_order AS (
     , ord.account_no
     -- Sales dimensions
     , ord.shop_id
-    , SPLIT(bundle_option, '-')[SAFE_OFFSET(0)] AS product_id
-    , SPLIT(bundle_option, ':')[SAFE_OFFSET(0)] AS option_id
+    , (string_to_array(bundle_option, '-'))[1] AS product_id
+    , (string_to_array(bundle_option, ':'))[1] AS option_id
+    , ord.bundle_option_ids
     , ord.order_status
+    , ord.order_quantity
     -- Sales metrics
-    , (COALESCE(SAFE_CAST(SPLIT(bundle_option, ':')[SAFE_OFFSET(1)] AS INT64), 1)
-      * ord.order_quantity) AS sku_quantity
-    , IF(ROW_NUMBER() OVER (PARTITION BY ord.account_no, ord.order_id ORDER BY ord.order_seq) = 1
-        , MAX(ord.payment_amount) OVER (PARTITION BY ord.account_no, ord.order_id)
-        , 0
-      ) AS payment_amount
-    , IF(ROW_NUMBER() OVER (PARTITION BY ord.account_no, ord.order_id ORDER BY ord.order_seq) = 1
-        , MAX(ord.supply_amount) OVER (PARTITION BY ord.account_no, ord.order_id)
-        , 0
-      ) AS supply_amount
+    , (CASE
+        WHEN split_part(bundle_option, ':', 2) ~ '^[0-9]+$'
+          THEN split_part(bundle_option, ':', 2)::integer
+        ELSE 1
+      END) * ord.order_quantity AS sku_quantity
+    , (CASE
+        WHEN ROW_NUMBER() OVER (PARTITION BY ord.account_no, ord.order_id ORDER BY ord.order_seq) = 1
+          THEN MAX(ord.payment_amount) OVER (PARTITION BY ord.account_no, ord.order_id)
+        ELSE 0
+      END) AS payment_amount
+    , (CASE
+        WHEN ROW_NUMBER() OVER (PARTITION BY ord.account_no, ord.order_id ORDER BY ord.order_seq) = 1
+          THEN MAX(ord.supply_amount) OVER (PARTITION BY ord.account_no, ord.order_id)
+        ELSE 0
+      END) AS supply_amount
     -- Sales partition key
     , ord.order_date
   FROM bundle_product_order AS ord
-  CROSS JOIN UNNEST(SPLIT(ord.bundle_option_ids, ',')) AS bundle_option
+  CROSS JOIN LATERAL unnest(string_to_array(ord.bundle_option_ids, ',')) AS t(bundle_option)
   WHERE ord.bundle_option_ids IS NULL
-),
+),{#
 
 -- Step 4: attach cost data
 
-product_order_with_cost_data AS (
+#} product_order_with_cost_data AS (
   SELECT
       *
     -- Allocation metrics
@@ -194,9 +210,7 @@ product_order_with_cost_data AS (
       -- Sales partition key
       , ord.order_date
     FROM (
-      (SELECT * EXCEPT (bundle_option_ids, order_quantity)
-      FROM bundle_product_order
-      WHERE bundle_option_ids IS NULL)
+      (SELECT * FROM bundle_product_order WHERE bundle_option_ids IS NULL)
       UNION ALL
       (SELECT * FROM exploded_product_order)
     ) AS ord
@@ -205,11 +219,11 @@ product_order_with_cost_data AS (
     LEFT JOIN {{ source('core', 'item') }} AS itm
       ON ord.product_id = itm.product_id
   ) AS t_
-),
+),{#
 
 -- Step 5: allocate amounts across order products by cost weight
 
-product_order_with_split_amount AS (
+#} product_order_with_split_amount AS (
   -- Step 5-3: adjust rounding remainders to preserve the original totals
   SELECT
       order_id
@@ -238,30 +252,31 @@ product_order_with_split_amount AS (
     -- Sales partition key
     , order_date
     -- Allocation metrics
+    , bundle_product_count
     , cost_amount
   FROM (
     -- Step 5-2: split amounts by cost weight
     SELECT
         *
-      , COALESCE(SAFE_CAST(total_payment_amount * cost_weight AS INT64), 0) AS payment_amount_split
-      , COALESCE(SAFE_CAST(total_supply_amount * cost_weight AS INT64), 0) AS supply_amount_split
+      , COALESCE((total_payment_amount * cost_weight)::integer, 0) AS payment_amount_split
+      , COALESCE((total_supply_amount * cost_weight)::integer, 0) AS supply_amount_split
     FROM (
       SELECT
           *
         -- Step 5-1: calculate cost weights within each order
         , SUM(payment_amount) OVER (PARTITION BY account_no, order_id) AS total_payment_amount
         , SUM(supply_amount) OVER (PARTITION BY account_no, order_id) AS total_supply_amount
-        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY account_no, order_id), 0) AS cost_weight
+        , cost_amount::numeric / NULLIF(SUM(cost_amount) OVER (PARTITION BY account_no, order_id), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY account_no, order_id ORDER BY product_id) AS order_offset
       FROM product_order_with_cost_data
       WHERE bundle_product_count > 1
     ) AS t0_
   ) AS t1_
-),
+),{#
 
 -- Step 6: prepare delivery data
 
-product_order_with_cj_delivery AS (
+#} product_order_with_cj_delivery AS (
   SELECT
       ord.order_id
     , ord.invoice_no
@@ -285,31 +300,29 @@ product_order_with_cj_delivery AS (
     -- Allocation metrics
     , ord.cost_amount
   FROM (
-    (SELECT * EXCEPT (bundle_product_count)
-    FROM product_order_with_cost_data
-    WHERE bundle_product_count = 1)
+    (SELECT * FROM product_order_with_cost_data WHERE bundle_product_count = 1)
     UNION ALL
     (SELECT * FROM product_order_with_split_amount)
   ) AS ord
   LEFT JOIN {{ ref('cj__invoice') }}(
-      DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 7 DAY)
-    , DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 7 DAY)
+      {{ pg_batch_start_date() }} - 7
+    , {{ pg_batch_end_date() }} + 7
   ) AS cj_inv
     ON ord.invoice_no = cj_inv.invoice_no
   LEFT JOIN {{ ref('cj__invoice_order') }}(
-      DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 7 DAY)
-    , DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 7 DAY)
+      {{ pg_batch_start_date() }} - 7
+    , {{ pg_batch_end_date() }} + 7
   ) AS cj_ord
     ON ord.order_id = cj_ord.order_id
   LEFT JOIN product_delivery_unit AS unit
     ON ord.product_id = unit.product_id
-),
+),{#
 
 -- Step 7: determine the maximum delivery fee at the order level
 
-max_delivery_fee AS (
+#} max_delivery_fee AS (
   -- Step 7-3: select the delivery fee with the largest absolute value for each order
-  SELECT *
+  SELECT DISTINCT ON (order_id, invoice_no) *
   FROM (
     -- Step 7-2: calculate delivery fees under each delivery group rule
     SELECT
@@ -320,7 +333,7 @@ max_delivery_fee AS (
           WHEN dlv.delivery_group IS NULL
             THEN ord.delivery_fee
           WHEN ord.delivery_fee > 0
-            THEN (ord.delivery_fee + IF(ord.box_cost > 0, ord.box_cost, dlv.extra_cost))
+            THEN (ord.delivery_fee + (CASE WHEN ord.box_cost > 0 THEN ord.box_cost ELSE dlv.extra_cost END))
           ELSE dlv.delivery_fee + dlv.extra_cost
         END) AS delivery_fee
     FROM (
@@ -339,12 +352,12 @@ max_delivery_fee AS (
       ON ord.delivery_group = dlv.delivery_group
         AND ord.delivery_quantity BETWEEN dlv.min_unit AND dlv.max_unit
   ) AS t_
-  QUALIFY ROW_NUMBER() OVER (PARTITION BY order_id, invoice_no ORDER BY ABS(delivery_fee) DESC) = 1
-),
+  ORDER BY order_id, invoice_no, ABS(delivery_fee) DESC
+),{#
 
 -- Step 8: attach the maximum delivery fee to product orders
 
-product_order_with_max_delivery AS (
+#} product_order_with_max_delivery AS (
   SELECT
       ord.order_id
     , ord.invoice_no
@@ -368,11 +381,11 @@ product_order_with_max_delivery AS (
   LEFT JOIN max_delivery_fee AS dlv
     ON ord.order_id = dlv.order_id
       AND ord.invoice_no = dlv.invoice_no
-),
+),{#
 
 -- Step 9: allocate delivery fees across complex product orders
 
-product_order_with_split_delivery AS (
+#} product_order_with_split_delivery AS (
   -- Step 9-3: adjust rounding remainders to preserve the original totals
   SELECT
       order_id
@@ -386,32 +399,37 @@ product_order_with_split_delivery AS (
     , payment_amount
     , supply_amount
     , supply_cost
-    , (CASE WHEN order_invoice_offset = 1
+    , org_price
+    , (CASE
+        WHEN order_invoice_offset = 1
           THEN delivery_fee - (SUM(delivery_fee_split) OVER (PARTITION BY order_id, invoice_no))
         ELSE 0
       END) + delivery_fee_split AS delivery_fee
     -- Sales partition key
     , order_date
+    -- Allocation metrics
+    , bundle_invoice_count
+    , cost_amount
   FROM (
     -- Step 9-2: split delivery fees by cost weight
     SELECT
         *
-      , COALESCE(SAFE_CAST(delivery_fee * cost_weight AS INT64), 0) AS delivery_fee_split
+      , COALESCE((delivery_fee * cost_weight)::integer, 0) AS delivery_fee_split
     FROM (
       SELECT
           *
         -- Step 9-1: calculate cost weights within each order invoice
-        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, invoice_no), 0) AS cost_weight
+        , cost_amount::numeric / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, invoice_no), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY order_id, invoice_no ORDER BY product_id) AS order_invoice_offset
       FROM product_order_with_max_delivery
       WHERE bundle_invoice_count > 1
     ) AS t0_
   ) AS t1_
-),
+),{#
 
 -- Step 10: aggregate daily sales
 
-sales_daily AS (
+#} sales_daily AS (
   SELECT
       product_id
     , shop_id
@@ -423,12 +441,11 @@ sales_daily AS (
     , SUM(delivery_fee) AS delivery_fee
     , order_date
   FROM (
-    (SELECT * EXCEPT (bundle_invoice_count, cost_amount, org_price)
-    FROM product_order_with_max_delivery WHERE bundle_invoice_count = 1)
+    (SELECT * FROM product_order_with_max_delivery WHERE bundle_invoice_count = 1)
     UNION ALL
     (SELECT * FROM product_order_with_split_delivery)
   ) AS t_
   GROUP BY order_date, product_id, shop_id, order_status
-)
+){#
 
-SELECT * FROM sales_daily
+#} SELECT * FROM sales_daily

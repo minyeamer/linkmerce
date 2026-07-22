@@ -71,8 +71,7 @@ contract_base AS (
     , sad.exposure_end_date
     , DATE_DIFF(sad.exposure_end_date, sad.exposure_start_date, DAY) + 1 AS date_count
   FROM {{ source('searchad', 'contract') }} AS sad
-  WHERE sad.contract_end_date >= DATE('{{ var("ds_start_date") }}')
-    AND sad.exposure_start_date IS NOT NULL
+  WHERE sad.exposure_start_date IS NOT NULL
     AND sad.exposure_end_date IS NOT NULL
 ),
 
@@ -86,8 +85,6 @@ contract_expand AS (
     , DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY) AS ymd
   FROM contract_base AS sad
   CROSS JOIN UNNEST(GENERATE_ARRAY(0, sad.date_count - 1)) AS date_offset
-  WHERE DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY)
-    BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
 ),
 
 contract_dates AS (

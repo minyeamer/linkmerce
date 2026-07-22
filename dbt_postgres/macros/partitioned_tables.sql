@@ -1,9 +1,10 @@
 {#
   Table materialization for native PostgreSQL daily range partitions.
 
-  The model query is evaluated once into a temporary staging table. Without a
-  `partitions` config, the staging table supplies the partition values and the entire
-  target is replaced. With `partitions`, only those daily partitions are replaced.
+  With batch_size zero, the model query is evaluated once into a temporary staging
+  table. With a positive batch_size and `partitions`, each consecutive partition
+  batch is evaluated and committed independently. Without `partitions`, batch_size
+  is ignored and the entire target is replaced in one transaction.
   pg_partman is deliberately not used: each run creates only the required children.
 #}
 
@@ -11,11 +12,22 @@
 
   {%- set partition_by = config.require('partition_by') -%}
   {%- set partitions = config.get('partitions', none) -%}
+  {%- set batch_size = var('batch_size') | int -%}
 
   {%- do pg_validate_partition_by(partition_by) -%}
 
+  {% if batch_size < 0 %}
+    {{ exceptions.raise_compiler_error('partitioned_table: `batch_size` must be zero or greater.') }}
+  {% endif %}
+
   {% if partitions is not none %}
     {%- do pg_validate_partitions(partitions) -%}
+  {% endif %}
+
+  {% if partitions is none %}
+    -- A model without an explicit date list is an all-partition replacement.
+    -- It cannot be split safely, so always use the legacy single-run path.
+    {%- set batch_size = 0 -%}
   {% endif %}
 
   {%- set partition_field = partition_by['field'] -%}
@@ -24,8 +36,7 @@
 
   {%- set target_relation = this.incorporate(type='table') -%}
 
-  -- The staging table is temporary, so it is isolated to the current database
-  -- session. Its name is still derived from the target for readable query logs.
+  -- Each staging table is temporary and isolated to the current database session.
   {%- set stage_identifier = target_relation.identifier ~ '__dbt_partition_stage' -%}
 
   -- Grab current table grants config for comparison later on.
@@ -35,6 +46,76 @@
 
   -- `begin` happens here.
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
+
+  {% if batch_size > 0 %}
+
+    -- Each batch reads only its selected output dates, refreshes those target
+    -- partitions, then commits. A later failure cannot roll back prior batches.
+    {% if existing_relation is not none %}
+      {{ pg_assert_partitioned_parent(target_relation) }}
+    {% endif %}
+    {% set batch_state = namespace(target_exists=(existing_relation is not none)) %}
+
+    {% for partition_batch in partitions | batch(batch_size) %}
+      -- Render concrete date literals so PostgreSQL prunes source partitions
+      -- during planning, before it consumes relation locks.
+      {% set batch_start_date = partition_batch | first %}
+      {% set batch_end_date = partition_batch | last %}
+      {% set batch_sql = sql
+        | replace('__dbt_batch_start_date__', batch_start_date)
+        | replace('__dbt_batch_end_date__', batch_end_date) %}
+
+      {% call statement('drop_partition_stage_before_batch') -%}
+        drop table if exists {{ adapter.quote(stage_identifier) }}
+      {%- endcall %}
+
+      {% call statement('build_partition_stage') -%}
+        create temporary table {{ adapter.quote(stage_identifier) }}
+        on commit preserve rows as
+        select * from (
+          {{ batch_sql }}
+        ) as model_subquery
+        where {{ adapter.quote(partition_field) }}::date
+          = any ({{ pg_date_array(partition_batch) }})
+      {%- endcall %}
+
+      {{ pg_validate_partition_stage(stage_identifier, partition_field, partition_batch) }}
+
+      {% if not batch_state.target_exists %}
+        {% call statement('create_partitioned_parent') -%}
+          create table {{ target_relation }}
+          (like {{ adapter.quote(stage_identifier) }} including all)
+          partition by range ({{ adapter.quote(partition_field) }})
+        {%- endcall %}
+        {% do create_indexes(target_relation) %}
+        {% set batch_state.target_exists = true %}
+      {% endif %}
+
+      {% set staged_partition_dates = pg_stage_dates(stage_identifier, partition_field) %}
+      {{ pg_create_stage_partitions(target_relation, stage_identifier, partition_field) }}
+      {{ pg_truncate_dates(target_relation, partition_batch) }}
+      {{ pg_insert_partitions(target_relation, stage_identifier, partition_field, staged_partition_dates) }}
+
+      {% do adapter.commit() %}
+
+    {% endfor %}
+
+    {% call statement('main') -%}
+      drop table if exists {{ adapter.quote(stage_identifier) }}
+    {%- endcall %}
+
+    {{ run_hooks(post_hooks, inside_transaction=True) }}
+
+    {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=False) %}
+    {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
+    {% do persist_docs(target_relation, model) %}
+    {% do adapter.commit() %}
+
+    {{ run_hooks(post_hooks, inside_transaction=False) }}
+
+    {{ return({'relations': [target_relation]}) }}
+
+  {% endif %}
 
   -- Build the model once. The staging table is the source of truth for the target
   -- columns and inserted rows, preventing a second evaluation from differing.
@@ -72,27 +153,22 @@
 
   {% endif %}
 
-  -- Child creation always follows the distinct partition values that are present
-  -- in the staged model result. `partitions` controls replacement scope only.
-  {{ pg_create_daily_partitions_from_stage(target_relation, stage_identifier, partition_field) }}
+  -- Child creation follows the staged dates, then the target is refreshed in
+  -- one transaction to preserve the original non-batch behavior.
+  {{ pg_create_stage_partitions(target_relation, stage_identifier, partition_field) }}
 
   {% if partitions is none %}
 
-    -- Preserve full-table behavior when no explicit replacement range is given.
     {% call statement('truncate_partitioned_target') -%}
       truncate table {{ target_relation }}
     {%- endcall %}
 
   {% else %}
 
-    -- An explicit list selects partial replacement mode. Empty lists are valid:
-    -- they truncate no children, and validation requires an empty stage.
-    {{ pg_truncate_daily_partitions(target_relation, partitions) }}
+    {{ pg_truncate_dates(target_relation, partitions) }}
 
   {% endif %}
 
-  -- Insert only after validation, partition creation, and the selected truncate
-  -- operation have completed successfully in the same transaction.
   {% call statement('main') -%}
     insert into {{ target_relation }}
     select * from {{ adapter.quote(stage_identifier) }}
@@ -118,7 +194,6 @@
 {% endmaterialization %}
 
 {% macro pg_validate_partition_by(partition_by) %}
-
   -- Keep the first implementation intentionally narrow. The partition-creation
   -- SQL below assumes a date value and one child table per calendar day.
   {% if partition_by is not mapping %}
@@ -138,20 +213,17 @@
   {% if partition_by['granularity'] | lower != 'day' %}
     {{ exceptions.raise_compiler_error('partitioned_table currently supports only `partition_by.granularity: day`.') }}
   {% endif %}
-
 {% endmacro %}
 
 {% macro pg_validate_partitions(partitions) %}
-
   -- `partitions` is a list of PostgreSQL date expressions. In particular, an
   -- empty list remains distinct from an omitted config and selects partial mode.
   {% if partitions is string or partitions is not sequence %}
     {{ exceptions.raise_compiler_error('partitioned_table: `partitions` must be a list.') }}
   {% endif %}
-
 {% endmacro %}
 
-{% macro pg_render_date_array(partitions) -%}
+{% macro pg_date_array(partitions) -%}
   array[
     {%- for partition in partitions -%}
       {{ partition }}{% if not loop.last %}, {% endif %}
@@ -159,8 +231,47 @@
   ]::date[]
 {%- endmacro %}
 
-{% macro pg_validate_partition_stage(stage_identifier, partition_field, partitions=none) %}
+{% macro pg_batch_start_date() -%}
+  {% if var('batch_size') | int > 0 %}
+    __dbt_batch_start_date__
+  {% else %}
+    DATE {{ dbt.string_literal(var('ds_start_date')) }}
+  {% endif %}
+{%- endmacro %}
 
+{% macro pg_batch_end_date() -%}
+  {% if var('batch_size') | int > 0 %}
+    __dbt_batch_end_date__
+  {% else %}
+    DATE {{ dbt.string_literal(var('ds_end_date')) }}
+  {% endif %}
+{%- endmacro %}
+
+{% macro pg_partition_date_array(partition_dates) -%}
+  array[
+    {%- for partition_date in partition_dates -%}
+      DATE '{{ partition_date }}'{% if not loop.last %}, {% endif %}
+    {%- endfor -%}
+  ]::date[]
+{%- endmacro %}
+
+{% macro pg_stage_dates(stage_identifier, partition_field) %}
+  {% set partition_dates_sql %}
+    select distinct to_char({{ adapter.quote(partition_field) }}::date, 'YYYY-MM-DD')
+    from {{ adapter.quote(stage_identifier) }}
+    order by 1
+  {% endset %}
+
+  {% set partition_dates = run_query(partition_dates_sql) %}
+
+  {% if execute %}
+    {% do return(partition_dates.columns[0].values() | list) %}
+  {% endif %}
+
+  {% do return([]) %}
+{% endmacro %}
+
+{% macro pg_validate_partition_stage(stage_identifier, partition_field, partitions=none) %}
   {% call statement('validate_partition_stage') -%}
     do $dbt_partitioned_table$
     begin
@@ -183,7 +294,7 @@
           select 1
           from {{ adapter.quote(stage_identifier) }}
           where {{ adapter.quote(partition_field) }}::date
-            <> all ({{ pg_render_date_array(partitions) }})
+            <> all ({{ pg_date_array(partitions) }})
         ) then
           raise exception
             'partitioned_table staged values for % fall outside `partitions`',
@@ -193,11 +304,9 @@
     end;
     $dbt_partitioned_table$;
   {%- endcall %}
-
 {% endmacro %}
 
 {% macro pg_assert_partitioned_parent(relation) %}
-
   {% call statement('assert_partitioned_parent') -%}
     do $dbt_partitioned_table$
     begin
@@ -219,22 +328,47 @@
     end;
     $dbt_partitioned_table$;
   {%- endcall %}
-
 {% endmacro %}
 
-{% macro pg_create_daily_partitions_from_stage(relation, stage_identifier, partition_field) %}
+{% macro pg_insert_partitions(relation, stage_identifier, partition_field, partition_dates) %}
+  {% call statement('insert_daily_partition_batch_from_stage') -%}
+    do $dbt_partitioned_table$
+    declare
+      partition_date date;
+      child_identifier text;
+    begin
+      -- Insert into each child directly so this statement locks only the
+      -- current batch instead of routing rows through the whole parent tree.
+      for partition_date in
+        select distinct unnest({{ pg_partition_date_array(partition_dates) }})
+      loop
+        child_identifier := {{ dbt.string_literal(relation.identifier ~ '_p') }}
+          || to_char(partition_date, 'YYYYMMDD');
 
+        execute format(
+          'insert into %I.%I select * from %I where %I::date = %L',
+          {{ dbt.string_literal(relation.schema) }},
+          child_identifier,
+          {{ dbt.string_literal(stage_identifier) }},
+          {{ dbt.string_literal(partition_field) }},
+          partition_date
+        );
+      end loop;
+    end;
+    $dbt_partitioned_table$;
+  {%- endcall %}
+{% endmacro %}
+
+{% macro pg_create_stage_partitions(relation, stage_identifier, partition_field) %}
   {% set partition_dates_sql %}
     select distinct {{ adapter.quote(partition_field) }}::date
     from {{ adapter.quote(stage_identifier) }}
   {% endset %}
 
-  {{ pg_create_daily_partitions(relation, partition_dates_sql) }}
-
+  {{ pg_create_partitions_from_query(relation, partition_dates_sql) }}
 {% endmacro %}
 
-{% macro pg_create_daily_partitions(relation, partition_dates_sql) %}
-
+{% macro pg_create_partitions_from_query(relation, partition_dates_sql) %}
   {% call statement('create_daily_partitions') -%}
     do $dbt_partitioned_table$
     declare
@@ -266,11 +400,9 @@
     end;
     $dbt_partitioned_table$;
   {%- endcall %}
-
 {% endmacro %}
 
-{% macro pg_truncate_daily_partitions(relation, partitions) %}
-
+{% macro pg_truncate_dates(relation, partitions) %}
   {% call statement('truncate_daily_partitions') -%}
     do $dbt_partitioned_table$
     declare
@@ -280,7 +412,7 @@
       -- Truncating the selected children avoids row-by-row delete overhead and
       -- leaves every unlisted partition untouched. An empty array runs no loop.
       for partition_date in
-        select distinct unnest({{ pg_render_date_array(partitions) }})
+        select distinct unnest({{ pg_date_array(partitions) }})
       loop
         child_identifier := {{ dbt.string_literal(relation.identifier ~ '_p') }}
           || to_char(partition_date, 'YYYYMMDD');
@@ -298,5 +430,4 @@
     end;
     $dbt_partitioned_table$;
   {%- endcall %}
-
 {% endmacro %}

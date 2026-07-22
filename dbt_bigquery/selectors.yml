@@ -19,8 +19,6 @@ selectors:
     description: "'cj_loisparcel_invoice' DAG 실행 후 CJ 송장번호 변동을 매출에 반영"
     definition:
       union:
-        - method: path
-          value: models/intermediate/delivery
         - method: fqn
           value: intermediate.sales.sabangnet.sabangnet__sales_daily
         - method: fqn

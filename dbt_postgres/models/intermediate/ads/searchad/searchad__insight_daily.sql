@@ -77,12 +77,12 @@ WITH{#
       ) AS bundle_product_ids
     , sad.impression_count
     , sad.click_count
-    , CAST(ROUND((
+    , ROUND(
         CASE
           WHEN sad.ymd < DATE '2026-03-30' THEN sad.ad_cost * 1.1
           ELSE sad.ad_cost
         END
-      )) AS bigint) AS ad_cost
+      )::integer AS ad_cost
     , sad.ad_rank_sum
     , sad.conv_count
     , sad.direct_conv_count
@@ -114,13 +114,13 @@ WITH{#
   -- Resolve bundle_product_ids using customer_id
   LEFT JOIN {{ source('searchad', 'account') }} AS acc
     ON sad.customer_id = acc.customer_id
-  WHERE sad.ymd BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
+  WHERE sad.ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
 ),{#
 
 #} insight_gfa_daily AS (
   SELECT
-      CAST(gfa.campaign_no AS text) AS campaign_id
-    , CAST(gfa.creative_no AS text) AS ad_id
+      gfa.campaign_no::text AS campaign_id
+    , gfa.creative_no::text AS ad_id
     , 9 AS device_type
     , COALESCE(
           rel_prd.bundle_product_ids
@@ -142,16 +142,16 @@ WITH{#
     , gfa.ymd
   FROM {{ source('searchad', 'report_gfa') }} AS gfa
   LEFT JOIN {{ source('searchad', 'ad') }} AS ad
-    ON CAST(gfa.creative_no AS text) = ad.ad_id
+    ON gfa.creative_no::text = ad.ad_id
   -- Resolve bundle_product_ids using ad_id
   LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 0) AS rel_cmp
-    ON CAST(gfa.campaign_no AS text) = rel_cmp.ad_id
+    ON gfa.campaign_no::text = rel_cmp.ad_id
     AND gfa.ymd BETWEEN rel_cmp.start_date AND rel_cmp.end_date
   LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 1) AS rel_adset
-    ON CAST(gfa.adset_no AS text) = rel_adset.ad_id
+    ON gfa.adset_no::text = rel_adset.ad_id
     AND gfa.ymd BETWEEN rel_adset.start_date AND rel_adset.end_date
   LEFT JOIN (SELECT * FROM ad_id_to_ranged_sbn_ids WHERE ad_level = 2) AS rel_ad
-    ON CAST(gfa.creative_no AS text) = rel_ad.ad_id
+    ON gfa.creative_no::text = rel_ad.ad_id
     AND gfa.ymd BETWEEN rel_ad.start_date AND rel_ad.end_date
   -- Resolve bundle_product_ids using product_id
   LEFT JOIN smt_prd_to_ranged_prd_ids AS rel_prd
@@ -163,7 +163,7 @@ WITH{#
   -- Resolve bundle_product_ids using customer_id
   LEFT JOIN {{ source('searchad', 'account') }} AS acc
     ON gfa.account_no = acc.customer_id
-  WHERE gfa.ymd BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
+  WHERE gfa.ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
 ),{#
 
 -- Step 3: union the reports and aggregate by dimensions

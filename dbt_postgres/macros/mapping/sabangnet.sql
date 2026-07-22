@@ -1,6 +1,6 @@
 {% macro sabangnet__shop_id_rules() -%}
 CASE
-  WHEN STARTS_WITH(order_id, '병원출고') THEN 'chop9022'
+  WHEN starts_with(order_id, '병원출고') THEN 'chop9022'
   ELSE shop_id
 END
 {%- endmacro %}
@@ -54,33 +54,33 @@ END
 
 {% macro sabangnet__product_status_mapping() -%}
 SELECT *
-FROM UNNEST([
-    STRUCT(0 AS seq, 1 AS code, '대기중' AS label)
-  , STRUCT(1 AS seq, 2 AS code, '공급중' AS label)
-  , STRUCT(2 AS seq, 3 AS code, '일시중지' AS label)
-  , STRUCT(3 AS seq, 4 AS code, '완전품절' AS label)
-  , STRUCT(4 AS seq, 5 AS code, '미사용' AS label)
-  , STRUCT(5 AS seq, 6 AS code, '삭제' AS label)
-  , STRUCT(6 AS seq, 7 AS code, '자료없음' AS label)
-  , STRUCT(7 AS seq, 8 AS code, '비노출' AS label)
-])
+FROM (VALUES
+    (0, 1, '대기중')
+  , (1, 2, '공급중')
+  , (2, 3, '일시중지')
+  , (3, 4, '완전품절')
+  , (4, 5, '미사용')
+  , (5, 6, '삭제')
+  , (6, 7, '자료없음')
+  , (7, 8, '비노출')
+) AS mapping(seq, code, label)
 {%- endmacro %}
 
 {% macro sabangnet__option_status_mapping() -%}
 SELECT *
-FROM UNNEST([
-    STRUCT(0 AS seq, 1 AS code, '판매' AS label)
-  , STRUCT(1 AS seq, 2 AS code, '일시품절' AS label)
-  , STRUCT(2 AS seq, 3 AS code, '미사용' AS label)
-])
+FROM (VALUES
+    (0, 1, '판매')
+  , (1, 2, '일시품절')
+  , (2, 3, '미사용')
+) AS mapping(seq, code, label)
 {%- endmacro %}
 
 {% macro sabangnet__option_type_mapping() -%}
 SELECT *
-FROM UNNEST([
-    STRUCT(0 AS seq, 0 AS code, '대표' AS label) -- custom type
-  , STRUCT(1 AS seq, 1 AS code, '세트' AS label)
-  , STRUCT(2 AS seq, 2 AS code, '모음전' AS label)
-  , STRUCT(3 AS seq, 3 AS code, '일반' AS label)
-])
+FROM (VALUES
+    (0, 0, '대표') -- custom type
+  , (1, 1, '세트')
+  , (2, 2, '모음전')
+  , (3, 3, '일반')
+) AS mapping(seq, code, label)
 {%- endmacro %}

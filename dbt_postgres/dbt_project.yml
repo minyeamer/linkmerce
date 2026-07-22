@@ -50,3 +50,5 @@ models:
 vars:
   ds_start_date: "2999-12-31"
   ds_end_date: "2999-12-31"
+  # Set a positive value to commit partition maintenance in batches.
+  batch_size: 0

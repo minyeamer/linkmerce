@@ -39,7 +39,7 @@ WITH{#
       ) AS bundle_product_ids
     , pa.impression_count
     , pa.click_count
-    , CAST(pa.ad_cost * 1.1 AS INTEGER) AS ad_cost
+    , (pa.ad_cost * 1.1)::integer AS ad_cost
     , pa.conv_count
     , pa.direct_conv_count
     , pa.conv_amount
@@ -50,7 +50,7 @@ WITH{#
     ON pa.option_id = rel_opt.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON pa.vendor_id = vdr.vendor_id
-  WHERE pa.ymd BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
+  WHERE pa.ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
 ),{#
 
 #} insight_nca_daily AS (
@@ -65,7 +65,7 @@ WITH{#
       ) AS bundle_product_ids
     , nca.impression_count
     , nca.click_count
-    , CAST(nca.ad_cost * 1.1 AS INTEGER) AS ad_cost
+    , (nca.ad_cost * 1.1)::integer AS ad_cost
     , NULL::integer AS conv_count
     , NULL::integer AS direct_conv_count
     , NULL::integer AS conv_amount
@@ -78,7 +78,7 @@ WITH{#
     ON COALESCE(nca.option_id, ad.option_id) = rel_opt.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON nca.vendor_id = vdr.vendor_id
-  WHERE nca.ymd BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
+  WHERE nca.ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
 ),{#
 
 #} bundle_product_insight AS (

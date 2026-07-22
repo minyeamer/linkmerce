@@ -1,6 +1,12 @@
 {{
   config(
-    materialized = 'view',
+    materialized = 'tvf',
+    meta = {
+      'params': [
+        {'name': 'DS_START_DATE', 'type': 'date'},
+        {'name': 'DS_END_DATE', 'type': 'date'}
+      ]
+    },
     schema = 'xfm_sales'
   )
 }}
@@ -14,9 +20,7 @@ loisparcel AS (
     , SUM(delivery_fee) AS delivery_fee
     , 0 AS box_cost
   FROM {{ source('cj_loisparcel', 'invoice') }}
-  WHERE register_date
-    BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 7 DAY)
-      AND DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 7 DAY)
+  WHERE register_date BETWEEN DS_START_DATE AND DS_END_DATE
   GROUP BY invoice_no, order_id
 ),
 
@@ -27,9 +31,7 @@ eflexs AS (
     , SUM(delivery_fee) AS delivery_fee
     , SUM(box_cost) AS box_cost
   FROM {{ source('cj_eflexs', 'invoice_order') }}
-  WHERE order_date
-    BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 3 DAY)
-      AND DATE('{{ var("ds_end_date") }}')
+  WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
   GROUP BY invoice_no, order_id
 ),
 

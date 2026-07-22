@@ -70,8 +70,7 @@ WITH{#
     , sad.exposure_end_date
     , sad.exposure_end_date - sad.exposure_start_date + 1 AS date_count
   FROM {{ source('searchad', 'contract') }} AS sad
-  WHERE sad.contract_end_date >= DATE '{{ var("ds_start_date") }}'
-    AND sad.exposure_start_date IS NOT NULL
+  WHERE sad.exposure_start_date IS NOT NULL
     AND sad.exposure_end_date IS NOT NULL
 ),{#
 
@@ -85,8 +84,6 @@ WITH{#
     , sad.exposure_start_date + date_offset AS ymd
   FROM contract_base AS sad
   CROSS JOIN generate_series(0, sad.date_count - 1) AS t(date_offset)
-  WHERE sad.exposure_start_date + date_offset
-    BETWEEN DATE '{{ var("ds_start_date") }}' AND DATE '{{ var("ds_end_date") }}'
 ),{#
 
 #} contract_dates AS (

@@ -11,9 +11,9 @@
   )
 }}
 
-WITH
+WITH{#
 
-loisparcel AS (
+#} loisparcel AS (
   SELECT
       REPLACE(invoice_no, '-', '') AS invoice_no
     , COALESCE(order_id, 'none') AS order_id
@@ -22,9 +22,9 @@ loisparcel AS (
   FROM {{ source('cj_loisparcel', 'invoice') }}
   WHERE register_date BETWEEN DS_START_DATE AND DS_END_DATE
   GROUP BY invoice_no, order_id
-),
+),{#
 
-eflexs AS (
+#} eflexs AS (
   SELECT
       invoice_no
     , order_id
@@ -33,11 +33,11 @@ eflexs AS (
   FROM {{ source('cj_eflexs', 'invoice_order') }}
   WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
   GROUP BY invoice_no, order_id
-),
+),{#
 
-cj_invoice AS (
+#} cj_invoice_order AS (
   SELECT
-      invoice_no
+      order_id
     , SUM(delivery_fee) AS delivery_fee
     , SUM(box_cost) AS box_cost
   FROM (
@@ -45,7 +45,8 @@ cj_invoice AS (
     UNION ALL
     (SELECT * FROM eflexs)
   )
-  GROUP BY invoice_no
-)
+  WHERE order_id != 'none'
+  GROUP BY order_id
+){#
 
-SELECT * FROM cj_invoice
+#} SELECT * FROM cj_invoice_order
