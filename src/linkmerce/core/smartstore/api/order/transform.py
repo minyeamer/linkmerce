@@ -29,7 +29,7 @@ class Order(DuckDBTransformer):
             "content": {
                 "order": ["orderId", "ordererNo", "payLocationType", "orderDate", {"paymentDate": None}],
                 "productOrder": [
-                    "merchantChannelId", "productId", "optionCode", "productClass", "deliveryAttributeType",
+                    "merchantChannelId", "productId", "itemNo", "productClass", "deliveryAttributeType",
                     {"deliveryTagType": None}, "inflowPath", {"inflowPathAdd": None}, "quantity", "unitPrice", "optionPrice",
                     "totalProductAmount", "productDiscountAmount", {"sellerBurdenDiscountAmount": None},
                     {"sellerBurdenStoreDiscountAmount": None}, "totalPaymentAmount", "expectedSettlementAmount",

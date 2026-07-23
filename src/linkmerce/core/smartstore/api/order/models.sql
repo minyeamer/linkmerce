@@ -86,7 +86,7 @@ SELECT
   , CAST(content.order.orderId AS BIGINT) AS order_id
   , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , CAST(content.productOrder.productId AS BIGINT) AS product_id
-  , CAST(content.productOrder.optionCode AS BIGINT) AS option_id
+  , CAST(content.productOrder.itemNo AS BIGINT) AS option_id
   , (CASE
       WHEN content.productOrder.productClass = '단일상품' THEN 0
       WHEN content.productOrder.productClass IN ('옵션상품','조합형옵션상품') THEN 1
@@ -168,7 +168,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO {{ option }}
 SELECT
     CAST(content.productOrder.productId AS BIGINT) AS product_id
-  , CAST(content.productOrder.optionCode AS BIGINT) AS option_id
+  , CAST(content.productOrder.itemNo AS BIGINT) AS option_id
   , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , content.productOrder.sellerProductCode AS seller_product_code
   , content.productOrder.optionManageCode AS seller_option_code
@@ -183,7 +183,7 @@ SELECT
   , content.productOrder.optionPrice AS option_price
   , TRY_CAST(content.order.paymentDate AS DATE) AS update_date
 FROM {{ rows }}
-QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.optionCode) = 1
+QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.itemNo) = 1
 ON CONFLICT DO UPDATE SET
     product_id = COALESCE(EXCLUDED.product_id, product_id)
   , channel_seq = COALESCE(EXCLUDED.channel_seq, channel_seq)
