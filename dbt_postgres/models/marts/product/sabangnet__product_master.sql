@@ -1,0 +1,108 @@
+{{
+  config(
+    materialized = 'view',
+    schema = 'sabangnet',
+    alias = 'product_master'
+  )
+}}
+
+WITH{#
+
+#} product_status_mapping AS (
+  {{ sabangnet__product_status_mapping() }}
+),{#
+
+#} option_type_mapping AS (
+  {{ sabangnet__option_type_mapping() }}
+),{#
+
+#} primary_option AS (
+  SELECT DISTINCT ON (product_id)
+      product_id
+    , item_id
+    , item_seq
+    , option_type
+    , option_count
+    , option_quantity
+  FROM (
+    SELECT
+        (string_to_array(opt.option_id, '-'))[1] AS product_id
+      , itm.item_id
+      , itm.item_seq
+      , opt.option_type
+      , COUNT(*) OVER (PARTITION BY (string_to_array(opt.option_id, '-'))[1]) AS option_count
+      , (CASE
+          WHEN split_part(product, ':', 2) ~ '^[0-9]+$'
+            THEN split_part(product, ':', 2)::integer
+          ELSE 1
+        END) AS option_quantity
+    FROM {{ source('sabangnet', 'option') }} AS opt
+    LEFT JOIN LATERAL unnest(
+      string_to_array(COALESCE(opt.bundle_option_ids, opt.option_id), ',')
+    ) AS t(product) ON TRUE
+    LEFT JOIN {{ ref('core__product_master') }} AS itm
+      ON (string_to_array(product, '-'))[1] = itm.product_id
+  ) AS t_
+  ORDER BY product_id, item_seq ASC NULLS LAST, option_quantity DESC
+),{#
+
+#} max_quantity AS (
+  SELECT POWER(10, MAX(LENGTH(option_quantity::text))) AS scale
+  FROM primary_option
+),{#
+
+#} product_master AS (
+  SELECT
+      prd.product_id
+    , prd.model_code
+    , prd.model_id
+    , prd.product_name
+    , prd.product_keyword
+    , prd.brand_name
+    , itm.category_name1
+    , itm.category_name2
+    , itm.category_name3
+    , itm.category_name4
+    , product_status.label AS product_status
+    , (CASE
+        WHEN main.product_id IS NOT NULL THEN '대표'
+        ELSE option_type.label
+      END) AS option_type
+    , opt.option_count
+    , prd.manufacture_year
+    , prd.sales_price
+    , prd.org_price
+    , (CASE
+        WHEN prd.image_file IS NOT NULL
+          THEN CONCAT('https://pic.sabangnet.co.kr/product_image/mw115815/100/', prd.image_file)
+        ELSE NULL
+      END) AS image_url
+    , prd.register_dt
+    , prd.modify_dt
+    -- Sort key
+    , (
+      COALESCE(opt.item_seq, COALESCE(brd.item_seq, 99000000) + 999999) * quantity.scale * 10
+      + (CASE
+          WHEN main.product_id IS NOT NULL
+            THEN 0
+          ELSE COALESCE(opt.option_type, 9)
+        END) * quantity.scale
+      + option_quantity
+    )::bigint AS sort_key
+  FROM {{ source('sabangnet', 'product') }} AS prd
+  LEFT JOIN primary_option AS opt
+    ON prd.product_id = opt.product_id
+  LEFT JOIN {{ source('core', 'item') }} AS itm
+    ON opt.item_id = itm.item_id
+  LEFT JOIN {{ ref('core__product_master') }} AS main
+    ON prd.product_id = main.product_id
+  LEFT JOIN product_status_mapping AS product_status
+    ON prd.product_status = product_status.code
+  LEFT JOIN option_type_mapping AS option_type
+    ON opt.option_type = option_type.code
+  LEFT JOIN {{ ref('core__brand_master') }} AS brd
+    ON prd.brand_name = brd.brand_name
+  CROSS JOIN max_quantity AS quantity
+){#
+
+#} SELECT * FROM product_master
