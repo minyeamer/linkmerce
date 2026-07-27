@@ -101,9 +101,9 @@ bundle_product_insight AS (
     , SUM(direct_conv_amount) AS direct_conv_amount
     , ymd
   FROM (
-    SELECT * FROM insight_pa_daily
+    (SELECT * FROM insight_pa_daily)
     UNION ALL
-    SELECT * FROM insight_nca_daily
+    (SELECT * FROM insight_nca_daily)
   ) AS t_
   GROUP BY ymd, campaign_id, option_id, placement_group
 ),

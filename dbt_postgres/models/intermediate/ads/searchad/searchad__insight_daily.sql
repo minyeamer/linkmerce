@@ -184,9 +184,9 @@ WITH{#
     , SUM(direct_conv_amount) AS direct_conv_amount
     , ymd
   FROM (
-    SELECT * FROM insight_sad_daily
+    (SELECT * FROM insight_sad_daily)
     UNION ALL
-    SELECT * FROM insight_gfa_daily
+    (SELECT * FROM insight_gfa_daily)
   ) AS t_
   GROUP BY ymd, campaign_id, ad_id, device_type
 ),{#
