@@ -129,7 +129,7 @@ WITH{#
       *
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY product_order_id) AS bundle_product_count
-    , (CASE WHEN order_status = 6 THEN 0 ELSE org_price * sku_quantity END) AS cost_amount
+    , (CASE WHEN order_status = 6 THEN 0 ELSE org_price * sku_quantity END)::numeric AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -202,13 +202,13 @@ WITH{#
     -- Step 3-2: split amounts by cost weights
     SELECT
         *
-      , COALESCE((payment_amount * cost_weight)::integer, 0) AS payment_amount_split
-      , COALESCE((supply_amount * cost_weight)::integer, 0) AS supply_amount_split
+      , COALESCE(ROUND(payment_amount * cost_weight, 0)::integer, 0) AS payment_amount_split
+      , COALESCE(ROUND(supply_amount * cost_weight, 0)::integer, 0) AS supply_amount_split
     FROM (
       SELECT
           *
         -- Step 3-1: calculate cost weights within each product order
-        , cost_amount::numeric / NULLIF(SUM(cost_amount) OVER (PARTITION BY product_order_id), 0) AS cost_weight
+        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY product_order_id), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY product_order_id ORDER BY product_id) AS product_order_offset
       FROM exploded_product_order
       WHERE bundle_product_count > 1
@@ -255,7 +255,7 @@ WITH{#
       {{ pg_batch_start_date() }} - 7
     , {{ pg_batch_end_date() }} + 7
   ) AS cj_ord
-    ON ((ord.order_id)::text) = cj_ord.order_id
+    ON ord.order_id::text = cj_ord.order_id
   LEFT JOIN product_delivery_unit AS dlv
     ON ord.product_id = dlv.product_id
 ),{#
@@ -359,12 +359,12 @@ WITH{#
     -- Step 7-2: split delivery fees by cost weight
     SELECT
         *
-      , COALESCE((delivery_fee * cost_weight)::integer, 0) AS delivery_fee_split
+      , COALESCE(ROUND(delivery_fee * cost_weight, 0)::integer, 0) AS delivery_fee_split
     FROM (
       SELECT
           *
         -- Step 7-1: calculate cost weights within each order invoice
-        , cost_amount::numeric / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, invoice_no), 0) AS cost_weight
+        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, invoice_no), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY order_id, invoice_no ORDER BY product_id) AS order_invoice_offset
       FROM product_order_with_max_delivery
       WHERE bundle_invoice_count > 1

@@ -118,7 +118,7 @@ WITH{#
     , order_quantity
     , sku_quantity
     , payment_amount
-    , (payment_amount * net_rate)::integer AS supply_amount
+    , ROUND(payment_amount::numeric * net_rate::numeric, 0)::integer AS supply_amount
     , order_date
   FROM (
     SELECT
@@ -189,7 +189,7 @@ WITH{#
       *
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY account_no, order_id) AS bundle_product_count
-    , org_price * sku_quantity AS cost_amount
+    , (org_price * sku_quantity)::numeric AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -258,15 +258,15 @@ WITH{#
     -- Step 5-2: split amounts by cost weight
     SELECT
         *
-      , COALESCE((total_payment_amount * cost_weight)::integer, 0) AS payment_amount_split
-      , COALESCE((total_supply_amount * cost_weight)::integer, 0) AS supply_amount_split
+      , COALESCE(ROUND(total_payment_amount * cost_weight, 0)::integer, 0) AS payment_amount_split
+      , COALESCE(ROUND(total_supply_amount * cost_weight, 0)::integer, 0) AS supply_amount_split
     FROM (
       SELECT
           *
         -- Step 5-1: calculate cost weights within each order
         , SUM(payment_amount) OVER (PARTITION BY account_no, order_id) AS total_payment_amount
         , SUM(supply_amount) OVER (PARTITION BY account_no, order_id) AS total_supply_amount
-        , cost_amount::numeric / NULLIF(SUM(cost_amount) OVER (PARTITION BY account_no, order_id), 0) AS cost_weight
+        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY account_no, order_id), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY account_no, order_id ORDER BY product_id) AS order_offset
       FROM product_order_with_cost_data
       WHERE bundle_product_count > 1
@@ -414,12 +414,12 @@ WITH{#
     -- Step 9-2: split delivery fees by cost weight
     SELECT
         *
-      , COALESCE((delivery_fee * cost_weight)::integer, 0) AS delivery_fee_split
+      , COALESCE(ROUND(delivery_fee * cost_weight, 0)::integer, 0) AS delivery_fee_split
     FROM (
       SELECT
           *
         -- Step 9-1: calculate cost weights within each order invoice
-        , cost_amount::numeric / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, invoice_no), 0) AS cost_weight
+        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, invoice_no), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY order_id, invoice_no ORDER BY product_id) AS order_invoice_offset
       FROM product_order_with_max_delivery
       WHERE bundle_invoice_count > 1

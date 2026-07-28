@@ -77,12 +77,11 @@ WITH{#
       ) AS bundle_product_ids
     , sad.impression_count
     , sad.click_count
-    , ROUND(
-        CASE
-          WHEN sad.ymd < DATE '2026-03-30' THEN sad.ad_cost * 1.1
+    , (CASE
+          WHEN sad.ymd < DATE '2026-03-30'
+            THEN ROUND(sad.ad_cost::numeric * 1.1::numeric, 0)::integer
           ELSE sad.ad_cost
-        END
-      )::integer AS ad_cost
+      END) AS ad_cost
     , sad.ad_rank_sum
     , sad.conv_count
     , sad.direct_conv_count

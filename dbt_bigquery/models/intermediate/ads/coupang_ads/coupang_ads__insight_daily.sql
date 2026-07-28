@@ -44,7 +44,7 @@ insight_pa_daily AS (
       ) AS bundle_product_ids
     , pa.impression_count
     , pa.click_count
-    , SAFE_CAST(pa.ad_cost * 1.1 AS INT64) AS ad_cost
+    , CAST(ROUND(CAST(pa.ad_cost AS NUMERIC) * CAST(1.1 AS NUMERIC), 0) AS INT64) AS ad_cost
     , pa.conv_count
     , pa.direct_conv_count
     , pa.conv_amount
@@ -70,11 +70,11 @@ insight_nca_daily AS (
       ) AS bundle_product_ids
     , nca.impression_count
     , nca.click_count
-    , SAFE_CAST(nca.ad_cost * 1.1 AS INT64) AS ad_cost
-    , SAFE_CAST(NULL AS INT64) AS conv_count
-    , SAFE_CAST(NULL AS INT64) AS direct_conv_count
-    , SAFE_CAST(NULL AS INT64) AS conv_amount
-    , SAFE_CAST(NULL AS INT64) AS direct_conv_amount
+    , CAST(ROUND(CAST(nca.ad_cost AS NUMERIC) * CAST(1.1 AS NUMERIC), 0) AS INT64) AS ad_cost
+    , CAST(NULL AS INT64) AS conv_count
+    , CAST(NULL AS INT64) AS direct_conv_count
+    , CAST(NULL AS INT64) AS conv_amount
+    , CAST(NULL AS INT64) AS direct_conv_amount
     , nca.ymd
   FROM {{ source('coupang_ads', 'report_nca') }} AS nca
   LEFT JOIN {{ source('coupang_ads', 'creative') }} AS ad

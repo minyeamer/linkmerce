@@ -109,7 +109,7 @@ order_detail AS (
 bundle_product_order AS (
   SELECT
       * EXCEPT (net_rate, order_date)
-    , SAFE_CAST(payment_amount * net_rate AS INT64) AS supply_amount
+    , CAST(ROUND(CAST(payment_amount AS NUMERIC) * CAST(net_rate AS NUMERIC), 0) AS INT64) AS supply_amount
     , order_date
   FROM (
     SELECT
@@ -173,7 +173,7 @@ product_order_with_cost_data AS (
       *
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY account_no, order_id) AS bundle_product_count
-    , org_price * sku_quantity AS cost_amount
+    , CAST(org_price * sku_quantity AS NUMERIC) AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -243,8 +243,8 @@ product_order_with_split_amount AS (
     -- Step 5-2: split amounts by cost weight
     SELECT
         *
-      , COALESCE(SAFE_CAST(total_payment_amount * cost_weight AS INT64), 0) AS payment_amount_split
-      , COALESCE(SAFE_CAST(total_supply_amount * cost_weight AS INT64), 0) AS supply_amount_split
+      , COALESCE(CAST(ROUND(total_payment_amount * cost_weight, 0) AS INT64), 0) AS payment_amount_split
+      , COALESCE(CAST(ROUND(total_supply_amount * cost_weight, 0) AS INT64), 0) AS supply_amount_split
     FROM (
       SELECT
           *
@@ -396,7 +396,7 @@ product_order_with_split_delivery AS (
     -- Step 9-2: split delivery fees by cost weight
     SELECT
         *
-      , COALESCE(SAFE_CAST(delivery_fee * cost_weight AS INT64), 0) AS delivery_fee_split
+      , COALESCE(CAST(ROUND(delivery_fee * cost_weight, 0) AS INT64), 0) AS delivery_fee_split
     FROM (
       SELECT
           *

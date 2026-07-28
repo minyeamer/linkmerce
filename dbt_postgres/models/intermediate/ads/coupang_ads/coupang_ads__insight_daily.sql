@@ -39,7 +39,7 @@ WITH{#
       ) AS bundle_product_ids
     , pa.impression_count
     , pa.click_count
-    , (pa.ad_cost * 1.1)::integer AS ad_cost
+    , ROUND(pa.ad_cost::numeric * 1.1::numeric, 0)::integer AS ad_cost
     , pa.conv_count
     , pa.direct_conv_count
     , pa.conv_amount
@@ -65,7 +65,7 @@ WITH{#
       ) AS bundle_product_ids
     , nca.impression_count
     , nca.click_count
-    , (nca.ad_cost * 1.1)::integer AS ad_cost
+    , ROUND(nca.ad_cost::numeric * 1.1::numeric, 0)::integer AS ad_cost
     , NULL::integer AS conv_count
     , NULL::integer AS direct_conv_count
     , NULL::integer AS conv_amount

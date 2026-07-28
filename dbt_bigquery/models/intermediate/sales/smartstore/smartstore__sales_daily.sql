@@ -72,12 +72,12 @@ order_status_smt AS (
 
 order_status_cor AS (
   SELECT
-      SAFE_CAST(cor.order_id AS INT64) AS order_id
+      CAST(cor.order_id AS INT64) AS order_id
     , MAX(cor.order_status) AS order_status
   FROM {{ source('core', 'order_status') }} AS cor
   WHERE cor.order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
     AND cor.shop_name = '스마트스토어'
-    AND SAFE_CAST(cor.order_id AS INT64) IS NOT NULL
+    AND REGEXP_CONTAINS(cor.order_id, '^[0-9]+$')
   GROUP BY cor.order_id
 ),
 
@@ -133,7 +133,7 @@ exploded_product_order AS (
       *
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY product_order_id) AS bundle_product_count
-    , IF(order_status = 6, 0, org_price * sku_quantity) AS cost_amount
+    , CAST(IF(order_status = 6, 0, org_price * sku_quantity) AS NUMERIC) AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -202,8 +202,8 @@ product_order_with_split_amount AS (
     -- Step 3-2: split amounts by cost weights
     SELECT
         *
-      , CAST(payment_amount * cost_weight AS INT64) AS payment_amount_split
-      , CAST(supply_amount * cost_weight AS INT64) AS supply_amount_split
+      , COALESCE(CAST(ROUND(payment_amount * cost_weight, 0) AS INT64), 0) AS payment_amount_split
+      , COALESCE(CAST(ROUND(supply_amount * cost_weight, 0) AS INT64), 0) AS supply_amount_split
     FROM (
       SELECT
           *
@@ -257,7 +257,7 @@ product_order_with_cj_delivery AS (
       DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 7 DAY)
     , DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 7 DAY)
   ) AS cj_ord
-    ON SAFE_CAST(ord.order_id AS STRING) = cj_ord.order_id
+    ON CAST(ord.order_id AS STRING) = cj_ord.order_id
   LEFT JOIN product_delivery_unit AS dlv
     ON ord.product_id = dlv.product_id
 ),
@@ -357,7 +357,7 @@ product_order_with_split_delivery AS (
     -- Step 7-2: split delivery fees by cost weight
     SELECT
         *
-      , COALESCE(SAFE_CAST(delivery_fee * cost_weight AS INT64), 0) AS delivery_fee_split
+      , COALESCE(CAST(ROUND(delivery_fee * cost_weight, 0) AS INT64), 0) AS delivery_fee_split
     FROM (
       SELECT
           *

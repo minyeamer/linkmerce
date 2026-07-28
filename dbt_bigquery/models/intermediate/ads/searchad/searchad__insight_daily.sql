@@ -79,7 +79,11 @@ insight_sad_daily AS (
       ) AS bundle_product_ids
     , sad.impression_count
     , sad.click_count
-    , CAST(ROUND(IF(sad.ymd < DATE '2026-03-30', sad.ad_cost * 1.1, sad.ad_cost)) AS INT64) AS ad_cost
+    , (CASE
+          WHEN sad.ymd < DATE('2026-03-30')
+            THEN CAST(ROUND(CAST(sad.ad_cost AS NUMERIC) * CAST(1.1 AS NUMERIC), 0) AS INT64)
+          ELSE sad.ad_cost
+      END) AS ad_cost
     , sad.ad_rank_sum
     , sad.conv_count
     , sad.direct_conv_count

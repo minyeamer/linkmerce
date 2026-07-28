@@ -29,12 +29,12 @@ order_status_smt AS (
 
 order_status_cor AS (
   SELECT
-      SAFE_CAST(cor.order_id AS INT64) AS order_id
+      CAST(cor.order_id AS INT64) AS order_id
     , MAX(cor.order_status) AS order_status
   FROM {{ source('core', 'order_status') }} AS cor
   WHERE cor.order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
     AND cor.shop_name = '스마트스토어'
-    AND SAFE_CAST(cor.order_id AS INT64) IS NOT NULL
+    AND REGEXP_CONTAINS(cor.order_id, '^[0-9]+$')
   GROUP BY cor.order_id
 ),
 

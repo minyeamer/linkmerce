@@ -177,7 +177,7 @@ product_order_with_delivery_extra AS (
     , ord.order_date
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY ord.order_id, ord.option_id) AS bundle_product_count
-    , IF(ord.order_status = 6, 0, ord.org_price * ord.sku_quantity) AS cost_amount
+    , CAST(IF(ord.order_status = 6, 0, ord.org_price * ord.sku_quantity) AS NUMERIC) AS cost_amount
   FROM exploded_product_order AS ord
   LEFT JOIN product_delivery_unit AS unit
     ON ord.product_id = unit.product_id
@@ -220,9 +220,9 @@ product_order_with_split_amount AS (
     -- Step 4-2: split amounts by cost weight
     SELECT
         *
-      , COALESCE(SAFE_CAST(payment_amount * cost_weight AS INT64), 0) AS payment_amount_split
-      , COALESCE(SAFE_CAST(supply_amount * cost_weight AS INT64), 0) AS supply_amount_split
-      , COALESCE(SAFE_CAST(delivery_fee * cost_weight AS INT64), 0) AS delivery_fee_split
+      , COALESCE(CAST(ROUND(payment_amount * cost_weight, 0) AS INT64), 0) AS payment_amount_split
+      , COALESCE(CAST(ROUND(supply_amount * cost_weight, 0) AS INT64), 0) AS supply_amount_split
+      , COALESCE(CAST(ROUND(delivery_fee * cost_weight, 0) AS INT64), 0) AS delivery_fee_split
     FROM (
       SELECT
           *

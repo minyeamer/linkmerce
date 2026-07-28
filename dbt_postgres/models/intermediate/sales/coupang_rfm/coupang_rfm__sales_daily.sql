@@ -191,7 +191,7 @@ WITH{#
     , ord.order_date
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY ord.order_id, ord.option_id) AS bundle_product_count
-    , (CASE WHEN ord.order_status = 6 THEN 0 ELSE ord.org_price * ord.sku_quantity END) AS cost_amount
+    , (CASE WHEN ord.order_status = 6 THEN 0 ELSE ord.org_price * ord.sku_quantity END)::numeric AS cost_amount
   FROM exploded_product_order AS ord
   LEFT JOIN product_delivery_unit AS unit
     ON ord.product_id = unit.product_id
@@ -237,14 +237,14 @@ WITH{#
     -- Step 4-2: split amounts by cost weight
     SELECT
         *
-      , COALESCE((payment_amount * cost_weight)::integer, 0) AS payment_amount_split
-      , COALESCE((supply_amount * cost_weight)::integer, 0) AS supply_amount_split
-      , COALESCE((delivery_fee * cost_weight)::integer, 0) AS delivery_fee_split
+      , COALESCE(ROUND(payment_amount * cost_weight, 0)::integer, 0) AS payment_amount_split
+      , COALESCE(ROUND(supply_amount * cost_weight, 0)::integer, 0) AS supply_amount_split
+      , COALESCE(ROUND(delivery_fee * cost_weight, 0)::integer, 0) AS delivery_fee_split
     FROM (
       SELECT
           *
         -- Step 4-1: calculate cost weights within each order option
-        , cost_amount::numeric / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, option_id), 0) AS cost_weight
+        , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY order_id, option_id), 0) AS cost_weight
         , ROW_NUMBER() OVER (PARTITION BY order_id, option_id ORDER BY product_id) AS order_option_offset
       FROM product_order_with_delivery_extra
       WHERE bundle_product_count > 1
