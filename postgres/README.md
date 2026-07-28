@@ -114,6 +114,7 @@ ${POSTGRES_DATA_DIR:-./data} -> /var/lib/postgresql
 | `analytics` | 통합 분석 데이터 |
 | `cj_eflexs`, `cj_loisparcel` | CJ대한통운 재고 및 배송 데이터 |
 | `coupang`, `coupang_ads`, `coupang_rfm` | 쿠팡 상품, 광고, 로켓그로스 데이터 |
+| `dable` | 데이블 광고 데이터 |
 | `ecount` | 이카운트 상품 및 재고 데이터 |
 | `google_ads`, `meta_ads` | 구글 및 메타 광고 데이터 |
 | `naver_shp` | 네이버 쇼핑 검색 데이터 |

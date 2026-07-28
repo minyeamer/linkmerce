@@ -176,6 +176,22 @@ class TestCoupangWing:
 
 
 ###################################################################
+############################## Dable ##############################
+###################################################################
+
+class TestDable:
+    """데이블 데이터 변환 테스트.
+    - dable.api.report.DailyReport
+    """
+
+    @pytest.mark.dable
+    def test_report(self, transformer_harness: Harness):
+        """데이블 광고 보고서를 보고서와 캠페인 데이터로 변환하는 테스트."""
+        from linkmerce.core.dable.api.report.transform import DailyReport
+        transformer_harness(DailyReport).transform()
+
+
+###################################################################
 ############################## Ecount #############################
 ###################################################################
 

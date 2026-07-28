@@ -134,6 +134,18 @@ coupang/
                 └── RocketShippingParser(ExcelTransformer)::transform
 ```
 
+### Dable
+
+```bash
+dable/
+└── api/
+    ├─x DableApi(Extractor)::common
+    └── report/
+        └── DailyReport(DableApi)::extract
+            └── DailyReport(DuckDBTransformer)::transform
+                └── DailyReportParser(JsonTransformer)::transform
+```
+
 ### Ecount
 
 ```bash

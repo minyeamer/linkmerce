@@ -233,6 +233,37 @@ class TestCoupangWing:
 
 
 ###################################################################
+############################## Dable ##############################
+###################################################################
+
+class TestDable:
+    """데이블 API 데이터 추출 테스트.
+    - dable.api.report.DailyReport
+    """
+
+    def credentials(self, reader: YamlReader) -> dict:
+        _credentials = reader("dable.api")
+        return {
+            "api_key": _credentials["api_key"],
+            "client_name": _credentials["client_name"],
+        }
+
+    @pytest.mark.dable
+    def test_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """데이블 광고 보고서를 조회하는 테스트."""
+        from linkmerce.core.dable.api.report.extract import DailyReport
+        _configs = options("dable.api.report")
+        DailyReport(
+            configs = self.credentials(credentials),
+            parser = dump_extract(DailyReport, format="json"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+            group_by_campaign = True,
+        )
+
+
+###################################################################
 ############################ Ecount ###############################
 ###################################################################
 

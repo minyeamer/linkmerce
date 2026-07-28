@@ -49,6 +49,12 @@ sources:
       - name: sales
       - name: shipping
 
+  - name: dable
+    schema: dable
+    tables:
+      - name: campaign
+      - name: report
+
   - name: ecount
     schema: ecount
     tables:

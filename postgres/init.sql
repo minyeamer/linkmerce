@@ -12,6 +12,7 @@ CREATE SCHEMA IF NOT EXISTS cj_loisparcel; -- cjl
 CREATE SCHEMA IF NOT EXISTS coupang; -- cpg
 CREATE SCHEMA IF NOT EXISTS coupang_ads; -- cpa
 CREATE SCHEMA IF NOT EXISTS coupang_rfm; -- cpr
+CREATE SCHEMA IF NOT EXISTS dable; -- dbl
 CREATE SCHEMA IF NOT EXISTS ecount; -- eco
 CREATE SCHEMA IF NOT EXISTS google_ads; -- ggl
 CREATE SCHEMA IF NOT EXISTS meta_ads; -- met
@@ -439,6 +440,29 @@ CREATE TABLE IF NOT EXISTS coupang_rfm.shipping (
   , PRIMARY KEY (sales_date, order_id, option_id, settlement_type)
 ) PARTITION BY RANGE (sales_date);
 CREATE INDEX IF NOT EXISTS cpr_shipping__vendor_idx ON coupang_rfm.shipping (vendor_id);
+
+-- ============================================================
+-- dable (데이블)
+-- ============================================================
+
+-- [데이블 캠페인]
+CREATE TABLE IF NOT EXISTS dable.campaign (
+    campaign_id TEXT NOT NULL -- 캠페인ID
+  , campaign_name TEXT -- 캠페인명
+  , PRIMARY KEY (campaign_id)
+);
+
+-- [데이블 광고 보고서]
+CREATE TABLE IF NOT EXISTS dable.report (
+    campaign_id TEXT NOT NULL -- 캠페인ID
+  , expose_count INTEGER -- 조회수
+  , impression_count INTEGER -- 노출수
+  , click_count INTEGER -- 클릭수
+  , ad_cost INTEGER -- 광고비
+  , conv_count INTEGER -- 전환수
+  , ymd DATE NOT NULL -- 날짜
+  , PRIMARY KEY (ymd, campaign_id)
+) PARTITION BY RANGE (ymd);
 
 -- ============================================================
 -- ecount (이카운트)
@@ -1420,6 +1444,7 @@ SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca',		    'ymd',		
 SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory',		      'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.sales',			        'sales_date',			    '2023-08-07',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.shipping',		      'sales_date',			    '2023-08-04',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('dable.report',			            'ymd',      			    '2026-06-11',         	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('ecount.inventory',			        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('google_ads.insight',			      'ymd',				        '2023-09-06',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('meta_ads.insight',			        'ymd',				        '2024-05-20',				    '1 day',  35);

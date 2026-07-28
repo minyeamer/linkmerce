@@ -296,6 +296,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
+| `dable_ads` | 매일 `07:30` | 데이블 광고 ETL |
 | `google_ads` | 매일 `07:50` | 구글 광고 ETL |
 | `meta_ads` | 매일 `07:40` | 메타 광고 ETL |
 | `postgres_partman_maintenance` | 매일 `00:00` | PostgreSQL pg_partman 파티션 갱신 |

@@ -105,13 +105,41 @@ FROM {{ ref('meta_ads__report_daily') }}(DS_START_DATE, DS_END_DATE){#
 #} UNION ALL{#
 
 #} SELECT
+    '데이블' AS platform_name
+  , '-' AS account_name
+  , COALESCE(cmp.campaign_name, '-') AS campaign_name
+  , '-' AS adgroup_name
+  , '-' AS ad_name
+  , '-' AS ad_type
+  , report.ad_cost
+  , NULL::integer AS conv_amount
+  , report.product_id
+  , COALESCE(product.team_name, '담당팀 없음') AS team_name
+  , COALESCE(product.brand_name, '브랜드 없음') AS brand_name
+  , COALESCE(product.category_name1, '-') AS category_name1
+  , COALESCE(product.category_name2, '-') AS category_name2
+  , COALESCE(product.category_name3, '-') AS category_name3
+  , COALESCE(product.category_name4, '-') AS category_name4
+  , COALESCE(product.color, '-') AS color
+  , COALESCE(product.product_name, '-') AS product_name
+  , report.ymd
+FROM {{ ref('dable__report_daily') }} AS report
+LEFT JOIN {{ source('dable', 'campaign') }} AS cmp
+  ON report.campaign_id = cmp.campaign_id
+LEFT JOIN {{ ref('core__product_master') }} AS product
+  ON report.product_id = product.product_id
+WHERE report.ymd BETWEEN DS_START_DATE AND DS_END_DATE{#
+
+#} UNION ALL{#
+
+#} SELECT
     REPLACE(shop.shop_alias, '(광고)', '') AS platform_name
   , '-' AS account_name
   , '-' AS campaign_name
   , '-' AS adgroup_name
   , '-' AS ad_name
   , '-' AS ad_type
-  , ad_cost
+  , ads.ad_cost
   , NULL::integer AS conv_amount
   , ads.brand_id AS product_id
   , COALESCE(product.team_name, '담당팀 없음') AS team_name
@@ -122,10 +150,10 @@ FROM {{ ref('meta_ads__report_daily') }}(DS_START_DATE, DS_END_DATE){#
   , COALESCE(product.category_name4, '-') AS category_name4
   , COALESCE(product.color, '-') AS color
   , COALESCE(product.product_name, '-') AS product_name
-  , ymd
+  , ads.ymd
 FROM {{ source('core', 'extra_ads') }} AS ads
 LEFT JOIN {{ source('sabangnet', 'shop') }} AS shop
   ON ads.shop_id = shop.shop_id
 LEFT JOIN {{ ref('core__product_master') }} AS product
   ON ads.brand_id = product.product_id
-WHERE ymd BETWEEN DS_START_DATE AND DS_END_DATE
+WHERE ads.ymd BETWEEN DS_START_DATE AND DS_END_DATE

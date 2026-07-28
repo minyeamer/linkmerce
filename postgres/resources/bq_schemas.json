@@ -332,6 +332,20 @@
     "PARTITION BY sales_date",
     "CLUSTER BY vendor_id"
   ],
+  "dable.campaign": [
+    {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
+    {"name": "campaign_name", "type": "STRING", "description": "캠페인명"}
+  ],
+  "dable.report": [
+    {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
+    {"name": "expose_count", "type": "INTEGER", "description": "조회수"},
+    {"name": "impression_count", "type": "INTEGER", "description": "노출수"},
+    {"name": "click_count", "type": "INTEGER", "description": "클릭수"},
+    {"name": "ad_cost", "type": "INTEGER", "description": "광고비"},
+    {"name": "conv_count", "type": "INTEGER", "description": "전환수"},
+    {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
+    "PARTITION BY ymd"
+  ],
   "ecount.inventory": [
     {"name": "product_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
     {"name": "quantity", "type": "INTEGER", "description": "재고수량"},

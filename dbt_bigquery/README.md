@@ -145,6 +145,7 @@ dbt_bigquery/models/intermediate/ads/
 │   ├── searchad__contract_daily
 │   └── searchad__insight_daily
 ├── core__opex_daily
+├── dable__report_daily
 └── relation__smt_prd_to_ranged_sbn_ids
 ```
 
@@ -457,6 +458,7 @@ airflow/dags/
 ├── smartstore/
 │   ├── invoice.py (smartstore_invoice)
 │   └── order.py (smartstore_order)
+├── dable_ads.py (dable_ads)
 ├── google_ads.py (google_ads)
 └── meta_ads.py (meta_ads)
 ```

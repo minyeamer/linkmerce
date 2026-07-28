@@ -46,6 +46,7 @@ def last_multi_cron_utc(cron_exprs: list[str]) -> str:
 SCHEDULED_DAGS = {
     # 매일 1회 ───────────────────────────────────────────────────────────────
     "cj_loisparcel_invoice": last_cron_utc("0 2 * * *"), # 02:00 KST
+    "dable_ads": last_cron_utc("30 7 * * *"), # 07:30 KST
     "google_ads": last_cron_utc("50 7 * * *"), # 07:50 KST
     "meta_ads": last_cron_utc("40 7 * * *"), # 07:40 KST
     "naver_hcenter_login": last_cron_utc("0 1 * * *"), # 01:00 KST

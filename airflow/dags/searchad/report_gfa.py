@@ -14,7 +14,7 @@
 
 ## 적재(Load)
 - 보고서 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
-- 적재 과정에서 수집한 광고 성과일 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
+- 적재 과정에서 수집한 광고 성과의 날짜 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task

@@ -69,6 +69,16 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
+  # Airflow Dags - dable
+  - name: dable_ads
+    description: "'dable_ads' DAG 실행 후 데이블 광고 목록 및 성과 변동을 매출에 반영"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.dable__report_daily
+        - method: fqn
+          value: intermediate.sales.core__sales_daily
+
   # Airflow Dags - ecount
   - name: ecount_inventory
     description: "'ecount_inventory' DAG 실행 후 이카운트 재고수량 변동을 업데이트"
