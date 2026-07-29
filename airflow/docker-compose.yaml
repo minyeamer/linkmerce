@@ -24,7 +24,7 @@
 # The following variables are supported:
 #
 # AIRFLOW_IMAGE_NAME           - Docker image name used to run Airflow.
-#                                Default: apache/airflow:3.2.2
+#                                Default: apache/airflow:3.3.0
 # AIRFLOW_UID                  - User ID in Airflow containers
 #                                Default: 1000
 # AIRFLOW_PROJ_DIR             - Base path to which all the files will be volumed.
@@ -49,7 +49,7 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.2.2}
+  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.3.0}
   # build: .
   env_file:
     - .env
@@ -84,6 +84,7 @@ x-airflow-common:
     - ${SRC_PROJ_DIR:-../src}/env:/opt/airflow/files/env
     - ${SRC_PROJ_DIR:-../src}/linkmerce:/opt/airflow/plugins/linkmerce
     - ${DBT_BQ_PROJ_DIR:-../dbt_bigquery}:/opt/airflow/dbt/dbt_bigquery
+    - ${DBT_BQ_PROJ_DIR:-../dbt_postgres}:/opt/airflow/dbt/dbt_postgres
   user: "${AIRFLOW_UID:-1000}:0"
   depends_on:
     &airflow-common-depends-on

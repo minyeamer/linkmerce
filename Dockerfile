@@ -1,4 +1,4 @@
-FROM apache/airflow:3.2.2-python3.12
+FROM apache/airflow:3.3.0-python3.12
 
 # Set Korean locale to ensure proper handling of Korean text in HTTP responses
 USER root
@@ -22,6 +22,7 @@ RUN echo "pyarrow>=21.0.0" >> requirements.txt
 RUN echo "astronomer-cosmos==1.14.2" >> requirements.txt
 RUN echo "dbt-core==1.11.11" >> requirements.txt
 RUN echo "dbt-bigquery==1.11.1" >> requirements.txt
+RUN echo "dbt-postgres==1.11.0" >> requirements.txt
 RUN echo "playwright==1.60.0" >> requirements.txt
 
 # Install dependencies based on the requirements.txt file

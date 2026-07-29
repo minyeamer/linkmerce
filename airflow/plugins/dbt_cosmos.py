@@ -117,6 +117,85 @@ def dynamic_mapping_dbt_bigquery(
     )
 
 
+def dynamic_mapping_dbt_postgres(
+        group_id: str,
+        selector: str,
+        operator_args: dict | None = None,
+        operator_vars: str | dict | None = None,
+        ds_task_id: str | None = None,
+        **kwargs
+    ) -> DbtTaskGroup:
+    """
+    다음과 같은 dbt_postgres 프로젝트에 대한 공통 설정 Variable과
+    주어진 `group_id`, `selector`, `operator_args`를 조합해 `DbtTaskGroup`을 생성한다.
+
+    ```
+    Variable["dbt_postgres"] = {
+        "project_config": {
+            "dbt_project_path": "...",
+            "install_dbt_deps": true | false = false
+        },
+        "profile_config": {
+            "profile_name": "...",
+            "target_name": "dev" | "prod" = "dev",
+            "profile_mapping": {
+                "conn_id": "...",
+                "profile_args": {
+                    "schema": "...",
+                    "threads": 1
+                }
+            }
+        },
+        "operator_args": {
+            "install_deps": true | false = false,
+            "pool": "dbt_postgres_pool"
+        }
+    }
+    ```
+    """
+    from airflow.sdk import Variable
+    from cosmos import DbtTaskGroup, ExecutionConfig, ExecutionMode, ProfileConfig, ProjectConfig, RenderConfig
+    from cosmos.constants import LoadMode, TestBehavior
+    from cosmos.profiles import PostgresUserPasswordProfileMapping
+
+    config: dict = Variable.get("dbt_postgres", deserialize_json=True)
+    project_config: dict = config["project_config"]
+
+    profile_config: dict = config["profile_config"]
+    profile_mapping: dict = profile_config["profile_mapping"]
+    profile_args: dict = profile_mapping["profile_args"]
+
+    operator_args: dict = (config.get("operator_args") or dict()) | (operator_args or dict())
+
+    return DbtTaskGroup(
+        group_id = group_id,
+        project_config = ProjectConfig(
+            dbt_project_path = project_config["dbt_project_path"],
+            install_dbt_deps = project_config.get("install_dbt_deps") or False,
+        ),
+        profile_config = ProfileConfig(
+            profile_name = profile_config["profile_name"],
+            target_name = profile_config["target_name"],
+            profile_mapping = PostgresUserPasswordProfileMapping(
+                conn_id = profile_mapping["conn_id"],
+                profile_args = {
+                    "schema": profile_args["schema"],
+                    "threads": (profile_args.get("threads") or 1),
+                },
+            ),
+        ),
+        execution_config = ExecutionConfig(
+            execution_mode = ExecutionMode.LOCAL,
+        ),
+        render_config = RenderConfig(
+            load_method = LoadMode.DBT_LS,
+            selector = selector,
+            test_behavior = TestBehavior.NONE,
+        ),
+        operator_args = _parse_operator_args(operator_args, operator_vars, ds_task_id),
+    )
+
+
 def _parse_operator_args(
         operator_args: dict,
         operator_vars: str | dict | None = None,

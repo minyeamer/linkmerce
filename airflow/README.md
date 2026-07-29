@@ -28,8 +28,8 @@ Dag은 공통적으로 다음 흐름을 따른다.
 
 ## 한눈에 보기
 
-- **베이스 이미지**: `apache/airflow:3.2.2`
-- **핵심 의존성**: `linkmerce`, `gspread`, `google-cloud-bigquery`, `psycopg2-binary`, `playwright==1.60.0`, `astronomer-cosmos==1.14.2`, `dbt-bigquery==1.11.1`
+- **베이스 이미지**: `apache/airflow:3.3.0`
+- **핵심 의존성**: `linkmerce`, `gspread`, `google-cloud-bigquery`, `psycopg2-binary`, `playwright==1.60.0`, `astronomer-cosmos==1.14.2`, `dbt-bigquery==1.11.1`, `dbt-postgres==1.11.0`
 - **Providers**: `apache-airflow-providers-slack`
 
 ## 디렉터리 구조
@@ -87,6 +87,7 @@ API 서버에 대한 볼륨 마운트도 현재 저장소 구조를 기준으로
 - `../src/env -> /opt/airflow/files/env`
 - `../src/linkmerce -> /opt/airflow/plugins/linkmerce`
 - `../dbt_bigquery -> /opt/airflow/dbt/dbt_bigquery`
+- `../dbt_postgres -> /opt/airflow/dbt/dbt_postgres`
 
 Docker Compose 실행은 다음 명령어 또는 `init.sh` 스크립트를 실행한다.
 
@@ -179,7 +180,7 @@ with DAG(dag_id="...") as dag:
 - `ShortCircuitOperator`: 후속 실행 조건이 없을 때 downstream Task를 건너뛰는 경우
 - `TaskGroup`: 여러 개의 Task를 하나의 그룹으로 묶을 경우
 - `TriggerDagRunOperator`: Task 실행 전후로 다른 Dag을 호출할 경우
-- `DbtTaskGroup`: ETL 결과를 바탕으로 `dbt_bigquery` 후속 모델을 실행하는 경우
+- `DbtTaskGroup`: ETL 결과를 바탕으로 `dbt_*` 후속 모델을 실행하는 경우
 
 ## dbt 후속 실행 패턴
 
@@ -187,7 +188,7 @@ BigQuery 후속 모델을 실행하는 Dag은 ETL 완료 후 다음 흐름을 �
 
 ```python
 dbt_date_range = generate_dbt_date_range(etl_result)
-dbt_run = dbt_bigquery_example_group()
+dbt_run = [dbt_bigquery_example_group(), dbt_postgres_example_group()]
 
 dbt_date_range >> prepare_dbt_run() >> dbt_run
 ```
@@ -199,8 +200,8 @@ dbt_date_range >> prepare_dbt_run() >> dbt_run
    - 파티션이 없는 경우에는 Dag run 실행일 기준 전일부터 현재까지의 기간을 일별로 생성해 반환한다.
 - `generate_dbt_date_range` Task는 `context.partitions`를 파싱해 `ds_start_date`, `ds_end_date` 변수를 계산한다.
 - `prepare_dbt_run` Task는 `ShortCircuitOperator`로 구현하며, 날짜 범위가 없으면 dbt 실행을 건너뛴다.
-- `dynamic_mapping_dbt_bigquery` 함수로 `DbtTaskGroup`을 생성하면서 날짜 범위를 XCom으로 전달한다.
-- dbt 실행 대상은 `dbt_bigquery/selectors.yml`의 selector로 관리하며, selector 이름은 Dag ID와 맞춘다.
+- `dynamic_mapping_dbt_*` 함수로 `DbtTaskGroup`을 생성하면서 날짜 범위를 XCom으로 전달한다.
+- dbt 실행 대상은 `dbt_*/selectors.yml`의 selector로 관리하며, selector 이름은 Dag ID와 맞춘다.
 - ETL 또는 dbt 하위 Task 실패를 Dag run 최종 상태에 반영해야 하는 경우 마지막에 `finalize_dag_run` Task를 놓는다.
 
 ## Dag 목록
@@ -387,12 +388,19 @@ Astronomer Cosmos 기반으로 dbt 프로젝트를 Airflow TaskGroup에 연결�
 - `generate_date_array`: 선행 Task 결과에서 날짜 배열을 추출하고 중복 없는 단일 배열로 변환
 - `generate_dbt_date_range`: 날짜 배열을 `ds_start_date`, `ds_end_date` dbt 변수로 변환
 - `dynamic_mapping_dbt_bigquery`: Airflow Variable `dbt_bigquery` 설정과 selector를 조합해 `DbtTaskGroup` 생성
+- `dynamic_mapping_dbt_postgres`: Airflow Variable `dbt_postgres` 설정과 selector를 조합해 `DbtTaskGroup` 생성
 - `raise_on_failure`: ETL 또는 dbt Task 실패를 Dag run 마지막에 다시 반영하기 위한 목적
 
 `dynamic_mapping_dbt_bigquery`는 Airflow Variable `dbt_bigquery`에서 다음 설정을 읽는다.
 
 - `project_config`: dbt 프로젝트 경로와 dependency 설치 여부
 - `profile_config`: BigQuery profile, target, connection, location, thread 수, job timeout
+- `operator_args`: Cosmos dbt operator에 공통으로 전달할 인자. pool을 사용할 경우 이 값에 지정한다.
+
+`dynamic_mapping_dbt_postgres`는 Airflow Variable `dbt_postgres`에서 다음 설정을 읽는다.
+
+- `project_config`: dbt 프로젝트 경로와 dependency 설치 여부
+- `profile_config`: BigQuery profile, target, connection, thread 수
 - `operator_args`: Cosmos dbt operator에 공통으로 전달할 인자. pool을 사용할 경우 이 값에 지정한다.
 
 `ds_task_id`를 전달하면 해당 Task의 XCom에서 `ds_start_date`, `ds_end_date`를 꺼내
