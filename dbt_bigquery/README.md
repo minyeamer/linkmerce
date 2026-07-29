@@ -34,7 +34,7 @@ PostgreSQL 프로젝트와 달리, BigQuery 환경에 맞춘
 1. 채널별 매출/광고 intermediate 모델
 2. 플랫폼별 재고/판매량 intermediate 모델
 3. 매출/광고/재고 분석용 mart 모델
-4. 상품/브랜드 및 채널별 상품/옵션 마스터
+4. 상품/브랜드 및 채널별 상품/옵션 view 모델
 
 ## 한눈에 보기
 
@@ -42,25 +42,24 @@ PostgreSQL 프로젝트와 달리, BigQuery 환경에 맞춘
 | --- | --- |
 | 프로젝트 | `linkmerce_bigquery` |
 | 프로필 | `dbt_bigquery` |
-| 모델 수 | 58개 |
 
 | 주요 스키마 | 요약 |
 | --- | --- |
 | `core` | 대표상품 테이블 및 공용 데이터 관리 |
-| `xfm_ads` | 광고 분석을 위한 intermediate 모델 |
-| `xfm_sales` | 매출 분석을 위한 intermediate 모델 |
-| `xfm_stock` | 재고 분석을 위한 intermediate 모델 |
-| `analytics` | 분석용 mart 모델 |
+| `xfm_ads` | 광고 intermediate 모델 |
+| `xfm_sales` | 매출/배송 intermediate 모델 |
+| `xfm_stock` | 재고 intermediate 모델 |
+| `analytics` | 통합 분석 mart 모델 |
 
 ## 프로젝트 구조
 
 ```bash
 dbt_bigquery/
 ├── macros/
+│   ├── mapping/
 │   ├── generate_schema_name.sql
 │   ├── incremental_partitions.sql
-│   ├── materializations.sql
-│   └── mapping/
+│   └── materializations.sql
 ├── models/
 │   ├── intermediate/
 │   │   ├── ads/
@@ -137,7 +136,7 @@ dbt_bigquery/models/intermediate/ads/
 │   ├── meta_ads__ad_master
 │   └── meta_ads__insight_daily
 ├── searchad/
-│   ├── relation__ad_id_to_ranged_sbn_ids
+│   ├── relation__smt_prd_to_ranged_sbn_ids
 │   ├── searchad__campaign_master
 │   ├── searchad__adgroup_master
 │   ├── searchad__ad_master
@@ -146,7 +145,7 @@ dbt_bigquery/models/intermediate/ads/
 │   └── searchad__insight_daily
 ├── core__opex_daily
 ├── dable__report_daily
-└── relation__smt_prd_to_ranged_sbn_ids
+└── relation__ad_id_to_ranged_sbn_ids
 ```
 
 이 계층에서는 소재-상품에 대한 1대다 매칭 및 n등분 분배를 통해 상품별 광고비를 계산해
@@ -398,7 +397,7 @@ quoting:
 
 ## 변수
 
-BigQuery 프로젝트에서 사용하는 변수의 기본값은 `dbt_project.yml`에 선언되어 있다.
+`dbt_bigquery` 프로젝트에서 사용하는 변수의 기본값은 `dbt_project.yml`에 선언되어 있다.
 
 - `ds_start_date`
 - `ds_end_date`
