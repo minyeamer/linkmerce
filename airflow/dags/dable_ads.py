@@ -48,9 +48,9 @@ with DAG(
     def etl_dable_ads(ti: TaskInstance, **kwargs) -> dict:
         from airflow_utils import format_datetime
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_dable_ads(date=format_datetime(kwargs, subdays=1), **configs)
+        return main(date=format_datetime(kwargs, subdays=1), **configs)
 
-    def main_dable_ads(
+    def main(
             api_key: str,
             client_name: str,
             date: str,
@@ -71,7 +71,6 @@ with DAG(
                 end_date = date,
                 group_by_campaign = True,
                 connection = conn,
-                progress = False,
                 return_type = "none",
             )
 
