@@ -196,6 +196,9 @@ models:
   - name: "analytics__sales_target"
     description: "브랜드와 채널별로 전월 매출, 당월 매출, 당월 목표매출을 비교하기 위한 뷰 테이블"
 
+  - name: "analytics__total_order"
+    description: "사방넷, 스마트스토어, 쿠팡 로켓 주문내역을 주문일시를 포함해 가공하고 상품/쇼핑몰 마스터 테이블을 결합한 테이블 함수"
+
   # marts > stock
 
   - name: "analytics__stock_report"
