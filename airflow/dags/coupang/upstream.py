@@ -403,5 +403,5 @@ with DAG(
         from dbt_cosmos import raise_on_failure
         raise_on_failure(ti)
 
-    dbt_runs = [dbt_run__rocket_sales, dbt_run__inventory, dbt_run__adreport, dbt_run__campaign]
+    dbt_runs = [*dbt_run__rocket_sales, *dbt_run__inventory, *dbt_run__adreport, *dbt_run__campaign]
     dbt_runs >> finalize_dag_run(etl_results)
