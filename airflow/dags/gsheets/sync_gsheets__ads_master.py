@@ -64,11 +64,25 @@ with DAG(
     #         selector = "coupang_ads_master",
     #     )
 
+    # def dbt_postgres_coupang_ads_master_group() -> DbtTaskGroup:
+    #     from dbt_cosmos import dynamic_mapping_dbt_postgres
+    #     return dynamic_mapping_dbt_postgres(
+    #         group_id = "dbt_postgres_coupang_ads_master",
+    #         selector = "coupang_ads_master",
+    #     )
+
 
     def dbt_bigquery_google_ads_master_group() -> DbtTaskGroup:
         from dbt_cosmos import dynamic_mapping_dbt_bigquery
         return dynamic_mapping_dbt_bigquery(
             group_id = "dbt_bigquery_google_ads_master",
+            selector = "google_ads_master",
+        )
+
+    def dbt_postgres_google_ads_master_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_google_ads_master",
             selector = "google_ads_master",
         )
 
@@ -80,11 +94,25 @@ with DAG(
             selector = "meta_ads_master",
         )
 
+    def dbt_postgres_meta_ads_master_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_meta_ads_master",
+            selector = "meta_ads_master",
+        )
+
 
     def dbt_bigquery_searchad_master_group() -> DbtTaskGroup:
         from dbt_cosmos import dynamic_mapping_dbt_bigquery
         return dynamic_mapping_dbt_bigquery(
             group_id = "dbt_bigquery_searchad_master",
+            selector = "searchad_master",
+        )
+
+    def dbt_postgres_searchad_master_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_searchad_master",
             selector = "searchad_master",
         )
 
@@ -94,7 +122,11 @@ with DAG(
 
     prepare_dbt_run(sync_result) >> [
         # dbt_bigquery_coupang_ads_master_group(),
+        # dbt_postgres_coupang_ads_master_group(),
         dbt_bigquery_google_ads_master_group(),
+        dbt_postgres_google_ads_master_group(),
         dbt_bigquery_meta_ads_master_group(),
+        dbt_postgres_meta_ads_master_group(),
         dbt_bigquery_searchad_master_group(),
+        dbt_postgres_searchad_master_group(),
     ]

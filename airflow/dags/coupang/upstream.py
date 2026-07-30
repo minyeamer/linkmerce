@@ -263,6 +263,14 @@ with DAG(
             ds_task_id = "generate_dbt_date_range__rocket_sales",
         )
 
+    def dbt_postgres_coupang_rocket_sales_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_coupang_rocket_sales",
+            selector = "coupang_rocket_sales",
+            ds_task_id = "generate_dbt_date_range__rocket_sales",
+        )
+
     # 2. subdag_id = "coupang_inventory"
 
     @task(task_id="generate_dbt_date_range__inventory", trigger_rule="all_done")
@@ -280,6 +288,14 @@ with DAG(
         from dbt_cosmos import dynamic_mapping_dbt_bigquery
         return dynamic_mapping_dbt_bigquery(
             group_id = "dbt_bigquery_coupang_inventory",
+            selector = "coupang_inventory",
+            ds_task_id = "generate_dbt_date_range__inventory",
+        )
+
+    def dbt_postgres_coupang_inventory_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_coupang_inventory",
             selector = "coupang_inventory",
             ds_task_id = "generate_dbt_date_range__inventory",
         )
@@ -305,6 +321,14 @@ with DAG(
             ds_task_id = "generate_dbt_date_range__adreport",
         )
 
+    def dbt_postgres_coupang_adreport_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_coupang_adreport",
+            selector = "coupang_adreport",
+            ds_task_id = "generate_dbt_date_range__adreport",
+        )
+
     # 5. subdag_id = "coupang_campaign"
 
     @task(task_id="generate_dbt_date_range__campaign", trigger_rule="all_done")
@@ -326,34 +350,42 @@ with DAG(
             ds_task_id = "generate_dbt_date_range__campaign",
         )
 
+    def dbt_postgres_coupang_campaign_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_coupang_campaign",
+            selector = "coupang_campaign",
+            ds_task_id = "generate_dbt_date_range__campaign",
+        )
+
 
     etl_results = etl_coupang_integration(credentials=read_credentials())
 
     # 1. subdag_id = "coupang_rocket_sales"
 
     dbt_date_range__rocket_sales = generate_dbt_date_range__rocket_sales(etl_results)
-    dbt_run__rocket_sales = dbt_bigquery_coupang_rocket_sales_group()
+    dbt_run__rocket_sales = [dbt_bigquery_coupang_rocket_sales_group(), dbt_postgres_coupang_rocket_sales_group()]
 
     dbt_date_range__rocket_sales >> prepare_dbt_run__rocket_sales() >> dbt_run__rocket_sales
 
     # 2. subdag_id = "coupang_inventory"
 
     dbt_date_range__inventory = generate_dbt_date_range__inventory(etl_results)
-    dbt_run__inventory = dbt_bigquery_coupang_inventory_group()
+    dbt_run__inventory = [dbt_bigquery_coupang_inventory_group(), dbt_postgres_coupang_inventory_group()]
 
     dbt_date_range__inventory >> prepare_dbt_run__inventory() >> dbt_run__inventory
 
     # 4. subdag_id = "coupang_adreport"
 
     dbt_date_range__adreport = generate_dbt_date_range__adreport(etl_results)
-    dbt_run__adreport = dbt_bigquery_coupang_adreport_group()
+    dbt_run__adreport = [dbt_bigquery_coupang_adreport_group(), dbt_postgres_coupang_adreport_group()]
 
     dbt_date_range__adreport >> prepare_dbt_run__adreport() >> dbt_run__adreport
 
     # 5. subdag_id = "coupang_campaign"
 
     dbt_date_range__campaign = generate_dbt_date_range__campaign(etl_results)
-    dbt_run__campaign = dbt_bigquery_coupang_campaign_group()
+    dbt_run__campaign = [dbt_bigquery_coupang_campaign_group(), dbt_postgres_coupang_campaign_group()]
 
     dbt_date_range__campaign >> prepare_dbt_run__campaign() >> dbt_run__campaign
 

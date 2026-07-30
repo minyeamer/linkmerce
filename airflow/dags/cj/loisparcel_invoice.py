@@ -430,11 +430,19 @@ with DAG(
             ds_task_id = "generate_dbt_date_range",
         )
 
+    def dbt_postgres_cj_loisparcel_invoice_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_cj_loisparcel_invoice",
+            selector = "cj_loisparcel_invoice",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
 
     etl_result = etl_loisparcel_invoice()
 
     dbt_date_range = generate_dbt_date_range(etl_result)
-    dbt_run = dbt_bigquery_cj_loisparcel_invoice_group()
+    dbt_run = [dbt_bigquery_cj_loisparcel_invoice_group(), dbt_postgres_cj_loisparcel_invoice_group()]
 
     read_configs() >> etl_result
     dbt_date_range >> prepare_dbt_run() >> dbt_run

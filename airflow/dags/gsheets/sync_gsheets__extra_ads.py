@@ -89,11 +89,19 @@ with DAG(
             ds_task_id = "generate_dbt_date_range",
         )
 
+    def dbt_postgres_extra_ads_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_extra_ads",
+            selector = "sync_gsheets__extra_ads",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
 
     configs = read_configs()
     sync_result = dual_load_from_gsheets(configs)
 
     dbt_date_range = generate_dbt_date_range(sync_result)
-    dbt_run = dbt_bigquery_extra_ads_group()
+    dbt_run = [dbt_bigquery_extra_ads_group(), dbt_postgres_extra_ads_group()]
 
     dbt_date_range >> prepare_dbt_run() >> dbt_run

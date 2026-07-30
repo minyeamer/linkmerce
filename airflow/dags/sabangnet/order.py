@@ -167,11 +167,19 @@ with DAG(
             ds_task_id = "generate_dbt_date_range",
         )
 
+    def dbt_postgres_sabangnet_order_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_sabangnet_order",
+            selector = "sabangnet_order",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
 
     etl_results = [etl_sabangnet_order(), etl_sabangnet_dispatch(), etl_sabangnet_option()]
 
     dbt_date_range = generate_dbt_date_range(etl_results)
-    dbt_run = dbt_bigquery_sabangnet_order_group()
+    dbt_run = [dbt_bigquery_sabangnet_order_group(), dbt_postgres_sabangnet_order_group()]
 
     read_configs() >> etl_results
     dbt_date_range >> prepare_dbt_run() >> dbt_run

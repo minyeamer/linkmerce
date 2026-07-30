@@ -181,6 +181,14 @@ with DAG(
             ds_task_id = "generate_dbt_date_range",
         )
 
+    def dbt_postgres_google_ads_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_google_ads",
+            selector = "google_ads",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
 
     @task(task_id="finalize_dag_run", trigger_rule="all_done")
     def finalize_dag_run(ti: RuntimeTaskInstance):
@@ -215,6 +223,6 @@ with DAG(
     etl_object_results >> etl_insight_results
 
     dbt_date_range = generate_dbt_date_range(etl_insight_results)
-    dbt_run = dbt_bigquery_google_ads_group()
+    dbt_run = [dbt_bigquery_google_ads_group(), dbt_postgres_google_ads_group()]
 
     dbt_date_range >> prepare_dbt_run() >> dbt_run >> finalize_dag_run()

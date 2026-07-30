@@ -134,6 +134,14 @@ with DAG(
             ds_task_id = "generate_dbt_date_range",
         )
 
+    def dbt_postgres_searchad_contract_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_searchad_contract",
+            selector = "searchad_contract",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
 
     @task(task_id="finalize_dag_run", trigger_rule="all_done")
     def finalize_dag_run(ti: RuntimeTaskInstance):
@@ -146,6 +154,6 @@ with DAG(
         .expand(queries=read_credentials()))
 
     dbt_date_range = generate_dbt_date_range(etl_results)
-    dbt_run = dbt_bigquery_searchad_contract_group()
+    dbt_run = [dbt_bigquery_searchad_contract_group(), dbt_postgres_searchad_contract_group()]
 
     dbt_date_range >> prepare_dbt_run() >> dbt_run >> finalize_dag_run()
