@@ -632,7 +632,8 @@
     {"name": "option_name_abbr", "type": "STRING", "description": "옵션별칭"},
     {"name": "sales_price", "type": "INTEGER", "description": "판매가(상품)"},
     {"name": "order_id", "type": "STRING", "description": "주문번호(쇼핑몰)"},
-    {"name": "last_order_date", "type": "DATE", "description": "최근주문일자"},
+    {"name": "first_order_dt", "type": "DATETIME", "description": "최근주문일시"},
+    {"name": "last_order_dt", "type": "DATETIME", "description": "최종주문일시"},
     "CLUSTER BY account_no"
   ],
   "sabangnet.order_invoice": [
@@ -967,7 +968,8 @@
     {"name": "option_name", "type": "STRING", "description": "옵션명"},
     {"name": "sales_price", "type": "INTEGER", "description": "판매가"},
     {"name": "option_price", "type": "INTEGER", "description": "옵션가"},
-    {"name": "update_date", "type": "DATE", "description": "갱신일자"},
+    {"name": "first_payment_dt", "type": "DATETIME", "description": "최초결제일시"},
+    {"name": "last_payment_dt", "type": "DATETIME", "description": "최종결제일시"},
     "CLUSTER BY channel_seq"
   ],
   "smartstore.order_status": [
@@ -1023,8 +1025,8 @@
     {"name": "category_id3", "type": "INTEGER", "description": "소분류코드"},
     {"name": "product_name", "type": "STRING", "description": "상품명"},
     {"name": "sales_price", "type": "INTEGER", "description": "판매가"},
-    {"name": "register_date", "type": "DATE", "description": "등록일자"},
-    {"name": "update_date", "type": "DATE", "description": "갱신일자"},
+    {"name": "first_payment_date", "type": "DATE", "description": "최초결제일자"},
+    {"name": "last_payment_date", "type": "DATE", "description": "최종결제일자"},
     "CLUSTER BY mall_seq"
   ],
   "ss_hcenter.price": [

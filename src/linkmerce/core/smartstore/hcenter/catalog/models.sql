@@ -144,8 +144,8 @@ CREATE TABLE IF NOT EXISTS {{ product }} (
   , category_id3 INTEGER
   , product_name VARCHAR
   , sales_price INTEGER
-  , register_date DATE
-  , update_date DATE NOT NULL
+  , first_payment_date DATE
+  , last_payment_date DATE
   , PRIMARY KEY (product_id)
 );
 
@@ -169,8 +169,8 @@ SELECT
   , TRY_CAST(SPLIT_PART(fullCategoryId, '>', 3) AS INTEGER) AS category_id3
   , name AS product_name
   , COALESCE(lowestPrice, 0) AS sales_price
-  , TRY_CAST(registerDate AS DATE) AS register_date
-  , CURRENT_DATE AS update_date
+  , TRY_CAST(registerDate AS DATE) AS first_payment_date
+  , CURRENT_DATE AS last_payment_date
 FROM {{ rows }}
 WHERE TRY_CAST(mallProductId AS BIGINT) IS NOT NULL
 ON CONFLICT DO UPDATE SET
@@ -178,8 +178,8 @@ ON CONFLICT DO UPDATE SET
   , category_id3 = COALESCE(EXCLUDED.category_id3, category_id3)
   , product_name = COALESCE(EXCLUDED.product_name, product_name)
   , sales_price = COALESCE(EXCLUDED.sales_price, sales_price)
-  , register_date = LEAST(EXCLUDED.register_date, register_date)
-  , update_date = EXCLUDED.update_date;
+  , first_payment_date = LEAST(EXCLUDED.first_payment_date, first_payment_date)
+  , last_payment_date = EXCLUDED.last_payment_date;
 
 
 -- ProductCatalog: create

@@ -100,7 +100,8 @@ CREATE TABLE IF NOT EXISTS {{ option }} (
   , option_name_abbr VARCHAR
   , sales_price INTEGER
   , order_id VARCHAR
-  , last_order_date DATE
+  , first_order_dt TIMESTAMP
+  , last_order_dt TIMESTAMP
   , PRIMARY KEY (account_no, product_id_shop, option_id)
 );
 
@@ -173,12 +174,32 @@ SELECT DISTINCT
   , "옵션별칭" AS option_name_abbr
   , TRY_CAST("판매가(상품)" AS INTEGER) AS sales_price
   , "주문번호(쇼핑몰)" AS order_id
-  , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS DATE) AS last_order_date
+  , COALESCE(
+      TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP),
+      CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP)) AS first_order_dt
+  , COALESCE(
+      TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP),
+      CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP)) AS last_order_dt
 FROM {{ rows }}
 QUALIFY ROW_NUMBER() OVER (
   PARTITION BY CAST("계정등록순번" AS INTEGER), "상품코드(쇼핑몰)", "상품코드(사방넷)"
   ORDER BY TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) DESC NULLS LAST) = 1
-ON CONFLICT DO NOTHING;
+ON CONFLICT DO UPDATE SET
+    option_id = COALESCE(EXCLUDED.option_id, option_id)
+  , product_id_shop = COALESCE(EXCLUDED.product_id_shop, product_id_shop)
+  , account_no = COALESCE(EXCLUDED.account_no, account_no)
+  , model_code = COALESCE(EXCLUDED.model_code, model_code)
+  , model_id = COALESCE(EXCLUDED.model_id, model_id)
+  , product_name = COALESCE(EXCLUDED.product_name, product_name)
+  , product_name_shop = COALESCE(EXCLUDED.product_name_shop, product_name_shop)
+  , product_name_abbr = COALESCE(EXCLUDED.product_name_abbr, product_name_abbr)
+  , option_name = COALESCE(EXCLUDED.option_name, option_name)
+  , option_name_shop = COALESCE(EXCLUDED.option_name_shop, option_name_shop)
+  , option_name_abbr = COALESCE(EXCLUDED.option_name_abbr, option_name_abbr)
+  , sales_price = COALESCE(EXCLUDED.sales_price, sales_price)
+  , order_id = COALESCE(EXCLUDED.order_id, order_id)
+  , first_order_dt = LEAST(EXCLUDED.first_order_dt, first_order_dt)
+  , last_order_dt = GREATEST(EXCLUDED.last_order_dt, last_order_dt);
 
 -- OrderDownload: bulk_insert_invoice
 INSERT INTO {{ invoice }}

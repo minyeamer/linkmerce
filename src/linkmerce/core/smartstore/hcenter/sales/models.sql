@@ -97,8 +97,8 @@ CREATE TABLE IF NOT EXISTS {{ product }} (
   , category_id3 INTEGER
   , product_name VARCHAR
   , sales_price INTEGER NULL -- Placeholder
-  , register_date DATE
-  , update_date DATE
+  , first_payment_date DATE
+  , last_payment_date DATE
   , PRIMARY KEY (product_id)
 );
 
@@ -134,8 +134,8 @@ SELECT
   , TRY_CAST(product.category.identifier AS INTEGER) AS category_id3
   , product.name AS product_name
   , NULL AS sales_price
-  , $start_date AS register_date
-  , $end_date AS update_date
+  , $start_date AS first_payment_date
+  , $end_date AS last_payment_date
 FROM {{ rows }}
 QUALIFY ROW_NUMBER() OVER (PARTITION BY product.identifier) = 1
 ON CONFLICT DO UPDATE SET
@@ -143,5 +143,5 @@ ON CONFLICT DO UPDATE SET
   , category_id3 = COALESCE(EXCLUDED.category_id3, category_id3)
   , product_name = COALESCE(EXCLUDED.product_name, product_name)
   , sales_price = COALESCE(EXCLUDED.sales_price, sales_price)
-  , register_date = LEAST(EXCLUDED.register_date, register_date)
-  , update_date = GREATEST(EXCLUDED.update_date, update_date);
+  , first_payment_date = LEAST(EXCLUDED.first_payment_date, first_payment_date)
+  , last_payment_date = GREATEST(EXCLUDED.last_payment_date, last_payment_date);

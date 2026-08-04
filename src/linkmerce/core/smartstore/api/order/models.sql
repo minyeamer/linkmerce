@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS {{ option }} (
   , option_name VARCHAR
   , sales_price INTEGER
   , option_price INTEGER
-  , update_date DATE
+  , first_payment_dt TIMESTAMP
+  , last_payment_dt TIMESTAMP
   , PRIMARY KEY (product_id, option_id)
 );
 
@@ -181,7 +182,8 @@ SELECT
   , content.productOrder.productOption AS option_name
   , content.productOrder.unitPrice AS sales_price
   , content.productOrder.optionPrice AS option_price
-  , TRY_CAST(content.order.paymentDate AS DATE) AS update_date
+  , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS first_payment_dt
+  , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS last_payment_dt
 FROM {{ rows }}
 QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.itemNo) = 1
 ON CONFLICT DO UPDATE SET
@@ -194,7 +196,8 @@ ON CONFLICT DO UPDATE SET
   , option_name = COALESCE(EXCLUDED.option_name, option_name)
   , sales_price = COALESCE(EXCLUDED.sales_price, sales_price)
   , option_price = COALESCE(EXCLUDED.option_price, option_price)
-  , update_date = GREATEST(EXCLUDED.update_date, update_date);
+  , first_payment_dt = LEAST(EXCLUDED.first_payment_dt, first_payment_dt)
+  , last_payment_dt = GREATEST(EXCLUDED.last_payment_dt, last_payment_dt);
 
 -- Order: product_type
 SELECT *

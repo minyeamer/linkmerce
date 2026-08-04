@@ -25,7 +25,8 @@ option_master AS (
     , opt.seller_option_code
     , opt.sales_price
     , opt.option_price
-    , opt.update_date
+    , opt.first_payment_dt
+    , opt.last_payment_dt
     -- Sort key
     , COALESCE(
           prd.sort_key

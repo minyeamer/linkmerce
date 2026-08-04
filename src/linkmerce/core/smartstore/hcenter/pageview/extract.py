@@ -52,9 +52,9 @@ class _PageView(PartnerCenter):
     def is_valid_response(self, response: dict) -> bool:
         """JSON 파싱한 응답 본문에 `error` 필드가 있으면 `UnauthorizedError` 또는 `RequestError`를 발생시킨다."""
         if isinstance(response, dict):
-            if "error" in response:
+            if ("error" in response) or ("errors" in response):
                 from linkmerce.utils.nested import hier_get
-                msg = hier_get(response, "error.error") or "null"
+                msg = hier_get(response, "error.error") or hier_get(response, "errors.0.message") or "null"
                 if msg == "Unauthorized":
                     from linkmerce.common.exceptions import UnauthorizedError
                     raise UnauthorizedError("Unauthorized request")

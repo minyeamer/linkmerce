@@ -842,7 +842,8 @@ CREATE TABLE IF NOT EXISTS sabangnet.order_option (
   , option_name_abbr TEXT -- 옵션별칭
   , sales_price INTEGER -- 판매가(상품)
   , order_id TEXT -- 주문번호(쇼핑몰)
-  , last_order_date DATE -- 최근주문일자
+  , first_order_dt TIMESTAMP -- 최근주문일시
+  , last_order_dt TIMESTAMP -- 최종주문일시
   , PRIMARY KEY (account_no, product_id_shop, option_id)
 );
 
@@ -1232,7 +1233,8 @@ CREATE TABLE IF NOT EXISTS smartstore.order_option (
   , option_name TEXT -- 옵션명
   , sales_price INTEGER -- 판매가
   , option_price INTEGER -- 옵션가
-  , update_date DATE -- 갱신일자
+  , first_payment_dt TIMESTAMP -- 최초결제일시
+  , last_payment_dt TIMESTAMP -- 최종결제일시
   , PRIMARY KEY (product_id, option_id)
 );
 CREATE INDEX IF NOT EXISTS smt_order_option__channel_idx ON smartstore.order_option (channel_seq);
@@ -1301,8 +1303,8 @@ CREATE TABLE IF NOT EXISTS ss_hcenter.product (
   , category_id3 INTEGER -- 소분류코드
   , product_name TEXT -- 상품명
   , sales_price INTEGER -- 판매가
-  , register_date DATE -- 등록일자
-  , update_date DATE -- 갱신일자
+  , first_payment_date DATE -- 최초결제일자
+  , last_payment_date DATE -- 최종결제일자
   , PRIMARY KEY (product_id)
 );
 
@@ -1429,7 +1431,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-SELECT public.bootstrap_daily_partitions('core.expense',		              'ymd',					      '2026-01-01',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('core.expense',		              'ymd',					      '2025-01-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.extra_ads',                'ymd',      		      '2026-05-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.extra_profit',             'ymd',      		      '2026-01-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.extra_sales',              'sales_date',		      '2026-01-01',				    '1 day',  35);
