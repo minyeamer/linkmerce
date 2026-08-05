@@ -174,12 +174,8 @@ SELECT DISTINCT
   , "옵션별칭" AS option_name_abbr
   , TRY_CAST("판매가(상품)" AS INTEGER) AS sales_price
   , "주문번호(쇼핑몰)" AS order_id
-  , COALESCE(
-      TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP),
-      CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP)) AS first_order_dt
-  , COALESCE(
-      TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP),
-      CAST("수집일시(YYYY-MM-DD HH:MM:SS)" AS TIMESTAMP)) AS last_order_dt
+  , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) AS first_order_dt
+  , TRY_CAST("주문일시(YYYY-MM-DD HH:MM)" AS TIMESTAMP) AS last_order_dt
 FROM {{ rows }}
 QUALIFY ROW_NUMBER() OVER (
   PARTITION BY CAST("계정등록순번" AS INTEGER), "상품코드(쇼핑몰)", "상품코드(사방넷)"
