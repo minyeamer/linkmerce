@@ -35,7 +35,8 @@ with DAG(
     catchup = False,
     doc_md = __doc__,
     tags = [
-        "priority:low", "platform:naver-hcenter", "objective:statistics", "credentials:cookies",
+        "priority:low", "platform:naver-hcenter",
+        "objective:benchmark", "credentials:cookies",
         "schedule:daily", "time:morning", "write:append",
         "status:deprecated"
     ],

@@ -32,7 +32,7 @@ with DAG(
     catchup = False,
     tags = [
         "priority:medium", "platform:naver-hcenter",
-        "objective:price", "objective:product", "credentials:cookies",
+        "objective:benchmark", "objective:product", "credentials:cookies",
         "schedule:daily", "time:night", "write:append", "write:merge"
     ],
     doc_md = __doc__,

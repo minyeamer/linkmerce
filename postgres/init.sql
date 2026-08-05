@@ -728,6 +728,64 @@ CREATE TABLE IF NOT EXISTS naver_shp.rank_now (
 CREATE INDEX IF NOT EXISTS nsh_rank_now__keyword_idx ON naver_shp.rank_now (keyword);
 CREATE INDEX IF NOT EXISTS nsh_rank_now__item_idx ON naver_shp.rank_now (nv_mid);
 
+-- [네이버 쇼핑 판매처 상품 재고]
+CREATE TABLE IF NOT EXISTS naver_shp.stock (
+    product_id BIGINT NOT NULL -- 상품코드
+  , product_status SMALLINT -- 판매상태
+  , sales_price INTEGER -- 할인가
+  , stock_quantity INTEGER -- 재고수량
+  , created_at TIMESTAMP NOT NULL -- 수집일시
+  , PRIMARY KEY (created_at, product_id)
+) PARTITION BY RANGE (created_at);
+
+-- [네이버 쇼핑 판매처 옵션 재고]
+CREATE TABLE IF NOT EXISTS naver_shp.stock_detail (
+    product_id BIGINT NOT NULL -- 상품코드
+  , option_id BIGINT NOT NULL -- 옵션코드
+  , option_price INTEGER -- 옵션가
+  , stock_quantity INTEGER -- 재고수량
+  , created_at TIMESTAMP NOT NULL -- 수집일시
+  , PRIMARY KEY (created_at, product_id, option_id)
+) PARTITION BY RANGE (created_at);
+
+-- [네이버 쇼핑 판매처 재고 상품]
+CREATE TABLE IF NOT EXISTS naver_shp.stock_product (
+    product_id BIGINT NOT NULL -- 상품코드
+  , product_no BIGINT NOT NULL -- 상품번호
+  , mall_seq BIGINT NOT NULL -- 판매처순번
+  , channel_seq BIGINT NOT NULL -- 채널번호
+  , category_id INTEGER -- 카테고리코드
+  , product_name TEXT -- 상품명
+  , product_status SMALLINT -- 판매상태
+  , delivery_type TEXT -- 배송유형
+  , price INTEGER -- 판매가
+  , sales_price INTEGER -- 할인가
+  , review_count INTEGER -- 리뷰수
+  , review_score NUMERIC(3, 2) -- 평점
+  , first_timestamp TIMESTAMP -- 최초수집일시
+  , last_timestamp TIMESTAMP -- 최종수집일시
+  , PRIMARY KEY (product_id)
+);
+
+-- [네이버 쇼핑 판매처 재고 옵션]
+CREATE TABLE IF NOT EXISTS naver_shp.stock_option (
+    product_id BIGINT NOT NULL -- 상품코드
+  , option_id BIGINT NOT NULL -- 옵션코드
+  , product_type SMALLINT -- 상품종류
+  , option_group1 TEXT -- 옵션그룹1
+  , option_name1 TEXT -- 옵션명1
+  , option_group2 TEXT -- 옵션그룹2
+  , option_name2 TEXT -- 옵션명2
+  , option_group3 TEXT -- 옵션그룹3
+  , option_name3 TEXT -- 옵션명3
+  , option_price INTEGER -- 옵션가
+  , register_order INTEGER -- 등록순서
+  , register_dt TIMESTAMP -- 등록일시
+  , first_timestamp TIMESTAMP -- 최초수집일시
+  , last_timestamp TIMESTAMP -- 최종수집일시
+  , PRIMARY KEY (product_id, option_id)
+);
+
 -- ============================================================
 -- relation
 -- ============================================================
@@ -1350,19 +1408,6 @@ CREATE TABLE IF NOT EXISTS ss_hcenter.sales (
   , PRIMARY KEY (payment_date, product_id)
 ) PARTITION BY RANGE (payment_date);
 
--- [네이버 쇼핑 상품 재고]
-CREATE TABLE IF NOT EXISTS ss_hcenter.stock (
-    product_id BIGINT NOT NULL -- 상품코드
-  , price INTEGER -- 판매가
-  , sales_price INTEGER -- 할인가
-  , stock_quantity INTEGER -- 재고수량
-  , review_count INTEGER -- 리뷰수
-  , review_score NUMERIC(3, 2) -- 평점
-  , soldout BOOLEAN -- 품절여부
-  , created_at TIMESTAMP NOT NULL -- 수집일시
-  , PRIMARY KEY (created_at, product_id)
-) PARTITION BY RANGE (created_at);
-
 -- ============================================================
 -- pg_partman 일별 파티션 초기화
 -- ============================================================
@@ -1451,6 +1496,8 @@ SELECT public.bootstrap_daily_partitions('ecount.inventory',			        'updated_
 SELECT public.bootstrap_daily_partitions('google_ads.insight',			      'ymd',				        '2023-09-06',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('meta_ads.insight',			        'ymd',				        '2024-05-20',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('naver_shp.rank',				        'created_at',			    '2025-08-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('naver_shp.stock',			          'created_at',			    '2026-03-10 00:00:00',	'1 day',  35);
+SELECT public.bootstrap_daily_partitions('naver_shp.stock_detail',			  'created_at',			    '2026-03-10 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('sabangnet.order',				        'order_dt',			      '2024-11-04 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('sabangnet.order_invoice',		    'order_dt',			      '2024-11-04 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('sabangnet.order_dispatch',		  'register_dt',			  '2023-12-12 00:00:00',  '1 day',  35);
@@ -1467,4 +1514,3 @@ SELECT public.bootstrap_daily_partitions('ss_hcenter.product_catalog',		'created
 SELECT public.bootstrap_daily_partitions('ss_hcenter.pageview',			      'ymd',				        '2023-12-13',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('ss_hcenter.price',			        'created_at',			    '2025-07-19 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('ss_hcenter.sales',			        'payment_date',			  '2023-07-20',				    '1 day',  35);
-SELECT public.bootstrap_daily_partitions('ss_hcenter.stock',			        'created_at',			    '2026-03-07 00:00:00',	'1 day',  35);

@@ -38,7 +38,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:naver-hcenter",
-        "objective:sales", "objective:product", "credentials:cookies",
+        "objective:benchmark", "objective:product", "credentials:cookies",
         "schedule:daily", "time:morning", "write:merge",
         "status:deprecated"
     ],

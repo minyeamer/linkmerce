@@ -51,6 +51,7 @@ SCHEDULED_DAGS = {
     "meta_ads": last_cron_utc("40 7 * * *"), # 07:40 KST
     "naver_hcenter_login": last_cron_utc("0 1 * * *"), # 01:00 KST
     "naver_brand_price": last_cron_utc("1 0 * * *"), # 00:01 KST
+    "naver_product_stock": last_cron_utc("0 3 * * *"), # 00:01 KST
     "sabangnet_order": last_cron_utc("30 23 * * *"), # 23:30 KST
     "smartstore_bizdata": last_cron_utc("10 8 * * *"), # 08:10 KST
     "smartstore_order": last_cron_utc("30 8 * * *"), # 08:30 KST
