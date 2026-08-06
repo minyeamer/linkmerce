@@ -15,6 +15,7 @@
 """
 
 from airflow.sdk import DAG, task
+from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.slack.hooks.slack import SlackHook
 from datetime import timedelta
@@ -54,15 +55,27 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from dual_load import load_table_from_duckdb, merge_table_from_duckdb
         from airflow_utils import in_timezone
+        import logging
 
+        logger = logging.getLogger(__name__)
         configs = ti.xcom_pull(task_ids="read_configs")
         tables, merge = configs["tables"], configs["merge"]
 
         sources = download_product_stock(datetime=in_timezone(data_interval_end), **configs)
+        counts = '{'+", ".join([f"\"{table}\": {len(values)}" for table, values in sources.items()])+'}'
+        logger.info(f"Stock counts: {counts}")
+
+        if not sources["product"]:
+            raise AirflowException("No product stock data was found for the execution date")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
-            for table, values in sources.items():
-                conn.create_table_from_json(table, values)
+            conn.execute(create_source_products())
+            conn.insert_into_table_from_json("products", sources["product"])
+
+            for table in ["options", "supplements"]:
+                conn.execute(create_source_options(table))
+                if sources[table]:
+                    conn.insert_into_table_from_json(table, sources[table])
 
             conn.execute(create_stock())
             conn.execute(create_stock_detail())
@@ -206,6 +219,56 @@ with DAG(
                 file.write('\n'.join(deleted))
 
         return results
+
+
+    def create_source_products(table: str = "products") -> str:
+        return dedent(f"""
+            CREATE TABLE {table} (
+                productId VARCHAR
+                , productNo VARCHAR
+                , mallNo BIGINT
+                , mallName VARCHAR
+                , channelId VARCHAR
+                , channelName VARCHAR
+                , brandId VARCHAR
+                , brandName VARCHAR
+                , categoryId VARCHAR
+                , categoryName VARCHAR
+                , productName VARCHAR
+                , price INTEGER
+                , salesPrice INTEGER
+                , stockQuantity INTEGER
+                , reviewCount INTEGER
+                , reviewScore DECIMAL(3, 2)
+                , soldout BOOLEAN
+                , status VARCHAR
+                , deliveryType VARCHAR
+                , wholeCategoryId VARCHAR
+                , wholeCategoryName VARCHAR
+                , productUrl VARCHAR
+                , channelUid VARCHAR
+                , timestamp VARCHAR
+                , PRIMARY KEY (product_id)
+            )""").strip()
+
+    def create_source_options(table: str = "options") -> str:
+        return dedent(f"""
+            CREATE TABLE {table} (
+                productId VARCHAR
+                , optionId VARCHAR
+                , optionSeq INTEGER
+                , optionGroup1 VARCHAR
+                , optionName1 VARCHAR
+                , optionGroup2 VARCHAR
+                , optionName2 VARCHAR
+                , optionGroup3 VARCHAR
+                , optionName3 VARCHAR
+                , optionPrice INTEGER
+                , stockQuantity INTEGER
+                , registerDate VARCHAR
+                , timestamp VARCHAR
+                , PRIMARY KEY (product_id, option_id)
+            )""").strip()
 
 
     def create_stock(table: str = "stock") -> str:
