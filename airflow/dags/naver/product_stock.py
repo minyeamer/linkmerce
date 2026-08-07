@@ -184,7 +184,7 @@ with DAG(
 
                 response = requests.get(url, headers={"Authorization": f"Bearer {token}"})
                 response.raise_for_status()
-                data = response.json()
+                data = json.loads(response.content.decode("utf-8-sig"))
 
                 if not isinstance(data, dict):
                     continue
