@@ -578,7 +578,7 @@
     {"name": "price", "type": "INTEGER", "description": "판매가"},
     {"name": "sales_price", "type": "INTEGER", "description": "할인가"},
     {"name": "review_count", "type": "INTEGER", "description": "리뷰수"},
-    {"name": "review_score", "type": "FLOAT", "description": "평점"},
+    {"name": "review_score", "type": "NUMERIC", "description": "평점", "precision": "3", "scale": "2"},
     {"name": "first_timestamp", "type": "DATETIME", "description": "최초수집일시"},
     {"name": "last_timestamp", "type": "DATETIME", "description": "최종수집일시"},
     "CLUSTER BY mall_seq"

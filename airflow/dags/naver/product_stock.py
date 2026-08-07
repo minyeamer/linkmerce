@@ -65,12 +65,12 @@ with DAG(
         counts = '{'+", ".join([f"\"{table}\": {len(values)}" for table, values in sources.items()])+'}'
         logger.info(f"Stock counts: {counts}")
 
-        if not sources["product"]:
+        if not sources["products"]:
             raise AirflowException("No product stock data was found for the execution date")
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             conn.execute(create_source_products())
-            conn.insert_into_table_from_json("products", sources["product"])
+            conn.insert_into_table_from_json("products", sources["products"])
 
             for table in ["options", "supplements"]:
                 conn.execute(create_source_options(table))
@@ -248,7 +248,6 @@ with DAG(
                 , productUrl VARCHAR
                 , channelUid VARCHAR
                 , timestamp VARCHAR
-                , PRIMARY KEY (product_id)
             )""").strip()
 
     def create_source_options(table: str = "options") -> str:
@@ -267,7 +266,6 @@ with DAG(
                 , stockQuantity INTEGER
                 , registerDate VARCHAR
                 , timestamp VARCHAR
-                , PRIMARY KEY (product_id, option_id)
             )""").strip()
 
 
