@@ -1049,15 +1049,14 @@
     "CLUSTER BY channel_seq, device_category, nt_source, nt_medium"
   ],
   "ss_hcenter.category_group": [
-    {"name": "seq", "type": "INTEGER", "description": "순번", "mode": "REQUIRED"},
-    {"name": "group_id", "type": "INTEGER", "description": "카테고리그룹ID", "mode": "REQUIRED"},
-    {"name": "brand_name", "type": "STRING", "description": "브랜드", "mode": "REQUIRED"},
-    {"name": "group_name", "type": "STRING", "description": "카테고리그룹", "mode": "REQUIRED"},
+    {"name": "mapping_seq", "type": "INTEGER", "description": "맵핑순번", "mode": "REQUIRED"},
+    {"name": "group_id", "type": "INTEGER", "description": "그룹ID", "mode": "REQUIRED"},
+    {"name": "group_name1", "type": "STRING", "description": "연관브랜드", "mode": "REQUIRED"},
+    {"name": "group_name2", "type": "STRING", "description": "그룹명", "mode": "REQUIRED"},
     {"name": "mapping_id", "type": "INTEGER", "description": "맵핑카테고리ID", "mode": "REQUIRED"},
     {"name": "mapping_keyword", "type": "STRING", "description": "맵핑키워드"},
     {"name": "mapping_depth", "type": "INTEGER", "description": "맵핑단계", "mode": "REQUIRED"},
-    "PARTITION BY RANGE_BUCKET(mapping_depth, GENERATE_ARRAY(2, 4, 1))",
-    "CLUSTER BY brand_name, group_name"
+    "CLUSTER BY group_name1, group_name2"
   ],
   "ss_hcenter.mall": [
     {"name": "mall_seq", "type": "INTEGER", "description": "판매처순번", "mode": "REQUIRED"},

@@ -1333,14 +1333,14 @@ CREATE TABLE IF NOT EXISTS smartstore.marketing_channel (
 
 -- [네이버 쇼핑 카테고리 그룹]
 CREATE TABLE IF NOT EXISTS ss_hcenter.category_group (
-    seq INTEGER NOT NULL -- 순번
-  , group_id INTEGER NOT NULL -- 카테고리그룹ID
-  , brand_name TEXT NOT NULL -- 브랜드
-  , group_name TEXT NOT NULL -- 카테고리그룹
+    mapping_seq BIGINT NOT NULL -- 맵핑순번
+  , group_id BIGINT NOT NULL -- 그룹ID
+  , group_name1 TEXT NOT NULL -- 연관브랜드
+  , group_name2 TEXT NOT NULL -- 그룹명
   , mapping_id INTEGER NOT NULL -- 맵핑카테고리ID
   , mapping_keyword TEXT -- 맵핑키워드
   , mapping_depth SMALLINT NOT NULL -- 맵핑단계
-  , PRIMARY KEY (seq)
+  , PRIMARY KEY (mapping_seq)
 );
 
 -- [네이버 쇼핑 판매처 목록]
