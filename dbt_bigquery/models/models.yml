@@ -82,6 +82,9 @@ models:
 
   # intermediate > benchmark > naver_shp
 
+  - name: "naver_shp__option_master"
+    description: "네이버 판매처별 상품과 옵션 정보를 결합하고 카테고리 그룹을 연결한 마스터 모델"
+
   - name: "naver_shp__stock_sales"
     description: "네이버 판매처별 상품 재고 데이터를 연속된 날짜별로 비교하여 판매량을 계산하고 당일 가격과 곱해 매출을 산출하는 일별 파티션 모델"
 

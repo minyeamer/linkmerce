@@ -1349,7 +1349,7 @@ CREATE TABLE IF NOT EXISTS ss_hcenter.mall (
   , mall_name TEXT NOT NULL -- 판매처명
   , mall_group TEXT NOT NULL -- 판매처그룹
   , mall_url TEXT NOT NULL -- 판매처주소
-  , sales_date DATE -- 매출수집일
+  , first_payment_date DATE -- 최초결제일자
   , PRIMARY KEY (mall_seq)
 );
 

@@ -7,6 +7,8 @@
 
 WITH
 
+-- Step 1: prepare category data
+
 naver_category AS (
   SELECT
       category_id
@@ -28,9 +30,9 @@ category_group AS (
   FROM {{ source('ss_hcenter', 'category_group') }}
 ),
 
--- Step 1: prepare product data
+-- Step 2: prepare product data
 
-smartstore_product AS (
+naver_product AS (
   SELECT
       prd.product_id
     , prd.product_name
@@ -60,7 +62,7 @@ stock_product AS (
     ON prd.category_id = cat.category_id
 ),
 
--- Step 2: match products to category groups across four levels
+-- Step 3: match products to category groups across four levels
 
 mapping_depth_4 AS (
   SELECT
@@ -74,7 +76,7 @@ mapping_depth_4 AS (
     , grp.group_id
     , grp.mapping_seq
   FROM (
-    (SELECT * FROM smartstore_product)
+    (SELECT * FROM naver_product)
     UNION ALL
     (SELECT * FROM stock_product)
   ) AS prd
@@ -136,7 +138,7 @@ mapping_depth_1 AS (
         OR (STRPOS(LOWER(prd.product_name), LOWER(TRIM(grp.mapping_keyword))) > 0))
 )
 
--- Step 3: keep one category-group match per product
+-- Step 4: keep one category-group match per product
 
 SELECT
     product_id
