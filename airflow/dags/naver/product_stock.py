@@ -12,12 +12,14 @@
 ## 적재(Load)
 재고수량을 포함한 데이터를 DuckDB 임시 테이블에 적재하고,
 임시 테이블을 대응되는 BigQuery 테이블 끝에 추가한다.
+적재 과정에서 수집한 날짜 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.slack.hooks.slack import SlackHook
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 from textwrap import dedent
 import pendulum
@@ -32,8 +34,8 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:naver-hcenter", "objective:benchmark", "objective:product",
-        "schedule:daily", "time:night", "write:append", "provider:slack", "upstream:extension",
-        "status:private"
+        "schedule:daily", "time:night", "write:append", "write:merge", "plugin:dbt",
+        "provider:slack", "upstream:extension"
     ],
 ) as dag:
 
@@ -46,22 +48,18 @@ with DAG(
 
 
     @task(task_id="etl_naver_product_stock", retries=3, retry_delay=timedelta(minutes=1))
-    def etl_naver_product_stock(
-            ti: TaskInstance,
-            data_interval_end: pendulum.DateTime,
-            **kwargs
-        ) -> list:
+    def etl_naver_product_stock(ti: TaskInstance, **kwargs) -> list:
         """Slack 채널에서 재고 데이터를 다운로드받고, DuckDB 테이블을 경유해 BigQuery/Postgres 테이블에 적재한다."""
         from linkmerce.common.load import DuckDBConnection
         from dual_load import load_table_from_duckdb, merge_table_from_duckdb
-        from airflow_utils import in_timezone
+        from airflow_utils import get_datetime
         import logging
 
         logger = logging.getLogger(__name__)
         configs = ti.xcom_pull(task_ids="read_configs")
         tables, merge = configs["tables"], configs["merge"]
 
-        sources = download_product_stock(datetime=in_timezone(data_interval_end), **configs)
+        sources = download_product_stock(datetime=get_datetime(kwargs), **configs)
         counts = '{'+", ".join([f"\"{table}\": {len(values)}" for table, values in sources.items()])+'}'
         logger.info(f"Stock counts: {counts}")
 
@@ -91,12 +89,12 @@ with DAG(
 
             return {
                 "context": {
-                    "partitions": conn.unique("stock", "DATE(created_at)"),
+                    "partitions": sorted(map(str, conn.unique("stock", "DATE(created_at)"))),
                 },
                 "params": {
                     "channel_id": configs["channel_id"],
-                    "min_time": min_dt,
-                    "max_time": max_dt,
+                    "min_time": str(min_dt),
+                    "max_time": str(max_dt),
                 },
                 "results": {
                     "stock": load_table_from_duckdb(
@@ -457,4 +455,33 @@ with DAG(
             """).strip()
 
 
-    read_configs() >> etl_naver_product_stock()
+    @task(task_id="generate_dbt_date_range")
+    def generate_dbt_date_range(result: dict) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(result, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run")
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_naver_product_stock_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_naver_product_stock",
+            selector = "naver_product_stock",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+
+    etl_result = etl_naver_product_stock()
+
+    dbt_date_range = generate_dbt_date_range(etl_result)
+    dbt_run = dbt_bigquery_naver_product_stock_group()
+
+    read_configs() >> etl_result
+    dbt_date_range >> prepare_dbt_run() >> dbt_run

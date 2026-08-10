@@ -253,6 +253,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | --- | --- | --- |
 | `naver_cafe_search` | `08:00-09:50` 10분 간격 | 네이버 카페 검색 모니터링 |
 | `naver_main_search` | `08:00-09:50` 10분 간격 | 네이버 통합검색 모니터링 파이프라인 |
+| `naver_product_stock` | 매일 `03:00` | 네이버 상품 재고 ETL 후 벤치마크 dbt 모델 실행 |
 | `naver_shop_rank` | 매일 `06-18시` 정각, 비활성화 | 네이버 쇼핑 검색 순위 ETL |
 
 ### 사방넷 (sabangnet)
@@ -318,7 +319,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | --- | --- | --- |
 | `priority` | 운영 중요도 또는 장애 대응 우선순위 | `high`, `medium`, `low` |
 | `platform` | 웹 스크래핑 대상 플랫폼 또는 작업 대상 | `smartstore`, `coupang-wing`, `gsheets` |
-| `objective` | Dag이 다루는 데이터의 활용 목적 | `sales`, `stock`, `ads` |
+| `objective` | Dag이 다루는 데이터의 활용 목적 | `benchmark`, `sales`, `stock`, `ads` |
 | `credentials` | Dag 실행 중 사용하는 인증 방식 | `api-key`, `userid`, `cookies` |
 | `schedule` | Dag 스케줄 실행 주기 | `daily`, `weekdays`, `none` |
 | `time` | Dag 스케줄 실행 시간대 | `morning`, `afternoon`, `night` |
@@ -338,11 +339,11 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 ```yaml
 credentials: [ api-key, cookies, service-account, userid ]
 objective: [
-    ads, alert, cost, delivery, login, maintenance, mapping,
-    price, product, rank, sales, search, statistics, stock
+    ads, alert, benchmark, cost, delivery, login, maintenance, mapping,
+    product, rank, sales, search, statistics, stock
 ]
 platform: [
-    cj-eflexs, cj-loisparcel, coupang-ads, coupang-wing, ecount,
+    cj-eflexs, cj-loisparcel, coupang-ads, coupang-wing, dable, ecount,
     google-ads, gsheets, meta-ads, naver-hcenter, naver-main, naver-shop,
     postgres, sabangnet, searchad, smartstore
 ]
@@ -350,7 +351,7 @@ plugin: [ dbt, playwright, rest-api ]
 priority: [ high, medium, low ]
 provider: [ slack ]
 schedule: [ daily, hourly, weekdays, none ]
-status: [ disabled, private ]
+status: [ disabled, private ] # [ deprecated ]
 time: [ afternoon, morning, night ]
 upstream: [ dagrun, fastapi, streamlit, extension ]
 write: [ append, overwrite, merge, file ]

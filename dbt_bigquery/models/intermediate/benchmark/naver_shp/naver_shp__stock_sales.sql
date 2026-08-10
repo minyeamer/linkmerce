@@ -20,6 +20,7 @@ WITH
 base_stock AS (
   SELECT
       product_id
+    , product_status
     , sales_price
     , stock_quantity
     , DATE(created_at) AS payment_date
@@ -35,6 +36,7 @@ option_stock AS (
   SELECT
       opt.product_id
     , opt.option_id
+    , prd.product_status
     , prd.sales_price + opt.option_price AS sales_price
     , opt.stock_quantity
     , LEAD(opt.stock_quantity) OVER (
@@ -58,7 +60,7 @@ option_stock AS (
       AND created_at < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 9 DAY))
     QUALIFY ROW_NUMBER() OVER (PARTITION BY product_id, option_id, DATE(created_at) ORDER BY created_at ASC) = 1
   ) AS opt
-  LEFT JOIN base_stock AS prd
+  INNER JOIN base_stock AS prd
     ON opt.product_id = prd.product_id
       AND opt.payment_date = prd.payment_date
 ),
@@ -69,6 +71,7 @@ product_stock AS (
   SELECT
       prd.product_id
     , prd.product_id AS option_id
+    , prd.product_status
     , prd.sales_price
     , prd.stock_quantity
     , LEAD(prd.stock_quantity) OVER (
@@ -95,6 +98,7 @@ total_stock AS (
   SELECT
       product_id
     , option_id
+    , product_status
     , sales_price
     , (stock_quantity - next_stock_quantity) AS payment_count
     , (stock_quantity - next_stock_quantity) * sales_price AS payment_amount
@@ -156,6 +160,7 @@ daily_sales AS (
   WHERE (base.payment_date
       BETWEEN DATE('{{ var("ds_start_date") }}')
           AND DATE('{{ var("ds_end_date") }}'))
+    AND (base.product_status = 0)
     AND (CASE
           WHEN base.payment_count < 100
             THEN TRUE

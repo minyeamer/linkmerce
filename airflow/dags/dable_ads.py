@@ -32,7 +32,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:dable", "objective:ads", "credentials:api-key",
-        "schedule:daily", "time:morning", "write:append", "write:merge", "plugin:dbt",
+        "schedule:daily", "time:morning", "write:append", "write:merge", "plugin:dbt"
     ],
 ) as dag:
 
