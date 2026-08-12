@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, Literal, Sequence
     from linkmerce.api.common import DuckDBResult
-    from linkmerce.common.extract import JsonObject
     from linkmerce.common.load import DuckDBConnection
     import datetime as dt
 
@@ -25,7 +24,7 @@ def request(
         version: str | None = None,
         params: dict | list[tuple] | bytes | None = None,
         data: dict | list[tuple] | bytes | None = None,
-        json: JsonObject | None = None,
+        json: dict | None = None,
         headers: dict[str, str] = None,
         extract_options: dict = dict(),
     ) -> dict:
@@ -47,7 +46,7 @@ def request(
         커머스 API 요청 파라미터
     data: dict | list[tuple] | bytes | None
         커머스 API 요청 본문
-    json: JsonObject | None
+    json: dict | None
         커머스 API 요청 본문 (JSON)
     headers: dict[str, str]
         커머스 API 요청 헤더

@@ -5,7 +5,6 @@ from typing import TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Sequence
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -41,7 +40,7 @@ class MetaAds(MetaApi):
     path: str | None = None
     default_options = {"RequestEach": {"request_delay": 1}}
 
-    def _extract_backend(self, account_ids: Sequence[str] = list(), **kwargs) -> JsonObject:
+    def _extract_backend(self, account_ids: Sequence[str] = list(), **kwargs) -> dict:
         """광고 계정(`account_ids`)별 광고 데이터를 조회하는 공통 로직."""
         if not account_ids:
             account_ids = [account["id"] for account in self.list_accounts()]
@@ -50,7 +49,7 @@ class MetaAds(MetaApi):
                 .expand(account_id=account_ids)
                 .run())
 
-    def request_json_by_account(self, account_id: str, **kwargs) -> JsonObject:
+    def request_json_by_account(self, account_id: str, **kwargs) -> dict:
         """광고 계정별로 API 요청을 실행한다."""
         kwargs["url"] = self.concat_path(self.origin, self.version, account_id, self.path)
         return self.request_json_safe(**kwargs)

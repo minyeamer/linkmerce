@@ -349,7 +349,7 @@ def rocket_option(
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: tuple[dict | None, dict | None] = (None, None),
         transform_options: tuple[dict | None, dict | None] = (None, None),
-    ) -> DuckDBResult | list[dict] | None:
+    ) -> DuckDBResult | list[dict] | dict[str, list[dict]] | None:
     """쿠팡 로켓그로스 재고현황에서 옵션 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
@@ -385,7 +385,7 @@ def rocket_option(
 
     Returns
     -------
-    DuckDBResult | list[dict] | None
+    DuckDBResult | list[dict] | dict[str, list[dict]] | None
         `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
             - `"csv"`: 테이블 조회 결과를 CSV 형식의 `list[tuple]`로 반환한다.
             - `"json"`: 테이블 조회 결과를 JSON 형식의 `list[dict]`로 반환한다. (기본값)

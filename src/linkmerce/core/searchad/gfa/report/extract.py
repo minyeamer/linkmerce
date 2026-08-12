@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Sequence
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -47,7 +46,7 @@ class _MasterReport(SearchAdGfa):
         "RequestEachPages": {"request_delay": 0.3},
     }
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 항목 수를 추출한다."""
         return response.get("totalElements") if isinstance(response, dict) else None
 
@@ -177,7 +176,7 @@ class AdSet(_MasterReport):
             self,
             status: Sequence[Literal["ALL", "RUNNABLE", "BEFORE_STARTING", "TERMINATED", "DELETED"]] = ["ALL", "DELETED"],
             **kwargs
-        ) -> JsonObject:
+        ) -> list[dict]:
         """광고 그룹 목록을 상태별로 조회해 JSON 형식으로 반환한다.
 
         Parameters
@@ -418,7 +417,7 @@ class PerformanceReport(SearchAdGfa):
 
         Returns
         -------
-        dict[str, str]
+        dict[str, bytes]
             `{파일명: ZIP 바이너리}` 구조의 성과 보고서 다운로드 결과
             - 파일명은 `ReportDownload_aa_{account_no}_PERFORMANCE_{start_date}_{end_date}.csv`
                 명명 규칙에 따라 생성된다.

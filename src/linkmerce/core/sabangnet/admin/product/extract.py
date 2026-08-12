@@ -203,7 +203,7 @@ class Option(SabangnetAdmin):
 
     @SabangnetAdmin.with_session
     @SabangnetAdmin.with_token
-    def extract(self, product_id: str | Iterable[str], **kwargs) -> dict | list[dict]:
+    def extract(self, product_id: str | Iterable[str], **kwargs) -> list[dict]:
         """사방넷상품조회수정 화면의 옵션관리 팝업에서 상품별 옵션 목록을 조회한다.
 
         Parameters

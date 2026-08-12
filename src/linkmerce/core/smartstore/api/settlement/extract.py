@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -104,7 +103,7 @@ class Settlement(SmartstoreApi):
                 .all_pages(self.count_total, self.max_page_size, self.page_start)
                 .run())
 
-    def count_total(self, response: JsonObject, **kwargs) -> int:
+    def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 항목 수를 추출한다."""
         from linkmerce.utils.nested import hier_get
         return hier_get(response, "pagination.totalElements")

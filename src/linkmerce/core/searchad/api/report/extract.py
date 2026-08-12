@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
-    from linkmerce.common.extract import JsonObject
     from requests import Response
     import datetime as dt
 
@@ -41,7 +40,7 @@ class _ReportsDownload(NaverSearchAdApi):
     MAX_LOOKBACK_DAYS: int | None = None
 
     @NaverSearchAdApi.with_session
-    def extract(self, **kwargs) -> JsonObject | str:
+    def extract(self, **kwargs) -> str:
         """마스터 보고서 또는 대용량 보고서에 대한 다운로드 워크플로우를 구현해야 한다."""
         raise NotImplementedError("The 'extract' method must be implemented.")
 
@@ -143,7 +142,7 @@ class _MasterReport(_ReportsDownload):
     MAX_LOOKBACK_DAYS = 730
 
     @NaverSearchAdApi.with_session
-    def extract(self, from_date: dt.date | str | None = None) -> JsonObject | str:
+    def extract(self, from_date: dt.date | str | None = None) -> str:
         """마스터 보고서를 생성하고 TSV 형식으로 다운로드 받는다. 다운로드 후 생성된 보고서를 삭제한다.
 
         Parameters
@@ -719,7 +718,7 @@ class MasterAd(_MasterReport):
     report_type = None
 
     @NaverSearchAdApi.with_session
-    def extract(self, from_date: dt.date | str | None = None) -> JsonObject | dict[str, str]:
+    def extract(self, from_date: dt.date | str | None = None) -> dict[str, str]:
         """모든 소재 유형의 마스터 보고서를 생성하고 TSV 형식으로 다운로드 받는다.
 
         Parameters
@@ -791,7 +790,7 @@ class _StatReport(_ReportsDownload):
     date_format = "%Y%m%d"
 
     @NaverSearchAdApi.with_session
-    def extract(self, date: dt.date | str) -> JsonObject | str:
+    def extract(self, date: dt.date | str) -> str:
         """대용량 보고서를 생성하고 TSV 형식으로 다운로드 받는다. 다운로드 후 생성된 보고서를 삭제한다.
 
         Parameters
@@ -1161,7 +1160,7 @@ class AdvancedReport(_StatReport):
             self,
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
-        ) -> JsonObject | list[dict[str, str]]:
+        ) -> list[dict[str, str]]:
         """광고성과 및 전환 보고서를 일 단위로 생성하고 TSV 형식으로 다운로드 받는다.
 
         Parameters
@@ -1174,7 +1173,7 @@ class AdvancedReport(_StatReport):
 
         Returns
         -------
-        dict[str, str]
+        list[dict[str, str]]
             `{보고서 유형: TSV 텍스트}` 구조의 대용량 보고서 다운로드 결과
         """
         return (self.request_each(self.request_daily_report)

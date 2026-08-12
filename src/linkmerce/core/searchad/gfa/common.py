@@ -127,7 +127,7 @@ class SearchAdGfa(Extractor):
 #         else:
 #             return super().get_request_headers()
 
-#     def is_valid_response(self, response: JsonObject) -> bool:
+#     def is_valid_response(self, response: dict) -> bool:
 #         """요청 중 토큰 인증 오류가 발생하면 `UnauthorizedError`를 발생시킨다."""
 #         if isinstance(response, dict):
 #             if response.get("error") == "Unauthorized":

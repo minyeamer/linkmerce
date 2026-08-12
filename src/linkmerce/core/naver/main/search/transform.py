@@ -6,7 +6,6 @@ from typing import TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Literal
-    from linkmerce.common.transform import JsonObject
     from bs4 import BeautifulSoup, Tag
 
 Props = TypeVar("Props", bound=dict)
@@ -97,7 +96,7 @@ class SearchSectionParser(HtmlTransformer):
         except (json.JSONDecodeError, KeyError):
             return list()
 
-    def fender_renderer(self, data: JsonObject, sep: str = '\n') -> list[dict]:
+    def fender_renderer(self, data: dict, sep: str = '\n') -> list[dict]:
         """`ssuidExtra` 식별자로 섹션을 특정하고 해당하는 `Transformer`를 선택해 하위 블록을 파싱한다."""
         ssuid = str(data["meta"]["ssuidExtra"]).replace("fender_renderer-", str())
         if ssuid == "intentblock": # 스마트 블록 (브랜드 콘텐츠)

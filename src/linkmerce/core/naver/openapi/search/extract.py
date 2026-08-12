@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Iterable, Literal
-    from linkmerce.common.extract import JsonObject
 
 
 class _SearchExtractor(NaverOpenApi):
@@ -146,7 +145,7 @@ class _SearchExtractor(NaverOpenApi):
     def build_request_params(self, **kwargs) -> dict:
         return kwargs
 
-    def is_valid_response(self, response: JsonObject) -> bool:
+    def is_valid_response(self, response: dict) -> bool:
         """HTTP 응답에 에러 코드가 없는지 검증하여 재시도할지 여부를 판단한다."""
         return not (isinstance(response, dict) and response.get("errorCode"))
 

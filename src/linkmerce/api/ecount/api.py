@@ -39,7 +39,7 @@ def request(
 
     Returns
     -------
-    JsonObject
+    dict
         오픈 API 응답 결과
     """
     from linkmerce.core.ecount.api import EcountRequestApi
@@ -79,7 +79,7 @@ def test(
 
     Returns
     -------
-    JsonObject
+    dict
         테스트 API 응답 결과
     """
     from linkmerce.core.ecount.api import EcountTestApi

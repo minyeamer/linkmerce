@@ -3,11 +3,6 @@ from __future__ import annotations
 from linkmerce.common.extract import Extractor
 from functools import wraps
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from linkmerce.common.extract import JsonObject
-
 
 class SmartstoreApi(Extractor):
     """네이버 커머스 API 요청을 처리하는 공통 클래스.
@@ -68,7 +63,7 @@ class SmartstoreApi(Extractor):
             "client_secret_sign": secret, "grant_type": "client_credentials", "type": "SELF",
         }
 
-    def request_json_until_success(self, max_retries: int = 5, **kwargs) -> JsonObject:
+    def request_json_until_success(self, max_retries: int = 5, **kwargs) -> dict:
         """동시 요청 제한이 발생할 경우에 대비해 오류가 캐치하고 API 요청을 재시도 한다."""
         session = self.get_session()
         message = self.build_request_message(**kwargs)
@@ -81,7 +76,7 @@ class SmartstoreApi(Extractor):
             if self.is_valid_response(response, (retry_count if retry_count != max_retries else None)):
                 return response
 
-    def is_valid_response(self, response: JsonObject, retry_count: int | None = None) -> bool:
+    def is_valid_response(self, response: dict, retry_count: int | None = None) -> bool:
         """오류 메시지를 구분하여 재시도 요청 또는 `ConnectionError`를 발생시킨다."""
         if isinstance(response, dict):
             rate_limit = (response.get("code") == "GW.RATE_LIMIT")
@@ -119,7 +114,7 @@ class SmartstoreTestAPI(SmartstoreApi):
             version: str | None = None,
             params: dict | list[tuple] | bytes | None = None,
             data: dict | list[tuple] | bytes | None = None,
-            json: JsonObject | None = None,
+            json: dict | None = None,
             headers: dict[str, str] = None,
             **kwargs
         ) -> dict:
@@ -137,7 +132,7 @@ class SmartstoreTestAPI(SmartstoreApi):
             커머스 API 요청 파라미터
         data: dict | list[tuple] | bytes | None
             커머스 API 요청 본문
-        json: JsonObject | None
+        json: dict | None
             커머스 API 요청 본문 (JSON)
         headers: dict[str, str]
             커머스 API 요청 헤더

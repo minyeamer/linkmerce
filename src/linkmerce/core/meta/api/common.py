@@ -5,7 +5,6 @@ from linkmerce.common.extract import Extractor
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from linkmerce.common.extract import JsonObject
     import datetime as dt
 
 
@@ -67,7 +66,7 @@ class MetaTokenManager:
                 return dt.datetime.fromtimestamp(data["data"]["expires_at"])
             self.raise_oauth_error(data)
 
-    def raise_oauth_error(self, data: JsonObject):
+    def raise_oauth_error(self, data: dict):
         """유효 기간 연장에 대한 요청 결과에서 `access_token`이 확인되지 않으면 `OAuthException`을 발생시킨다."""
         if isinstance(data, dict) and ("error" in data):
             raise OAuthException(data["error"]["message"])

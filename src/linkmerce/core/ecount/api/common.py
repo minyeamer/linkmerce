@@ -3,11 +3,6 @@ from __future__ import annotations
 from linkmerce.common.extract import Extractor
 from functools import wraps
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from linkmerce.common.extract import JsonObject
-
 
 class EcountApi(Extractor):
     """이카운트 오픈 API 요청을 처리하는 공통 클래스.
@@ -100,7 +95,7 @@ class EcountRequestApi(EcountApi):
 
     @EcountApi.with_session
     @EcountApi.with_oapi
-    def extract(self, path: str, body: dict | None = None, **kwargs) -> JsonObject:
+    def extract(self, path: str, body: dict | None = None, **kwargs) -> dict:
         """오픈 API 경로와 본문을 전달하면 응답 결과를 JSON 형식으로 반환한다.
 
         Parameters
@@ -147,7 +142,7 @@ class EcountTestApi(EcountApi):
 
     @EcountApi.with_session
     @EcountApi.with_oapi
-    def extract(self, path: str, body: dict | None = None, **kwargs) -> JsonObject:
+    def extract(self, path: str, body: dict | None = None, **kwargs) -> dict:
         """테스트 API 경로와 본문을 전달하면 응답 결과를 JSON 형식으로 반환한다.
 
         Parameters

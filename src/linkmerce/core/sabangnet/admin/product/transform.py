@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any
-    from linkmerce.common.transform import JsonObject
 
 
 class Product(DuckDBTransformer):
@@ -137,12 +136,12 @@ class AddProduct(DuckDBTransformer):
         fields = ["addPrdGrpId", "addPrdSkuCnfgSrno", "prdNo", "skuNo", "addPrdSkuCnfgNm", "sepr"],
     )
 
-    def transform(self, obj: JsonObject, **kwargs) -> list:
+    def transform(self, obj: dict, **kwargs) -> list:
         """추가상품 조회 결과 파싱 후 메타 데이터를 SQL 파라미터에 추가해 삽입 쿼리를 실행한다."""
         result = self.parse(obj, **kwargs)
         return self.bulk_insert(result, params={"meta": self.parse_metadata(obj)})
 
-    def parse_metadata(self, obj: JsonObject) -> dict:
+    def parse_metadata(self, obj: dict) -> dict:
         """추가상품 조회 결과에서 메타 데이터를 추출해 반환한다."""
         from linkmerce.utils.nested import select_values
         meta = obj["data"]["meta"]
