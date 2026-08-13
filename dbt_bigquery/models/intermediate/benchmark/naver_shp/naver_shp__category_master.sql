@@ -20,10 +20,10 @@ SELECT
       ARRAY(
         SELECT id
         FROM UNNEST([
-            CAST(category_id1 AS STRING)
-          , CAST(category_id2 AS STRING)
-          , CAST(category_id3 AS STRING)
-          , CAST(category_id4 AS STRING)
+            NULLIF(CAST(category_id1 AS STRING), '')
+          , NULLIF(CAST(category_id2 AS STRING), '')
+          , NULLIF(CAST(category_id3 AS STRING), '')
+          , NULLIF(CAST(category_id4 AS STRING), '')
         ]) AS id
         WHERE id IS NOT NULL
           AND id != ''
@@ -33,10 +33,10 @@ SELECT
       ARRAY(
         SELECT name
         FROM UNNEST([
-            category_name1
-          , category_name2
-          , category_name3
-          , category_name4
+            NULLIF(category_name1, '')
+          , NULLIF(category_name2, '')
+          , NULLIF(category_name3, '')
+          , NULLIF(category_name4, '')
         ]) AS name
         WHERE name IS NOT NULL
           AND name != ''

@@ -47,6 +47,7 @@ BigQuery 프로젝트와 달리, PostgreSQL 환경에 맞춰
 | --- | --- |
 | `core` | 대표상품 테이블 및 공용 데이터 관리 |
 | `xfm_ads` | 광고 intermediate 모델 |
+| `xfm_benchmark` | 경쟁사 intermediate 모델 |
 | `xfm_sales` | 매출/배송 intermediate 모델 |
 | `xfm_stock` | 재고 intermediate 모델 |
 | `analytics` | 통합 분석 mart 모델 |
@@ -64,11 +65,13 @@ dbt_postgres/
 ├── models/
 │   ├── intermediate/
 │   │   ├── ads/
+│   │   ├── benchmark/
 │   │   ├── delivery/
 │   │   ├── sales/
 │   │   └── stock/
 │   ├── marts/
 │   │   ├── ads/
+│   │   ├── benchmark/
 │   │   ├── product/
 │   │   ├── sales/
 │   │   └── stock/
@@ -157,6 +160,35 @@ dbt_postgres/models/intermediate/ads/
 그 중 일부는 광고 보고서에 측정 기준을 붙일 때도 참조된다.
 
 플랫폼별 `insight_daily` 모델은 매출 및 광고 분석을 위한 mart 모델에서 공통적으로 사용된다.
+
+#### intermediate/benchmark
+
+채널별 경쟁사 데이터를 가공하는 intermediate 모델은 다음과 같다.
+
+```bash
+dbt_postgres/models/intermediate/benchmark/
+└── naver_shp/
+    ├── naver_shp__category_master
+    ├── naver_shp__option_master
+    ├── naver_shp__stock_sales
+    └── relation__nsh_prd_to_grp_id
+```
+
+이 계층에서는 경쟁사 데이터 분석을 위한 mart 모델의 바탕이 되는
+fact 테이블 및 view 테이블을 생성한다. 현재는 네이버 채널의 매출 데이터만 지원한다.
+
+`naver_shp__stock_sales` 모델은 일별 재고수량 변화를 판매량으로 계산하고,
+이전 28일과 이후 7일의 판매량 분포를 사용해 재고 보정에 따른 이상치를 제외한 일별 추정 매출을 생성한다.
+
+`relation__nsh_prd_to_grp_id` 모델은 네이버 상품과 재고 상품을 묶을 그룹을
+4단계 키워드 규칙으로 매칭해 상품코드와 그룹ID를 연결한다.
+
+`naver_shp__category_master` 모델은 네이버 카테고리의
+단계별 코드와 명칭을 `>` 구분자로 연결한 전체 카테고리 필드를 제공한다.
+
+`naver_shp__option_master` 모델은 판매처, 카테고리, 그룹 정보를 상품/옵션 목록과
+연결한 마스터 데이터를 제공한다. 해당 모델은 조회 범위를 제한하기 위해
+매출 시작일과 종료일을 파라미터로 받는 테이블 함수 형식으로 구성되었다.
 
 #### intermediate/sales
 
@@ -249,6 +281,16 @@ dbt_postgres/models/marts/ads/
 `analytics__adreport_daily` 모델은 플랫폼별 `report_daily` 모델들을
 동일한 수준으로 맞춰서 병합한 테이블 함수를 제공한다.
 
+#### marts/benchmark
+
+```bash
+dbt_postgres/models/marts/benchmark/
+└── naver_shp__sales_daily
+```
+
+`naver_shp__sales_daily` 모델은 (구)경쟁사 매출과 재고수량 기반 추정 매출을 결합하고,
+옵션, 판매처, 카테고리, 그룹 정보를 연결해 네이버 판매처별 일별 경쟁사 매출을 조회하는 테이블 함수를 생성한다.
+
 #### marts/sales
 
 ```bash
@@ -259,7 +301,8 @@ dbt_postgres/models/marts/sales/
 ├── analytics__profit_daily
 ├── analytics__profit_monthly
 ├── analytics__profit_mom
-└── analytics__sales_target
+├── analytics__sales_target
+└── analytics__total_order
 ```
 
 `analytics__profit_base` 모델은 `core__sales_daily` 모델에서
@@ -271,6 +314,9 @@ dbt_postgres/models/marts/sales/
 
 `analytics__order_count` 모델은 플랫폼별 `order_count` 모델을 동일한 수준에서 병합하고
 `core__product_master` 모델로부터 카테고리 등 대표상품의 측정 기준을 연결한 테이블 함수를 생성한다.
+
+`analytics__total_order` 모델은 사방넷, 스마트스토어, 쿠팡 로켓 주문내역을
+주문일시 기준으로 가공하고 상품 및 쇼핑몰 마스터 정보를 연결한 테이블 함수를 생성한다.
 
 `_mom`으로 끝나는 모델들은 대시보드에서 지정된 기간으로부터 n개월 전의 항목들을 비교하기 위해
 각각의 측정값을 단일 칼럼으로 UNPIVOT 변환하는 테이블 함수를 제공한다.
@@ -490,7 +536,8 @@ airflow/dags/
 │   ├── sync_gsheets__opex.py (sync_gsheets__opex)
 │   └── sync_gsheets__order_status.py (sync_gsheets__order_status)
 ├── naver/
-│   └── connect_sales.py (naver_connect_sales)
+│   ├── connect_sales.py (naver_connect_sales)
+│   └── product_stock.py (naver_product_stock)
 ├── sabangnet/
 │   ├── invoice.py (sabangnet_invoice)
 │   ├── order.py (sabangnet_order)
@@ -518,6 +565,7 @@ airflow/dags/
 | `smartstore_master` | 스마트스토어 상품/옵션 목록 업데이트 |
 | `order_count` | 일별 주문 내역 업데이트 |
 | `sales` | 일별 매출 보고서 업데이트 |
+| `naver_sales` | 네이버 판매처별 경쟁사 매출 업데이트 |
 | `profit` | 일별 영업이익 보고서 업데이트 |
 | `stock` | 재고수량 및 기간 판매량 업데이트 |
 | `stock_report` | 재고-소비기한 보고서 업데이트 |

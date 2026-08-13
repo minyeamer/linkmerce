@@ -1,6 +1,9 @@
 """
 # 네이버 상품 재고 ETL 파이프라인
 
+## 인증(Credentials)
+재고 파일이 업로드된 Slack 채널에 접근 가능한 Slack API 토큰이 필요하다.
+
 ## 추출(Extract)
 크롬 확장프로그램을 통해 수집한 상품별 재고수량이 Slack 채널에 업로드된다.
 분할로 전송된 메시지 내 JSON 파일들을 읽어온다.
@@ -10,9 +13,9 @@
 분할된 파일을 하나의 객체로 합친다.
 
 ## 적재(Load)
-재고수량을 포함한 데이터를 DuckDB 임시 테이블에 적재하고,
-임시 테이블을 대응되는 BigQuery 테이블 끝에 추가한다.
-적재 과정에서 수집한 날짜 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
+- 재고 내역은 DuckDB 임시 테이블을 경유해 대응되는 BigQuery/Postgres 테이블 끝에 추가한다.
+- 상품 및 옵션 목록은 기존 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+- 적재 과정에서 수집한 날짜 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
@@ -273,7 +276,7 @@ with DAG(
                 product_id BIGINT NOT NULL
                 , product_status TINYINT
                 , sales_price INTEGER
-                , stock_quantity INTEGER
+                , stock_quantity BIGINT
                 , created_at TIMESTAMP NOT NULL
                 , PRIMARY KEY (created_at, product_id)
             )""").strip()
@@ -302,7 +305,7 @@ with DAG(
                 product_id BIGINT NOT NULL
                 , option_id BIGINT NOT NULL
                 , option_price INTEGER
-                , stock_quantity INTEGER
+                , stock_quantity BIGINT
                 , created_at TIMESTAMP NOT NULL
                 , PRIMARY KEY (created_at, product_id, option_id)
             )""").strip()
@@ -477,11 +480,19 @@ with DAG(
             ds_task_id = "generate_dbt_date_range",
         )
 
+    def dbt_postgres_naver_product_stock_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_naver_product_stock",
+            selector = "naver_product_stock",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
 
     etl_result = etl_naver_product_stock()
 
     dbt_date_range = generate_dbt_date_range(etl_result)
-    dbt_run = dbt_bigquery_naver_product_stock_group()
+    dbt_run = [dbt_bigquery_naver_product_stock_group(), dbt_postgres_naver_product_stock_group()]
 
     read_configs() >> etl_result
     dbt_date_range >> prepare_dbt_run() >> dbt_run

@@ -769,7 +769,7 @@ CREATE TABLE IF NOT EXISTS naver_shp.stock (
     product_id BIGINT NOT NULL -- 상품코드
   , product_status SMALLINT -- 판매상태
   , sales_price INTEGER -- 할인가
-  , stock_quantity INTEGER -- 재고수량
+  , stock_quantity BIGINT -- 재고수량
   , created_at TIMESTAMP NOT NULL -- 수집일시
   , PRIMARY KEY (created_at, product_id)
 ) PARTITION BY RANGE (created_at);
@@ -779,7 +779,7 @@ CREATE TABLE IF NOT EXISTS naver_shp.stock_detail (
     product_id BIGINT NOT NULL -- 상품코드
   , option_id BIGINT NOT NULL -- 옵션코드
   , option_price INTEGER -- 옵션가
-  , stock_quantity INTEGER -- 재고수량
+  , stock_quantity BIGINT -- 재고수량
   , created_at TIMESTAMP NOT NULL -- 수집일시
   , PRIMARY KEY (created_at, product_id, option_id)
 ) PARTITION BY RANGE (created_at);

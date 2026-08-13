@@ -5,7 +5,7 @@
       'params': [
         {'name': 'DS_START_DATE', 'type': 'date'},
         {'name': 'DS_END_DATE', 'type': 'date'},
-        {'name': 'MALL_HIGHLIGHT', 'type': 'string'}
+        {'name': 'MALL_HIGHLIGHT', 'type': 'text'}
       ]
     },
     schema = 'naver_shp',
@@ -13,39 +13,39 @@
   )
 }}
 
-WITH
+WITH{#
 
-dayofweek_name_mapping AS (
+#} dayofweek_name_mapping AS (
   {{ core__dayofweek_name_mapping() }}
-),
+),{#
 
-naver_sales AS (
+#} naver_sales AS (
   SELECT
       product_id
     , product_id AS option_id
-    , NULL AS sales_price
+    , NULL::integer AS sales_price
     , click_count
     , payment_count
     , payment_amount
     , payment_date
   FROM {{ source('ss_hcenter', 'sales') }}
   WHERE payment_date BETWEEN DS_START_DATE AND DS_END_DATE
-),
+),{#
 
-stock_sales AS (
+#} stock_sales AS (
   SELECT
       product_id
     , option_id
     , sales_price
-    , NULL AS click_count
+    , NULL::integer AS click_count
     , payment_count
     , payment_amount
     , payment_date
   FROM {{ ref('naver_shp__stock_sales') }}
   WHERE payment_date BETWEEN DS_START_DATE AND DS_END_DATE
-),
+),{#
 
-sales_daily AS (
+#} sales_daily AS (
   SELECT
       fact.product_id
     , fact.option_id
@@ -53,7 +53,10 @@ sales_daily AS (
     , opt.mall_seq
     , COALESCE(opt.mall_type, '-') AS mall_type
     , COALESCE(opt.mall_group, '-') AS mall_group
-    , COALESCE(opt.mall_name || IF(MALL_HIGHLIGHT = opt.mall_name, ' *', ''), '-') AS mall_name
+    , COALESCE(
+          opt.mall_name || (CASE WHEN MALL_HIGHLIGHT = opt.mall_name THEN ' *' ELSE '' END)
+        , '-'
+      ) AS mall_name
     , opt.mall_url
     -- Category attributes
     , opt.category_id
@@ -84,8 +87,8 @@ sales_daily AS (
       ), 0) AS daily_category_total
     -- Date attributes
     , fact.payment_date
-    , FORMAT_DATETIME('%d일', fact.payment_date) || payment_day.name_ko AS day_name
-    , CAST(payment_day.dayofweek AS STRING) || ' ' || payment_day.name_ko AS day_option
+    , to_char(fact.payment_date, 'DD일') || payment_day.name_ko AS day_name
+    , payment_day.dayofweek::text || ' ' || payment_day.name_ko AS day_option
   FROM (
     (SELECT * FROM naver_sales)
     UNION ALL
@@ -95,7 +98,7 @@ sales_daily AS (
     ON fact.product_id = opt.product_id
       AND fact.option_id = opt.option_id
   LEFT JOIN dayofweek_name_mapping AS payment_day
-    ON EXTRACT(DAYOFWEEK FROM fact.payment_date) = payment_day.dayofweek
-)
+    ON (EXTRACT(DOW FROM fact.payment_date) + 1) = payment_day.dayofweek
+){#
 
-SELECT * FROM sales_daily
+#} SELECT * FROM sales_daily

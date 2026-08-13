@@ -96,6 +96,10 @@ sources:
       - name: product
       - name: rank
       - name: rank_now
+      - name: stock
+      - name: stock_detail
+      - name: stock_product
+      - name: stock_option
 
   - name: relation
     schema: relation
@@ -159,4 +163,3 @@ sources:
       - name: product_catalog
       - name: pageview
       - name: sales
-      - name: stock

@@ -137,6 +137,16 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
+  # Airflow Dags - naver_shp
+  - name: naver_product_stock
+    description: "'naver_product_stock' Dag 실행 후 네이버 판매처별 재고 수량 변동을 매출에 반영"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.benchmark.naver_shp.naver_shp__stock_sales
+        - method: fqn
+          value: intermediate.benchmark.naver_shp.relation__nsh_prd_to_grp_id
+
   # Airflow Dags - sabangnet
   - name: sabangnet_invoice
     description: "'sabangnet_invoice' Dag 실행 후 사방넷 송장번호 변동을 매출에 반영"
@@ -329,6 +339,14 @@ selectors:
           value: intermediate.ads.searchad.searchad__adgroup_master
         - method: fqn
           value: intermediate.ads.searchad.searchad__ad_master
+
+  # Custom - benchmark
+  - name: naver_sales
+    description: "네이버 판매처별 매출 업데이트"
+    definition:
+      method: fqn
+      value: marts.benchmark.naver_shp__sales_daily
+      parents: true
 
   # Custom - product
   - name: coupang_master

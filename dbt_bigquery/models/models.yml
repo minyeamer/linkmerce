@@ -161,6 +161,9 @@ models:
 
   # marts > ads
 
+  - name: "analytics__adreport_daily"
+    description: "플랫폼별 광고 보고서를 동일한 수준으로 맞춰서 병합한 테이블 함수"
+
   - name: "coupang_ads__report_daily"
     description: "일별로 요약된 쿠팡 PA/NCA 광고 보고서와 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
 

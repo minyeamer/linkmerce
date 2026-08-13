@@ -304,7 +304,8 @@ dbt_bigquery/models/marts/sales/
 ├── analytics__profit_daily
 ├── analytics__profit_monthly
 ├── analytics__profit_mom
-└── analytics__sales_target
+├── analytics__sales_target
+└── analytics__total_order
 ```
 
 `analytics__profit_base` 모델은 `core__sales_daily` 모델에서
@@ -316,6 +317,9 @@ dbt_bigquery/models/marts/sales/
 
 `analytics__order_count` 모델은 플랫폼별 `order_count` 모델을 동일한 수준에서 병합하고
 `core__product_master` 모델로부터 카테고리 등 대표상품의 측정 기준을 연결한 테이블 함수를 생성한다.
+
+`analytics__total_order` 모델은 사방넷, 스마트스토어, 쿠팡 로켓 주문내역을
+주문일시 기준으로 가공하고 상품 및 쇼핑몰 마스터 정보를 연결한 테이블 함수를 생성한다.
 
 `_mom`으로 끝나는 모델들은 대시보드에서 지정된 기간으로부터 n개월 전의 항목들을 비교하기 위해
 각각의 측정값을 단일 칼럼으로 UNPIVOT 변환하는 테이블 함수를 제공한다.

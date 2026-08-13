@@ -11,11 +11,11 @@
   )
 }}
 
-WITH
+WITH{#
 
 -- Step 1: prepare naver product
 
-naver_product AS (
+#} naver_product AS (
   SELECT
       product_id
     , product_id AS option_id
@@ -27,12 +27,13 @@ naver_product AS (
     , first_payment_date
     , last_payment_date
   FROM {{ source('ss_hcenter', 'product') }}
-  WHERE COALESCE(DS_START_DATE, CURRENT_DATE('Asia/Seoul')) <= DATE(2026, 2, 26)
-),
+  WHERE COALESCE(DS_START_DATE, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date)
+    <= DATE '2026-02-26'
+),{#
 
 -- Step 2: prepare stock product and option
 
-stock_product AS (
+#} stock_product AS (
   SELECT
       product_id
     , product_id AS option_id
@@ -41,25 +42,25 @@ stock_product AS (
     , product_name
     , '-' AS option_name
     , sales_price
-    , DATE(first_timestamp) AS first_payment_date
-    , DATE(last_timestamp) AS last_payment_date
+    , first_timestamp::date AS first_payment_date
+    , last_timestamp::date AS last_payment_date
   FROM {{ source('naver_shp', 'stock_product') }}
-  WHERE COALESCE(DS_END_DATE, CURRENT_DATE('Asia/Seoul')) >= DATE(2026, 3, 10)
-),
+  WHERE COALESCE(DS_END_DATE, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date)
+    >= DATE '2026-03-10'
+),{#
 
-stock_option AS (
+#} stock_option AS (
   SELECT
       prd.product_id
     , opt.option_id
     , prd.mall_seq
     , prd.category_id
     , prd.product_name
-    , ARRAY_TO_STRING(
-        ARRAY(
-          SELECT name
-          FROM UNNEST([opt.option_name1, opt.option_name2, opt.option_name3]) AS name
-          WHERE name IS NOT NULL
-        ), ' / '
+    , concat_ws(
+          ' / '
+        , opt.option_name1
+        , opt.option_name2
+        , opt.option_name3
       ) AS option_name
     , prd.sales_price
     , prd.first_payment_date
@@ -67,12 +68,13 @@ stock_option AS (
   FROM stock_product AS prd
   INNER JOIN {{ source('naver_shp', 'stock_option') }} AS opt
     ON prd.product_id = opt.product_id
-  WHERE COALESCE(DS_END_DATE, CURRENT_DATE('Asia/Seoul')) >= DATE(2026, 3, 10)
-),
+  WHERE COALESCE(DS_END_DATE, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date)
+    >= DATE '2026-03-10'
+),{#
 
 -- Step 3: prepare category group relation with names
 
-nsh_prd_to_grp_id AS (
+#} nsh_prd_to_grp_id AS (
   SELECT
       rel.product_id
     , grp.group_id
@@ -80,25 +82,28 @@ nsh_prd_to_grp_id AS (
     , grp.group_name2
   FROM {{ ref('relation__nsh_prd_to_grp_id') }} AS rel
   INNER JOIN (
-    SELECT
+    SELECT DISTINCT ON (group_id)
         group_id
       , group_name1
       , group_name2
     FROM {{ source('ss_hcenter', 'category_group') }}
-    QUALIFY ROW_NUMBER() OVER (PARTITION BY group_id) = 1
+    ORDER BY group_id
   ) AS grp
     ON rel.group_id = grp.group_id
-),
+),{#
 
 -- Step 4: merge product option and group relation
 
-naver_option AS (
-  SELECT
+#} naver_option AS (
+  SELECT DISTINCT ON (opt.product_id, opt.option_id)
       opt.product_id
     , opt.option_id
     -- Mall attributes
     , opt.mall_seq
-    , IF(mall.mall_url LIKE 'https://brand%', '브랜드스토어', '스마트스토어') AS mall_type
+    , (CASE
+        WHEN mall.mall_url LIKE 'https://brand%' THEN '브랜드스토어'
+        ELSE '스마트스토어'
+      END) AS mall_type
     , mall.mall_group
     , mall.mall_name
     , mall.mall_url
@@ -122,7 +127,7 @@ naver_option AS (
     -- Product attributes
     , opt.product_name
     , opt.option_name
-    , mall.mall_url || '/products/' || CAST(opt.product_id AS STRING) AS product_url
+    , mall.mall_url || '/products/' || opt.product_id::text AS product_url
     , opt.sales_price
     , opt.first_payment_date
     , opt.last_payment_date
@@ -140,10 +145,7 @@ naver_option AS (
     ON opt.category_id = cat.category_id
   LEFT JOIN nsh_prd_to_grp_id AS rel
     ON opt.product_id = rel.product_id
-  QUALIFY ROW_NUMBER() OVER (
-    PARTITION BY opt.product_id, opt.option_id
-    ORDER BY opt.last_payment_date DESC NULLS LAST
-  ) = 1
-)
+  ORDER BY opt.product_id, opt.option_id, opt.last_payment_date DESC NULLS LAST
+){#
 
-SELECT * FROM naver_option
+#} SELECT * FROM naver_option

@@ -83,6 +83,20 @@ models:
   - name: "relation__smt_prd_to_ranged_sbn_ids"
     description: "스마트스토어 상품코드와 사방넷 품번코드 매핑을 리뉴얼 상품 규칙에 따라 시작/종료 기간 단위로 구분한 공통 매핑 모델"
 
+  # intermediate > benchmark > naver_shp
+
+  - name: "naver_shp__category_master"
+    description: "네이버 카테고리 목록에 단계별 전체 카테고리 필드를 추가한 마스터 모델"
+
+  - name: "naver_shp__option_master"
+    description: "네이버 판매처별 상품과 옵션 정보를 결합하고 카테고리 그룹을 연결한 마스터 모델 (테이블 함수)"
+
+  - name: "naver_shp__stock_sales"
+    description: "네이버 판매처별 상품 재고 데이터를 연속된 날짜별로 비교하여 판매량을 계산하고 당일 가격과 곱해 매출을 산출하는 일별 파티션 모델"
+
+  - name: "relation__nsh_prd_to_grp_id"
+    description: "네이버 판매처별 상품코드와 카테고리 그룹을 4단계로 매칭한 모델"
+
   # intermediate > delivery
 
   - name: "cj__invoice"
@@ -147,6 +161,9 @@ models:
 
   # marts > ads
 
+  - name: "analytics__adreport_daily"
+    description: "플랫폼별 광고 보고서를 동일한 수준으로 맞춰서 병합한 테이블 함수"
+
   - name: "coupang_ads__report_daily"
     description: "일별로 요약된 쿠팡 PA/NCA 광고 보고서와 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
 
@@ -158,6 +175,11 @@ models:
 
   - name: "searchad__report_daily"
     description: "일별로 요약된 검색광고/GFA 보고서 및 계약 내역과 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
+
+  # marts > benchmark
+
+  - name: "naver_shp__sales_daily"
+    description: "재고수량 기반의 네이버 판매처별 매출 데이터와 (구)경쟁사 매출 데이터를 합치고 옵션 마스터 테이블을 결합한 테이블 함수"
 
   # marts > product
 
