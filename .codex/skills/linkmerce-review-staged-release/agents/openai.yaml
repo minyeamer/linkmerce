@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Review Staged Release"
+  short_description: "Review staged changes and draft release commits"
+  default_prompt: "Use $linkmerce-review-staged-release to inspect staged LinkMerce changes, run scoped checks, verify versions, and draft a repository-style commit message."

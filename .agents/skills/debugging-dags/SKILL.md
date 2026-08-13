@@ -1,11 +1,11 @@
 ---
 name: debugging-dags
-description: Comprehensive DAG failure diagnosis and root cause analysis. Use for complex debugging requests requiring deep investigation like "diagnose and fix the pipeline", "full root cause analysis", "why is this failing and how to prevent it". For simple debugging ("why did dag fail", "show logs"), the airflow entrypoint skill handles it directly. This skill provides structured investigation and prevention recommendations.
+description: Comprehensive Dag failure diagnosis and root cause analysis. Use for complex debugging requests requiring deep investigation like "diagnose and fix the pipeline", "full root cause analysis", "why is this failing and how to prevent it". For simple debugging ("why did dag fail", "show logs"), the airflow entrypoint skill handles it directly. This skill provides structured investigation and prevention recommendations.
 ---
 
-# DAG Diagnosis
+# Dag Diagnosis
 
-You are a data engineer debugging a failed Airflow DAG. Follow this systematic approach to identify the root cause and provide actionable remediation.
+You are a data engineer debugging a failed Airflow Dag. Follow this systematic approach to identify the root cause and provide actionable remediation.
 
 ## Running the CLI
 
@@ -15,15 +15,15 @@ These commands assume `af` is on PATH. Run via `astro otto` to get it automatica
 
 ## Step 1: Identify the Failure
 
-If a specific DAG was mentioned:
+If a specific Dag was mentioned:
 - Run `af runs diagnose <dag_id> <dag_run_id>` (if run_id is provided)
 - If no run_id specified, run `af dags stats` to find recent failures
 
-If no DAG was specified:
-- Run `af health` to find recent failures across all DAGs
+If no Dag was specified:
+- Run `af health` to find recent failures across all Dags
 - Check for import errors with `af dags errors`
-- Show DAGs with recent failures
-- Ask which DAG to investigate further
+- Show Dags with recent failures
+- Ask which Dag to investigate further
 
 ## Step 2: Get the Error Details
 
@@ -54,12 +54,12 @@ Use `af runs get <dag_id> <dag_run_id>` to compare the failed run against recent
 If you're running on Astro, these additional tools can help with diagnosis:
 
 - **Deployment activity log**: Check the Astro UI for recent deploys — a failed deploy or recent code change is often the cause of sudden failures
-- **Astro alerts**: Configure alerts in the Astro UI for proactive failure monitoring (DAG failure, task duration, SLA miss)
-- **Observability**: Use the Astro [observability dashboard](https://www.astronomer.io/docs/astro/airflow-alerts) to track DAG health trends and spot recurring issues
+- **Astro alerts**: Configure alerts in the Astro UI for proactive failure monitoring (Dag failure, task duration, SLA miss)
+- **Observability**: Use the Astro [observability dashboard](https://www.astronomer.io/docs/astro/airflow-alerts) to track Dag health trends and spot recurring issues
 
 ### On OSS Airflow
 
-- **Airflow UI**: Use the DAGs page, Graph view, and task logs to inspect recent runs and failures
+- **Airflow UI**: Use the Dags page, Graph view, and task logs to inspect recent runs and failures
 
 ## Step 4: Provide Actionable Output
 
@@ -88,6 +88,6 @@ How to prevent this from happening again:
 
 ### Quick Commands
 Provide ready-to-use commands:
-- To clear and rerun the entire DAG run: `af runs clear <dag_id> <run_id>`
+- To clear and rerun the entire Dag run: `af runs clear <dag_id> <run_id>`
 - To clear and rerun specific failed tasks: `af tasks clear <dag_id> <run_id> <task_ids> -D`
 - To delete a stuck or unwanted run: `af runs delete <dag_id> <run_id>`

@@ -1,11 +1,11 @@
 ---
 name: dag-factory
-description: Author Apache Airflow DAGs declaratively with dag-factory YAML configs. Use when creating dag-factory templates, composing DAGs from YAML for dag-factory, configuring defaults/dynamic tasks/datasets/callbacks for dag-factory, or validating dag-factory configurations.
+description: Author Apache Airflow Dags declaratively with dag-factory YAML configs. Use when creating dag-factory templates, composing Dags from YAML for dag-factory, configuring defaults/dynamic tasks/datasets/callbacks for dag-factory, or validating dag-factory configurations.
 ---
 
-# DAG Factory
+# Dag Factory
 
-You are helping a user build Apache Airflow DAGs declaratively with **dag-factory**, a library that turns YAML configuration files into Airflow DAGs. Execute steps in order and prefer the simplest configuration that meets the user's needs.
+You are helping a user build Apache Airflow Dags declaratively with **dag-factory**, a library that turns YAML configuration files into Airflow Dags. Execute steps in order and prefer the simplest configuration that meets the user's needs.
 
 > **Package**: `dag-factory` on PyPI
 > **Repo**: https://github.com/astronomer/dag-factory
@@ -19,7 +19,7 @@ Confirm with the user:
 1. **Airflow version** ≥2.4
 2. **Python version** ≥3.10
 3. **dag-factory version**: this skill targets **v1.0+**. If the project is on <1.0, follow [reference/migration.md](reference/migration.md) to upgrade before continuing.
-4. **Use case**: dag-factory is for declarative, low-code DAG authoring. If the user needs reusable, validated Pythonic templates with Pydantic, suggest **blueprint** instead. If they need full Python flexibility, suggest the **authoring-dags** skill.
+4. **Use case**: dag-factory is for declarative, low-code Dag authoring. If the user needs reusable, validated Pythonic templates with Pydantic, suggest **blueprint** instead. If they need full Python flexibility, suggest the **authoring-dags** skill.
 
 ---
 
@@ -27,9 +27,9 @@ Confirm with the user:
 
 | User Request | Action |
 |--------------|--------|
-| "Create a YAML DAG" / "Convert this Python DAG to YAML" | Go to **Defining a DAG in YAML** |
+| "Create a YAML Dag" / "Convert this Python Dag to YAML" | Go to **Defining a Dag in YAML** |
 | "Set up dag-factory in my project" | Go to **Project Setup** |
-| "Share defaults across DAGs" / "Set start_date once" | Go to **Defaults** |
+| "Share defaults across Dags" / "Set start_date once" | Go to **Defaults** |
 | "Use a custom operator" / "Use KPO / Slack / Snowflake" | Go to **Custom & Provider Operators** |
 | "Dynamic / mapped tasks" / "expand / partial" | Go to **Dynamic Task Mapping** |
 | "Schedule on dataset" / "Outlets and inlets" | Go to **Datasets** |
@@ -56,7 +56,7 @@ dag-factory **does not** install Airflow providers automatically. Install any pr
 
 ### 2. Create the Loader
 
-Create `dags/load_dags.py` so Airflow's DAG processor will pick it up:
+Create `dags/load_dags.py` so Airflow's Dag processor will pick it up:
 
 ```python
 import os
@@ -76,7 +76,7 @@ load_yaml_dags(globals_dict=globals(), dags_folder=str(CONFIG_ROOT_DIR))
 # load_yaml_dags(globals_dict=globals(), config_dict={...})
 ```
 
-`globals_dict=globals()` is required so generated DAG objects are registered into the module namespace where Airflow can discover them.
+`globals_dict=globals()` is required so generated Dag objects are registered into the module namespace where Airflow can discover them.
 
 ### 3. Verify Installation
 
@@ -86,9 +86,9 @@ dagfactory --version
 
 ---
 
-## Defining a DAG in YAML
+## Defining a Dag in YAML
 
-Each top-level YAML key (other than `default`) defines a DAG. The key becomes the `dag_id`. **Use the list format for `tasks` and `task_groups`** — it is the recommended format since v1.0.0.
+Each top-level YAML key (other than `default`) defines a Dag. The key becomes the `dag_id`. **Use the list format for `tasks` and `task_groups`** — it is the recommended format since v1.0.0.
 
 ```yaml
 # dags/example_dag_factory.yml
@@ -125,17 +125,17 @@ basic_example_dag:
 
 | Field | Where | Purpose |
 |-------|-------|---------|
-| `default` | top-level | Shared DAG-level args applied to every DAG in this file |
-| `default_args` | DAG or `default` block | Standard Airflow `default_args` (owner, retries, start_date, ...) |
-| `schedule` | DAG | Cron expression, preset (`@daily`), Dataset list, or `__type__` timetable |
-| `catchup` / `description` / `tags` | DAG | Standard Airflow DAG kwargs |
-| `tasks` | DAG | List of task dicts; each requires `task_id` and `operator` |
+| `default` | top-level | Shared Dag-level args applied to every Dag in this file |
+| `default_args` | Dag or `default` block | Standard Airflow `default_args` (owner, retries, start_date, ...) |
+| `schedule` | Dag | Cron expression, preset (`@daily`), Dataset list, or `__type__` timetable |
+| `catchup` / `description` / `tags` | Dag | Standard Airflow Dag kwargs |
+| `tasks` | Dag | List of task dicts; each requires `task_id` and `operator` |
 | `operator` | task | **Full import path** to operator class (e.g. `airflow.operators.bash.BashOperator`) |
 | `dependencies` | task / task_group | List of upstream `task_id`s or `group_name`s |
-| `task_groups` | DAG | List of group dicts; each requires `group_name` |
+| `task_groups` | Dag | List of group dicts; each requires `group_name` |
 | `task_group_name` | task | Assigns a task to a task group |
 
-Tasks do **not** need to be ordered by dependency in the YAML — dag-factory resolves the DAG topology.
+Tasks do **not** need to be ordered by dependency in the YAML — dag-factory resolves the Dag topology.
 
 ### Dictionary Format (Legacy)
 
@@ -147,16 +147,16 @@ Pre-1.0 dictionary format (where `tasks` is a dict keyed by `task_id`) still wor
 
 There are four ways to set defaults, in **precedence order** (highest first):
 
-1. `default_args` / DAG-level keys inside an individual DAG
+1. `default_args` / Dag-level keys inside an individual Dag
 2. The top-level `default:` block in the same YAML file
 3. `defaults_config_dict=` argument to `load_yaml_dags`
-4. A `defaults.yml` (or `defaults.yaml`) file via `defaults_config_path=` (or auto-detected next to the DAG YAML)
+4. A `defaults.yml` (or `defaults.yaml`) file via `defaults_config_path=` (or auto-detected next to the Dag YAML)
 
 > Note: loader argument names and several other field names changed in v1.0.0. See [reference/migration.md](reference/migration.md) if you're working on an older project.
 
 ### `default` Block in the Same File
 
-Powerful for templating multiple DAGs from one file:
+Powerful for templating multiple Dags from one file:
 
 ```yaml
 default:
@@ -168,14 +168,14 @@ default:
   schedule: "@daily"
 
 dag_one:
-  description: "first DAG"
+  description: "first Dag"
   tasks:
     - task_id: t1
       operator: airflow.operators.bash.BashOperator
       bash_command: "echo one"
 
 dag_two:
-  description: "second DAG"
+  description: "second Dag"
   tasks:
     - task_id: t1
       operator: airflow.operators.bash.BashOperator
@@ -184,7 +184,7 @@ dag_two:
 
 ### `defaults.yml` File
 
-Place a `defaults.yml` next to the DAG YAML, or point `defaults_config_path` at a parent directory. dag-factory **merges** all `defaults.yml` files walking up the directory tree, with the file closest to the DAG YAML winning. DAG-level args (e.g. `schedule`, `catchup`) go at the root of `defaults.yml`; per-task defaults go under `default_args`.
+Place a `defaults.yml` next to the Dag YAML, or point `defaults_config_path` at a parent directory. dag-factory **merges** all `defaults.yml` files walking up the directory tree, with the file closest to the Dag YAML winning. Dag-level args (e.g. `schedule`, `catchup`) go at the root of `defaults.yml`; per-task defaults go under `default_args`.
 
 ```yaml
 # defaults.yml
@@ -330,7 +330,7 @@ schedule:
 
 ## Callbacks
 
-Three styles, all valid at the DAG, TaskGroup, or Task level (or under `default_args`):
+Three styles, all valid at the Dag, TaskGroup, or Task level (or under `default_args`):
 
 ### 1. String pointing to a callable
 
@@ -447,7 +447,7 @@ astro dev parse
 
 **Fix**: Install the provider (`pip install apache-airflow-providers-...`) and verify the path. For Airflow 3, run `dagfactory convert` to update legacy `airflow.operators.*` paths to `airflow.providers.standard.operators.*`.
 
-### YAML parses but the DAG doesn't appear in Airflow
+### YAML parses but the Dag doesn't appear in Airflow
 
 **Cause**: Loader file missing or `globals_dict=globals()` not passed.
 
@@ -467,9 +467,9 @@ astro dev parse
 
 ### Multiple `defaults.yml` not merging as expected
 
-**Cause**: `defaults_config_path` not pointing at a parent directory of the DAG YAML.
+**Cause**: `defaults_config_path` not pointing at a parent directory of the Dag YAML.
 
-**Fix**: Set `defaults_config_path` to the highest ancestor folder you want included; dag-factory walks the tree from DAG file → ancestor and merges in that order, with files closer to the DAG winning.
+**Fix**: Set `defaults_config_path` to the highest ancestor folder you want included; dag-factory walks the tree from Dag file → ancestor and merges in that order, with files closer to the Dag winning.
 
 ---
 
@@ -480,15 +480,15 @@ Before finishing, verify with the user:
 - [ ] `dagfactory lint dags/` passes
 - [ ] Loader file exists in `dags/` and calls `load_yaml_dags(globals_dict=globals(), ...)`
 - [ ] Required Airflow providers are in `requirements.txt`
-- [ ] DAG appears in Airflow UI without import errors
+- [ ] Dag appears in Airflow UI without import errors
 
 ---
 
 ## Related Skills
 
-- **authoring-dags** — Writing Airflow DAGs in pure Python with `af` CLI validation. Use when YAML can't express what you need.
-- **testing-dags**: For testing DAGs, debugging failures, and the test -> fix -> retest loop
-- **debugging-dags**: For troubleshooting failed DAGs
+- **authoring-dags** — Writing Airflow Dags in pure Python with `af` CLI validation. Use when YAML can't express what you need.
+- **testing-dags**: For testing Dags, debugging failures, and the test -> fix -> retest loop
+- **debugging-dags**: For troubleshooting failed Dags
 
 ## Reference
 

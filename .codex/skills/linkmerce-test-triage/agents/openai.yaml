@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Test Triage"
+  short_description: "Diagnose LinkMerce test failures safely"
+  default_prompt: "Use $linkmerce-test-triage to reproduce and diagnose this LinkMerce test failure, then make only the explicitly requested minimal fix."

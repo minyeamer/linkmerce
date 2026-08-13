@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Sync dbt Models"
+  short_description: "Audit or synchronize paired dbt models"
+  default_prompt: "Use $linkmerce-sync-dbt-models in audit-only mode to inspect paired dbt_bigquery and dbt_postgres models; implement changes only when I explicitly request them."

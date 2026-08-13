@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Add ETL"
+  short_description: "Enforce the complete LinkMerce ETL process for a new API"
+  default_prompt: "Use $linkmerce-add-etl to add a new API across LinkMerce ETL layers with repository-consistent style and validation."

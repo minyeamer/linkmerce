@@ -13,11 +13,13 @@ Use this skill when a task involves:
 
 ## Workflow
 
-1. Reproduce the failure or inspect the test target first.
-2. Read the smallest relevant implementation path and nearby tests.
-3. Identify whether the issue is in the test, the implementation, or the boundary between them.
-4. Make the smallest change that resolves the failure.
-5. Re-run or describe the validation step that best matches the change.
+1. Read `src/tests/pytest.ini`, the target test, shared fixtures, and the smallest relevant implementation path.
+2. Reproduce the failure with the narrowest marker, class, or test node.
+3. Identify whether the issue is in the test, implementation, fixture, credential boundary, or external service.
+4. Make the smallest change that resolves the failure when the user requested a fix; otherwise report the cause without editing.
+5. Re-run the narrow target before widening validation.
+
+Apply `../linkmerce-sync-test-fixtures/SKILL.md` when the task adds or synchronizes ETL test coverage, fixture keys, markers, result paths, or test README entries. Keep this SKILL focused on failure reproduction and diagnosis.
 
 ## Style Rules
 
@@ -25,6 +27,8 @@ Use this skill when a task involves:
 - Keep assertions focused on behavior, not incidental details.
 - Add a regression test when the bug is real and reproducible.
 - Preserve existing test naming and layout unless there is a clear reason to change it.
+- Treat missing credentials or unavailable external services as unexecuted validation, not a passing test.
+- Write test docstrings and README prose in Korean and exception or error messages in English.
 
 ## When Not to Use
 

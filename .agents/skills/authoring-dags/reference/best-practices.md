@@ -1,4 +1,4 @@
-# DAG Authoring Best Practices
+# Dag Authoring Best Practices
 
 ## Import Compatibility
 
@@ -40,7 +40,7 @@ The examples below use Airflow 2 imports for compatibility. On Airflow 3, these 
 
 ## Avoid Top-Level Code
 
-DAG files are parsed every ~30 seconds. Code outside tasks runs on every parse.
+Dag files are parsed every ~30 seconds. Code outside tasks runs on every parse.
 
 ```python
 # WRONG - Runs on every parse (every 30 seconds!)
@@ -265,7 +265,7 @@ AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_COMPRESSION=gzip
 from datetime import timedelta
 
 @dag(
-    max_active_runs=1,       # Concurrent DAG runs
+    max_active_runs=1,       # Concurrent Dag runs
     max_active_tasks=10,     # Concurrent tasks per run
     default_args={
         "retries": 3,
@@ -445,7 +445,7 @@ def process(**context):
 
 ## Assets (Airflow 3.x)
 
-Data-driven scheduling between DAGs:
+Data-driven scheduling between Dags:
 
 ```python
 from airflow.sdk import dag, task, Asset
@@ -463,4 +463,4 @@ def transform():
     def process(): ...
 ```
 
-**Outlets without inlets are valid.** A task can declare `outlets` even if no other DAG currently uses that asset as an inlet/schedule trigger. Outlet-only assets are encouraged for lineage tracking.
+**Outlets without inlets are valid.** A task can declare `outlets` even if no other Dag currently uses that asset as an inlet/schedule trigger. Outlet-only assets are encouraged for lineage tracking.

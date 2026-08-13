@@ -38,7 +38,7 @@ This reference covers detailed Cosmos configuration for **dbt Core** projects.
 | `seeds_relative_path` | The relative path to the dbt seeds directory within the project. Defaults to `seeds` | — |
 | `snapshots_relative_path` | The relative path to the dbt snapshots directory within the project. Defaults to `snapshots` | - |
 
-> **WARNING**: If using `dbt_vars` with Airflow templates like `ti`, `task_instance`, or `params` → use `operator_args["vars"]` instead. Those cannot be set via `ProjectConfig` because it is used during DAG parsing.
+> **WARNING**: If using `dbt_vars` with Airflow templates like `ti`, `task_instance`, or `params` → use `operator_args["vars"]` instead. Those cannot be set via `ProjectConfig` because it is used during Dag parsing.
 
 ```python
 from cosmos import ProjectConfig
@@ -400,8 +400,8 @@ Cosmos ≥1.10 (Airflow 3 Assets):
 postgres://0.0.0.0:5434/postgres/public/orders
 ```
 
-> **CRITICAL**: If you have downstream DAGs scheduled on Cosmos-generated datasets and are upgrading to Airflow 3, update the asset URIs to the new format.
+> **CRITICAL**: If you have downstream Dags scheduled on Cosmos-generated datasets and are upgrading to Airflow 3, update the asset URIs to the new format.
 
-### DAG Versioning
+### Dag Versioning
 
-DAG versioning in Airflow 3 does not yet track dbt project changes unless model names change. Improved support planned for Cosmos 1.11+.
+Dag versioning in Airflow 3 does not yet track dbt project changes unless model names change. Improved support planned for Cosmos 1.11+.

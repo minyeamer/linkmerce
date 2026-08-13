@@ -35,7 +35,7 @@ A single plugin class can register multiple component types at once.
 | Nav / page link | Embeds a URL as an iframe or links out | `external_views` |
 | React component | Custom React app embedded in Airflow UI | `react_apps` |
 | API middleware | Intercepts all Airflow API requests/responses | `fastapi_root_middlewares` |
-| Jinja macros | Reusable Python functions in DAG templates | `macros` |
+| Jinja macros | Reusable Python functions in Dag templates | `macros` |
 | Task instance button | Extra link button in task Detail view | `operator_extra_links` / `global_operator_extra_links` |
 | Custom timetable | Custom scheduling logic | `timetables` |
 | Event hooks | Listener callbacks for Airflow events | `listeners` |
@@ -344,14 +344,14 @@ def normalize_state(raw) -> str:
     return str(raw).lower()
 ```
 
-### DAG runs, task instances, and logs
+### Dag runs, task instances, and logs
 
-These are the most common calls beyond basic DAG CRUD. For anything not shown here, consult the [REST API reference](https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html) for available endpoints and the matching Python SDK class/method names.
+These are the most common calls beyond basic Dag CRUD. For anything not shown here, consult the [REST API reference](https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html) for available endpoints and the matching Python SDK class/method names.
 
 ```python
 from airflow_client.client.api import DagRunApi, TaskInstanceApi
 
-# Latest run for a DAG
+# Latest run for a Dag
 @app.get("/api/dags/{dag_id}/runs/latest")
 async def latest_run(dag_id: str):
     def _fetch():
@@ -416,7 +416,7 @@ Note that `requests.get()` is blocking — fetch in `asyncio.to_thread` so the e
 
 ### Macros
 
-Macros are loaded by the **scheduler** (and DAG processor), not the API server. Restart the scheduler after changes.
+Macros are loaded by the **scheduler** (and Dag processor), not the API server. Restart the scheduler after changes.
 
 ```python
 from airflow.plugins_manager import AirflowPlugin
@@ -539,7 +539,7 @@ astro dev restart              # required after any Python plugin change
 # Check logs by component (Astro CLI):
 astro dev logs --api-server    # FastAPI apps, external_views — plugin import errors show here
 astro dev logs --scheduler     # macros, timetables, listeners, operator links
-astro dev logs --dag-processor # DAG parsing errors
+astro dev logs --dag-processor # Dag parsing errors
 
 # Non-Astro:
 airflow plugins                # CLI — lists all loaded plugins

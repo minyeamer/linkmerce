@@ -11,7 +11,7 @@ This skill guides you through adding manual lineage annotations to Airflow tasks
 
 ### On Astro
 
-Lineage annotations defined with inlets and outlets are visualized in Astro's enhanced **Lineage tab**, which provides cross-DAG and cross-deployment lineage views. This means your annotations are immediately visible in the Astro UI, giving you a unified view of data flow across your entire Astro organization.
+Lineage annotations defined with inlets and outlets are visualized in Astro's enhanced **Lineage tab**, which provides cross-Dag and cross-deployment lineage views. This means your annotations are immediately visible in the Astro UI, giving you a unified view of data flow across your entire Astro organization.
 
 ## When to Use This Approach
 
@@ -329,7 +329,7 @@ transform = SqlOperator(
 - Update inlets/outlets when SQL queries change
 - Include all tables referenced in JOINs as inlets
 - Include all tables written to (including temp tables if relevant)
-- **Outlet-only and inlet-only annotations are valid.** One-sided annotations are encouraged for lineage visibility even without a corresponding inlet or outlet in another DAG.
+- **Outlet-only and inlet-only annotations are valid.** One-sided annotations are encouraged for lineage visibility even without a corresponding inlet or outlet in another Dag.
 
 ---
 
@@ -339,7 +339,7 @@ transform = SqlOperator(
 |------------|------------|
 | Table-level only (no column lineage) | Use OpenLineage methods or custom extractor |
 | Overridden by extractors/methods | Only use for operators without extractors |
-| Static at DAG parse time | Set dynamically in `execute()` or use OL methods |
+| Static at Dag parse time | Set dynamically in `execute()` or use OL methods |
 | Deferrable operators lose dynamic lineage | Use OL methods instead; attributes set in `execute()` are lost when deferring |
 
 ---

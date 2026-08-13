@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Audit API Contracts"
+  short_description: "Audit Extractor Transformer and API type contracts"
+  default_prompt: "Use $linkmerce-audit-api-contracts to audit LinkMerce Extractor returns, docstrings, Transformer parser inputs, API raw returns, and table mappings."

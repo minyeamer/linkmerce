@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Docstring and Dag Style"
+  short_description: "Preserve LinkMerce documentation style"
+  default_prompt: "Use $linkmerce-docstring-dag-style to update these docstrings or Dag documents with the repository's exact wording and structure."

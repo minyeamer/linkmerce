@@ -137,7 +137,7 @@ _project_config = ProjectConfig(
 
 ---
 
-## 7. Assemble DAG / TaskGroup
+## 7. Assemble Dag / TaskGroup
 
 ### Option A: DbtDag (Standalone)
 
@@ -175,7 +175,7 @@ my_fusion_dag = DbtDag(
 )
 ```
 
-### Option B: DbtTaskGroup (Inside Existing DAG)
+### Option B: DbtTaskGroup (Inside Existing Dag)
 
 ```python
 from airflow.sdk import dag, task  # Airflow 3.x
@@ -231,7 +231,7 @@ AIRFLOW__COSMOS__PRE_DBT_FUSION=1
 
 ### User Must Test
 
-- [ ] The DAG parses in the Airflow UI (no import/parse-time errors)
+- [ ] The Dag parses in the Airflow UI (no import/parse-time errors)
 - [ ] A manual run succeeds against the target warehouse (at least one model)
 
 ---
@@ -246,5 +246,5 @@ AIRFLOW__COSMOS__PRE_DBT_FUSION=1
 ## Related Skills
 
 - **cosmos-dbt-core**: For dbt Core projects (not Fusion)
-- **authoring-dags**: General DAG authoring patterns
-- **testing-dags**: Testing DAGs after creation
+- **authoring-dags**: General Dag authoring patterns
+- **testing-dags**: Testing Dags after creation

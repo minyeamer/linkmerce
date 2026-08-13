@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Sync Warehouse Schemas"
+  short_description: "Audit BigQuery and Postgres warehouse schema parity"
+  default_prompt: "Use $linkmerce-sync-warehouse-schemas to audit or synchronize Transformer outputs, Postgres DDL, BigQuery schemas, load config, and dbt sources."

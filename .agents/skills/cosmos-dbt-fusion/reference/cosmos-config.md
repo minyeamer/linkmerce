@@ -136,4 +136,4 @@ Cosmos ≥1.10 (Airflow 3 Assets):
 postgres://0.0.0.0:5434/postgres/public/orders
 ```
 
-> **CRITICAL**: If you have downstream DAGs scheduled on Cosmos-generated datasets and are upgrading to Airflow 3, update the asset URIs to the new format.
+> **CRITICAL**: If you have downstream Dags scheduled on Cosmos-generated datasets and are upgrading to Airflow 3, update the asset URIs to the new format.

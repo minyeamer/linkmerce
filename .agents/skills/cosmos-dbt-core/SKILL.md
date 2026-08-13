@@ -1,6 +1,6 @@
 ---
 name: cosmos-dbt-core
-description: Use when turning a dbt Core project into an Airflow DAG/TaskGroup using Astronomer Cosmos. Does not cover dbt Fusion. Before implementing, verify dbt engine, warehouse, Airflow version, execution environment, DAG vs TaskGroup, and manifest availability.
+description: Use when turning a dbt Core project into an Airflow Dag/TaskGroup using Astronomer Cosmos. Does not cover dbt Fusion. Before implementing, verify dbt engine, warehouse, Airflow version, execution environment, Dag vs TaskGroup, and manifest availability.
 ---
 
 # Cosmos + dbt Core: Implementation Checklist
@@ -161,7 +161,7 @@ _operator_args = {
 
 ---
 
-## 7. Assemble DAG / TaskGroup
+## 7. Assemble Dag / TaskGroup
 
 ### Option A: DbtDag (Standalone)
 
@@ -197,7 +197,7 @@ my_cosmos_dag = DbtDag(
 )
 ```
 
-### Option B: DbtTaskGroup (Inside Existing DAG)
+### Option B: DbtTaskGroup (Inside Existing Dag)
 
 ```python
 from airflow.sdk import dag, task  # Airflow 3.x
@@ -346,7 +346,7 @@ Before finalizing, verify:
 - [ ] Warehouse adapter installed for chosen execution mode
 - [ ] Secrets via Airflow connections or env vars, NOT plaintext
 - [ ] Load mode matches execution (complex selectors → dbt_ls)
-- [ ] Airflow 3 asset URIs if downstream DAGs scheduled on Cosmos assets (see Appendix A)
+- [ ] Airflow 3 asset URIs if downstream Dags scheduled on Cosmos assets (see Appendix A)
 
 ---
 
@@ -430,5 +430,5 @@ Reference: https://astronomer.github.io/astronomer-cosmos/configuration/hosting-
 ## Related Skills
 
 - **cosmos-dbt-fusion**: For dbt Fusion projects (not dbt Core)
-- **authoring-dags**: General DAG authoring patterns
-- **testing-dags**: Testing DAGs after creation
+- **authoring-dags**: General Dag authoring patterns
+- **testing-dags**: Testing Dags after creation

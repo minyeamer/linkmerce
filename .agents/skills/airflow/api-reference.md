@@ -108,7 +108,7 @@ af api health --raw
 
 | Task | Use |
 |------|-----|
-| List/get DAGs, runs, tasks | `af dags`, `af runs`, `af tasks` |
+| List/get Dags, runs, tasks | `af dags`, `af runs`, `af tasks` |
 | Trigger and monitor runs | `af runs trigger-wait` |
 | Delete or clear runs | `af runs delete`, `af runs clear` |
 | Diagnose failures | `af runs diagnose` |

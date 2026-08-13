@@ -1,11 +1,17 @@
 ---
 name: airflow
-description: Queries, manages, and troubleshoots Apache Airflow using the af CLI. Covers listing DAGs, triggering runs, reading task logs, diagnosing failures, debugging DAG import errors, checking connections, variables, pools, and monitoring health. Also routes to sub-skills for writing DAGs, debugging, deploying, and migrating Airflow 2 to 3. Use when user mentions "Airflow", "DAG", "DAG run", "task log", "import error", "parse error", "broken DAG", or asks to "trigger a pipeline", "debug import errors", "check Airflow health", "list connections", "retry a run", or any Airflow operation. Do NOT use for warehouse/SQL analytics on Airflow metadata tables — use analyzing-data instead.
+description: Queries, manages, and troubleshoots Apache Airflow using the af CLI. Covers listing Dags, triggering runs, reading task logs, diagnosing failures, debugging Dag import errors, checking connections, variables, pools, and monitoring health. Also routes to sub-skills for writing Dags, debugging, deploying, and migrating Airflow 2 to 3. Use when user mentions "Airflow", "Dag", "Dag run", "task log", "import error", "parse error", "broken Dag", or asks to "trigger a pipeline", "debug import errors", "check Airflow health", "list connections", "retry a run", or any Airflow operation. Do NOT use for warehouse/SQL analytics on Airflow metadata tables — use analyzing-data instead.
 ---
 
 # Airflow Operations
 
 Use `af` commands to query, manage, and troubleshoot Airflow workflows.
+
+## Terminology
+
+- Use `Dag` for an Airflow workflow in prose and `Dags` for the plural.
+- Use `DAG` only for the Python class itself, including its import and constructor usage.
+- Preserve code identifiers such as `dag`, `dag_id`, filenames, CLI arguments, and class names such as `DagBag`, `DagModel`, and `DagRunApi`.
 
 ## Astro CLI
 
@@ -18,15 +24,15 @@ astro dev init
 # Start local Airflow (webserver at http://localhost:8080)
 astro dev start
 
-# Parse DAGs to catch errors quickly (no need to start Airflow)
+# Parse Dags to catch errors quickly (no need to start Airflow)
 astro dev parse
 
-# Run pytest against your DAGs
+# Run pytest against your Dags
 astro dev pytest
 
 # Deploy to production
-astro deploy            # Full deploy (image + DAGs)
-astro deploy --dags     # DAG-only deploy (fast, no image build)
+astro deploy            # Full deploy (image + Dags)
+astro deploy --dags     # Dag-only deploy (fast, no image build)
 ```
 
 For more details:
@@ -115,23 +121,23 @@ Or CLI flags: `af --airflow-url http://localhost:8080 --token "$TOKEN" <command>
 | Command | Description |
 |---------|-------------|
 | `af health` | System health check |
-| `af dags list` | List all DAGs |
-| `af dags get <dag_id>` | Get DAG details |
-| `af dags explore <dag_id>` | Full DAG investigation |
-| `af dags source <dag_id>` | Get DAG source code |
-| `af dags pause <dag_id>` | Pause DAG scheduling |
-| `af dags unpause <dag_id>` | Resume DAG scheduling |
+| `af dags list` | List all Dags |
+| `af dags get <dag_id>` | Get Dag details |
+| `af dags explore <dag_id>` | Full Dag investigation |
+| `af dags source <dag_id>` | Get Dag source code |
+| `af dags pause <dag_id>` | Pause Dag scheduling |
+| `af dags unpause <dag_id>` | Resume Dag scheduling |
 | `af dags errors` | List import errors |
-| `af dags warnings` | List DAG warnings |
-| `af dags stats` | DAG run statistics |
-| `af runs list` | List DAG runs |
+| `af dags warnings` | List Dag warnings |
+| `af dags stats` | Dag run statistics |
+| `af runs list` | List Dag runs |
 | `af runs get <dag_id> <run_id>` | Get run details |
-| `af runs trigger <dag_id>` | Trigger a DAG run |
+| `af runs trigger <dag_id>` | Trigger a Dag run |
 | `af runs trigger-wait <dag_id>` | Trigger and wait for completion |
-| `af runs delete <dag_id> <run_id>` | Permanently delete a DAG run |
+| `af runs delete <dag_id> <run_id>` | Permanently delete a Dag run |
 | `af runs clear <dag_id> <run_id>` | Clear a run for re-execution |
 | `af runs diagnose <dag_id> <run_id>` | Diagnose failed run |
-| `af tasks list <dag_id>` | List tasks in DAG |
+| `af tasks list <dag_id>` | List tasks in Dag |
 | `af tasks get <dag_id> <task_id>` | Get task definition |
 | `af tasks instance <dag_id> <run_id> <task_id>` | Get task instance |
 | `af tasks logs <dag_id> <run_id> <task_id>` | Get task logs |
@@ -160,27 +166,27 @@ Or CLI flags: `af --airflow-url http://localhost:8080 --token "$TOKEN" <command>
 - "Create a new Airflow project" / "Initialize project" -> use the **setting-up-astro-project** skill (uses Astro CLI)
 - "How do I install Airflow?" / "Get started with Airflow" -> use the **setting-up-astro-project** skill
 
-### DAG Operations
-- "What DAGs exist?" / "List all DAGs" -> `af dags list`
-- "Tell me about DAG X" / "What is DAG Y?" -> `af dags explore <dag_id>`
-- "What's the schedule for DAG X?" -> `af dags get <dag_id>`
-- "Show me the code for DAG X" -> `af dags source <dag_id>`
-- "Stop DAG X" / "Pause this workflow" -> `af dags pause <dag_id>`
-- "Resume DAG X" -> `af dags unpause <dag_id>`
-- "Are there any DAG errors?" -> `af dags errors`
-- "Create a new DAG" / "Write a pipeline" -> use the **authoring-dags** skill
+### Dag Operations
+- "What Dags exist?" / "List all Dags" -> `af dags list`
+- "Tell me about Dag X" / "What is Dag Y?" -> `af dags explore <dag_id>`
+- "What's the schedule for Dag X?" -> `af dags get <dag_id>`
+- "Show me the code for Dag X" -> `af dags source <dag_id>`
+- "Stop Dag X" / "Pause this workflow" -> `af dags pause <dag_id>`
+- "Resume Dag X" -> `af dags unpause <dag_id>`
+- "Are there any Dag errors?" -> `af dags errors`
+- "Create a new Dag" / "Write a pipeline" -> use the **authoring-dags** skill
 
 ### Run Operations
 - "What runs have executed?" -> `af runs list`
-- "Run DAG X" / "Trigger the pipeline" -> `af runs trigger <dag_id>`
-- "Run DAG X and wait" -> `af runs trigger-wait <dag_id>`
+- "Run Dag X" / "Trigger the pipeline" -> `af runs trigger <dag_id>`
+- "Run Dag X and wait" -> `af runs trigger-wait <dag_id>`
 - "Why did this run fail?" -> `af runs diagnose <dag_id> <run_id>`
 - "Delete this run" / "Remove stuck run" -> `af runs delete <dag_id> <run_id>`
 - "Clear this run" / "Retry this run" / "Re-run this" -> `af runs clear <dag_id> <run_id>`
-- "Test this DAG and fix if it fails" -> use the **testing-dags** skill
+- "Test this Dag and fix if it fails" -> use the **testing-dags** skill
 
 ### Task Operations
-- "What tasks are in DAG X?" -> `af tasks list <dag_id>`
+- "What tasks are in Dag X?" -> `af tasks list <dag_id>`
 - "Get task logs" / "Why did task fail?" -> `af tasks logs <dag_id> <run_id> <task_id>`
 - "Full root cause analysis" / "Diagnose and fix" -> use the **debugging-dags** skill
 
@@ -190,10 +196,10 @@ Or CLI flags: `af --airflow-url http://localhost:8080 --token "$TOKEN" <command>
 - "What depends on this table?" / "What breaks if I change this?" -> use the **tracing-downstream-lineage** skill
 
 ### Deployment Operations
-- "Deploy my DAGs" / "Push to production" -> use the **deploying-airflow** skill
+- "Deploy my Dags" / "Push to production" -> use the **deploying-airflow** skill
 - "Set up CI/CD" / "Automate deploys" -> use the **deploying-airflow** skill
 - "Deploy to Kubernetes" / "Set up Helm" -> use the **deploying-airflow** skill
-- "astro deploy" / "DAG-only deploy" -> use the **deploying-airflow** skill
+- "astro deploy" / "Dag-only deploy" -> use the **deploying-airflow** skill
 
 ### System Operations
 - "What version of Airflow?" -> `af config version`
@@ -214,16 +220,16 @@ Or CLI flags: `af --airflow-url http://localhost:8080 --token "$TOKEN" <command>
 - "What are the constructor params for operator Y?" -> `af registry parameters <provider>`
 - "What providers exist?" / "Is there a provider for Z?" -> `af registry providers`
 - "What connection types does provider X expose?" -> `af registry connections <provider>`
-- "Writing a DAG with a specific operator" -> use registry to verify current signature before copying examples
+- "Writing a Dag with a specific operator" -> use registry to verify current signature before copying examples
 
 ## Common Workflows
 
-### Validate DAGs Before Deploying
+### Validate Dags Before Deploying
 
-If you're using the Astro CLI, you can validate DAGs without a running Airflow instance:
+If you're using the Astro CLI, you can validate Dags without a running Airflow instance:
 
 ```bash
-# Parse DAGs to catch import errors and syntax issues
+# Parse Dags to catch import errors and syntax issues
 astro dev parse
 
 # Run unit tests
@@ -239,7 +245,7 @@ af dags warnings   # Check for deprecation warnings
 
 ### Discover Operator Signatures Before Writing Code
 
-The Airflow Registry at `airflow.apache.org/registry` is the authoritative source for provider classes and their current constructor signatures. Prefer it over memory or stale documentation when authoring DAGs — the registry reflects the live provider release.
+The Airflow Registry at `airflow.apache.org/registry` is the authoritative source for provider classes and their current constructor signatures. Prefer it over memory or stale documentation when authoring Dags — the registry reflects the live provider release.
 
 ```bash
 # List all providers and pick the one you need
@@ -282,21 +288,21 @@ af runs clear my_dag manual__2024-01-15T10:00:00+00:00
 # 1. Overall system health
 af health
 
-# 2. Check for broken DAGs
+# 2. Check for broken Dags
 af dags errors
 
 # 3. Check pool utilization
 af config pools
 ```
 
-### Understand a DAG
+### Understand a Dag
 
 ```bash
 # Get comprehensive overview (metadata + tasks + source)
 af dags explore my_dag
 ```
 
-### Check Why DAG Isn't Running
+### Check Why Dag Isn't Running
 
 ```bash
 # Check if paused
@@ -339,10 +345,10 @@ Use `jq` for filtering:
 # Find failed runs
 af runs list | jq '.dag_runs[] | select(.state == "failed")'
 
-# Get DAG IDs only
+# Get Dag IDs only
 af dags list | jq '.dags[].dag_id'
 
-# Find paused DAGs
+# Find paused Dags
 af dags list | jq '[.dags[] | select(.is_paused == true)]'
 ```
 
@@ -380,13 +386,13 @@ af api variables/old_var -X DELETE
 
 | Skill | Use when... |
 |-------|-------------|
-| **authoring-dags** | Creating or editing DAG files with best practices |
+| **authoring-dags** | Creating or editing Dag files with best practices |
 | **testing-dags** | Iterative test -> debug -> fix -> retest cycles |
 | **debugging-dags** | Deep root cause analysis and failure diagnosis |
 | **checking-freshness** | Checking if data is up to date or stale |
 | **tracing-upstream-lineage** | Finding where data comes from |
 | **tracing-downstream-lineage** | Impact analysis -- what breaks if something changes |
-| **deploying-airflow** | Deploying DAGs to production (Astro, Docker Compose, Kubernetes) |
-| **migrating-airflow-2-to-3** | Upgrading DAGs from Airflow 2.x to 3.x |
+| **deploying-airflow** | Deploying Dags to production (Astro, Docker Compose, Kubernetes) |
+| **migrating-airflow-2-to-3** | Upgrading Dags from Airflow 2.x to 3.x |
 | **managing-astro-local-env** | Starting, stopping, or troubleshooting local Airflow |
 | **setting-up-astro-project** | Initializing a new Astro/Airflow project |

@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Sync Test Fixtures"
+  short_description: "Synchronize ETL tests fixtures markers and docs"
+  default_prompt: "Use $linkmerce-sync-test-fixtures to audit or synchronize LinkMerce Extractor and Transformer tests, fixtures, pytest markers, and test documentation."

@@ -1,22 +1,25 @@
 ---
 name: "LinkMerce Docstrings"
-description: "Use when writing or revising docstrings or DAG doc_md in src/linkmerce/core, src/linkmerce/api, or airflow/dags. Prefer the templates below and change only the code-specific parts."
+description: "Use when writing or revising docstrings or Dag doc_md in src/linkmerce/core, src/linkmerce/api, or airflow/dags. Prefer the templates below and change only the code-specific parts."
 applyTo: src/linkmerce/core/**/*.py, src/linkmerce/api/**/*.py, airflow/dags/**/*.py
 ---
 
-# LinkMerce Docstring and DAG Patterns
+# LinkMerce Docstring and Dag Patterns
 
 ## Source of truth
 
 Use this priority order.
 
-1. Current function or class signature
-2. Current adjacent implementation and runtime behavior
-3. Matching `core/.../extract.py` class docstring and `extract()` method docstring
-4. Matching `core/.../transform.py` class docstring
-5. Current approved wording already present in neighboring modules
+1. The user's latest explicit wording and punctuation
+2. Current function or class signature
+3. Complete current file contents, adjacent implementation, and runtime behavior
+4. Matching `core/.../extract.py` class docstring and `extract()` method docstring
+5. Matching `core/.../transform.py` class docstring
+6. Current approved wording already present in neighboring modules
 
 Do not preserve older AI-generated wording when it conflicts with the current code.
+
+For a new ETL introduction spanning core, tests, schemas, Airflow, or dbt, use `.codex/skills/linkmerce-add-etl/SKILL.md` and its required references before editing.
 
 ## Layer boundaries
 
@@ -24,7 +27,7 @@ Do not preserve older AI-generated wording when it conflicts with the current co
 - `Parser` / `ResponseTransformer`: parses one response into `list[dict]`-like rows
 - `DuckDBTransformer`: transforms parsed rows and loads DuckDB tables
 - `API`: calls Extractor plus Transformer and exposes one external function surface
-- `DAG`: calls API functions, controls schedule, credentials, and BigQuery load strategy
+- `Dag`: calls API functions, controls schedule, credentials, and BigQuery/Postgres load strategy
 
 Do not blur these layers.
 
@@ -32,9 +35,14 @@ Do not blur these layers.
 
 When updating an existing docstring or `doc_md`, keep the approved section order and sentence pattern below, then change only the placeholders required by the current code.
 
+- Write docstrings and README prose in Korean.
+- Write exception and error messages in English.
+- Write SKILL, reference, and instruction prose in English. Use Korean only inside inline examples, fenced templates, or exact repository-facing text that an agent must preserve or copy.
 - Do not rewrite the whole structure unless the current code uses a different approved pattern.
 - Prefer editing the summary, parser names, table names, parameter list, or load strategy over inventing a new format.
 - Reuse neighboring approved wording when the same layer and behavior match.
+- Treat punctuation as content. Do not append `.` to a noun phrase or label, and do not append `이다.` to an established fragment.
+- Read the complete current file before editing and preserve user-authored wording outside the requested behavior.
 
 ## Template: Extractor class docstring
 
@@ -57,7 +65,7 @@ Rules:
 - Keep product metadata blocks when relevant.
 - Use `Attributes` for configs, cookies, task options, and request timing options.
 - If the class implements a shared workflow, describe the workflow steps explicitly.
-- Do not describe DuckDB tables or BigQuery loading here.
+- Do not describe DuckDB tables or BigQuery/Postgres loading here.
 
 ## Template: Transformer class docstring
 
@@ -67,17 +75,17 @@ Use this as the default skeleton for `core/**/transform.py` classes.
 """<one-line summary>
 
 - **Extractor**
-  - `<ExtractorClass>: <input> -> <output>`
+    - `<ExtractorClass>`
 
 - **Parser** / **Parsers**
-  - `<ParserClass>: <input> -> <output>`
+    - `<ParserClass>: <input> -> <output>`
 
 - **Table** ( *table_key: table_name* ):
-  `table: physical_table`
+    `table: physical_table`
 
 - **Tables** ( *table_key: table_name (description)* ):
-  1. `first: first_table` (description)
-  2. `second: second_table` (description)
+    1. `first: first_table` (description)
+    2. `second: second_table` (description)
 
 Parameters
 ----------
@@ -88,10 +96,10 @@ Parameters
 Rules:
 
 - Section order: summary -> `Extractor` -> `Parser` / `Parsers` -> `Table` / `Tables` -> optional `Parameters`
+- Write only the Extractor class name in `Extractor`. Never add input or output types there.
 - Single parser values such as `json`, `html`, `excel` should be written as their actual class names
 - Table legend format must stay exactly in the current codebase style
-- If runtime params are needed, keep this sentence exactly:
-  - `**NOTE** DuckDB 쿼리 실행에 필요한 파라미터를 `transform` 메서드 호출 시 함께 전달해야 한다.`
+- Document runtime parameters when they are actually consumed, but do not insert a stock `NOTE` sentence unless the selected approved local pattern contains it.
 - If one response becomes multiple tables, describe the split explicitly rather than using vague normalization language
 
 ## Template: Parser class docstring
@@ -110,7 +118,7 @@ Parameters
 Rules:
 
 - Describe only response parsing behavior.
-- Do not claim DuckDB loading or BigQuery loading.
+- Do not claim DuckDB loading or BigQuery/Postgres loading.
 - Input and output wording should match the real parser contract.
 
 ## Template: API function docstring
@@ -152,6 +160,7 @@ Required rules:
   - `사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.`
 - Document `return_type`, `extract_options`, `transform_options` when present.
 - `request_delay` and `progress` wording should follow matching core wording.
+- Preserve established fragments such as `기본값은 `True`` exactly; do not append `이다.`.
 
 ## Template: API Returns block
 
@@ -178,13 +187,13 @@ Then use the matching pattern.
 - File download API: `{파일명: 엑셀 바이너리}` if the extractor really returns that shape
 - Text download API: `TSV 텍스트` or `{보고서 유형: TSV 텍스트}` if that is the real output
 
-## Template: DAG `doc_md`
+## Template: Dag `doc_md`
 
 Use this as the default skeleton for `airflow/dags/**/*.py`.
 
 ```python
 doc_md = """
-# <DAG title>
+# <Dag title>
 
 > <optional notice for trigger relationships or operational cautions>
 
@@ -192,28 +201,32 @@ doc_md = """
 <what config or credentials are read>
 
 ## 추출(Extract)
-<what business data the DAG fetches>
+<what business data the Dag fetches>
 
 ## 변환(Transform)
 <how responses are split or merged into DuckDB tables>
 
 ## 적재(Load)
-<actual BigQuery load strategy>
+<actual BigQuery/Postgres load strategy>
 """
 ```
 
 Rules:
 
-- Credentials must match exactly what the DAG reads from config.
+- Credentials must match exactly what the Dag reads from config.
 - Extract should describe business data, usually from the invoked API.
 - Transform should describe real DuckDB table splitting or merging.
-- Load should describe actual BigQuery method: append, merge, overwrite, or mixed.
-- If the DAG triggers another DAG, say so in a short notice blockquote.
-- If the DAG is trigger-only or manual, say so explicitly.
+- Load should describe actual BigQuery/Postgres method: append, merge, overwrite, or mixed.
+- If the Dag triggers another Dag, say so in a short notice blockquote.
+- If the Dag is trigger-only or manual, say so explicitly.
 - If one response becomes multiple tables, use specific split wording such as `A로부터 B와 C를 각각의 테이블로 분리해 적재한다.`
 
 ## Terminology rules
 
+- In prose, headings, comments, labels, and user-facing text, write `Dag` for an Airflow workflow and `Dags` for the plural.
+- Use `DAG` only for the Python class itself, including `from airflow ... import DAG`, `DAG(...)`, and an explicit reference to the `DAG` class.
+- Preserve lowercase code identifiers such as `dag`, `dag_id`, filenames, CLI arguments, and module paths.
+- Do not normalize `Dag` to `DAG` merely because it originated as an acronym.
 - Keep service-specific nouns exactly as the code and product UI use them.
 - Preserve the distinction between collection and download.
   - Query/list endpoints: `조회`, `수집`
@@ -229,8 +242,8 @@ Rules:
 - Documenting parameters that are not in the current signature
 - Moving `Table` / `Tables` below `Returns`
 - Using generic `raw` descriptions that do not match the real return shape
-- Claiming that DAGs directly implement low-level extractor behavior when they actually orchestrate API calls
-- Mixing Extractor, Transformer, API, and DAG responsibilities into one summary sentence
+- Claiming that Dags directly implement low-level extractor behavior when they actually orchestrate API calls
+- Mixing Extractor, Transformer, API, and Dag responsibilities into one summary sentence
 
 ## Final checklist
 
@@ -238,4 +251,4 @@ Rules:
 - Does each layer describe its own responsibility only?
 - Are table names, parser names, and parameter names copied from real code?
 - Does `raw` describe the true raw output shape?
-- Does DAG `doc_md` state the real load strategy and trigger relationship?
+- Does Dag `doc_md` state the real load strategy and trigger relationship?

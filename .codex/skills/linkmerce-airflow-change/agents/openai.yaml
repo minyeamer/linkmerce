@@ -1,0 +1,4 @@
+interface:
+  display_name: "LinkMerce Airflow Change"
+  short_description: "Keep LinkMerce Dag changes consistent"
+  default_prompt: "Use $linkmerce-airflow-change to update this LinkMerce Dag while preserving its orchestration and load contracts."

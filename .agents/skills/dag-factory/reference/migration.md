@@ -24,7 +24,7 @@ When working with an existing project on dag-factory <1.0, watch for these break
 1. **Update imports** — replace `DagFactory` usages with `load_yaml_dags(globals_dict=globals(), ...)`.
 2. **Rename loader kwargs** — `default_args_config_dict` → `defaults_config_dict`; `default_args_config_path` → `defaults_config_path`.
 3. **Install providers explicitly** — add `apache-airflow-providers-*` packages your YAML references to `requirements.txt`.
-4. **Rename `schedule_interval` → `schedule`** across all DAGs.
+4. **Rename `schedule_interval` → `schedule`** across all Dags.
 5. **Replace timeout shortcuts** — every `*_sec` / `*_secs` field becomes a `__type__: datetime.timedelta` block with the real Airflow name (`dagrun_timeout`, `retry_delay`, `execution_timeout`, ...).
 6. **Update logical dataset keys** — rewrite `!and`/`!or`/`and`/`or`/`!join` to `__and__`/`__or__`/`__join__`. Wrap them under `schedule.datasets` (see SKILL.md for the schedule shape).
 7. **Update timetable definitions** — switch from `{callable: ..., params: ...}` to `{__type__: ..., __args__: [...]}`.
@@ -41,7 +41,7 @@ dagfactory lint dags/
 # 2. Airflow 2 → 3 import paths (if also upgrading Airflow)
 dagfactory convert dags/ --override
 
-# 3. Have Airflow parse the DAGs
+# 3. Have Airflow parse the Dags
 astro dev parse  # or `airflow dags list-import-errors`
 ```
 

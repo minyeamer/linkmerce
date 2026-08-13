@@ -1,11 +1,11 @@
 ---
 name: testing-dags
-description: Complex DAG testing workflows with debugging and fixing cycles. Use for multi-step testing requests like "test this dag and fix it if it fails", "test and debug", "run the pipeline and troubleshoot issues". For simple test requests ("test dag", "run dag"), the airflow entrypoint skill handles it directly. This skill is for iterative test-debug-fix cycles.
+description: Complex Dag testing workflows with debugging and fixing cycles. Use for multi-step testing requests like "test this dag and fix it if it fails", "test and debug", "run the pipeline and troubleshoot issues". For simple test requests ("test dag", "run dag"), the airflow entrypoint skill handles it directly. This skill is for iterative test-debug-fix cycles.
 ---
 
-# DAG Testing Skill
+# Dag Testing Skill
 
-Use `af` commands to test, debug, and fix DAGs in iterative cycles.
+Use `af` commands to test, debug, and fix Dags in iterative cycles.
 
 ## Running the CLI
 
@@ -18,10 +18,10 @@ These commands assume `af` is on PATH. Run via `astro otto` to get it automatica
 If the user has the Astro CLI available, these commands provide fast feedback without needing a running Airflow instance:
 
 ```bash
-# Parse DAGs to catch import errors, syntax issues, and DAG-level problems
+# Parse Dags to catch import errors, syntax issues, and Dag-level problems
 astro dev parse
 
-# Run pytest against DAGs (runs tests in tests/ directory)
+# Run pytest against Dags (runs tests in tests/ directory)
 astro dev pytest
 ```
 
@@ -29,9 +29,9 @@ Use these for quick validation during development. For full end-to-end testing a
 
 ---
 
-## FIRST ACTION: Just Trigger the DAG
+## FIRST ACTION: Just Trigger the Dag
 
-When the user asks to test a DAG, your **FIRST AND ONLY action** should be:
+When the user asks to test a Dag, your **FIRST AND ONLY action** should be:
 
 ```bash
 af runs trigger-wait <dag_id>
@@ -44,7 +44,7 @@ af runs trigger-wait <dag_id>
 - Use `grep` or `ls` or any other bash command
 - Do any "pre-flight checks"
 
-**Just trigger the DAG.** If it fails, THEN debug.
+**Just trigger the Dag.** If it fails, THEN debug.
 
 ---
 
@@ -53,7 +53,7 @@ af runs trigger-wait <dag_id>
 ```
 ┌─────────────────────────────────────┐
 │ 1. TRIGGER AND WAIT                 │
-│    Run DAG, wait for completion     │
+│    Run Dag, wait for completion     │
 └─────────────────────────────────────┘
                  ↓
         ┌───────┴───────┐
@@ -74,13 +74,13 @@ af runs trigger-wait <dag_id>
         └─────────────────────────────────────┘
 ```
 
-**Philosophy: Try first, debug on failure.** Don't waste time on pre-flight checks — just run the DAG and diagnose if something goes wrong.
+**Philosophy: Try first, debug on failure.** Don't waste time on pre-flight checks — just run the Dag and diagnose if something goes wrong.
 
 ---
 
 ## Phase 1: Trigger and Wait
 
-Use `af runs trigger-wait` to test the DAG:
+Use `af runs trigger-wait` to test the Dag:
 
 ### Primary Method: Trigger and Wait
 
@@ -96,7 +96,7 @@ af runs trigger-wait my_dag --timeout 300
 
 **Why this is the preferred method:**
 - Single command handles trigger + monitoring
-- Returns immediately when DAG completes (success or failure)
+- Returns immediately when Dag completes (success or failure)
 - Includes failed task details if run fails
 - No manual polling required
 
@@ -143,7 +143,7 @@ af runs trigger-wait my_dag --timeout 300
   "state": "running",
   "timed_out": true,
   "elapsed_seconds": 300.0,
-  "message": "Timed out after 300 seconds. DAG run is still running."
+  "message": "Timed out after 300 seconds. Dag run is still running."
 }
 ```
 
@@ -167,7 +167,7 @@ af runs get my_dag manual__2025-01-14T...
 
 ### If Success
 
-The DAG ran successfully. Summarize for the user:
+The Dag ran successfully. Summarize for the user:
 - Total elapsed time
 - Number of tasks completed
 - Any notable outputs (if visible in logs)
@@ -176,7 +176,7 @@ The DAG ran successfully. Summarize for the user:
 
 ### If Timed Out
 
-The DAG is still running. Options:
+The Dag is still running. Options:
 1. Check current status: `af runs get <dag_id> <dag_run_id>`
 2. Ask user if they want to continue waiting
 3. Increase timeout and try again
@@ -189,7 +189,7 @@ Move to Phase 2 (Debug) to identify the root cause.
 
 ## Phase 2: Debug Failures (Only If Needed)
 
-When a DAG run fails, use these commands to diagnose:
+When a Dag run fails, use these commands to diagnose:
 
 ### Get Comprehensive Diagnosis
 
@@ -232,15 +232,15 @@ af tasks logs my_dag manual__2025-01-14T... extract_data --try 2
 
 If a task shows `upstream_failed`, the root cause is in an upstream task. Use `af runs diagnose` to find which task actually failed.
 
-### Check Import Errors (If DAG Didn't Run)
+### Check Import Errors (If Dag Didn't Run)
 
-If the trigger failed because the DAG doesn't exist:
+If the trigger failed because the Dag doesn't exist:
 
 ```bash
 af dags errors
 ```
 
-This reveals syntax errors or missing dependencies that prevented the DAG from loading.
+This reveals syntax errors or missing dependencies that prevented the Dag from loading.
 
 ---
 
@@ -252,7 +252,7 @@ Once you identify the issue:
 
 | Issue | Fix |
 |-------|-----|
-| Missing import | Add to DAG file |
+| Missing import | Add to Dag file |
 | Missing package | Add to `requirements.txt` |
 | Connection error | Check `af config connections`, verify credentials |
 | Variable missing | Check `af config variables`, create if needed |
@@ -264,7 +264,7 @@ Once you identify the issue:
 1. Save the file
 2. **Retest:** `af runs trigger-wait <dag_id>`
 
-**Repeat the test → debug → fix loop until the DAG succeeds.**
+**Repeat the test → debug → fix loop until the Dag succeeds.**
 
 ---
 
@@ -277,9 +277,9 @@ Once you identify the issue:
 | Test | `af runs get <dag_id> <run_id>` | Check run status |
 | Debug | `af runs diagnose <dag_id> <run_id>` | Comprehensive failure diagnosis |
 | Debug | `af tasks logs <dag_id> <run_id> <task_id>` | Get task output/errors |
-| Debug | `af dags errors` | Check for parse errors (if DAG won't load) |
-| Debug | `af dags get <dag_id>` | Verify DAG config |
-| Debug | `af dags explore <dag_id>` | Full DAG inspection |
+| Debug | `af dags errors` | Check for parse errors (if Dag won't load) |
+| Debug | `af dags get <dag_id>` | Verify Dag config |
+| Debug | `af dags explore <dag_id>` | Full Dag inspection |
 | Config | `af config connections` | List connections |
 | Config | `af config variables` | List variables |
 
@@ -287,14 +287,14 @@ Once you identify the issue:
 
 ## Testing Scenarios
 
-### Scenario 1: Test a DAG (Happy Path)
+### Scenario 1: Test a Dag (Happy Path)
 
 ```bash
 af runs trigger-wait my_dag
 # Success! Done.
 ```
 
-### Scenario 2: Test a DAG (With Failure)
+### Scenario 2: Test a Dag (With Failure)
 
 ```bash
 # 1. Run and wait
@@ -307,23 +307,23 @@ af runs diagnose my_dag manual__2025-01-14T...
 # 3. Get error details
 af tasks logs my_dag manual__2025-01-14T... extract_data
 
-# 4. [Fix the issue in DAG code]
+# 4. [Fix the issue in Dag code]
 
 # 5. Retest
 af runs trigger-wait my_dag
 ```
 
-### Scenario 3: DAG Doesn't Exist / Won't Load
+### Scenario 3: Dag Doesn't Exist / Won't Load
 
 ```bash
-# 1. Trigger fails - DAG not found
+# 1. Trigger fails - Dag not found
 af runs trigger-wait my_dag
-# Error: DAG not found
+# Error: Dag not found
 
 # 2. Find parse error
 af dags errors
 
-# 3. [Fix the issue in DAG code]
+# 3. [Fix the issue in Dag code]
 
 # 4. Retest
 af runs trigger-wait my_dag
@@ -350,7 +350,7 @@ af runs trigger-wait my_dag
 af runs trigger-wait my_dag --conf '{"env": "staging", "batch_size": 100}' --timeout 600
 ```
 
-### Scenario 6: Long-Running DAG
+### Scenario 6: Long-Running Dag
 
 ```bash
 # Wait up to 1 hour
@@ -399,7 +399,7 @@ Task logs typically show:
 
 Astro deployments support environment promotion, which helps structure your testing workflow:
 
-- **Dev deployment**: Test DAGs freely with `astro deploy --dags` for fast iteration
+- **Dev deployment**: Test Dags freely with `astro deploy --dags` for fast iteration
 - **Staging deployment**: Run integration tests against production-like data
 - **Production deployment**: Deploy only after validation in lower environments
 - Use separate Astro deployments for each environment and promote code through them
@@ -408,6 +408,6 @@ Astro deployments support environment promotion, which helps structure your test
 
 ## Related Skills
 
-- **authoring-dags**: For creating new DAGs (includes validation before testing)
+- **authoring-dags**: For creating new Dags (includes validation before testing)
 - **debugging-dags**: For general Airflow troubleshooting
-- **deploying-airflow**: For deploying DAGs to production after testing
+- **deploying-airflow**: For deploying Dags to production after testing
