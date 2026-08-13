@@ -2,7 +2,7 @@ selectors:
 
   # Airflow Dags - cj_eflexs
   - name: cj_eflexs_stock
-    description: "'cj_eflexs_stock' DAG 실행 후 CJ 풀필먼트 재고수량 변동을 업데이트"
+    description: "'cj_eflexs_stock' Dag 실행 후 CJ 풀필먼트 재고수량 변동을 업데이트"
     definition:
       union:
         - method: fqn
@@ -16,7 +16,7 @@ selectors:
 
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
-    description: "'cj_loisparcel_invoice' DAG 실행 후 CJ 송장번호 변동을 매출에 반영"
+    description: "'cj_loisparcel_invoice' Dag 실행 후 CJ 송장번호 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -28,7 +28,7 @@ selectors:
 
   # Airflow Dags - coupang
   - name: coupang_adreport
-    description: "'coupang' >> 'coupang_adreport' DAG 실행 후 쿠팡 광고 실적 변동을 매출에 반영"
+    description: "'coupang' >> 'coupang_adreport' Dag 실행 후 쿠팡 광고 실적 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -36,7 +36,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: coupang_campaign
-    description: "'coupang' >> 'coupang_campaign' DAG 실행 후 쿠팡 광고 목록 업데이트"
+    description: "'coupang' >> 'coupang_campaign' Dag 실행 후 쿠팡 광고 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -49,7 +49,7 @@ selectors:
         # - method: fqn
         #   value: intermediate.sales.core__sales_daily
   - name: coupang_inventory
-    description: "'coupang' >> 'coupang_inventory' DAG 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
+    description: "'coupang' >> 'coupang_inventory' Dag 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
     definition:
       union:
         - method: fqn
@@ -61,7 +61,7 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__stock_time_batch
   - name: coupang_rocket_sales
-    description: "'coupang' >> 'coupang_rocket_sales' DAG 실행 후 쿠팡 로켓정산 내역 변동을 매출에 반영"
+    description: "'coupang' >> 'coupang_rocket_sales' Dag 실행 후 쿠팡 로켓정산 내역 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -71,7 +71,7 @@ selectors:
 
   # Airflow Dags - dable
   - name: dable_ads
-    description: "'dable_ads' DAG 실행 후 데이블 광고 목록 및 성과 변동을 매출에 반영"
+    description: "'dable_ads' Dag 실행 후 데이블 광고 목록 및 성과 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -81,7 +81,7 @@ selectors:
 
   # Airflow Dags - ecount
   - name: ecount_inventory
-    description: "'ecount_inventory' DAG 실행 후 이카운트 재고수량 변동을 업데이트"
+    description: "'ecount_inventory' Dag 실행 후 이카운트 재고수량 변동을 업데이트"
     definition:
       union:
         - method: fqn
@@ -93,7 +93,7 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__stock_time_batch
   - name: ecount_product
-    description: "'ecount_product' DAG 실행 후 상품별 원가 변동을 매출에 반영"
+    description: "'ecount_product' Dag 실행 후 상품별 원가 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -109,7 +109,7 @@ selectors:
 
   # Airflow Dags - google_ads
   - name: google_ads
-    description: "'google_ads' DAG 실행 후 구글 광고 목록 및 실적 변동을 매출에 반영"
+    description: "'google_ads' Dag 실행 후 구글 광고 목록 및 실적 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -119,7 +119,7 @@ selectors:
 
   # Airflow Dags - meta_ads
   - name: meta_ads
-    description: "'meta_ads' DAG 실행 후 메타 광고 목록 및 실적 변동을 매출에 반영"
+    description: "'meta_ads' Dag 실행 후 메타 광고 목록 및 실적 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -127,9 +127,19 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
+  # Airflow Dags - naver_connect
+  - name: naver_connect_sales
+    description: "'naver_connect_sales' Dag 실행 후 네이버 쇼핑 커넥트 판매 실적 변동을 매출에 반영"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.naver_connect__insight_daily
+        - method: fqn
+          value: intermediate.sales.core__sales_daily
+
   # Airflow Dags - sabangnet
   - name: sabangnet_invoice
-    description: "'sabangnet_invoice' DAG 실행 후 사방넷 송장번호 변동을 매출에 반영"
+    description: "'sabangnet_invoice' Dag 실행 후 사방넷 송장번호 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -138,7 +148,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: sabangnet_order
-    description: "'sabangnet_order' DAG 실행 후 사방넷 주문 내역 변동을 매출에 반영"
+    description: "'sabangnet_order' Dag 실행 후 사방넷 주문 내역 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -147,7 +157,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: sabangnet_product
-    description: "'sabangnet_product' DAG 실행 후 사방넷 상품/매핑 변동을 매출에 반영"
+    description: "'sabangnet_product' Dag 실행 후 사방넷 상품/매핑 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -159,7 +169,7 @@ selectors:
 
   # Airflow Dags - searchad
   - name: searchad_contract
-    description: "'searchad_contract' DAG 실행 후 네이버 검색광고 계약 정보 변동을 매출에 반영"
+    description: "'searchad_contract' Dag 실행 후 네이버 검색광고 계약 정보 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -169,7 +179,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: searchad_master_gfa
-    description: "'searchad_master_gfa' DAG 실행 후 네이버 성과형 광고 목록 업데이트"
+    description: "'searchad_master_gfa' Dag 실행 후 네이버 성과형 광고 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -187,7 +197,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: searchad_master_sad
-    description: "'searchad_master_sad' DAG 실행 후 네이버 검색광고 목록 업데이트"
+    description: "'searchad_master_sad' Dag 실행 후 네이버 검색광고 목록 업데이트"
     definition:
       union:
         - method: fqn
@@ -205,7 +215,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: searchad_report_gfa
-    description: "'searchad_report_gfa' DAG 실행 후 네이버 성과형 광고 실적 변동을 매출에 반영"
+    description: "'searchad_report_gfa' Dag 실행 후 네이버 성과형 광고 실적 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -213,7 +223,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: searchad_report_sad
-    description: "'searchad_report_sad' DAG 실행 후 네이버 검색광고 실적 변동을 매출에 반영"
+    description: "'searchad_report_sad' Dag 실행 후 네이버 검색광고 실적 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -223,7 +233,7 @@ selectors:
 
   # Airflow Dags - smartstore
   - name: smartstore_invoice
-    description: "'smartstore_invoice' DAG 실행 후 스마트스토어 송장번호 변동을 매출에 반영"
+    description: "'smartstore_invoice' Dag 실행 후 스마트스토어 송장번호 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -232,7 +242,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: smartstore_order
-    description: "'smartstore_order' DAG 실행 후 스마트스토어 주문 내역 변동을 매출에 반영"
+    description: "'smartstore_order' Dag 실행 후 스마트스토어 주문 내역 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -243,22 +253,22 @@ selectors:
 
   # Airflow Dags - sync_gsheets
   - name: sync_gsheets__expense
-    description: "'sync_gsheets__expense' DAG 실행 후 고정지출 변동을 매출에 반영"
+    description: "'sync_gsheets__expense' Dag 실행 후 고정지출 변동을 매출에 반영"
     definition:
       method: fqn
       value: intermediate.sales.core__sales_daily
   - name: sync_gsheets__extra_ads
-    description: "'sync_gsheets__extra_ads' DAG 실행 후 기타광고 변동을 매출에 반영"
+    description: "'sync_gsheets__extra_ads' Dag 실행 후 기타광고 변동을 매출에 반영"
     definition:
       method: fqn
       value: intermediate.sales.core__sales_daily
   - name: sync_gsheets__extra_sales
-    description: "'sync_gsheets__extra_sales' DAG 실행 후 기타매출 변동을 매출에 반영"
+    description: "'sync_gsheets__extra_sales' Dag 실행 후 기타매출 변동을 매출에 반영"
     definition:
       method: fqn
       value: intermediate.sales.core__sales_daily
   - name: sync_gsheets__opex
-    description: "'sync_gsheets__opex' DAG 실행 후 운영비용 변동을 매출에 반영"
+    description: "'sync_gsheets__opex' Dag 실행 후 운영비용 변동을 매출에 반영"
     definition:
       union:
         - method: fqn
@@ -266,7 +276,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: sync_gsheets__order_status
-    description: "'sync_gsheets__order_status' DAG 실행 후 주문상태 변동을 매출에 반영"
+    description: "'sync_gsheets__order_status' Dag 실행 후 주문상태 변동을 매출에 반영"
     definition:
       union:
         - method: fqn

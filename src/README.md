@@ -21,7 +21,7 @@ DuckDB 기반 변환을 거쳐 BigQuery, PostgreSQL, Google Sheets 같은 외부
 ## 한눈에 보기
 
 - **패키지명**: `linkmerce`
-- **버전**: `1.0.11`
+- **버전**: `1.0.12`
 - **Python**: `>=3.12`
 - **핵심 의존성**: `aiohttp`, `requests`, `duckdb`, `bs4`, `openpyxl`, `ruamel-yaml`, `tqdm`
 
@@ -256,6 +256,7 @@ core/{platform}/{hostname}/{category}/
 | `google` | `api` | `ads` | 구글 API | 광고 |
 | `meta` | `api` | `ads` | 메타 API | 광고 |
 | `naver` | `main` | `search` | 네이버 메인 | 검색 |
+| `naver` | `brandconnect` | `sales` | 네이버 브랜드 커넥트 | 통계 |
 | `naver` | `openapi` | `search` | 네이버 오픈 API | 검색 |
 | `sabangnet` | `admin` | `account`, `order`, `product` | 사방넷 시스템 | 주문, 상품 |
 | `searchad` | `api` | `contract`, `keyword`, `report` | 네이버 검색광고 API | 광고 보고서, 광고 계약, 검색량 |

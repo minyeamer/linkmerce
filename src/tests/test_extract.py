@@ -506,6 +506,33 @@ class TestMetaAds:
 
 
 ###################################################################
+######################## Naver BrandConnect #######################
+###################################################################
+
+class TestNaverBrandConnect:
+    """네이버 브랜드 커넥트 데이터 추출 테스트.
+    - naver.brandconnect.sales.SalesPerformances
+    """
+
+    def cookies(self, reader: YamlReader) -> str:
+        return reader("naver.brandconnect.0")["cookies"]
+
+    @pytest.mark.naver_connect
+    def test_sales_performances(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """네이버 쇼핑 커넥트 상품별 판매 실적을 일별로 조회하는 테스트."""
+        from linkmerce.core.naver.brandconnect.sales.extract import SalesPerformances
+        _configs = configs("naver.brandconnect.sales_performances")
+        SalesPerformances(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(SalesPerformances, format="json", map_index="$space_id"),
+        ).extract(
+            space_id =_configs["space_id"],
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+        )
+
+
+###################################################################
 ########################## Naver Main #############################
 ###################################################################
 

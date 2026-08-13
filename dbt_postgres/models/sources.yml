@@ -81,6 +81,13 @@ sources:
       - name: ad
       - name: insight
 
+  - name: naver_connect
+    schema: naver_connect
+    tables:
+      - name: space
+      - name: product
+      - name: sales
+
   - name: naver_shp
     schema: naver_shp
     tables:

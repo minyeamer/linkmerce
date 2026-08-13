@@ -145,6 +145,7 @@ dbt_postgres/models/intermediate/ads/
 │   └── searchad__insight_daily
 ├── core__opex_daily
 ├── dable__report_daily
+├── naver_connect__insight_daily
 └── relation__ad_id_to_ranged_sbn_ids
 ```
 
@@ -488,6 +489,8 @@ airflow/dags/
 │   ├── sync_gsheets__extra_sales.py (sync_gsheets__extra_sales)
 │   ├── sync_gsheets__opex.py (sync_gsheets__opex)
 │   └── sync_gsheets__order_status.py (sync_gsheets__order_status)
+├── naver/
+│   └── connect_sales.py (naver_connect_sales)
 ├── sabangnet/
 │   ├── invoice.py (sabangnet_invoice)
 │   ├── order.py (sabangnet_order)

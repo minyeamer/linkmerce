@@ -211,6 +211,11 @@ meta/
 
 ```bash
 naver/
+├── brandconnect/
+│   ├─x BrandConnect(Extractor)::common
+│   └── sales/
+│       └── SalesPerformances(BrandConnect)::extract
+│           └── SalesPerformances(DuckDBTransformer)::transform >> json
 ├── main/
 │   └── search/
 │       ├── Search(Extractor)::extract

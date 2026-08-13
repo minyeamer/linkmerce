@@ -133,6 +133,36 @@ WHERE report.ymd BETWEEN DS_START_DATE AND DS_END_DATE
 UNION ALL
 
 SELECT
+    '쇼핑커넥트' AS platform_name
+  , COALESCE(space.space_name, '-') AS account_name
+  , '-' AS campaign_name
+  , '-' AS adgroup_name
+  , COALESCE(mall_prd.product_name, '-') AS ad_name
+  , '-' AS ad_type
+  , insight.ad_cost
+  , insight.conv_amount
+  , insight.product_id
+  , COALESCE(product.team_name, '담당팀 없음') AS team_name
+  , COALESCE(product.brand_name, '브랜드 없음') AS brand_name
+  , COALESCE(product.category_name1, '-') AS category_name1
+  , COALESCE(product.category_name2, '-') AS category_name2
+  , COALESCE(product.category_name3, '-') AS category_name3
+  , COALESCE(product.category_name4, '-') AS category_name4
+  , COALESCE(product.color, '-') AS color
+  , COALESCE(product.product_name, '-') AS product_name
+  , insight.ymd
+FROM {{ ref('naver_connect__insight_daily') }} AS insight
+LEFT JOIN {{ source('naver_connect', 'space') }} AS space
+  ON insight.space_id = space.space_id
+LEFT JOIN {{ source('smartstore', 'product') }} AS mall_prd
+  ON insight.mall_product_id = mall_prd.product_id
+LEFT JOIN {{ ref('core__product_master') }} AS product
+  ON insight.product_id = product.product_id
+WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE
+
+UNION ALL
+
+SELECT
     REPLACE(shop.shop_alias, '(광고)', '') AS platform_name
   , '-' AS account_name
   , '-' AS campaign_name

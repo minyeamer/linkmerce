@@ -15,6 +15,9 @@ models:
   - name: "dable__report_daily"
     description: "데이블 광고 보고서를 광고 매칭 기반의 SKU 단위로 세분화하고 집계 기준과 집계 항목만 남긴 일별 파티션 모델"
 
+  - name: "naver_connect__insight_daily"
+    description: "네이버 쇼핑 커넥트 판매 실적을 스토어 상품코드 기반의 SKU 단위로 세분화하고 집계 기준과 집계 항목만 남긴 일별 파티션 모델"
+
   - name: "relation__ad_id_to_ranged_sbn_ids"
     description: "광고 ID와 사방넷 품번코드 매핑을 리뉴얼 상품 규칙에 따라 시작/종료 기간 단위로 구분한 공통 매핑 모델"
 

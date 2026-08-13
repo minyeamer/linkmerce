@@ -16,6 +16,7 @@ CREATE SCHEMA IF NOT EXISTS dable; -- dbl
 CREATE SCHEMA IF NOT EXISTS ecount; -- eco
 CREATE SCHEMA IF NOT EXISTS google_ads; -- ggl
 CREATE SCHEMA IF NOT EXISTS meta_ads; -- met
+CREATE SCHEMA IF NOT EXISTS naver_connect; -- ncn
 CREATE SCHEMA IF NOT EXISTS naver_shp; -- nsh
 CREATE SCHEMA IF NOT EXISTS relation; -- rel
 CREATE SCHEMA IF NOT EXISTS sabangnet; -- sbn
@@ -649,6 +650,41 @@ CREATE TABLE IF NOT EXISTS meta_ads.insight (
   , PRIMARY KEY (ymd, account_id, campaign_id, adset_id, ad_id)
 ) PARTITION BY RANGE (ymd);
 CREATE INDEX IF NOT EXISTS met_ads__ad_idx ON meta_ads.insight (ymd, ad_id);
+
+-- ============================================================
+-- naver_connect (네이버 브랜드 커넥트)
+-- ============================================================
+
+-- [네이버 브랜드 커넥트 스페이스]
+CREATE TABLE IF NOT EXISTS naver_connect.space (
+    space_id BIGINT NOT NULL -- 스페이스ID
+  , space_name TEXT -- 스페이스
+  , brand_id TEXT NOT NULL -- 연결브랜드ID
+  , register_date DATE -- 개설일
+  , order_start_date DATE -- 최초수집일
+  , PRIMARY KEY (space_id)
+);
+
+-- [네이버 쇼핑 커넥트 상품]
+CREATE TABLE IF NOT EXISTS naver_connect.product (
+    space_id BIGINT NOT NULL -- 스페이스ID
+  , product_id BIGINT NOT NULL -- 상품코드
+  , mall_product_id BIGINT -- 채널상품코드
+  , product_name TEXT -- 상품명
+  , image_url TEXT -- 이미지주소
+  , PRIMARY KEY (space_id, product_id)
+);
+
+-- [네이버 쇼핑 커넥트 판매 실적]
+CREATE TABLE IF NOT EXISTS naver_connect.sales (
+    space_id BIGINT NOT NULL -- 스페이스ID
+  , product_id BIGINT NOT NULL -- 상품코드
+  , sales_count INTEGER -- 판매개수
+  , sales_amount INTEGER -- 판매금액
+  , commission_amount INTEGER -- 예상사용료
+  , order_date DATE NOT NULL -- 주문일자
+  , PRIMARY KEY (order_date, space_id, product_id)
+) PARTITION BY RANGE (order_date);
 
 -- ============================================================
 -- naver_shp (네이버 쇼핑)
@@ -1414,6 +1450,8 @@ CREATE TABLE IF NOT EXISTS ss_hcenter.sales (
 
 -- 테이블별 시작일은 아래 VALUES 블록에서 조정한다.
 -- 시작일(start_partition)로부터 (현재 + premake) 시점까지 초기 파티션을 일괄 생성한다.
+-- 파티션 삭제 시 `SELECT partman.config_cleanup('schema.table');` 쿼리를 실행한다.
+
 CREATE OR REPLACE FUNCTION public.bootstrap_daily_partitions(
     p_parent_table TEXT,
     p_control_column TEXT,
@@ -1495,6 +1533,7 @@ SELECT public.bootstrap_daily_partitions('dable.report',			            'ymd',   
 SELECT public.bootstrap_daily_partitions('ecount.inventory',			        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('google_ads.insight',			      'ymd',				        '2023-09-06',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('meta_ads.insight',			        'ymd',				        '2024-05-20',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('naver_connect.sales',			      'order_date',			    '2025-08-08',	          '1 day',  35);
 SELECT public.bootstrap_daily_partitions('naver_shp.rank',				        'created_at',			    '2025-08-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('naver_shp.stock',			          'created_at',			    '2026-03-10 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('naver_shp.stock_detail',			  'created_at',			    '2026-03-10 00:00:00',	'1 day',  35);

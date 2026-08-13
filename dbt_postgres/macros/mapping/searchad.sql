@@ -88,7 +88,7 @@ FROM (VALUES
     (0, 0, 'PC')
   , (1, 1, '모바일')
   , (2, 2, '기타')
-  , (9, 9, '성과형')
+  , (3, 9, '성과형')
 ) AS mapping(seq, code, label)
 {%- endmacro %}
 

@@ -490,6 +490,31 @@
     "PARTITION BY ymd",
     "CLUSTER BY account_id, campaign_id, adset_id"
   ],
+  "naver_connect.space": [
+    {"name": "space_id", "type": "INTEGER", "description": "스페이스ID", "mode": "REQUIRED"},
+    {"name": "space_name", "type": "STRING", "description": "스페이스"},
+    {"name": "brand_id", "type": "STRING", "description": "연결브랜드ID"},
+    {"name": "register_date", "type": "DATE", "description": "개설일"},
+    {"name": "order_start_date", "type": "DATE", "description": "최초수집일"}
+  ],
+  "naver_connect.product": [
+    {"name": "space_id", "type": "INTEGER", "description": "스페이스ID", "mode": "REQUIRED"},
+    {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
+    {"name": "mall_product_id", "type": "INTEGER", "description": "채널상품코드"},
+    {"name": "product_name", "type": "STRING", "description": "상품명"},
+    {"name": "image_url", "type": "STRING", "description": "이미지주소"},
+    "CLUSTER BY space_id"
+  ],
+  "naver_connect.sales": [
+    {"name": "space_id", "type": "INTEGER", "description": "스페이스ID", "mode": "REQUIRED"},
+    {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
+    {"name": "sales_count", "type": "INTEGER", "description": "판매개수"},
+    {"name": "sales_amount", "type": "INTEGER", "description": "판매금액"},
+    {"name": "commission_amount", "type": "INTEGER", "description": "예상사용료"},
+    {"name": "order_date", "type": "DATE", "description": "주문일자", "mode": "REQUIRED"},
+    "PARTITION BY order_date",
+    "CLUSTER BY space_id"
+  ],
   "naver_shp.category": [
     {"name": "category_id", "type": "INTEGER", "description": "카테고리코드", "mode": "REQUIRED"},
     {"name": "category_name", "type": "STRING", "description": "카테고리", "mode": "REQUIRED"},

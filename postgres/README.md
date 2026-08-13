@@ -117,6 +117,7 @@ ${POSTGRES_DATA_DIR:-./data} -> /var/lib/postgresql
 | `dable` | 데이블 광고 데이터 |
 | `ecount` | 이카운트 상품 및 재고 데이터 |
 | `google_ads`, `meta_ads` | 구글 및 메타 광고 데이터 |
+| `naver_connect` | 네이버 브랜드 커넥트 데이터 |
 | `naver_shp` | 네이버 쇼핑 검색 데이터 |
 | `relation` | 외부 시스템 간 식별자 매핑 |
 | `sabangnet` | 사방넷 주문 및 상품 데이터 |

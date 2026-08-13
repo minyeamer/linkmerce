@@ -26,7 +26,7 @@ class DailyReport(DableApi):
         데이블 URL 내 클라이언트 명칭
     """
 
-    method: str = "GET"
+    method = "GET"
     path = "/daily_report"
     date_format = "%Y%m%d"
     days_limit = 90

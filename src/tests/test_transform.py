@@ -329,6 +329,28 @@ class TestMetaAds:
 
 
 ###################################################################
+######################## Naver BrandConnect ########################
+###################################################################
+
+class TestNaverBrandConnect:
+    """네이버 브랜드 커넥트 데이터 변환 테스트.
+    - naver.brandconnect.sales.SalesPerformances
+    """
+
+    @pytest.mark.naver_connect
+    def test_sales_performances(self, transformer_harness: Harness, configs: YamlReader, yesterday: dt.date):
+        """네이버 쇼핑 커넥트 상품별 판매 실적을 변환하는 테스트."""
+        from linkmerce.core.naver.brandconnect.sales.transform import SalesPerformances
+        _configs = configs("naver.brandconnect.sales_performances")
+        harness = transformer_harness(SalesPerformances)
+        harness.transform(
+            space_id = _configs["space_id"],
+            end_date = _configs.get("end_date", yesterday),
+            map_index = _configs["space_id"],
+        )
+
+
+###################################################################
 ########################## Naver Search ###########################
 ###################################################################
 

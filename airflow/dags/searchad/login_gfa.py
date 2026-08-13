@@ -89,7 +89,8 @@ with DAG(
             datetime = get_datetime(kwargs),
             limit = (credentials["total"] * 3),
         )
-        save_naver_cookies(cookies, credentials["save_to"]["naver"])
+        if credentials["save_to"]["naver"]:
+            save_naver_cookies(cookies, credentials["save_to"]["naver"])
 
         # 2. 네이버 광고주센터 인증 (`XSRF-TOKEN` 발급 및 쿠키 저장)
         cookies = center_login(credentials["account_no"], cookies, credentials["save_to"]["gfa"])
@@ -124,10 +125,7 @@ with DAG(
             datetime: pendulum.DateTime,
             limit: int = 30,
         ) -> str:
-        """Slack 채널에 텍스트 파일 형태로 업로드된 최신 네이버 쿠키를 가져온다.
-
-        `userid`를 파일명으로 가지는 메시지가 없을 경우 `AuthenticationError`를 발생시킨다.
-        """
+        """Slack 채널에서 `{userid}.txt` 파일로 전송된 최신 네이버 쿠키를 가져온다."""
         from linkmerce.common.exceptions import AuthenticationError
         import requests
 
@@ -146,6 +144,7 @@ with DAG(
                     response = requests.get(url, headers={"Authorization": f"Bearer {token}"})
                     response.raise_for_status()
                     return response.text.strip()
+
         raise AuthenticationError(f"No message found containing the filename {userid}.txt.")
 
 
