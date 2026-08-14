@@ -1,9 +1,13 @@
 services:
   streamlit:
-    build: .
+    build:
+      context: .
+      network: host
     image: ${AIRFLOW_STREAMLIT_IMAGE_NAME:-linkmerce-airflow-streamlit:latest}
     ports:
       - "${AIRFLOW_STREAMLIT_PORT:-8501}:8501"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ${STREAMLIT_APP_DIR:-.}/app.py:/app/app.py
       - ${STREAMLIT_APP_DIR:-.}/.streamlit:/app/.streamlit

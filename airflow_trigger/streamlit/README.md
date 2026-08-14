@@ -54,7 +54,7 @@ Docker Compose 실행 옵션은 `.env`에서 지정한다.
 
 | 변수 | 기본값 | 설명 |
 | --- | --- | --- |
-| `AIRFLOW_STREAMLIT_IMAGE_NAME` | `streamlit:1.56.0` | Compose에서 빌드하고 실행할 이미지 이름 |
+| `AIRFLOW_STREAMLIT_IMAGE_NAME` | `linkmerce-airflow-streamlit:latest` | Compose에서 빌드하고 실행할 이미지 이름 |
 | `AIRFLOW_STREAMLIT_PORT` | `8501` | 호스트에서 열 Streamlit 포트 |
 
 ## Docker 실행

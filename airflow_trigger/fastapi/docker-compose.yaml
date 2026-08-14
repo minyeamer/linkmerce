@@ -1,6 +1,8 @@
 services:
   airflow-trigger:
-    build: .
+    build:
+      context: .
+      network: host
     image: ${AIRFLOW_TRIGGER_IMAGE_NAME:-linkmerce-airflow-trigger:latest}
     env_file:
       - path: .env
