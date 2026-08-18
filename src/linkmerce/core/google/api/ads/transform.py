@@ -3,16 +3,7 @@ from __future__ import annotations
 from linkmerce.common.transform import JsonTransformer, DuckDBTransformer
 
 
-def _common_config(fields: dict) -> dict:
-    """구글 광고 API 응답 데이터에 대한 공통적인 파서 설정."""
-    return dict(
-        dtype = list,
-        scope = "0.results",
-        fields = fields,
-    )
-
-
-class _CommonParser(JsonTransformer):
+class GoogleApiParser(JsonTransformer):
     """구글 광고 API 응답 데이터에 대해 공통적인 파싱 로직을 구현한 공통 클래스.
 
     `identifier` 필드가 존재하는 항목만 선별하며,
@@ -21,17 +12,30 @@ class _CommonParser(JsonTransformer):
 
     dtype = list
     scope = "0.results"
-    identifier: str
+    identifier: str | None = None
+
+    def get_scope(self, obj: list, **kwargs) -> list:
+        """결과 행이 있으면 반환하고 없으면 빈 리스트를 반환한다."""
+        from linkmerce.utils.nested import hier_get
+        try:
+            return hier_get(obj, self.scope, on_missing="raise")
+        except KeyError:
+            response = hier_get(obj, '0', on_missing="ignore")
+            if isinstance(response, dict) and response.get("requestId"):
+                return list()
+            raise
 
     def parse(self, results: list[dict], inplace: bool = True, **kwargs) -> list[dict]:
-        """`identifier` 필드가 있는 항목만 선별하여 `parse_result`로 추가 가공 후 반환한다."""
-        from linkmerce.utils.nested import hier_get
-        data = list()
-        for result in results:
-            if isinstance(result, dict) and hier_get(result, self.identifier):
-                result = self.parse_result(result if inplace else self.copy(result))
-                data.append(result)
-        return data
+        """`identifier` 속성이 있을 경우 해당 경로에 값이 있는 항목만 선별하여 반환한다."""
+        if self.identifier:
+            from linkmerce.utils.nested import hier_get
+            data = list()
+            for result in results:
+                if isinstance(result, dict) and hier_get(result, self.identifier):
+                    result = self.parse_result(result if inplace else self.copy(result))
+                    data.append(result)
+            return data
+        return super().parse(results, **kwargs)
 
     def parse_result(self, result: dict) -> dict:
         """개별 항목을 추가로 가공한다. 서브클래스에서 재정의한다."""
@@ -64,7 +68,8 @@ class Campaign(DuckDBTransformer):
     extractor = "Campaign"
     tables = {"table": "google_campaign"}
     parser = "json"
-    parser_config = _common_config(
+    parser = GoogleApiParser
+    parser_config = dict(
         fields = {
             "campaign": ["id", "name", "advertisingChannelType", "status", "biddingStrategyType", "startDateTime"],
             "campaignBudget": ["amountMicros"],
@@ -95,8 +100,8 @@ class AdGroup(DuckDBTransformer):
 
     extractor = "AdGroup"
     tables = {"table": "google_adgroup"}
-    parser = "json"
-    parser_config = _common_config(
+    parser = GoogleApiParser
+    parser_config = dict(
         fields = {
             "campaign": ["id"],
             "adGroup": ["id", "name", {"type": None}, "status", "targetCpaMicros"],
@@ -106,7 +111,7 @@ class AdGroup(DuckDBTransformer):
     params = {"customer_id": "$customer_id"}
 
 
-class AdParser(_CommonParser):
+class AdParser(GoogleApiParser):
     """구글 광고 소재 보고서를 파싱하는 클래스."""
 
     fields = {
@@ -183,8 +188,8 @@ class Insight(DuckDBTransformer):
 
     extractor = "Insight"
     tables = {"table": "google_insight"}
-    parser = "json"
-    parser_config = _common_config(
+    parser = GoogleApiParser
+    parser_config = dict(
         fields = {
             "campaign": ["id"],
             "adGroup": ["id"],
@@ -196,7 +201,7 @@ class Insight(DuckDBTransformer):
     params = {"customer_id": "$customer_id"}
 
 
-class AssetParser(_CommonParser):
+class AssetParser(GoogleApiParser):
     """구글 광고 애셋 보고서를 파싱하는 클래스."""
 
     fields = {"asset": ["id", "type", "name", "url"]}
@@ -249,7 +254,7 @@ class Asset(DuckDBTransformer):
     params = {"customer_id": "$customer_id"}
 
 
-class AssetViewParser(_CommonParser):
+class AssetViewParser(GoogleApiParser):
     """구글 광고 소재-애셋 관계를 파싱하는 클래스."""
 
     fields = {

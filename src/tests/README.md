@@ -170,22 +170,24 @@ google/
     ├─x GoogleApi(Extractor)::common
     └── ads/
         ├─x GoogleAds(GoogleApi)::extract
-        │   └─x _CommonParser(JsonTransformer)::transform
         ├── Campaign(GoogleAds)::extract
-        │   └── Campaign(DuckDBTransformer)::transform >> json
+        │   └── Campaign(DuckDBTransformer)::transform
+        │       └── GoogleApiParser(JsonTransformer)::transform
         ├── AdGroup(GoogleAds)::extract
-        │   └── AdGroup(DuckDBTransformer)::transform >> json
+        │   └── AdGroup(DuckDBTransformer)::transform
+        │       └── GoogleApiParser(JsonTransformer)::transform
         ├── Ad(GoogleAds)::extract
         │   └── Ad(DuckDBTransformer)::transform
-        │       └── AdParser(_CommonParser)::transform
+        │       └── AdParser(GoogleApiParser)::transform
         ├── Insight(GoogleAds)::extract
-        │   └── Insight(DuckDBTransformer)::transform >> json
+        │   └── Insight(DuckDBTransformer)::transform
+        │       └── GoogleApiParser(JsonTransformer)::transform
         ├── Asset(GoogleAds)::extract
         │   └── Asset(DuckDBTransformer)::transform
-        │       └── AssetParser(_CommonParser)::transform
+        │       └── AssetParser(GoogleApiParser)::transform
         └── AssetView(Insight)::extract
             └── AssetView(DuckDBTransformer)::transform
-                └── AssetViewParser(_CommonParser)::transform
+                └── AssetViewParser(GoogleApiParser)::transform
 ```
 
 ### Meta
