@@ -92,7 +92,7 @@ with DAG(
 
             return {
                 "context": {
-                    "partitions": sorted(map(str, conn.unique("stock", "DATE(created_at)"))),
+                    "partitions": sorted(map(str, conn.unique("stock", "DATE(created_at) - INTERVAL 1 DAY"))),
                 },
                 "params": {
                     "channel_id": configs["channel_id"],
