@@ -12,17 +12,20 @@
   -- column conflicts while the model body keeps the declared parameter names.
   {%- set params = config.get('meta', {}).get('params', []) -%}
   {%- set arguments = [] -%}
+  {%- set argument_types = [] -%}
   {%- set bindings = [] -%}
   {%- set probe_bindings = [] -%}
 
   {%- for param in params -%}
     {%- set argument_name = 'p_' ~ param['name'] | lower -%}
     {%- do arguments.append(argument_name ~ ' ' ~ param['type']) -%}
+    {%- do argument_types.append(param['type']) -%}
     {%- do bindings.append(argument_name ~ ' AS ' ~ param['name']) -%}
     {%- do probe_bindings.append('NULL::' ~ param['type'] ~ ' AS ' ~ param['name']) -%}
   {%- endfor -%}
 
   {%- set arguments_sql = arguments | join(', ') -%}
+  {%- set argument_types_sql = argument_types | join(', ') -%}
   {%- set probe_relation = this.identifier ~ '__tvf_probe' -%}
 
   -- Bind arguments through a one-row relation so model SQL can use the declared
@@ -71,6 +74,12 @@
   {%- if returns | length == 0 -%}
     {{ exceptions.raise_compiler_error('Could not infer TVF return columns for ' ~ this) }}
   {%- endif -%}
+
+  -- PostgreSQL cannot replace a function when its RETURNS TABLE row type changes.
+  -- Drop the existing input signature before recreating it with the inferred output.
+  {%- call statement('drop_tvf') -%}
+    DROP FUNCTION IF EXISTS {{ this }}({{ argument_types_sql }})
+  {%- endcall -%}
 
   -- Create the SQL function with the inferred `RETURNS TABLE` signature.
   {%- call statement('main') -%}

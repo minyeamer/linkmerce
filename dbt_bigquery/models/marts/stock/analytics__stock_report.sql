@@ -34,6 +34,7 @@ core_product AS (
       product_id
     , item_seq
     , in_stock_yn
+    , (category_name1 = '부자재') AS is_sub_material
   FROM {{ source('core', 'item') }}
   WHERE product_id IS NOT NULL
   QUALIFY ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY item_seq ASC NULLS LAST) = 1
@@ -321,6 +322,7 @@ stock_report_final AS (
     , product.org_price
     , product.org_price * report.stock_qty AS stock_cost
     , item.in_stock_yn
+    , item.is_sub_material
     -- Schedule attributes
     , report.order_date
     , report.delivery_date

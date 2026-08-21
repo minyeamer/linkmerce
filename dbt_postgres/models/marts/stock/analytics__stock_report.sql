@@ -38,6 +38,7 @@ WITH{#
       product_id
     , item_seq
     , in_stock_yn
+    , (category_name1 = '부자재') AS is_sub_material
   FROM {{ source('core', 'item') }}
   WHERE product_id IS NOT NULL
   ORDER BY product_id, item_seq ASC NULLS LAST
@@ -325,6 +326,7 @@ WITH{#
     , product.org_price
     , product.org_price * report.stock_qty AS stock_cost
     , item.in_stock_yn
+    , item.is_sub_material
     -- Schedule attributes
     , report.order_date
     , report.delivery_date
