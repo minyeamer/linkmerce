@@ -34,6 +34,15 @@ Read `.github/instructions/lm.instructions.md` as the compact repository-wide do
 - Use the matching composed task already implemented in `linkmerce.common` when multiple dimensions apply: `RequestEachLoop`, `RequestEachPages`, or `RequestEachCursor`.
 - Copy the chosen task's chaining order, option name, default options, and Attributes wording from the closest current implementation. Do not invent a new task wrapper when an existing one matches.
 
+## Build request messages by layer
+
+- `BaseSessionClient.build_request_message` composes `method`, `url`, `params`, `data`, `json`, and `headers`, omitting values that are `None`. Set shared `method` and `url` as class attributes unless an endpoint must override them per request.
+- Put domain-wide fixed query parameters, body state, and header values in `set_request_params`, `set_request_body`, and `set_request_headers` on the domain common Extractor. `set_request_headers` also owns shared header construction, cookie propagation, and `from_cookies` mappings.
+- Put endpoint-specific or call-specific query parameters in `build_request_params`; return form, text, or binary payloads from `build_request_data`; return JSON payloads from `build_request_json`; and add variable headers in `build_request_headers`.
+- `build_request_data` and `build_request_json` do not automatically consume the body retained by `set_request_body`. Override the appropriate builder when that value must be sent, and send a request body through either `data` or `json` according to the endpoint contract.
+- Execute requests through `build_request_message`; do not manually assemble duplicate `params`, `data`, `json`, or `headers` arguments in a shared request helper.
+- Keep a shared request helper limited to transport behavior such as status validation and raw-content return. Do not let it encode endpoint payloads, query parameters, or endpoint-specific headers.
+
 ## Implement in dependency order
 
 1. Add or extend the domain common module only when the domain does not already provide the shared session, authentication, URL, headers, or request behavior.
@@ -56,7 +65,7 @@ Do not skip a layer silently. Mark it not applicable with evidence in the final 
 - Treat Korean terminology, capitalization, spacing, code spans, list indentation, and punctuation as exact data.
 - Do not append `이다.`, replace a noun phrase with a sentence, or add `.` to a label-like description.
 - Put only the Extractor class name in a Transformer `Extractor` section. Put input/output types only in `Parser` or `Parsers`.
-- Apply the multiline `=` rule from `references/style-contract.md` to every new or changed Python line.
+- Apply the multiline `=` rule from `references/style-contract.md` only to multiline function calls and `dict(...)` constructors. Keep keyword arguments in compact one-line calls in standard Python form without spaces around `=`.
 
 ## Validate before handoff
 

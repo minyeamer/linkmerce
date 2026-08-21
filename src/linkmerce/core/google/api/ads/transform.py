@@ -52,7 +52,7 @@ class Campaign(DuckDBTransformer):
     - **Extractor**: `Campaign`
 
     - **Parser** ( *parser_class: input_type -> output_type* ):
-        `JsonTransformer: list -> list[dict]`
+        `GoogleApiParser: list -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
         `table: google_campaign`
@@ -85,7 +85,7 @@ class AdGroup(DuckDBTransformer):
     - **Extractor**: `AdGroup`
 
     - **Parser** ( *parser_class: input_type -> output_type* ):
-        `JsonTransformer: list -> list[dict]`
+        `GoogleApiParser: list -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
         `table: google_adgroup`
@@ -173,7 +173,7 @@ class Insight(DuckDBTransformer):
     - **Extractor**: `Insight`
 
     - **Parser** ( *parser_class: input_type -> output_type* ):
-        `JsonTransformer: list -> list[dict]`
+        `GoogleApiParser: list -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
         `table: google_insight`

@@ -96,13 +96,14 @@ coupang/
 ├── advertising/
 │   ├─x CoupangAds(Extractor)::common
 │   ├─x CoupangLogin(LoginHandler)::common
+│   ├── management/
+│   │   ├── Campaign(CoupangAds)::extract
+│   │   │   └── Campaign(DuckDBTransformer)::transform
+│   │   │       ├── CampaignParser(JsonTransformer)::transform
+│   │   │       └── AdgroupParser(JsonTransformer)::transform
+│   │   └── Creative(CoupangAds)::extract
+│   │       └── Creative(DuckDBTransformer)::transform >> json
 │   └── report/
-│       ├── Campaign(CoupangAds)::extract
-│       │   └── Campaign(DuckDBTransformer)::transform
-│       │       ├── CampaignParser(JsonTransformer)::transform
-│       │       └── AdgroupParser(JsonTransformer)::transform
-│       ├── Creative(CoupangAds)::extract
-│       │   └── Creative(DuckDBTransformer)::transform >> json
 │       ├─x _AdReport(CoupangAds)::extract
 │       ├── ProductAdReport(_AdReport)::extract
 │       │       └── ProductAdReport(DuckDBTransformer)::transform >> excel
@@ -144,6 +145,32 @@ dable/
         └── DailyReport(DableApi)::extract
             └── DailyReport(DuckDBTransformer)::transform
                 └── DailyReportParser(JsonTransformer)::transform
+```
+
+### Ebay
+
+```bash
+ebay/
+└── adcenter/
+    ├─x GmarketAdCenter(Extractor)::common
+    ├─x GmarketAdParser(JsonTransformer)::common
+    ├─x CoupangLogin(GmarketAdCenterLogin)::common
+    ├── management/
+    │   ├── CampaignGroup(GmarketAdCenter)::extract
+    │   │   └── CampaignGroup(DuckDBTransformer)::transform
+    │   │       └── GmarketAdParser(JsonTransformer)::common
+    │   ├── Campaign(GmarketAdCenter)::extract
+    │   │   └── Campaign(DuckDBTransformer)::transform
+    │   │       └── GmarketAdParser(JsonTransformer)::common
+    │   └── Product(GmarketAdCenter)::extract
+    │       └── Product(DuckDBTransformer)::transform
+    │           └── GmarketAdParser(JsonTransformer)::common
+    └── report/
+        ├── Report(GmarketAdCenter)::extract
+        │   └── Report(DuckDBTransformer)::transform
+        │       └── GmarketAdParser(JsonTransformer)::common
+        └── ReportDownload(Report)::extract
+            └── ReportDownload(Report)::transform >> excel
 ```
 
 ### Ecount

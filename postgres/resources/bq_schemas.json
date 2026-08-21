@@ -346,6 +346,44 @@
     {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
     "PARTITION BY ymd"
   ],
+  "ebay_ads.campaign_group": [
+    {"name": "campaign_group_id", "type": "INTEGER", "description": "그룹ID", "mode": "REQUIRED"},
+    {"name": "campaign_group_name", "type": "STRING", "description": "그룹명"},
+    {"name": "campaign_group_type", "type": "INTEGER", "description": "캠페인유형"},
+    {"name": "campaign_group_status", "type": "INTEGER", "description": "그룹상태"}
+  ],
+  "ebay_ads.campaign": [
+    {"name": "campaign_id", "type": "INTEGER", "description": "캠페인ID", "mode": "REQUIRED"},
+    {"name": "campaign_group_id", "type": "INTEGER", "description": "그룹ID", "mode": "REQUIRED"},
+    {"name": "campaign_name", "type": "STRING", "description": "캠페인명"},
+    {"name": "campaign_status", "type": "INTEGER", "description": "캠페인상태"},
+    {"name": "daily_budget", "type": "INTEGER", "description": "일 예산"},
+    "CLUSTER BY campaign_group_id"
+  ],
+  "ebay_ads.product": [
+    {"name": "campaign_id", "type": "INTEGER", "description": "캠페인ID", "mode": "REQUIRED"},
+    {"name": "adgroup_id", "type": "INTEGER", "description": "광고그룹ID", "mode": "REQUIRED"},
+    {"name": "item_id", "type": "INTEGER", "description": "상품번호", "mode": "REQUIRED"},
+    {"name": "item_name", "type": "STRING", "description": "상품명"},
+    {"name": "adgroup_status", "type": "INTEGER", "description": "광고그룹상태"},
+    {"name": "image_url", "type": "STRING", "description": "이미지주소"},
+    {"name": "bid_amount", "type": "INTEGER", "description": "입찰가"},
+    "CLUSTER BY campaign_id"
+  ],
+  "ebay_ads.report": [
+    {"name": "campaign_id", "type": "INTEGER", "description": "캠페인ID", "mode": "REQUIRED"},
+    {"name": "campaign_group_id", "type": "INTEGER", "description": "그룹ID", "mode": "REQUIRED"},
+    {"name": "item_id", "type": "INTEGER", "description": "상품번호", "mode": "REQUIRED"},
+    {"name": "impression_count", "type": "INTEGER", "description": "노출 수"},
+    {"name": "click_count", "type": "INTEGER", "description": "클릭 수"},
+    {"name": "ad_cost", "type": "INTEGER", "description": "광고 비용"},
+    {"name": "conv_count", "type": "INTEGER", "description": "광고 상품 전환 수"},
+    {"name": "conv_amount", "type": "INTEGER", "description": "광고 상품 전환 금액"},
+    {"name": "cart_count", "type": "INTEGER", "description": "광고 상품 장바구니에 담은 수량"},
+    {"name": "sold_count", "type": "INTEGER", "description": "광고 상품 전환 수량"},
+    {"name": "ymd", "type": "DATE", "description": "날짜"},
+    "PARTITION BY ymd"
+  ],
   "ecount.inventory": [
     {"name": "product_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
     {"name": "quantity", "type": "INTEGER", "description": "재고수량"},

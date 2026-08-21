@@ -44,8 +44,8 @@ class TestCjLogistics:
 
 class TestCoupangAds:
     """쿠팡 광고센터 데이터 변환 테스트.
-    - coupang.advertising.report.Campaign
-    - coupang.advertising.report.Creative
+    - coupang.advertising.management.Campaign
+    - coupang.advertising.management.Creative
     - coupang.advertising.report.ProductAdReport
     - coupang.advertising.report.NewCustomerAdReport
     """
@@ -56,7 +56,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_campaign(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 캠페인 목록을 변환하는 테스트."""
-        from linkmerce.core.coupang.advertising.report.transform import Campaign
+        from linkmerce.core.coupang.advertising.management.transform import Campaign
         transformer_harness(Campaign).transform(
             vendor_id = self.vendor_id(credentials),
         )
@@ -65,7 +65,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_creative(self, transformer_harness: Harness, configs: YamlReader, credentials: YamlReader):
         """쿠팡 광고센터 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 변환하는 테스트."""
-        from linkmerce.core.coupang.advertising.report.transform import Creative
+        from linkmerce.core.coupang.advertising.management.transform import Creative
         transformer_harness(Creative).transform(
             vendor_id = self.vendor_id(credentials),
             map_index = configs("coupang.advertising.creative")["campaign_ids"],
@@ -189,6 +189,50 @@ class TestDable:
         """데이블 광고 보고서를 보고서와 캠페인 데이터로 변환하는 테스트."""
         from linkmerce.core.dable.api.report.transform import DailyReport
         transformer_harness(DailyReport).transform()
+
+
+###################################################################
+############################### Ebay ##############################
+###################################################################
+
+class TestEbay:
+    """Gmarket 광고센터 데이터 변환 테스트.
+    - ebay.adcenter.management.CampaignGroup
+    - ebay.adcenter.management.Campaign
+    - ebay.adcenter.management.Product
+    - ebay.adcenter.report.Report
+    - ebay.adcenter.report.ReportDownload
+    """
+
+    @pytest.mark.ebay_ads
+    def test_campaign_group(self, transformer_harness: Harness):
+        """Gmarket 광고센터 캠페인 목록을 변환하는 테스트."""
+        from linkmerce.core.ebay.adcenter.management.transform import CampaignGroup
+        transformer_harness(CampaignGroup).transform()
+
+    @pytest.mark.ebay_ads
+    def test_campaign(self, transformer_harness: Harness):
+        """Gmarket 광고센터 캠페인 목록을 변환하는 테스트."""
+        from linkmerce.core.ebay.adcenter.management.transform import Campaign
+        transformer_harness(Campaign).transform()
+
+    @pytest.mark.ebay_ads
+    def test_product(self, transformer_harness: Harness):
+        """Gmarket 광고센터 캠페인 목록을 변환하는 테스트."""
+        from linkmerce.core.ebay.adcenter.management.transform import Product
+        transformer_harness(Product).transform()
+
+    @pytest.mark.ebay_ads
+    def test_report(self, transformer_harness: Harness):
+        """Gmarket 광고센터 상세 리포트를 변환하는 테스트."""
+        from linkmerce.core.ebay.adcenter.report.transform import Report
+        transformer_harness(Report).transform()
+
+    @pytest.mark.ebay_ads
+    def test_report_download(self, transformer_harness: Harness):
+        """Gmarket 광고센터 상세 리포트 다운로드 결과를 변환하는 테스트."""
+        from linkmerce.core.ebay.adcenter.report.transform import ReportDownload
+        transformer_harness(ReportDownload).transform()
 
 
 ###################################################################

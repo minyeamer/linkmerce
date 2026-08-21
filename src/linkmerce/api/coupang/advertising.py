@@ -101,8 +101,8 @@ def campaign(
             - `"raw"`: 데이터 수집 후 `dict` 또는 `list[dict]` 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.coupang.advertising.report.extract import Campaign
-    from linkmerce.core.coupang.advertising.report.transform import Campaign as T
+    from linkmerce.core.coupang.advertising.management.extract import Campaign
+    from linkmerce.core.coupang.advertising.management.transform import Campaign as T
     return Campaign(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,
@@ -164,8 +164,8 @@ def creative(
             - `"raw"`: 데이터 수집 후 `dict` 또는 `list[dict]` 형식의 원본 응답을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.coupang.advertising.report.extract import Creative
-    from linkmerce.core.coupang.advertising.report.transform import Creative as T
+    from linkmerce.core.coupang.advertising.management.extract import Creative
+    from linkmerce.core.coupang.advertising.management.transform import Creative as T
     return Creative(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,

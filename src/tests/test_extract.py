@@ -57,8 +57,8 @@ class TestCjLogistics:
 
 class TestCoupangAds:
     """쿠팡 광고센터 데이터 추출 테스트.
-    - coupang.advertising.report.Campaign
-    - coupang.advertising.report.Creative
+    - coupang.advertising.management.Campaign
+    - coupang.advertising.management.Creative
     - coupang.advertising.report.ProductAdReport
     - coupang.advertising.report.NewCustomerAdReport
     """
@@ -69,11 +69,11 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 광고센터 캠페인 목록을 조회하는 테스트."""
-        from linkmerce.core.coupang.advertising.report.extract import Campaign
+        from linkmerce.core.coupang.advertising.management.extract import Campaign
         _configs = options("coupang.advertising.campaign")
         Campaign(
             cookies = self.cookies(credentials),
-            parser = dump_extract(Campaign, format="json"),
+            parser = dump_extract(Campaign, format="txt"),
         ).extract(
             goal_type = _configs.get("goal_type", "SALES"),
             is_deleted = _configs.get("is_deleted", False),
@@ -83,7 +83,7 @@ class TestCoupangAds:
     @pytest.mark.coupang_ads
     def test_creative(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 광고센터 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 조회하는 테스트."""
-        from linkmerce.core.coupang.advertising.report.extract import Creative
+        from linkmerce.core.coupang.advertising.management.extract import Creative
         _configs = configs("coupang.advertising.creative")
         Creative(
             cookies = self.cookies(credentials),
@@ -260,6 +260,94 @@ class TestDable:
             start_date = _configs.get("start_date", yesterday),
             end_date = _configs.get("end_date", ":start_date:"),
             group_by_campaign = True,
+        )
+
+
+###################################################################
+############################### Ebay ##############################
+###################################################################
+
+class TestEbay:
+    """Gmarket 광고센터 데이터 추출 테스트.
+    - ebay.adcenter.management.CampaignGroup
+    - ebay.adcenter.management.Campaign
+    - ebay.adcenter.management.Product
+    - ebay.adcenter.report.Report
+    - ebay.adcenter.report.ReportDownload
+    """
+
+    def cookies(self, reader: YamlReader) -> str:
+        return reader("ebay.adcenter")["cookies"]
+
+    @pytest.mark.ebay_ads
+    def test_campaign_group(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """Gmarket 광고센터 캠페인 그룹 목록을 조회하는 테스트."""
+        from linkmerce.core.ebay.adcenter.management.extract import CampaignGroup
+        _configs = options("ebay.adcenter.campaign_group")
+        CampaignGroup(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(CampaignGroup, format="txt"),
+        ).extract(
+            start_date = _configs.get("start_date", ":today:"),
+            end_date = _configs.get("end_date", ":start_date:"),
+        )
+
+    @pytest.mark.ebay_ads
+    def test_campaign(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """Gmarket 광고센터 캠페인 목록을 조회하는 테스트."""
+        from linkmerce.core.ebay.adcenter.management.extract import Campaign
+        _configs = configs("ebay.adcenter.campaign")
+        Campaign(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(Campaign, format="txt"),
+        ).extract(
+            campaign_group_id = _configs["campaign_group_id"],
+            start_date = _configs.get("start_date", ":today:"),
+            end_date = _configs.get("end_date", ":start_date:"),
+        )
+
+    @pytest.mark.ebay_ads
+    def test_campaign(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """Gmarket 광고센터 상품 목록을 조회하는 테스트."""
+        from linkmerce.core.ebay.adcenter.management.extract import Product
+        _configs = configs("ebay.adcenter.product")
+        Product(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(Product, format="txt"),
+        ).extract(
+            campaign_id = _configs["campaign_id"],
+            start_date = _configs.get("start_date", ":today:"),
+            end_date = _configs.get("end_date", ":start_date:"),
+        )
+
+    @pytest.mark.ebay_ads
+    def test_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """Gmarket 광고센터 상세 리포트를 조회하는 테스트."""
+        from linkmerce.core.ebay.adcenter.report.extract import Report
+        _configs = options("ebay.adcenter.report")
+        Report(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(Report, format="txt"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+            report_type = _configs.get("report_type", "product"),
+            aggregate_type = _configs.get("aggregate_type", "daily"),
+        )
+
+    @pytest.mark.ebay_ads
+    def test_report_download(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """Gmarket 광고센터 상세 리포트를 엑셀로 다운로드하는 테스트."""
+        from linkmerce.core.ebay.adcenter.report.extract import ReportDownload
+        _configs = options("ebay.adcenter.report_download")
+        ReportDownload(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(ReportDownload, format="xlsx"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+            report_type = _configs.get("report_type", "product"),
+            aggregate_type = _configs.get("aggregate_type", "daily"),
         )
 
 

@@ -56,6 +56,12 @@ result = function_name(
 )
 ```
 
+For a compact one-line call, use standard Python keyword-argument form without spaces around `=`. The spaced form applies only when the call itself spans multiple lines:
+
+```python
+result = function_name(required=value, optional=1)
+```
+
 For a multiline `dict(...)` constructor, use the same rule:
 
 ```python
