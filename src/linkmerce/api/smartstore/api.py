@@ -81,7 +81,7 @@ def product(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -133,7 +133,7 @@ def product(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        페이지 요청 간 대기 시간(초). 기본값은 `1`
+        페이지 요청 간 대기 시간(초). 기본값은 `1.1`
     progress: bool
         페이지 순회 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
@@ -176,7 +176,7 @@ def option(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -202,7 +202,7 @@ def option(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        상품별 요청 간 대기 시간(초). 기본값은 `1`
+        상품별 요청 간 대기 시간(초). 기본값은 `1.1`
     progress: bool
         반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
@@ -254,7 +254,7 @@ def product_option(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: tuple[dict | None, dict | None] = (None, None),
@@ -309,7 +309,7 @@ def product_option(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        요청 간 대기 시간(초). 기본값은 `1`
+        요청 간 대기 시간(초). 기본값은 `1.1`
     progress: bool
         반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
@@ -335,6 +335,7 @@ def product_option(
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
     from linkmerce.api.common import get_table
+    import time
     PRODUCT, OPTION = 0, 1
     product_table = get_table(transform_options[PRODUCT], default="smartstore_product")
     option_table = get_table(transform_options[OPTION], default="smartstore_option")
@@ -355,6 +356,7 @@ def product_option(
         query = f"SELECT DISTINCT product_id FROM {product_table} WHERE channel_seq = {channel_seq}"
         product_id = connection.fetch_values(query, axis=1)
 
+    time.sleep(request_delay)
     results["option"] = option(
         client_id, client_secret, product_id, channel_seq, max_retries,
         connection=connection, request_delay=request_delay, progress=progress, return_type=return_type,
@@ -436,7 +438,7 @@ def order(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -476,7 +478,7 @@ def order(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        조회 기간 내 커서 요청 간 대기 시간(초). 기본값은 `1`
+        조회 기간 내 커서 요청 간 대기 시간(초). 기본값은 `1.1`
     progress: bool
         반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
@@ -523,7 +525,7 @@ def order_status(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -554,7 +556,7 @@ def order_status(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        조회 기간 내 커서 요청 간 대기 시간(초). 기본값은 `1`
+        조회 기간 내 커서 요청 간 대기 시간(초). 기본값은 `1.1`
     progress: bool
         반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
@@ -600,7 +602,7 @@ def aggregated_order_status(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: tuple[dict | None, dict | None, dict | None] = (None, None, None),
@@ -629,7 +631,7 @@ def aggregated_order_status(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        조회 기간 내 커서 요청 간 대기 시간(초). 기본값은 `1`
+        조회 기간 내 커서 요청 간 대기 시간(초). 기본값은 `1.1`
     progress: bool
         반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
@@ -657,6 +659,7 @@ def aggregated_order_status(
     """
     from linkmerce.core.smartstore.api.order.extract import OrderStatus
     from linkmerce.core.smartstore.api.order.transform import OrderStatus as T
+    import time
     STATUS, PURCHASE, CLAIM = 0, 1, 2
     common = {
         "configs": _get_api_configs(client_id, client_secret),
@@ -683,11 +686,13 @@ def aggregated_order_status(
     from linkmerce.api.common import get_table
     table = get_table(transform_options[STATUS], default="smartstore_order_time")
 
+    time.sleep(request_delay)
     transform_options_ = (transform_options[PURCHASE] or dict()) | {"tables": {"table": table}}
     results["purchase_decided"] = Order(**prepare_duckdb_extract(
             T, connection, extract_options[PURCHASE], transform_options_, return_type, **common,
         )).extract(start_date, end_date, "PURCHASE_DECIDED_DATETIME", **kwargs)
 
+    time.sleep(request_delay)
     transform_options_ = (transform_options[CLAIM] or dict()) | {"tables": {"table": table}}
     results["claim_completed"] = Order(**prepare_duckdb_extract(
             T, connection, extract_options[CLAIM], transform_options_, return_type, **common,
@@ -709,7 +714,7 @@ def settlement(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -745,7 +750,7 @@ def settlement(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        페이지 및 조회일자별 요청 간 대기 시간(초). 기본값은 `1`
+        페이지 및 조회일자별 요청 간 대기 시간(초). 기본값은 `1.1`
     progress: bool
         반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
@@ -791,7 +796,7 @@ def marketing_channel(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -820,7 +825,7 @@ def marketing_channel(
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
-        조회 기간별 요청 간 대기 시간(초). 기본값은 `1`
+        조회 기간별 요청 간 대기 시간(초). 기본값은 `1.1`
     progress: bool
         반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str

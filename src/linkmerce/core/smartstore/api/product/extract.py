@@ -28,7 +28,7 @@ class Product(SmartstoreApi):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `PaginateAll` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        페이지 요청 간 대기 시간(초). 기본값은 `1`
+        페이지 요청 간 대기 시간(초). 기본값은 `1.1`
     tqdm_options: dict | None
         페이지 순회 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
@@ -37,7 +37,7 @@ class Product(SmartstoreApi):
     version = "v1"
     path = "/products/search"
     date_format = "%Y-%m-%d"
-    default_options = {"PaginateAll": {"request_delay": 1}}
+    default_options = {"PaginateAll": {"request_delay": 1.1}}
 
     @SmartstoreApi.with_session
     @SmartstoreApi.with_token
@@ -196,7 +196,7 @@ class Option(SmartstoreApi):
     **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
 
     request_delay: float | int | tuple[int, int]
-        상품별 요청 간 대기 시간(초). 기본값은 `1`
+        상품별 요청 간 대기 시간(초). 기본값은 `1.1`
     tqdm_options: dict | None
         반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
     """
@@ -204,7 +204,7 @@ class Option(SmartstoreApi):
     method = "GET"
     version = "v2"
     path = "/products/channel-products/{}"
-    default_options = {"RequestEach": {"request_delay": 1}}
+    default_options = {"RequestEach": {"request_delay": 1.1}}
 
     @SmartstoreApi.with_session
     @SmartstoreApi.with_token

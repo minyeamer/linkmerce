@@ -43,14 +43,14 @@ class SmartstoreApi(Extractor):
         try:
             import requests
             url = self.origin + "/v1/oauth2/token"
-            params = self._build_auth_params(client_id, client_secret)
-            response = requests.post(url, params=params, headers={"content-type":"application/x-www-form-urlencoded"})
+            data = self._build_auth_data(client_id, client_secret)
+            response = requests.post(url, data=data, headers={"content-type":"application/x-www-form-urlencoded"})
             return response.json()["access_token"]
         except:
             from linkmerce.common.exceptions import AuthenticationError
             raise AuthenticationError("Failed to authenticate with the Naver Commerce API.")
 
-    def _build_auth_params(self, client_id: str, client_secret: str) -> dict:
+    def _build_auth_data(self, client_id: str, client_secret: str) -> dict:
         import base64
         import bcrypt
         import time
