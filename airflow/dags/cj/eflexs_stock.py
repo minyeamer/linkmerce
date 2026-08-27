@@ -54,18 +54,14 @@ with DAG(
 
     @task(task_id="etl_eflexs_stock")
     def etl_eflexs_stock(ti: TaskInstance, **kwargs) -> dict:
-        from airflow_utils import format_datetime
-        start_date, end_date = format_datetime(kwargs, subdays=7), format_datetime(kwargs)
         configs = ti.xcom_pull(task_ids="read_configs")
-        return main_eflexs(start_date=start_date, end_date=end_date, **configs)
+        return main_eflexs(**configs)
 
     def main_eflexs(
             userid: str,
             passwd: str,
             mail_info: dict,
             customer_id: list[int],
-            start_date: str,
-            end_date: str,
             tables: dict[str, str],
             **kwargs
         ) -> dict:
@@ -80,8 +76,6 @@ with DAG(
                 passwd = passwd,
                 mail_info = mail_info,
                 customer_id = customer_id,
-                start_date = start_date,
-                end_date = end_date,
                 connection = conn,
                 progress = False,
                 return_type = "none",
@@ -93,8 +87,6 @@ with DAG(
                 },
                 "params": {
                     "customer_id": customer_id,
-                    "start_date": start_date,
-                    "end_date": end_date,
                 },
                 "result": load_table_from_duckdb(
                     connection = conn,

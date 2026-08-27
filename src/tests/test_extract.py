@@ -46,8 +46,6 @@ class TestCjLogistics:
             parser = dump_extract(Stock, format="json"),
         ).extract(
             customer_id = _configs["customer_id"],
-            start_date = _configs.get("start_date", ":last_week:"),
-            end_date = _configs.get("end_date", ":today:"),
         )
 
 

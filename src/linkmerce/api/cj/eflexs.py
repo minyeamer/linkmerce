@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from typing import Iterable, Literal
     from linkmerce.api.common import DuckDBResult
     from linkmerce.common.load import DuckDBConnection
-    import datetime as dt
 
 
 @with_duckdb_connection(table="eflexs_stock")
@@ -17,8 +16,6 @@ def stock(
         passwd: str,
         mail_info: dict,
         customer_id: int | str | Iterable[int | str],
-        start_date: dt.date | str | Literal[":last_week:"] = ":last_week:",
-        end_date: dt.date | str | Literal[":start_date:", ":today:"] = ":today:",
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int = 1,
@@ -45,13 +42,6 @@ def stock(
             - `passwd`: 메일 계정 비밀번호
     customer_id: int | str | Iterable[int | str]
         조회할 고객 ID. 단일 값 또는 배열을 입력한다.
-    start_date: dt.date | str
-        조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-            - `":last_week:"`: 오늘 기준 7일 전 날짜 (기본값)
-    end_date: dt.date | str
-        조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-            - `":start_date:"`: `start_date`와 동일한 날짜
-            - `":today:"`: 오늘 날짜 (기본값)
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -90,4 +80,4 @@ def stock(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(customer_id, start_date, end_date)
+    )).extract(customer_id)

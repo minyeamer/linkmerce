@@ -7,7 +7,7 @@ from functools import wraps
 class CjEflexs(Extractor):
     """CJ대한통운 eFLEXs 로그인 및 2단계 인증을 처리하는 공통 클래스.
 
-    - **URL**: https://eflexs-x.cjlogistics.com/index.do
+    - **URL**: https://eflexs-x.cjlogistics.com
 
     Attributes
     ----------
@@ -24,17 +24,20 @@ class CjEflexs(Extractor):
         - **passwd**: 메일 계정 비밀번호
     """
 
-    method: str = "POST"
-    origin = "https://eflexs-x.cjlogistics.com"
-    menu: str
+    method: str = "GET"
+    origin: str = "https://eflexs-x.cjlogistics.com"
+    api_url: str = "https://b2c-api.cjlogistics.com/api"
+    version: str = "v1"
     path: str
+    access_token: str = str()
+    refresh_token: str = str()
     config_fields = ["userid", "passwd", {"mail_info": ["origin", "email", "passwd"]}]
 
     @property
     def url(self) -> str:
-        return self.concat_path(self.origin, self.menu, self.path)
+        return self.concat_path(self.api_url, self.version, self.path)
 
-    def with_auth_info(func):
+    def with_token(func):
         """데이터 수집 전에 로그인 및 2단계 인증을 처리하는 데코레이터."""
         @wraps(func)
         def wrapper(self: CjEflexs, *args, **kwargs):
@@ -45,69 +48,53 @@ class CjEflexs(Extractor):
     def login(self, userid: str, passwd: str, mail_info: dict, **context):
         """CJ대한통운 eFLEXs 로그인 및 2단계 인증을 처리한다."""
         try:
-            self._disable_warnings()
-            self._init_session()
-            key = self._login_action(userid, passwd)
-            code = get_2fa_code(**mail_info)
-            self._login_2fa(key, code)
-            self._login_final(userid, key, code)
+            session_id = self._login_action(userid, passwd)
+            otp_code = get_2fa_code(**mail_info)
+            self._login_2fa(session_id, otp_code, userid)
         except:
             from linkmerce.common.exceptions import AuthenticationError
-            raise AuthenticationError("Failed to login in to CJ대한통운 eFLEXs.")
-
-    def _disable_warnings(self):
-        from urllib3 import disable_warnings as disable
-        from urllib3.exceptions import InsecureRequestWarning
-        disable(InsecureRequestWarning)
-
-    def _init_session(self):
-        from linkmerce.utils.headers import build_headers
-
-        url = self.origin + "/index.do"
-        headers = build_headers(host=self.origin, metadata="navigate", https=True)
-        self.request("GET", url, headers=headers, verify=False) # 'Set-Cookie': 'JSESSIONID='
+            raise AuthenticationError("Failed to login in to CJ eFLEXs.")
 
     def _login_action(self, userid: str, passwd: str) -> str:
-        url = self.origin + "/auth/loginProc.do"
-        body = {
-            "pgmId": "", "requestDataIds": "dmParam", "cjLoginId": userid, "cjLoginPw": passwd,
-            "cjSecurityID": "", "langCd": "KO"
-        }
-        headers = dict(self.get_request_headers(), referer=(self.origin + "/index.do"))
-        with self.request("POST", url, data=body, headers=headers, verify=False) as response:
-            return response.json()["_METADATA_"]["key"]
-
-    def _login_2fa(self, key: str, code: str) -> str:
-        url = self.origin + "/CMLN0003M/checkAuthInfo.do"
-        body = {
-            "pgmId": None, "requestDataIds": "reqParam", "@d1#loginId": None, "@d1#freeYn": None,
-            "@d1#checkKeyDe": code, "@d1#authKeyDe": key, "@d#": "@d1#", "@d1#": "reqParam", "@d1#tp": "dm"
-        }
-        headers = dict(self.get_request_headers(), referer=(self.origin+"/index.do"))
-        with self.request("POST", url, data=body, headers=headers, verify=False) as response:
-            results = response.json()["resParam"]
-            if results["checkKeyYn"] != 'Y':
+        from linkmerce.utils.headers import build_headers
+        url = self.api_url + f"/{self.version}/auth/login"
+        body = {"loginId": userid, "password": passwd}
+        headers = build_headers(url, contents="json", referer=self.origin) | {"x-locale": "ko"}
+        with self.request("POST", url, json=body, headers=headers) as response:
+            data = response.json()
+            if not data["success"]:
                 raise ValueError()
-            return results["checkKeyEnc"]
+            return data["payload"]["sessionId"]
 
-    def _login_final(self, userid: str, key: str, code: str):
-        url = self.origin + "/CMLN0001P/certiLogin.do"
-        body = {
-            "pgmId": None, "requestDataIds": "reqParam", "@d1#loginId": userid, "@d1#freeYn": 'E',
-            "@d1#checkKeyDe": code, "@d1#authKeyDe": key, "@d#": "@d1#", "@d1#": "reqParam", "@d1#tp": "dm"
-        }
-        headers = dict(self.get_request_headers(), referer=(self.origin+"/index.do"))
-        with self.request("POST", url, data=body, headers=headers, verify=False) as response:
-            if response.json()["usrStdInfo"]:
-                return
+    def _login_2fa(self, session_id: str, otp_code: str, userid: str) -> str:
+        from linkmerce.utils.headers import build_headers
+        url = self.api_url + f"/{self.version}/auth/confirm-mfa"
+        body = {"sessionId": session_id, "otpCode": otp_code, "loginId": userid}
+        headers = build_headers(url, contents="json", referer=self.origin) | {"x-locale": "ko"}
+        with self.request("POST", url, json=body, headers=headers) as response:
+            data = response.json()
+            if not data["success"]:
+                raise ValueError()
+            self.set_token(**data["payload"])
+
+    def set_token(self, accessToken: str, refreshToken: str, **kwargs):
+        self.access_token = accessToken
+        self.refresh_token = refreshToken
+
+    def get_authorization(self) -> str:
+        return "Bearer " + self.access_token
+
+    def build_request_headers(self, **kwargs: str) -> dict[str, str]:
+        return self.get_request_headers() | {"authorization": self.get_authorization()}
 
     def set_request_headers(self, **kwargs):
         return super().set_request_headers(
-            contents={"type": "form", "charset": "UTF-8"},
-            host=self.origin, origin=self.origin, referer=self.origin, ajax=True)
-
-    def build_request_message(self, **kwargs) -> dict:
-        return dict(super().build_request_message(**kwargs), verify=False)
+            authority = self.api_url,
+            contents = "json",
+            origin = self.origin,
+            referer = self.origin,
+            **{"x-locale": "ko"}
+        )
 
 
 def get_2fa_code(
@@ -157,7 +144,7 @@ def get_2fa_code(
         for _ in range(wait_seconds):
             with session.get(url, params=params, headers=headers) as response:
                 for mail in response.json()["data"][:5]:
-                    if (mail["subject"] == "LoIS eFLEXs 인증번호") and mail["is_new"]:
+                    if (mail["subject"] == "[eFLEXs][인증코드]") and mail["is_new"]:
                         return mail["no"]
             time.sleep(wait_interval)
         raise ValueError("인증코드가 전달되지 않았습니다")
@@ -169,7 +156,7 @@ def get_2fa_code(
         with session.get(url, headers=headers) as response:
             try:
                 content = response.json()["data"]["message"]["content"]
-                return re.search(r"인증번호 : (\d{4})", content).group(1)
+                return re.search(r"로그인 인증번호\s*(\d{6})", content).group(1)
             finally:
                 _make_mail_as_read(session, origin, mail_no)
 

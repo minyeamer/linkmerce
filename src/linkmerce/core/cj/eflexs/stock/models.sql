@@ -33,10 +33,10 @@ SELECT
   , zoneCd AS zone_code
   , wcellNm AS location_name
   , TRY_CAST(lotNo AS BIGINT) AS lot_no
-  , invnQty AS total_quantity
-  , avlbQty AS usable_quantity
-  , hldQty AS hold_quantity
-  , prcsQty AS process_quantity
+  , TRY_CAST(invnQty AS INTEGER) AS total_quantity
+  , TRY_CAST(avlbQty AS INTEGER) AS usable_quantity
+  , TRY_CAST(hldQty AS INTEGER) AS hold_quantity
+  , TRY_CAST(prcsQty AS INTEGER) AS process_quantity
   , TRY_CAST(remainInvnDays AS INTEGER) AS remain_days
   , TRY_CAST(validDatetime AS DATE) AS validate_date
   , TRY_CAST(STRPTIME(CAST(inbDate AS VARCHAR), '%Y%m%d') AS DATE) AS inbound_date

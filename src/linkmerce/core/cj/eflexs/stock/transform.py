@@ -20,7 +20,7 @@ class Stock(DuckDBTransformer):
     parser = "json"
     parser_config = dict(
         dtype = dict,
-        scope = "dsRealTime",
+        scope = "payload",
         fields = [
             "itemCd", "itemVarcode", "strrId", "strrNm", "itemNm", "whCd", "whNm", "zoneCd", "wcellNm",
             "lotNo", "invnQty", "avlbQty", "hldQty", "prcsQty", "remainInvnDays",
