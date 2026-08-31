@@ -75,11 +75,16 @@ def login_coupang(userid: str, passwd: str, navigate_to_ads: bool = True, timeou
 
     def open_ads_menu(context: BrowserContext, page: Page):
         """쿠팡 Wing 판매자센터의 사이드 메뉴에서 '광고센터' 탭을 클릭해서 새 탭에 쿠팡 광고센터를 연다."""
-        with context.expect_page() as new_page_info:
-            selector = '#wing-top-main-side-menu [data-menu-code="ADS_CENTER_ALL"] a'
-            page.locator(selector).first.click()
+        try:
+            with context.expect_page() as new_page_info:
+                selector = '#wing-top-main-side-menu [data-menu-code="ADS_CENTER_ALL"] a'
+                page.locator(selector).first.click()
+                ad_page = new_page_info.value
+        except Exception:
+            ad_url = "https://advertising.coupang.com/relay/wing/home?from=WING_LNB"
+            page.goto(ad_url, wait_until="domcontentloaded")
+            ad_page = page
 
-        ad_page = new_page_info.value
         ad_page.wait_for_url("https://advertising.coupang.com/**", timeout=(timeout*1000))
         ad_page.wait_for_load_state("domcontentloaded", timeout=30_000)
 
