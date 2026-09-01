@@ -64,19 +64,24 @@ with DAG(
         return main(**credentials, **dates, **configs)
 
     def generate_sales_date(data_interval_end: pendulum.DateTime) -> tuple[str, str]:
-        """실행 시점(data_interval_end)이 포함된 월요일-일요일 주간을 계산하고, 주의 시작일과 종료일을 반환한다.
-        단, 실행 시점의 전일이 해당 월의 1일이면서 일요일인 경우 1일의 하루 전과 하루 후를 반환한다.
+        """실행 시점(data_interval_end)의 전일이 포함된 월요일-일요일 주간을 계산해 조회 기간을 반환한다.
+        쿠팡 정산 리포트의 월초 절단을 고려해 주간 범위에 월 1일이 포함되면 전일이 속한 보고서 기간을 조회한다.
         """
         def get_last_monday(datetime: pendulum.DateTime) -> pendulum.DateTime:
             weekday = datetime.day_of_week # Monday: 0 - Sunday: 6
             return datetime if weekday == 0 else datetime.subtract(days=weekday)
-        reference = data_interval_end.subtract(days=1)
-        if (reference.day == 1) and (reference.day_of_week == 6):
-            start_date = reference.subtract(days=1)
-            end_date = reference.add(days=1)
-        else:
-            start_date = get_last_monday(reference)
-            end_date = start_date.add(days=6)
+
+        yesterday = data_interval_end.subtract(days=1)
+        start_date = get_last_monday(yesterday)
+        end_date = start_date.add(days=6)
+        first_of_month = end_date.start_of("month")
+
+        if start_date <= first_of_month <= end_date:
+            if yesterday < first_of_month:
+                start_date = start_date.subtract(days=1)
+                end_date = first_of_month
+            else:
+                start_date = first_of_month
         return start_date.format("YYYY-MM-DD"), end_date.format("YYYY-MM-DD")
 
     def main(
