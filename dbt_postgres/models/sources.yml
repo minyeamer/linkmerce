@@ -163,3 +163,11 @@ sources:
       - name: product_catalog
       - name: pageview
       - name: sales
+
+  - name: tiktok_ads
+    schema: tiktok_ads
+    tables:
+      - name: campaign
+      - name: adgroup
+      - name: ad
+      - name: report

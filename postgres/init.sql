@@ -24,6 +24,7 @@ CREATE SCHEMA IF NOT EXISTS sabangnet; -- sbn
 CREATE SCHEMA IF NOT EXISTS searchad; -- sad
 CREATE SCHEMA IF NOT EXISTS smartstore; -- smt
 CREATE SCHEMA IF NOT EXISTS ss_hcenter; -- ssh
+CREATE SCHEMA IF NOT EXISTS tiktok_ads; -- tka
 
 CREATE SCHEMA IF NOT EXISTS analytics; -- dbt/models/marts/**
 CREATE SCHEMA IF NOT EXISTS transformed; -- dbt/models/intermediate/**
@@ -1497,6 +1498,50 @@ CREATE TABLE IF NOT EXISTS ss_hcenter.sales (
 ) PARTITION BY RANGE (payment_date);
 
 -- ============================================================
+-- tiktok_ads  (틱톡 광고)
+-- ============================================================
+
+-- [틱톡 광고 캠페인 보고서]
+CREATE TABLE IF NOT EXISTS tiktok_ads.campaign (
+    campaign_id TEXT NOT NULL -- 캠페인ID
+  , campaign_name TEXT -- 캠페인명
+  , PRIMARY KEY (campaign_id)
+);
+
+-- [틱톡 광고그룹 보고서]
+CREATE TABLE IF NOT EXISTS tiktok_ads.adgroup (
+    adgroup_id TEXT NOT NULL -- 광고그룹ID
+  , adgroup_name TEXT -- 광고그룹명
+  , campaign_id TEXT NOT NULL -- 캠페인ID
+  , PRIMARY KEY (adgroup_id)
+);
+
+-- [틱톡 광고 광고 보고서]
+CREATE TABLE IF NOT EXISTS tiktok_ads.ad (
+    ad_id TEXT NOT NULL -- 광고ID
+  , ad_name TEXT -- 광고명
+  , campaign_id TEXT NOT NULL -- 캠페인ID
+  , adgroup_id TEXT NOT NULL -- 광고그룹ID
+  , landing_url TEXT -- 랜딩주소
+  , PRIMARY KEY (ad_id)
+);
+
+-- [틱톡 광고 일별 광고 보고서]
+CREATE TABLE IF NOT EXISTS tiktok_ads.report (
+    campaign_id TEXT NOT NULL -- 캠페인ID
+  , adgroup_id TEXT NOT NULL -- 광고그룹ID
+  , ad_id TEXT NOT NULL -- 광고ID
+  , ad_type TEXT NOT NULL -- 광고유형
+  , impression_count INTEGER -- 노출수
+  , click_count INTEGER -- 클릭수
+  , reach_count INTEGER -- 도달수
+  , ad_cost INTEGER -- 광고비
+  , conv_count INTEGER -- 전환수
+  , ymd DATE NOT NULL -- 날짜
+  , PRIMARY KEY (ymd, ad_id, ad_type)
+) PARTITION BY RANGE (ymd);
+
+-- ============================================================
 -- pg_partman 일별 파티션 초기화
 -- ============================================================
 
@@ -1606,3 +1651,4 @@ SELECT public.bootstrap_daily_partitions('ss_hcenter.product_catalog',		'created
 SELECT public.bootstrap_daily_partitions('ss_hcenter.pageview',			      'ymd',				        '2023-12-13',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('ss_hcenter.price',			        'created_at',			    '2025-07-19 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('ss_hcenter.sales',			        'payment_date',			  '2023-07-20',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('tiktok_ads.report',			        'ymd',			          '2026-05-14',				    '1 day',  35);

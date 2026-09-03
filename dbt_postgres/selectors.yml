@@ -261,6 +261,16 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
+  # Airflow Dags - tiktok_ads
+  - name: tiktok_ads
+    description: "'tiktok_ads' Dag 실행 후 틱톡 광고 목록 및 성과 변동을 매출에 반영"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.tiktok_ads__report_daily
+        - method: fqn
+          value: intermediate.sales.core__sales_daily
+
   # Airflow Dags - sync_gsheets
   - name: sync_gsheets__expense
     description: "'sync_gsheets__expense' Dag 실행 후 고정지출 변동을 매출에 반영"

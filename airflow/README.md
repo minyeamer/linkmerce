@@ -41,6 +41,7 @@ airflow/
 ├── dags/
 │   ├── _deprecated/
 │   ├── cj/
+│   ├── ads/
 │   ├── coupang/
 │   ├── ecount/
 │   ├── gsheets/
@@ -210,6 +211,15 @@ dbt_date_range >> prepare_dbt_run() >> dbt_run
 
 Dag 파일명과 Dag ID는 다를 수 있다.
 
+### 광고 (ads)
+
+| Dag ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `dable_ads` | 매일 `07:30` | 데이블 광고 ETL |
+| `google_ads` | 매일 `07:50` | 구글 광고 ETL |
+| `meta_ads` | 매일 `07:40` | 메타 광고 ETL |
+| `tiktok_ads` | 트리거 전용 | 틱톡 광고 보고서 ETL 후 광고 dbt 모델 실행 |
+
 ### CJ대한통운 (cj)
 
 | Dag ID | 스케줄 | 역할 |
@@ -298,9 +308,6 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
-| `dable_ads` | 매일 `07:30` | 데이블 광고 ETL |
-| `google_ads` | 매일 `07:50` | 구글 광고 ETL |
-| `meta_ads` | 매일 `07:40` | 메타 광고 ETL |
 | `postgres_partman_maintenance` | 매일 `00:00` | PostgreSQL pg_partman 파티션 갱신 |
 | `stock_report` | 평일 `11:00`, `17:30` | 재고 내역을 엑셀 파일로 변환해 Slack 업로드 |
 
@@ -353,7 +360,7 @@ provider: [ slack ]
 schedule: [ daily, hourly, weekdays, none ]
 status: [ disabled, private ] # [ deprecated ]
 time: [ afternoon, morning, night ]
-upstream: [ dagrun, fastapi, streamlit, extension ]
+upstream: [ dagrun, fastapi, streamlit, extension, manual ]
 write: [ append, overwrite, merge, file ]
 ```
 

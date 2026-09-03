@@ -164,6 +164,17 @@ naver_connect_insight_daily AS (
   GROUP BY ymd, product_id
 ),
 
+tiktok_report_daily AS (
+  SELECT
+      product_id
+    , 'adop0006' AS shop_id
+    , SUM(ad_cost) AS ad_cost
+    , ymd AS order_date
+  FROM {{ ref('tiktok_ads__report_daily') }}
+  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  GROUP BY ymd, product_id
+),
+
 extra_ads_insight_daily AS (
   SELECT
       brand_id AS product_id
@@ -361,6 +372,8 @@ insight_daily AS (
     (SELECT * FROM dable_report_daily)
     UNION ALL
     (SELECT * FROM naver_connect_insight_daily)
+    UNION ALL
+    (SELECT * FROM tiktok_report_daily)
     UNION ALL
     (SELECT * FROM extra_ads_insight_daily)
   ) AS t_

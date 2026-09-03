@@ -163,6 +163,38 @@ WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE{#
 #} UNION ALL{#
 
 #} SELECT
+    '틱톡' AS platform_name
+  , '-' AS account_name
+  , COALESCE(cmp.campaign_name, '-') AS campaign_name
+  , COALESCE(grp.adgroup_name, '-') AS adgroup_name
+  , COALESCE(ad.ad_name, '-') AS ad_name
+  , ad_type
+  , report.ad_cost
+  , NULL AS conv_amount
+  , report.product_id
+  , COALESCE(product.team_name, '담당팀 없음') AS team_name
+  , COALESCE(product.brand_name, '브랜드 없음') AS brand_name
+  , COALESCE(product.category_name1, '-') AS category_name1
+  , COALESCE(product.category_name2, '-') AS category_name2
+  , COALESCE(product.category_name3, '-') AS category_name3
+  , COALESCE(product.category_name4, '-') AS category_name4
+  , COALESCE(product.color, '-') AS color
+  , COALESCE(product.product_name, '-') AS product_name
+  , report.ymd
+FROM {{ ref('tiktok_ads__report_daily') }} AS report
+LEFT JOIN {{ source('tiktok_ads', 'campaign') }} AS cmp
+  ON report.campaign_id = cmp.campaign_id
+LEFT JOIN {{ source('tiktok_ads', 'adgroup') }} AS grp
+  ON report.adgroup_id = grp.adgroup_id
+LEFT JOIN {{ source('tiktok_ads', 'ad') }} AS ad
+  ON report.ad_id = ad.ad_id
+LEFT JOIN {{ ref('core__product_master') }} AS product
+  ON report.product_id = product.product_id
+WHERE report.ymd BETWEEN DS_START_DATE AND DS_END_DATE{#
+
+#} UNION ALL{#
+
+#} SELECT
     REPLACE(shop.shop_alias, '(광고)', '') AS platform_name
   , '-' AS account_name
   , '-' AS campaign_name

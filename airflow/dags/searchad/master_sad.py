@@ -52,7 +52,7 @@ with DAG(
         return [dict(info, with_media=(i == 0)) for i, info in enumerate(credentials)]
 
 
-    @task(task_id="etl_searchad_master_sad", map_index_template="{{ credentials['customer_id'] }}")
+    @task(task_id="etl_searchad_master_sad", map_index_template="{{ credentials['customer_id'] }}", retries=1, retry_delay=timedelta(minutes=1))
     def etl_searchad_master_sad(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import format_datetime, today
         from linkmerce.utils.date import date_range

@@ -125,6 +125,7 @@ ${POSTGRES_DATA_DIR:-./data} -> /var/lib/postgresql
 | `searchad` | 네이버 검색광고 및 GFA 데이터 |
 | `smartstore` | 스마트스토어 주문, 상품, 통계 데이터 |
 | `ss_hcenter` | 네이버 쇼핑파트너센터 데이터 |
+| `tiktok_ads` | 틱톡 광고 데이터 |
 | `partman` | `pg_partman` 관리 객체 |
 | `test` | 적재 기능 검증용 테이블 |
 

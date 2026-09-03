@@ -36,7 +36,8 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:low", "platform:naver-main", "objective:alert", "objective:search",
-        "schedule:weekdays", "time:morning", "write:file", "provider:slack"
+        "schedule:weekdays", "time:morning", "write:file", "provider:slack",
+        "status:disabled"
     ],
 ) as dag:
 

@@ -150,6 +150,7 @@ dbt_bigquery/models/intermediate/ads/
 ├── core__opex_daily
 ├── dable__report_daily
 ├── naver_connect__insight_daily
+├── tiktok_ads__report_daily
 └── relation__ad_id_to_ranged_sbn_ids
 ```
 
@@ -473,6 +474,11 @@ Airflow 경로 내에서 다음과 같은 Dag에서 괄호 안의 `dag_id`와 �
 
 ```bash
 airflow/dags/
+├── ads/
+│   ├── dable_ads.py (dable_ads)
+│   ├── google_ads.py (google_ads)
+│   ├── meta_ads.py (meta_ads)
+│   └── tiktok_ads.py (tiktok_ads)
 ├── cj/
 │   ├── eflexs_stock.py (cj_eflexs_stock)
 │   └── loisparcel_invoice.py (cj_loisparcel_invoice)
@@ -505,12 +511,9 @@ airflow/dags/
 │   ├── master_sad.py (searchad_master_sad)
 │   ├── report_gfa.py (searchad_report_gfa)
 │   └── report_sad.py (searchad_report_sad)
-├── smartstore/
-│   ├── invoice.py (smartstore_invoice)
-│   └── order.py (smartstore_order)
-├── dable_ads.py (dable_ads)
-├── google_ads.py (google_ads)
-└── meta_ads.py (meta_ads)
+└── smartstore/
+    ├── invoice.py (smartstore_invoice)
+    └── order.py (smartstore_order)
 ```
 
 로컬에서 전체 매출/광고 등을 일괄 갱신하기 위한 사용자 정의 selector도 제공된다.

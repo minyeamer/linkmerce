@@ -1175,5 +1175,37 @@
     {"name": "payment_date", "type": "DATE", "description": "결제일자", "mode": "REQUIRED"},
     "PARTITION BY payment_date",
     "CLUSTER BY mall_seq"
+  ],
+  "tiktok_ads.campaign": [
+    {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
+    {"name": "campaign_name", "type": "STRING", "description": "캠페인명"}
+  ],
+  "tiktok_ads.adgroup": [
+    {"name": "adgroup_id", "type": "STRING", "description": "광고그룹ID", "mode": "REQUIRED"},
+    {"name": "adgroup_name", "type": "STRING", "description": "광고그룹명"},
+    {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
+    "CLUSTER BY campaign_id"
+  ],
+  "tiktok_ads.ad": [
+    {"name": "ad_id", "type": "STRING", "description": "광고ID", "mode": "REQUIRED"},
+    {"name": "ad_name", "type": "STRING", "description": "광고명"},
+    {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
+    {"name": "adgroup_id", "type": "STRING", "description": "광고그룹ID", "mode": "REQUIRED"},
+    {"name": "landing_url", "type": "STRING", "description": "랜딩주소"},
+    "CLUSTER BY campaign_id, adgroup_id"
+  ],
+  "tiktok_ads.report": [
+    {"name": "campaign_id", "type": "STRING", "description": "캠페인ID", "mode": "REQUIRED"},
+    {"name": "adgroup_id", "type": "STRING", "description": "광고그룹ID", "mode": "REQUIRED"},
+    {"name": "ad_id", "type": "STRING", "description": "광고ID", "mode": "REQUIRED"},
+    {"name": "ad_type", "type": "STRING", "description": "광고유형", "mode": "REQUIRED"},
+    {"name": "impression_count", "type": "INTEGER", "description": "노출수"},
+    {"name": "click_count", "type": "INTEGER", "description": "클릭수"},
+    {"name": "reach_count", "type": "INTEGER", "description": "도달수"},
+    {"name": "ad_cost", "type": "INTEGER", "description": "광고비"},
+    {"name": "conv_count", "type": "INTEGER", "description": "전환수"},
+    {"name": "ymd", "type": "DATE", "description": "날짜"},
+    "PARTITION BY ymd",
+    "CLUSTER BY campaign_id, adgroup_id"
   ]
 }
