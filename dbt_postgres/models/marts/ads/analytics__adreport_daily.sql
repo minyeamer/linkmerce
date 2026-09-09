@@ -14,6 +14,7 @@
 
 SELECT
     '네이버' AS platform_name
+  , customer_id::text AS account_no
   , account_name
   , campaign_name
   , adgroup_name
@@ -37,6 +38,7 @@ FROM {{ ref('searchad__report_daily') }}(DS_START_DATE, DS_END_DATE){#
 
 #} SELECT
     '쿠팡' AS platform_name
+  , vendor_id AS account_no
   , vendor_name AS account_name
   , campaign_name
   , '-' AS adgroup_name
@@ -60,6 +62,7 @@ FROM {{ ref('coupang_ads__report_daily') }}(DS_START_DATE, DS_END_DATE){#
 
 #} SELECT
     '구글' AS platform_name
+  , customer_id::text AS account_no
   , account_name
   , campaign_name
   , adgroup_name
@@ -83,6 +86,7 @@ FROM {{ ref('google_ads__report_daily') }}(DS_START_DATE, DS_END_DATE){#
 
 #} SELECT
     '메타' AS platform_name
+  , account_id AS account_no
   , account_name
   , campaign_name
   , adset_name AS adgroup_name
@@ -106,6 +110,7 @@ FROM {{ ref('meta_ads__report_daily') }}(DS_START_DATE, DS_END_DATE){#
 
 #} SELECT
     '데이블' AS platform_name
+  , '5000837' AS account_no
   , '-' AS account_name
   , COALESCE(cmp.campaign_name, '-') AS campaign_name
   , '-' AS adgroup_name
@@ -134,6 +139,7 @@ WHERE report.ymd BETWEEN DS_START_DATE AND DS_END_DATE{#
 
 #} SELECT
     '쇼핑커넥트' AS platform_name
+  , space.space_id::text AS account_no
   , COALESCE(space.space_name, '-') AS account_name
   , '-' AS campaign_name
   , '-' AS adgroup_name
@@ -164,6 +170,7 @@ WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE{#
 
 #} SELECT
     '틱톡' AS platform_name
+  , '5043630' AS account_no
   , '-' AS account_name
   , COALESCE(cmp.campaign_name, '-') AS campaign_name
   , COALESCE(grp.adgroup_name, '-') AS adgroup_name
@@ -196,6 +203,7 @@ WHERE report.ymd BETWEEN DS_START_DATE AND DS_END_DATE{#
 
 #} SELECT
     REPLACE(shop.shop_alias, '(광고)', '') AS platform_name
+  , '0' AS account_no
   , '-' AS account_name
   , '-' AS campaign_name
   , '-' AS adgroup_name

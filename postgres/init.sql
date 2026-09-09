@@ -281,6 +281,8 @@ CREATE TABLE IF NOT EXISTS coupang.vendor (
   , vendor_name TEXT -- 업체명
   , vendor_alias TEXT -- 업체별칭
   , vendor_seq BIGINT -- 업체순번
+  , userid TEXT -- 계정ID
+  , corp_name TEXT -- 운영사업자
   , bundle_brand_ids TEXT -- 연결브랜드ID
   , rocket_sales_date DATE -- 매출인식일
   , rocket_settle_date DATE -- 정산시작일
@@ -565,6 +567,7 @@ CREATE TABLE IF NOT EXISTS google_ads.account (
   , userid TEXT -- 아이디
   , account_name TEXT -- 계정명
   , account_seq BIGINT -- 계정순번
+  , corp_name TEXT -- 운영사업자
   , bundle_brand_ids TEXT -- 연결브랜드ID
   , PRIMARY KEY (customer_id)
 );
@@ -649,6 +652,7 @@ CREATE TABLE IF NOT EXISTS meta_ads.account (
   , userid TEXT -- 아이디
   , account_name TEXT -- 계정명
   , account_seq BIGINT -- 계정순번
+  , corp_name TEXT -- 운영사업자
   , bundle_brand_ids TEXT -- 연결브랜드ID
   , PRIMARY KEY (account_id)
 );
@@ -712,6 +716,8 @@ CREATE INDEX IF NOT EXISTS met_ads__ad_idx ON meta_ads.insight (ymd, ad_id);
 CREATE TABLE IF NOT EXISTS naver_connect.space (
     space_id BIGINT NOT NULL -- 스페이스ID
   , space_name TEXT -- 스페이스
+  , userid TEXT -- 계정ID
+  , corp_name TEXT -- 운영사업자
   , brand_id TEXT NOT NULL -- 연결브랜드ID
   , register_date DATE -- 개설일
   , order_start_date DATE -- 최초수집일
@@ -938,7 +944,7 @@ CREATE TABLE IF NOT EXISTS sabangnet.shop (
   , shop_group TEXT -- 마켓분류
   , shop_url TEXT -- 쇼핑몰URL
   , scm_url TEXT -- SCM URL
-  , commission_rate DOUBLE PRECISION -- 수수료율
+  , commission_rate FLOAT8 -- 수수료율
   , PRIMARY KEY (shop_id)
 );
 
@@ -949,8 +955,9 @@ CREATE TABLE IF NOT EXISTS sabangnet.account (
   , shop_name TEXT -- 쇼핑몰명
   , shop_group TEXT -- 마켓분류
   , userid TEXT -- 쇼핑몰ID
+  , corp_name TEXT -- 운영사업자
   , status BOOLEAN -- 상태
-  , commission_rate DOUBLE PRECISION -- 수수료율
+  , commission_rate FLOAT8 -- 수수료율
   , PRIMARY KEY (account_no)
 );
 
@@ -1115,6 +1122,7 @@ CREATE TABLE IF NOT EXISTS searchad.account (
   , account_name TEXT -- 계정명
   , account_type TEXT -- 계정유형
   , account_seq BIGINT -- 계정순번
+  , corp_name TEXT -- 운영사업자
   , bundle_brand_ids TEXT -- 연결브랜드ID
   , PRIMARY KEY (customer_id)
 );
@@ -1260,6 +1268,8 @@ CREATE TABLE IF NOT EXISTS searchad.rank_now (
 CREATE TABLE IF NOT EXISTS smartstore.channel (
     channel_seq BIGINT NOT NULL -- 채널번호
   , channel_name TEXT -- 채널명
+  , userid TEXT -- 계정ID
+  , corp_name TEXT -- 운영사업자
   , team_name TEXT -- 영업팀
   , brand_id TEXT -- 연결브랜드ID
   , brand_name TEXT -- 연결브랜드

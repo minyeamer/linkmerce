@@ -25,6 +25,14 @@ order_count_ds_range AS (
   SELECT
       order_id
     , product_order_id
+    -- Shop attributes
+    , shop_id
+    , shop_group
+    , shop_name
+    -- Account attributes
+    , account_no
+    , corp_name
+    -- Item attributes
     , product_id
     , item_id
     , item_seq
@@ -37,11 +45,10 @@ order_count_ds_range AS (
     , color
     , product_name
     , category_unit_name
-    , shop_id
-    , shop_group
-    , shop_name
+    -- Order attributes
     , order_status
     , order_quantity
+    -- Date attributes
     , MIN(order_date) OVER (PARTITION BY DATE_TRUNC(DS_END_DATE, MONTH)) AS order_start_date
     , MAX(order_date) OVER (PARTITION BY DATE_TRUNC(DS_END_DATE, MONTH)) AS order_end_date
     , DATE_TRUNC(DS_END_DATE, MONTH) AS order_ym
@@ -54,6 +61,14 @@ order_count_monthly_lookback AS (
   SELECT
       order_id
     , product_order_id
+    -- Shop attributes
+    , shop_id
+    , shop_group
+    , shop_name
+    -- Account attributes
+    , account_no
+    , corp_name
+    -- Item attributes
     , product_id
     , item_id
     , item_seq
@@ -66,11 +81,10 @@ order_count_monthly_lookback AS (
     , color
     , product_name
     , category_unit_name
-    , shop_id
-    , shop_group
-    , shop_name
+    -- Order attributes
     , order_status
     , order_quantity
+    -- Date attributes
     , MIN(order_date) OVER (PARTITION BY DATE_TRUNC(order_date, MONTH)) AS order_start_date
     , MAX(order_date) OVER (PARTITION BY DATE_TRUNC(order_date, MONTH)) AS order_end_date
     , DATE_TRUNC(order_date, MONTH) AS order_ym
@@ -86,8 +100,15 @@ order_count_mom AS (
   SELECT
       fact.order_id
     , fact.product_order_id
-    , fact.product_id
+    -- Shop attributes
+    , fact.shop_id
+    , fact.shop_group
+    , fact.shop_name
+    -- Account attributes
+    , fact.account_no
+    , fact.corp_name
     -- Item attributes
+    , fact.product_id
     , fact.item_id
     , fact.item_seq
     , fact.team_name
@@ -99,10 +120,6 @@ order_count_mom AS (
     , fact.color
     , fact.product_name
     , fact.category_unit_name
-    -- Shop attributes
-    , fact.shop_id
-    , fact.shop_group
-    , fact.shop_name
     -- Order attributes
     , fact.order_status
     , fact.order_quantity

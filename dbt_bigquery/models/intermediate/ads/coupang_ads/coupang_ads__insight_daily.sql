@@ -34,7 +34,8 @@ cpg_opt_to_sbn_ids AS (
 
 insight_pa_daily AS (
   SELECT
-      pa.campaign_id
+      pa.vendor_id
+    , pa.campaign_id
     , pa.option_id
     , pa.placement_group
     , COALESCE(
@@ -60,7 +61,8 @@ insight_pa_daily AS (
 
 insight_nca_daily AS (
   SELECT
-      nca.campaign_id
+      nca.vendor_id
+    , nca.campaign_id
     , COALESCE(nca.option_id, ad.option_id) AS option_id
     , nca.placement_group
     , COALESCE(
@@ -88,7 +90,8 @@ insight_nca_daily AS (
 
 bundle_product_insight AS (
   SELECT
-      campaign_id
+      vendor_id
+    , campaign_id
     , option_id
     , placement_group
     , ANY_VALUE(bundle_product_ids) AS bundle_product_ids
@@ -105,12 +108,13 @@ bundle_product_insight AS (
     UNION ALL
     (SELECT * FROM insight_nca_daily)
   ) AS t_
-  GROUP BY ymd, campaign_id, option_id, placement_group
+  GROUP BY ymd, vendor_id, campaign_id, option_id, placement_group
 ),
 
 exploded_product_insight AS (
   SELECT
-      campaign_id
+      vendor_id
+    , campaign_id
     , option_id
     , placement_group
     , bundle_product_id AS product_id

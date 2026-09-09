@@ -16,8 +16,9 @@ WITH{#
 
 #} sales_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , order_status
     , (CASE WHEN order_status = 0 THEN COALESCE(sku_quantity, 0) ELSE 0 END) AS sku_quantity
     , (CASE
@@ -38,8 +39,9 @@ WITH{#
 
 #} profit_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , order_status
     , sku_quantity
     , payment_amount
@@ -56,8 +58,9 @@ WITH{#
 
 #} extra_profit_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , '0' AS account_no
+    , product_id
     , 0 AS order_status
     , 0 AS sku_quantity
     , 0 AS payment_amount

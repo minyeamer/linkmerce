@@ -67,12 +67,15 @@ WITH{#
 
 #} target_sales AS (
   SELECT
+    -- Brand attributes
       COALESCE(fact.brand_id, tgt.brand_id) AS brand_id
     , brand.brand_name
+    , brand.team_name
+    -- Shop attributes
     , COALESCE(fact.shop_id, tgt.shop_id) AS shop_id
     , shop.shop_group
     , shop.shop_alias AS shop_name
-    , brand.team_name
+    -- Sales attributes
     , COALESCE(fact.previous_sales, 0) AS previous_sales
     , COALESCE(fact.current_sales, 0) AS current_sales
     , NULLIF(tgt.monthly_amount, 0) AS target_sales

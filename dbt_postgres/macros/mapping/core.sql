@@ -1,7 +1,9 @@
 {% macro core__product_renewal_mapping() -%}
 SELECT *
 FROM (VALUES
-  ('100169', '100863', make_date(2026, 2, 10))
+    ('100169', '100863', make_date(2026, 2, 10))
+  , ('100345', '100866', make_date(2026, 2, 10))
+  , ('100330', '101022', make_date(2026, 2, 10))
 ) AS mapping(product_id_old, product_id_new, renewal_date)
 {%- endmacro %}
 
@@ -10,6 +12,8 @@ SELECT *
 FROM (VALUES
     ('100330', 100)
   , ('100399', 100)
+  , ('100742', 100)
+  , ('101022', 100)
 ) AS mapping(product_id, unit)
 {%- endmacro %}
 

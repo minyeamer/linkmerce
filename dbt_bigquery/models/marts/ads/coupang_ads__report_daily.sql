@@ -19,14 +19,15 @@ placement_group_mapping AS (
 )
 
 SELECT
-    master.vendor_id
-  , master.vendor_name
-  , master.vendor_alias
-  , master.vendor_type
+  -- Account attributes
+    insight.vendor_id
+  , vendor.vendor_name
+  , vendor.vendor_alias
   -- Campaign attributes
   , insight.campaign_id
   , master.campaign_name
   , COALESCE(master.campaign_type, '캠페인 없음') AS campaign_type
+  , master.vendor_type
   , COALESCE(master.goal_type, '-') AS goal_type
   , master.is_active
   , master.is_deleted
@@ -61,12 +62,14 @@ SELECT
   , insight.direct_conv_amount
   , insight.ymd
 FROM {{ ref('coupang_ads__insight_daily') }} AS insight
-LEFT JOIN placement_group_mapping AS placement_group
-  ON insight.placement_group = placement_group.code
+LEFT JOIN {{ source('coupang', 'vendor') }} AS vendor
+  ON insight.vendor_id = vendor.vendor_id
 LEFT JOIN {{ ref('coupang_ads__campaign_master') }} AS master
   ON insight.campaign_id = master.campaign_id
 LEFT JOIN {{ ref('core__product_master') }} AS product
   ON insight.product_id = product.product_id
 LEFT JOIN {{ source('coupang', 'option') }} AS option
   ON insight.option_id = option.option_id
+LEFT JOIN placement_group_mapping AS placement_group
+  ON insight.placement_group = placement_group.code
 WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE

@@ -24,11 +24,11 @@ campaign_master AS (
       cmp.vendor_id
     , vdr.vendor_name
     , vdr.vendor_alias
-    , vendor_type.label AS vendor_type
     -- Campaign attributes
     , cmp.campaign_id
     , cmp.campaign_name
     , COALESCE(campaign_type.label, cmp.campaign_type) AS campaign_type
+    , vendor_type.label AS vendor_type
     , goal_type.label AS goal_type
     , cmp.is_active
     , cmp.is_deleted

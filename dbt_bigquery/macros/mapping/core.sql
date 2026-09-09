@@ -1,7 +1,9 @@
 {% macro core__product_renewal_mapping() -%}
 SELECT *
 FROM UNNEST([
-  STRUCT('100169' AS product_id_old, '100863' AS product_id_new, DATE(2026, 2, 10) AS renewal_date)
+    STRUCT('100169' AS product_id_old, '100863' AS product_id_new, DATE(2026, 2, 10) AS renewal_date)
+  , STRUCT('100345' AS product_id_old, '100866' AS product_id_new, DATE(2026, 2, 10) AS renewal_date)
+  , STRUCT('100330' AS product_id_old, '101022' AS product_id_new, DATE(2026, 2, 10) AS renewal_date)
 ])
 {%- endmacro %}
 
@@ -10,6 +12,8 @@ SELECT *
 FROM UNNEST([
     STRUCT('100330' AS product_id, 100 AS unit)
   , STRUCT('100399' AS product_id, 100 AS unit)
+  , STRUCT('100742' AS product_id, 100 AS unit)
+  , STRUCT('101022' AS product_id, 100 AS unit)
 ])
 {%- endmacro %}
 

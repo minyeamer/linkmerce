@@ -32,7 +32,8 @@ product_renewal_mapping AS (
 
 insight_daily AS (
   SELECT
-      insight.ad_id
+      insight.account_id
+    , insight.ad_id
     , COALESCE(
           rel_ad.bundle_product_ids
         , rel_adset.bundle_product_ids
@@ -63,7 +64,8 @@ insight_daily AS (
 
 bundle_product_insight AS (
   SELECT
-      ad_id
+      account_id
+    , ad_id
     , ANY_VALUE(bundle_product_ids) AS bundle_product_ids
     , SUM(impression_count) AS impression_count
     , SUM(reach_count) AS reach_count
@@ -72,12 +74,13 @@ bundle_product_insight AS (
     , SUM(ad_cost) AS ad_cost
     , ymd
   FROM insight_daily
-  GROUP BY ymd, ad_id
+  GROUP BY ymd, account_id, ad_id
 ),
 
 exploded_product_insight AS (
   SELECT
-      ad_id
+      account_id
+    , ad_id
     , bundle_product_id AS product_id
     , (DIV(impression_count, bundle_product_count)
       + IF(bundle_product_offset = 0, MOD(impression_count, bundle_product_count), 0)) AS impression_count

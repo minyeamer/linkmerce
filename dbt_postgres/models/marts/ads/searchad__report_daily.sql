@@ -19,9 +19,10 @@ WITH{#
 ){#
 
 #} SELECT
-    COALESCE(ad.customer_id, cmp.customer_id) AS customer_id
-  , COALESCE(ad.account_name, cmp.account_name) AS account_name
-  , COALESCE(ad.account_type, cmp.account_type) AS account_type
+  -- Account attributes
+    insight.customer_id
+  , account.account_name
+  , account.account_type
   -- Campaign attributes
   , insight.campaign_id
   , COALESCE(ad.campaign_name, cmp.campaign_name) AS campaign_name
@@ -62,22 +63,24 @@ WITH{#
   , insight.direct_conv_amount
   , insight.ymd
 FROM {{ ref('searchad__insight_daily') }} AS insight
-LEFT JOIN device_type_mapping AS device_type
-  ON insight.device_type = device_type.code
+LEFT JOIN {{ source('searchad', 'account') }} AS account
+  ON insight.customer_id = account.customer_id
 LEFT JOIN {{ ref('searchad__campaign_master') }} AS cmp
   ON insight.campaign_id = cmp.campaign_id
 LEFT JOIN {{ ref('searchad__ad_master') }} AS ad
   ON insight.ad_id = ad.ad_id
 LEFT JOIN {{ ref('core__product_master') }} AS product
   ON insight.product_id = product.product_id
+LEFT JOIN device_type_mapping AS device_type
+  ON insight.device_type = device_type.code
 WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE{#
 
 #} UNION ALL{#
 
 #} SELECT
-    master.customer_id
-  , master.account_name
-  , master.account_type
+    contract.customer_id
+  , account.account_name
+  , account.account_type
   -- Campaign attributes
   , master.campaign_id
   , master.campaign_name
@@ -118,6 +121,8 @@ WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE{#
   , NULL::integer AS direct_conv_amount
   , contract.ymd
 FROM {{ ref('searchad__contract_daily') }} AS contract
+LEFT JOIN {{ source('searchad', 'account') }} AS account
+  ON contract.customer_id = account.customer_id
 LEFT JOIN {{ ref('searchad__contract_master') }} AS master
   ON contract.contract_id = master.contract_id
 LEFT JOIN {{ ref('core__product_master') }} AS product

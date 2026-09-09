@@ -48,6 +48,10 @@ product_delivery_unit AS (
   {{ core__product_delivery_unit() }}
 ),
 
+product_renewal_mapping AS (
+  {{ core__product_renewal_mapping() }}
+),
+
 -- Step 1: prepare orders
 
 order_delivery AS (
@@ -87,6 +91,7 @@ bundle_product_order AS (
     , ord.product_order_id
     , COALESCE(dlv.invoice_no, '-') AS invoice_no
     -- Sales dimensions
+    , ord.channel_seq
     , COALESCE(
           rel.bundle_product_ids
         , chl.brand_id
@@ -140,7 +145,11 @@ exploded_product_order AS (
       , ord.product_order_id
       , ord.invoice_no
       -- Sales dimensions
-      , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+      , ord.channel_seq
+      , COALESCE(
+            renewal.product_id_old
+          , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
+        ) AS product_id
       , ord.delivery_type
       , (CASE
           WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
@@ -159,10 +168,19 @@ exploded_product_order AS (
       , ord.order_date
     FROM bundle_product_order AS ord
     CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
+    LEFT JOIN product_renewal_mapping AS renewal
+      ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = renewal.product_id_new
+        AND ord.order_date < renewal.renewal_date
     LEFT JOIN ecount_product AS prd
-      ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = prd.product_id
+      ON COALESCE(
+            renewal.product_id_old
+          , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
+        ) = prd.product_id
     LEFT JOIN {{ source('core', 'item') }} AS itm
-      ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = itm.product_id
+      ON COALESCE(
+            renewal.product_id_old
+          , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
+        ) = itm.product_id
   ) AS t_
 ),
 
@@ -175,6 +193,7 @@ product_order_with_split_amount AS (
     , product_order_id
     , invoice_no
     -- Sales dimensions
+    , channel_seq
     , product_id
     , delivery_type
     , order_status
@@ -223,6 +242,7 @@ product_order_with_cj_delivery AS (
       ord.order_id
     , ord.invoice_no
     -- Sales dimensions
+    , ord.channel_seq
     , ord.product_id
     , ord.delivery_type
     , ord.order_status
@@ -309,6 +329,7 @@ product_order_with_max_delivery AS (
       ord.order_id
     , ord.invoice_no
     -- Sales dimensions
+    , ord.channel_seq
     , ord.product_id
     , ord.delivery_type
     , ord.order_status
@@ -338,6 +359,7 @@ product_order_with_split_delivery AS (
       order_id
     , invoice_no
     -- Sales dimensions
+    , channel_seq
     , product_id
     , delivery_type
     , order_status
@@ -374,7 +396,8 @@ product_order_with_split_delivery AS (
 
 sales_daily AS (
   SELECT
-      product_id
+      channel_seq
+    , product_id
     , delivery_type
     , order_status
     , SUM(sku_quantity) AS sku_quantity
@@ -390,7 +413,7 @@ sales_daily AS (
     UNION ALL
     (SELECT * FROM product_order_with_split_delivery)
   ) AS t_
-  GROUP BY order_date, product_id, delivery_type, order_status
+  GROUP BY order_date, channel_seq, product_id, delivery_type, order_status
 )
 
 SELECT * FROM sales_daily

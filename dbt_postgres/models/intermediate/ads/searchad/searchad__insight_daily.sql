@@ -63,7 +63,8 @@ WITH{#
 
 #} insight_sad_daily AS (
   SELECT
-      grp.campaign_id
+      sad.customer_id
+    , grp.campaign_id
     , sad.ad_id
     , sad.pc_mobile_type AS device_type
     , COALESCE(
@@ -118,7 +119,8 @@ WITH{#
 
 #} insight_gfa_daily AS (
   SELECT
-      gfa.campaign_no::text AS campaign_id
+      gfa.account_no AS customer_id
+    , gfa.campaign_no::text AS campaign_id
     , gfa.creative_no::text AS ad_id
     , 9 AS device_type
     , COALESCE(
@@ -169,7 +171,8 @@ WITH{#
 
 #} bundle_product_insight AS (
   SELECT
-      campaign_id
+      customer_id
+    , campaign_id
     , ad_id
     , device_type
     , ANY_VALUE(bundle_product_ids) AS bundle_product_ids
@@ -187,14 +190,15 @@ WITH{#
     UNION ALL
     (SELECT * FROM insight_gfa_daily)
   ) AS t_
-  GROUP BY ymd, campaign_id, ad_id, device_type
+  GROUP BY ymd, customer_id, campaign_id, ad_id, device_type
 ),{#
 
 -- Step 4: explode bundle products and allocate metrics with equal weight
 
 #} exploded_product_insight AS (
   SELECT
-      campaign_id
+      customer_id
+    , campaign_id
     , ad_id
     , device_type
     , bundle_product_id AS product_id

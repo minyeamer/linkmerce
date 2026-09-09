@@ -1,0 +1,81 @@
+{{
+  config(
+    materialized = 'view',
+    schema = 'relation',
+    alias = 'acc_no_to_corp_name'
+  )
+}}
+
+SELECT
+    shop_id
+  , account_no::text AS account_no
+  , corp_name
+FROM {{ source('sabangnet', 'account') }}{#
+
+#} UNION ALL{#
+
+#} SELECT
+    shop.shop_id
+  , channel_seq::text AS account_no
+  , corp_name
+FROM {{ source('smartstore', 'channel') }}
+CROSS JOIN (VALUES ('shop9000'), ('shop0055')) AS shop(shop_id){#
+
+#} UNION ALL{#
+
+#} SELECT
+    'shop9001' AS shop_id
+  , vendor_id AS account_no
+  , corp_name
+FROM {{ source('coupang', 'vendor') }}{#
+
+#} UNION ALL{#
+
+#} SELECT
+    shop.shop_id
+  , customer_id::text AS account_no
+  , corp_name
+FROM {{ source('searchad', 'account') }}
+CROSS JOIN (VALUES ('shop9000'), ('shop0055')) AS shop(shop_id){#
+
+#} UNION ALL{#
+
+#} SELECT
+    'adop0001' AS shop_id
+  , customer_id::text AS account_no
+  , corp_name
+FROM {{ source('google_ads', 'account') }}{#
+
+#} UNION ALL{#
+
+#} SELECT
+    'adop0002' AS shop_id
+  , account_id AS account_no
+  , corp_name
+FROM {{ source('meta_ads', 'account') }}{#
+
+#} UNION ALL{#
+
+#} SELECT
+    'adop0009' AS shop_id
+  , account_no::text AS account_no
+  , corp_name
+FROM {{ source('sabangnet', 'account') }}
+WHERE account_no = 5000837{#
+
+#} UNION ALL{#
+
+#} SELECT
+    'adop0010' AS shop_id
+  , space_id::text AS account_no
+  , corp_name
+FROM {{ source('naver_connect', 'space') }}{#
+
+#} UNION ALL{#
+
+#} SELECT
+    'adop0006' AS shop_id
+  , account_no::text AS account_no
+  , corp_name
+FROM {{ source('sabangnet', 'account') }}
+WHERE account_no = 5043630

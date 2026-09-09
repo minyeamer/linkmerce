@@ -19,8 +19,9 @@ WITH
 
 sabangnet_sales_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , CAST(account_no AS STRING) AS account_no
+    , product_id
     , order_status
     , sku_quantity
     , payment_amount
@@ -36,8 +37,9 @@ sabangnet_sales_daily AS (
 
 smartstore_sales_daily AS (
   SELECT
-      product_id
-    , IF(delivery_type = 7, 'shop9000', 'shop0055') AS shop_id
+      IF(delivery_type = 7, 'shop9000', 'shop0055') AS shop_id
+    , CAST(channel_seq AS STRING) AS account_no
+    , product_id
     , order_status
     , sku_quantity
     , payment_amount
@@ -53,8 +55,9 @@ smartstore_sales_daily AS (
 
 coupang_rfm_sales_daily AS (
   SELECT
-      product_id
-    , 'shop9001' AS shop_id
+      'shop9001' AS shop_id
+    , vendor_id AS account_no
+    , product_id
     , order_status
     , sku_quantity
     , payment_amount
@@ -70,8 +73,9 @@ coupang_rfm_sales_daily AS (
 
 extra_sales_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , '0' AS account_no
+    , product_id
     , 0 AS order_status
     , NULL AS sku_quantity
     , sales_amount AS payment_amount
@@ -89,63 +93,69 @@ extra_sales_daily AS (
 
 searchad_insight_daily AS (
   SELECT
-      product_id
-    , 'shop0055' AS shop_id
+      'shop0055' AS shop_id
+    , CAST(customer_id AS STRING) AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('searchad__insight_daily') }}
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd, product_id
+  GROUP BY ymd, customer_id, product_id
 ),
 
 searchad_contract_daily AS (
   SELECT
-      product_id
-    , 'shop0055' AS shop_id
+      'shop0055' AS shop_id
+    , CAST(customer_id AS STRING) AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('searchad__contract_daily') }}
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd, product_id
+  GROUP BY ymd, customer_id, product_id
 ),
 
 coupang_ads_insight_daily AS (
   SELECT
-      product_id
-    , 'shop9001' AS shop_id
+      'shop9001' AS shop_id
+    , vendor_id AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('coupang_ads__insight_daily') }}
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd, product_id
+  GROUP BY ymd, vendor_id, product_id
 ),
 
 google_ads_insight_daily AS (
   SELECT
-      product_id
-    , 'adop0001' AS shop_id
+      'adop0001' AS shop_id
+    , CAST(customer_id AS STRING) AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('google_ads__insight_daily') }}
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd, product_id
+  GROUP BY ymd, customer_id, product_id
 ),
 
 meta_ads_insight_daily AS (
   SELECT
-      product_id
-    , 'adop0002' AS shop_id
+      'adop0002' AS shop_id
+    , account_id AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('meta_ads__insight_daily') }}
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd, product_id
+  GROUP BY ymd, account_id, product_id
 ),
 
 dable_report_daily AS (
   SELECT
-      product_id
-    , 'adop0009' AS shop_id
+      'adop0009' AS shop_id
+    , '5000837' AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('dable__report_daily') }}
@@ -155,19 +165,21 @@ dable_report_daily AS (
 
 naver_connect_insight_daily AS (
   SELECT
-      product_id
-    , 'adop0010' AS shop_id
+      'adop0010' AS shop_id
+    , CAST(space_id AS STRING) AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('naver_connect__insight_daily') }}
   WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-  GROUP BY ymd, product_id
+  GROUP BY ymd, space_id, product_id
 ),
 
 tiktok_report_daily AS (
   SELECT
-      product_id
-    , 'adop0006' AS shop_id
+      'adop0006' AS shop_id
+    , '5043630' AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('tiktok_ads__report_daily') }}
@@ -177,8 +189,9 @@ tiktok_report_daily AS (
 
 extra_ads_insight_daily AS (
   SELECT
-      brand_id AS product_id
-    , shop_id
+      shop_id
+    , '0' AS account_no
+    , brand_id AS product_id
     , ad_cost
     , ymd AS order_date
   FROM {{ source('core', 'extra_ads') }}
@@ -233,8 +246,9 @@ smartstore_brand_daily AS (
 
 searchad_insight_daily_with_shop_mapping AS (
   SELECT
-      ads.product_id
-    , COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+      COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+    , ads.account_no
+    , ads.product_id
     , ads.ad_cost
     , ads.order_date
   FROM (
@@ -307,8 +321,9 @@ coupang_brand_daily AS (
 
 coupang_ads_insight_daily_with_shop_mapping AS (
   SELECT
-      ads.product_id
-    , COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+      COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+    , ads.account_no
+    , ads.product_id
     , ads.ad_cost
     , ads.order_date
   FROM coupang_ads_insight_daily AS ads
@@ -325,8 +340,8 @@ coupang_ads_insight_daily_with_shop_mapping AS (
 
 expense_daily AS (
   SELECT
-      '200000' AS product_id
-    , 'adop0005' AS shop_id
+      'adop0005' AS shop_id
+    , '200000' AS product_id
     , SUM(amount) AS extra_cost
     , ymd AS order_date
   FROM {{ source('core', 'expense') }}
@@ -336,8 +351,8 @@ expense_daily AS (
 
 opex_daily AS (
   SELECT
-      brand_id AS product_id
-    , IF(dept_id = 1, 'adop0004', 'adop0003') AS shop_id
+      IF(dept_id = 1, 'adop0004', 'adop0003') AS shop_id
+    , brand_id AS product_id
     , SUM(amount) AS extra_cost
     , ymd AS order_date
   FROM {{ ref('core__opex_daily') }}
@@ -349,8 +364,9 @@ opex_daily AS (
 
 insight_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , 8 AS order_status
     , NULL AS sku_quantity
     , NULL AS payment_amount
@@ -381,8 +397,9 @@ insight_daily AS (
 
 cost_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , '0' AS account_no
+    , product_id
     , 9 AS order_status
     , NULL AS sku_quantity
     , NULL AS payment_amount
@@ -401,8 +418,9 @@ cost_daily AS (
 
 sales_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -425,7 +443,7 @@ sales_daily AS (
     UNION ALL
     (SELECT * FROM cost_daily)
   )
-  GROUP BY order_date, product_id, shop_id, order_status
+  GROUP BY order_date, shop_id, account_no, product_id, order_status
 )
 
 SELECT * FROM sales_daily

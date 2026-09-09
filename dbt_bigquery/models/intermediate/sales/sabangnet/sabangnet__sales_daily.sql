@@ -71,9 +71,9 @@ order_detail AS (
       ord.order_seq
     , COALESCE(ord.order_id, '-') AS order_id
     , COALESCE(sbn.invoice_no, '-') AS invoice_no
-    , ord.account_no
     -- Sales dimensions
     , acc.shop_id
+    , ord.account_no
     , SPLIT(ord.option_id, '-')[SAFE_OFFSET(0)] AS product_id
     , ord.option_id
     , opt.bundle_option_ids
@@ -116,9 +116,9 @@ bundle_product_order AS (
         order_seq
       , order_id
       , invoice_no
-      , account_no
       -- Sales dimensions
       , ({{ sabangnet__shop_id_rules() }}) AS shop_id
+      , account_no
       , product_id
       , option_id
       , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
@@ -142,9 +142,9 @@ exploded_product_order AS (
       ord.order_seq
     , ord.order_id
     , ord.invoice_no
-    , ord.account_no
     -- Sales dimensions
     , ord.shop_id
+    , ord.account_no
     , SPLIT(bundle_option, '-')[SAFE_OFFSET(0)] AS product_id
     , SPLIT(bundle_option, ':')[SAFE_OFFSET(0)] AS option_id
     , ord.order_status
@@ -178,9 +178,9 @@ product_order_with_cost_data AS (
     SELECT
         ord.order_id
       , ord.invoice_no
-      , ord.account_no
       -- Sales dimensions
       , ord.shop_id
+      , ord.account_no
       , ord.product_id
       , ord.order_status
       -- Sales metrics
@@ -214,9 +214,9 @@ product_order_with_split_amount AS (
   SELECT
       order_id
     , invoice_no
-    , account_no
     -- Sales dimensions
     , shop_id
+    , account_no
     , product_id
     , order_status
     -- Sales metrics
@@ -267,6 +267,7 @@ product_order_with_cj_delivery AS (
     , ord.invoice_no
     -- Sales dimensions
     , ord.shop_id
+    , ord.account_no
     , ord.product_id
     , ord.order_status
     -- Sales metrics
@@ -350,6 +351,7 @@ product_order_with_max_delivery AS (
     , ord.invoice_no
     -- Sales dimensions
     , ord.shop_id
+    , ord.account_no
     , ord.product_id
     , ord.order_status
     -- Sales metrics
@@ -379,6 +381,7 @@ product_order_with_split_delivery AS (
     , invoice_no
     -- Sales dimensions
     , shop_id
+    , account_no
     , product_id
     , order_status
     -- Sales metrics
@@ -413,8 +416,9 @@ product_order_with_split_delivery AS (
 
 sales_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -428,7 +432,7 @@ sales_daily AS (
     UNION ALL
     (SELECT * FROM product_order_with_split_delivery)
   ) AS t_
-  GROUP BY order_date, product_id, shop_id, order_status
+  GROUP BY order_date, shop_id, account_no, product_id, order_status
 )
 
 SELECT * FROM sales_daily

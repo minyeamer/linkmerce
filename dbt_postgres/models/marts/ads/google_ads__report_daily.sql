@@ -19,8 +19,9 @@ WITH{#
 ){#
 
 #} SELECT
-    master.customer_id
-  , master.account_name
+  -- Account attributes
+    insight.customer_id
+  , account.account_name
   -- Campaign attributes
   , master.campaign_id
   , master.campaign_name
@@ -53,10 +54,12 @@ WITH{#
   , insight.ad_cost
   , insight.ymd
 FROM {{ ref('google_ads__insight_daily') }} AS insight
-LEFT JOIN device_type_mapping AS device_type
-  ON insight.device_type = device_type.code
+LEFT JOIN {{ source('google_ads', 'account') }} AS account
+  ON insight.customer_id = account.customer_id
 LEFT JOIN {{ ref('google_ads__ad_master') }} AS master
   ON insight.ad_id = master.ad_id
 LEFT JOIN {{ ref('core__product_master') }} AS product
   ON insight.product_id = product.product_id
+LEFT JOIN device_type_mapping AS device_type
+  ON insight.device_type = device_type.code
 WHERE insight.ymd BETWEEN DS_START_DATE AND DS_END_DATE

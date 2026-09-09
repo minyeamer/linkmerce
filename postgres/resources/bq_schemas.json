@@ -196,6 +196,8 @@
     {"name": "vendor_name", "type": "STRING", "description": "업체명"},
     {"name": "vendor_alias", "type": "STRING", "description": "업체별칭"},
     {"name": "vendor_seq", "type": "INTEGER", "description": "업체순번"},
+    {"name": "userid", "type": "STRING", "description": "계정ID"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
     {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"},
     {"name": "rocket_sales_date", "type": "DATE", "description": "매출인식일"},
     {"name": "rocket_settle_date", "type": "DATE", "description": "정산시작일"}
@@ -415,6 +417,7 @@
     {"name": "userid", "type": "STRING", "description": "아이디"},
     {"name": "account_name", "type": "STRING", "description": "계정명"},
     {"name": "account_seq", "type": "INTEGER", "description": "계정순번"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
     {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"}
   ],
   "google_ads.campaign": [
@@ -483,6 +486,7 @@
     {"name": "userid", "type": "STRING", "description": "아이디"},
     {"name": "account_name", "type": "STRING", "description": "계정명"},
     {"name": "account_seq", "type": "INTEGER", "description": "계정순번"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
     {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"}
   ],
   "meta_ads.campaign": [
@@ -531,6 +535,8 @@
   "naver_connect.space": [
     {"name": "space_id", "type": "INTEGER", "description": "스페이스ID", "mode": "REQUIRED"},
     {"name": "space_name", "type": "STRING", "description": "스페이스"},
+    {"name": "userid", "type": "STRING", "description": "계정ID"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
     {"name": "brand_id", "type": "STRING", "description": "연결브랜드ID"},
     {"name": "register_date", "type": "DATE", "description": "개설일"},
     {"name": "order_start_date", "type": "DATE", "description": "최초수집일"}
@@ -709,6 +715,7 @@
     {"name": "shop_name", "type": "STRING", "description": "쇼핑몰명"},
     {"name": "shop_group", "type": "STRING", "description": "마켓분류"},
     {"name": "userid", "type": "STRING", "description": "쇼핑몰ID"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
     {"name": "status", "type": "BOOLEAN", "description": "상태"},
     {"name": "commission_rate", "type": "FLOAT", "description": "수수료율"},
     "CLUSTER BY shop_group, shop_name"
@@ -849,6 +856,7 @@
     {"name": "account_name", "type": "STRING", "description": "계정명"},
     {"name": "account_type", "type": "STRING", "description": "계정유형"},
     {"name": "account_seq", "type": "INTEGER", "description": "계정순번"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
     {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"}
   ],
   "searchad.campaign": [
@@ -974,6 +982,8 @@
   "smartstore.channel": [
     {"name": "channel_seq", "type": "INTEGER", "description": "채널번호", "mode": "REQUIRED"},
     {"name": "channel_name", "type": "STRING", "description": "채널명"},
+    {"name": "userid", "type": "STRING", "description": "계정ID"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
     {"name": "team_name", "type": "STRING", "description": "영업팀"},
     {"name": "brand_id", "type": "STRING", "description": "연결브랜드ID"},
     {"name": "brand_name", "type": "STRING", "description": "연결브랜드"},

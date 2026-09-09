@@ -17,8 +17,9 @@ WITH{#
 
 #} sabangnet_sales_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no::text AS account_no
+    , product_id
     , order_status
     , sku_quantity
     , payment_amount
@@ -34,8 +35,9 @@ WITH{#
 
 #} smartstore_sales_daily AS (
   SELECT
-      product_id
-    , (CASE WHEN delivery_type = 7 THEN 'shop9000' ELSE 'shop0055' END) AS shop_id
+      (CASE WHEN delivery_type = 7 THEN 'shop9000' ELSE 'shop0055' END) AS shop_id
+    , channel_seq::text AS account_no
+    , product_id
     , order_status
     , sku_quantity
     , payment_amount
@@ -51,8 +53,9 @@ WITH{#
 
 #} coupang_rfm_sales_daily AS (
   SELECT
-      product_id
-    , 'shop9001' AS shop_id
+      'shop9001' AS shop_id
+    , vendor_id AS account_no
+    , product_id
     , order_status
     , sku_quantity
     , payment_amount
@@ -68,8 +71,9 @@ WITH{#
 
 #} extra_sales_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , '0' AS account_no
+    , product_id
     , 0 AS order_status
     , NULL::integer AS sku_quantity
     , sales_amount AS payment_amount
@@ -87,63 +91,69 @@ WITH{#
 
 #} searchad_insight_daily AS (
   SELECT
-      product_id
-    , 'shop0055' AS shop_id
+      'shop0055' AS shop_id
+    , customer_id::text AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('searchad__insight_daily') }}
   WHERE ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
-  GROUP BY ymd, product_id
+  GROUP BY ymd, customer_id, product_id
 ),{#
 
 #} searchad_contract_daily AS (
   SELECT
-      product_id
-    , 'shop0055' AS shop_id
+      'shop0055' AS shop_id
+    , customer_id::text AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('searchad__contract_daily') }}
   WHERE ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
-  GROUP BY ymd, product_id
+  GROUP BY ymd, customer_id, product_id
 ),{#
 
 #} coupang_ads_insight_daily AS (
   SELECT
-      product_id
-    , 'shop9001' AS shop_id
+      'shop9001' AS shop_id
+    , vendor_id AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('coupang_ads__insight_daily') }}
   WHERE ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
-  GROUP BY ymd, product_id
+  GROUP BY ymd, vendor_id, product_id
 ),{#
 
 #} google_ads_insight_daily AS (
   SELECT
-      product_id
-    , 'adop0001' AS shop_id
+      'adop0001' AS shop_id
+    , customer_id::text AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('google_ads__insight_daily') }}
   WHERE ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
-  GROUP BY ymd, product_id
+  GROUP BY ymd, customer_id, product_id
 ),{#
 
 #} meta_ads_insight_daily AS (
   SELECT
-      product_id
-    , 'adop0002' AS shop_id
+      'adop0002' AS shop_id
+    , account_id AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('meta_ads__insight_daily') }}
   WHERE ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
-  GROUP BY ymd, product_id
+  GROUP BY ymd, account_id, product_id
 ),{#
 
 #} dable_report_daily AS (
   SELECT
-      product_id
-    , 'adop0009' AS shop_id
+      'adop0009' AS shop_id
+    , '5000837' AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('dable__report_daily') }}
@@ -153,19 +163,21 @@ WITH{#
 
 #} naver_connect_insight_daily AS (
   SELECT
-      product_id
-    , 'adop0010' AS shop_id
+      'adop0010' AS shop_id
+    , space_id::text AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('naver_connect__insight_daily') }}
   WHERE ymd BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
-  GROUP BY ymd, product_id
+  GROUP BY ymd, space_id, product_id
 ),{#
 
 #} tiktok_report_daily AS (
   SELECT
-      product_id
-    , 'adop0006' AS shop_id
+      'adop0006' AS shop_id
+    , '5043630' AS account_no
+    , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
   FROM {{ ref('tiktok_ads__report_daily') }}
@@ -175,8 +187,9 @@ WITH{#
 
 #} extra_ads_insight_daily AS (
   SELECT
-      brand_id AS product_id
-    , shop_id
+      shop_id
+    , '0' AS account_no
+    , brand_id AS product_id
     , ad_cost
     , ymd AS order_date
   FROM {{ source('core', 'extra_ads') }}
@@ -225,8 +238,9 @@ WITH{#
 
 #} searchad_insight_daily_with_shop_mapping AS (
   SELECT
-      ads.product_id
-    , COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+      COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+    , ads.account_no
+    , ads.product_id
     , ads.ad_cost
     , ads.order_date
   FROM (
@@ -293,8 +307,9 @@ WITH{#
 
 #} coupang_ads_insight_daily_with_shop_mapping AS (
   SELECT
-      ads.product_id
-    , COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+      COALESCE(prd.shop_id, brd.shop_id, ads.shop_id) AS shop_id
+    , ads.account_no
+    , ads.product_id
     , ads.ad_cost
     , ads.order_date
   FROM coupang_ads_insight_daily AS ads
@@ -335,8 +350,9 @@ WITH{#
 
 #} insight_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , 8 AS order_status
     , NULL::integer AS sku_quantity
     , NULL::integer AS payment_amount
@@ -367,8 +383,9 @@ WITH{#
 
 #} cost_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , '0' AS account_no
+    , product_id
     , 9 AS order_status
     , NULL::integer AS sku_quantity
     , NULL::integer AS payment_amount
@@ -387,8 +404,9 @@ WITH{#
 
 #} sales_daily AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -411,7 +429,7 @@ WITH{#
     UNION ALL
     (SELECT * FROM cost_daily)
   )
-  GROUP BY order_date, product_id, shop_id, order_status
+  GROUP BY order_date, shop_id, account_no, product_id, order_status
 ){#
 
 #} SELECT * FROM sales_daily

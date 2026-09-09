@@ -64,8 +64,8 @@ smt_prd_to_ranged_brd_ids AS (
 contract_base AS (
   SELECT
       sad.contract_id
-    , sad.adgroup_id
     , sad.customer_id
+    , sad.adgroup_id
     , sad.contract_amount - COALESCE(sad.refund_amount, 0) AS ad_cost
     , sad.exposure_start_date
     , sad.exposure_end_date
@@ -78,8 +78,8 @@ contract_base AS (
 contract_expand AS (
   SELECT
       sad.contract_id
-    , sad.adgroup_id
     , sad.customer_id
+    , sad.adgroup_id
     , (DIV(sad.ad_cost, sad.date_count)
       + IF(date_offset = 0, MOD(sad.ad_cost, sad.date_count), 0)) AS ad_cost
     , DATE_ADD(sad.exposure_start_date, INTERVAL date_offset DAY) AS ymd
@@ -168,6 +168,7 @@ adgroup_ad_id_to_daily_brd_ids AS (
 bundle_product_contract AS (
   SELECT
       sad.contract_id
+    , sad.customer_id
     , sad.adgroup_id
     , COALESCE(
           rel_grp_prd.bundle_product_ids
@@ -206,6 +207,7 @@ bundle_product_contract AS (
 exploded_product_contract AS (
   SELECT
       contract_id
+    , customer_id
     , adgroup_id
     , bundle_product_id AS product_id
     , (DIV(ad_cost, bundle_product_count)

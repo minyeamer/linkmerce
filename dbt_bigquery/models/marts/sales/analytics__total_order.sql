@@ -84,9 +84,9 @@ SELECT
   , COALESCE(ord.order_id, '-') AS order_id
   , COALESCE(ord.order_id_dup, '-') AS product_order_id
   , COALESCE(sbn.invoice_no, '-') AS invoice_no
-  , ord.account_no
   {# -- Sales dimensions
 #}, acc.shop_id
+  , ord.account_no
   , SPLIT(ord.option_id, '-')[SAFE_OFFSET(0)] AS product_id
   , ord.option_id
   , opt.bundle_option_ids
@@ -129,9 +129,9 @@ FROM (
     , order_id
     , product_order_id
     , invoice_no
-    , account_no
     {# -- Sales dimensions
   #}, ({{ sabangnet__shop_id_rules() }}) AS shop_id
+    , account_no
     , product_id
     , option_id
     , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
@@ -156,9 +156,9 @@ SELECT
   , ord.order_id
   , ord.product_order_id
   , ord.invoice_no
-  , ord.account_no
   {# -- Sales dimensions
 #}, ord.shop_id
+  , ord.account_no
   , SPLIT(bundle_option, '-')[SAFE_OFFSET(0)] AS product_id
   , SPLIT(bundle_option, ':')[SAFE_OFFSET(0)] AS option_id
   , ord.order_status
@@ -193,9 +193,9 @@ FROM (
       ord.order_id
     , ord.product_order_id
     , ord.invoice_no
-    , ord.account_no
     {# -- Sales dimensions
   #}, ord.shop_id
+    , ord.account_no
     , ord.product_id
     , ord.order_status
     {# -- Sales metrics
@@ -230,9 +230,9 @@ FROM (
     order_id
   , product_order_id
   , invoice_no
-  , account_no
   {# -- Sales dimensions
 #}, shop_id
+  , account_no
   , product_id
   , order_status
   {# -- Sales metrics
@@ -284,6 +284,7 @@ SELECT
   , ord.invoice_no
   {# -- Sales dimensions
 #}, ord.shop_id
+  , ord.account_no
   , ord.product_id
   , ord.order_status
   {# -- Sales metrics
@@ -368,6 +369,7 @@ SELECT
   , ord.invoice_no
   {# -- Sales dimensions
 #}, ord.shop_id
+  , ord.account_no
   , ord.product_id
   , ord.order_status
   {# -- Sales metrics
@@ -398,6 +400,7 @@ LEFT JOIN sabangnet__max_delivery_fee AS dlv
   , invoice_no
   {# -- Sales dimensions
 #}, shop_id
+  , account_no
   , product_id
   , order_status
   {# -- Sales metrics
@@ -434,8 +437,9 @@ FROM (
 SELECT
     order_id
   , product_order_id
-  , product_id
   , shop_id
+  , CAST(account_no AS STRING) AS account_no
+  , product_id
   , order_status
   , sku_quantity
   , payment_amount
@@ -492,7 +496,8 @@ SELECT
   , ord.product_order_id
   , COALESCE(dlv.invoice_no, '-') AS invoice_no
   {# -- Sales dimensions
-#}, COALESCE(
+#}, ord.channel_seq
+  , COALESCE(
         rel.bundle_product_ids
       , chl.brand_id
       , '200000'
@@ -544,7 +549,8 @@ FROM (
     , ord.product_order_id
     , ord.invoice_no
     {# -- Sales dimensions
-  #}, SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+  #}, ord.channel_seq
+    , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
     , ord.delivery_type
     , (CASE
         WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
@@ -579,7 +585,8 @@ FROM (
   , product_order_id
   , invoice_no
   {# -- Sales dimensions
-#}, product_id
+#}, channel_seq
+  , product_id
   , delivery_type
   , order_status
   {# -- Sales metrics
@@ -628,7 +635,8 @@ SELECT
   , ord.product_order_id
   , ord.invoice_no
   {# -- Sales dimensions
-#}, ord.product_id
+#}, ord.channel_seq
+  , ord.product_id
   , ord.delivery_type
   , ord.order_status
   {# -- Sales metrics
@@ -715,7 +723,8 @@ SELECT
   , ord.product_order_id
   , ord.invoice_no
   {# -- Sales dimensions
-#}, ord.product_id
+#}, ord.channel_seq
+  , ord.product_id
   , ord.delivery_type
   , ord.order_status
   {# -- Sales metrics
@@ -745,7 +754,8 @@ LEFT JOIN smartstore__max_delivery_fee AS dlv
   , product_order_id
   , invoice_no
   {# -- Sales dimensions
-#}, product_id
+#}, channel_seq
+  , product_id
   , delivery_type
   , order_status
   {# -- Sales metrics
@@ -783,8 +793,9 @@ FROM (
 SELECT
     CAST(order_id AS STRING) AS order_id
   , CAST(product_order_id AS STRING) AS product_order_id
-  , product_id
   , IF(delivery_type = 7, 'shop9000', 'shop0055') AS shop_id
+  , CAST(channel_seq AS STRING) AS account_no
+  , product_id
   , order_status
   , sku_quantity
   , payment_amount
@@ -810,8 +821,8 @@ FROM (
 #} coupang_rfm__rocket_sales AS (
 SELECT
     order_id
+  , vendor_id
   , option_id
-  , ANY_VALUE(vendor_id) AS vendor_id
   , MAX(settlement_type) AS order_status
   , SUM(order_quantity) AS order_quantity
   , SUM(COALESCE(unit_price, 0) * COALESCE(order_quantity, 0)
@@ -822,14 +833,14 @@ SELECT
   , MAX(sales_date) AS sales_date
 FROM {{ source('coupang_rfm', 'sales') }}
 WHERE sales_date BETWEEN DATE(DS_START_DATETIME) AND DATE(DS_END_DATETIME)
-GROUP BY order_id, option_id
+GROUP BY order_id, vendor_id, option_id
 ),{#
 
 #} coupang_rfm__rocket_shipping AS (
 SELECT
     order_id
+  , vendor_id
   , option_id
-  , ANY_VALUE(vendor_id) AS vendor_id
   , SUM(COALESCE(warehousing_fee, 0)
       - COALESCE(discount_amount, 0)
       + COALESCE(extra_fee, 0)
@@ -838,14 +849,14 @@ SELECT
 FROM {{ source('coupang_rfm', 'shipping') }}
 WHERE sales_date
   BETWEEN DATE(DS_START_DATETIME) AND DATE(DS_END_DATETIME)
-GROUP BY order_id, option_id
+GROUP BY order_id, vendor_id, option_id
 ),{#
 
 #} coupang_rfm__rocket_sales_shipping AS (
 SELECT
     COALESCE(sales.order_id, shipping.order_id) AS order_id
+  , COALESCE(sales.vendor_id, shipping.vendor_id) AS vendor_id
   , COALESCE(sales.option_id, shipping.option_id) AS option_id
-  , ANY_VALUE(COALESCE(sales.vendor_id, shipping.vendor_id)) AS vendor_id
   , (CASE
       WHEN MAX(sales.order_status) IS NULL THEN 7
       ELSE LEAST(MAX(sales.order_status), 3)
@@ -857,8 +868,10 @@ SELECT
   , COALESCE(sales.sales_date, shipping.sales_date) AS sales_date
 FROM coupang_rfm__rocket_sales AS sales
 FULL OUTER JOIN coupang_rfm__rocket_shipping AS shipping
-  ON sales.order_id = shipping.order_id AND sales.option_id = shipping.option_id
-GROUP BY sales_date, order_id, option_id
+  ON sales.order_id = shipping.order_id
+    AND sales.vendor_id = shipping.vendor_id
+    AND sales.option_id = shipping.option_id
+GROUP BY sales_date, order_id, vendor_id, option_id
 ),{#
 
 #} coupang_rfm__bundle_product_order AS (
@@ -866,7 +879,8 @@ SELECT
     ord.order_id
   , ord.option_id
   {# -- Sales dimensions
-#}, COALESCE(
+#}, ord.vendor_id
+  , COALESCE(
         rel.bundle_product_ids
       , vdr.bundle_brand_ids
       , '200000'
@@ -894,7 +908,8 @@ SELECT
     ord.order_id
   , ord.option_id
   {# -- Sales dimensions
-#}, SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+#}, ord.vendor_id
+  , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
   , (CASE
       WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
       ELSE ord.order_status
@@ -924,7 +939,8 @@ SELECT
     ord.order_id
   , ord.option_id
   {# -- Sales dimensions
-#}, ord.product_id
+#}, ord.vendor_id
+  , ord.product_id
   , ord.order_status
   {# -- Sales metrics
 #}, ord.sku_quantity
@@ -954,7 +970,8 @@ LEFT JOIN delivery_group AS dlv
     order_id
   , option_id
   {# -- Sales dimensions
-#}, product_id
+#}, vendor_id
+  , product_id
   , order_status
   {# -- Sales metrics
 #}, sku_quantity
@@ -1001,8 +1018,9 @@ FROM (
 SELECT
     CAST(order_id AS STRING) AS product_order_id
   , CAST(NULL AS STRING) AS product_order_id
-  , product_id
   , 'shop9001' AS shop_id
+  , vendor_id AS account_no
+  , product_id
   , order_status
   , sku_quantity
   , payment_amount
@@ -1027,8 +1045,9 @@ FROM (
 SELECT
     order_id
   , product_order_id
-  , product_id
   , shop_id
+  , account_no
+  , product_id
   , order_status
   , IF(order_status = 0, COALESCE(sku_quantity, 0), 0) AS sku_quantity
   , (CASE
@@ -1053,9 +1072,16 @@ FROM (
 #} SELECT
   fact.order_id
 , fact.product_order_id
-, fact.product_id
+{# -- Shop attributes
+#}, fact.shop_id
+, COALESCE(shop.shop_group, '-') AS shop_group
+, COALESCE(shop.shop_alias, '-') AS shop_name
+{# -- Account attributes
+#}, fact.account_no
+, COALESCE(account.corp_name, '사업자 없음') AS corp_name
 {# -- Item attributes
-#}, COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
+#}, fact.product_id
+, COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
 , COALESCE(item.item_seq, 99999999) AS item_seq
 , COALESCE(item.team_name, '담당팀 없음') AS team_name
 , COALESCE(item.brand_name, '브랜드 없음') AS brand_name
@@ -1071,10 +1097,6 @@ FROM (
       , CONCAT(item.category_name3, ' (', item.unit_name, ')'))
     , '-'
   ) AS category_unit_name
-{# -- Shop attributes
-#}, fact.shop_id
-, COALESCE(shop.shop_group, '-') AS shop_group
-, COALESCE(shop.shop_alias, '-') AS shop_name
 {# -- Sales attributes
 #}, COALESCE(order_status.label, '알 수 없음') AS order_status
 , COALESCE(fact.sku_quantity * COALESCE(item.unit_scale, 1), 0) AS unit_quantity
@@ -1090,5 +1112,7 @@ LEFT JOIN {{ ref('core__product_master') }} AS item
   ON fact.product_id = item.product_id
 LEFT JOIN {{ source('sabangnet', 'shop') }} AS shop
   ON fact.shop_id = shop.shop_id
+LEFT JOIN {{ ref('relation__acc_no_to_corp_name') }} AS account
+  ON fact.shop_id = account.shop_id AND fact.account_no = account.account_no
 LEFT JOIN order_status_mapping AS order_status
   ON fact.order_status = order_status.code

@@ -24,11 +24,11 @@ WITH{#
       grp.vendor_id
     , vdr.vendor_name
     , vdr.vendor_alias
-    , vendor_type.label AS vendor_type
     -- Campaign attributes
     , grp.campaign_id
     , cmp.campaign_name
     , COALESCE(campaign_type.label, cmp.campaign_type) AS campaign_type
+    , vendor_type.label AS vendor_type
     -- Adgroup attributes
     , grp.adgroup_id
     , grp.adgroup_name

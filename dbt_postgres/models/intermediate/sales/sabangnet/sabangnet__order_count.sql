@@ -42,6 +42,7 @@ WITH{#
       ord.order_id
     , ord.order_id_dup AS product_order_id
     , acc.shop_id
+    , ord.account_no
     , (string_to_array(ord.option_id, '-'))[1] AS product_id
     , ord.option_id
     , opt.bundle_option_ids
@@ -76,6 +77,7 @@ WITH{#
         order_id
       , product_order_id
       , ({{ sabangnet__shop_id_rules() }}) AS shop_id
+      , account_no
       , product_id
       , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
       , ({{ sabangnet__order_status_rules() }}) AS order_status
@@ -93,6 +95,7 @@ WITH{#
       ord.order_id
     , ord.product_order_id
     , ord.shop_id
+    , ord.account_no
     , (string_to_array(bundle_option, '-'))[1] AS product_id
     , ord.bundle_option_ids
     , ord.order_status
@@ -107,8 +110,9 @@ WITH{#
   SELECT
       order_id
     , product_order_id
-    , product_id
     , shop_id
+    , account_no
+    , product_id
     , order_status
     , SUM(order_quantity) AS order_quantity
     , order_date
@@ -117,7 +121,7 @@ WITH{#
     UNION ALL
     (SELECT * FROM exploded_product_order)
   ) AS t_
-  GROUP BY order_id, product_order_id, order_date, product_id, shop_id, order_status
+  GROUP BY order_id, product_order_id, order_date, shop_id, account_no, product_id, order_status
 ){#
 
 #} SELECT * FROM order_count

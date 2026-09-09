@@ -23,6 +23,7 @@ sabangnet_order_count AS (
       order_id
     , product_order_id
     , shop_id
+    , CAST(account_no AS STRING) AS account_no
     , product_id
     , order_status
     , order_quantity
@@ -36,6 +37,7 @@ smartstore_order_count AS (
       CAST(order_id AS STRING) AS order_id
     , CAST(product_order_id AS STRING) AS product_order_id
     , IF(delivery_type = 7, 'shop9000', 'shop0055') AS shop_id
+    , CAST(channel_seq AS STRING) AS account_no
     , product_id
     , order_status
     , order_quantity
@@ -49,6 +51,7 @@ coupang_rfm_order_count AS (
       CAST(order_id AS STRING) AS order_id
     , CAST(NULL AS STRING) AS product_order_id
     , 'shop9001' AS shop_id
+    , vendor_id AS account_no
     , product_id
     , order_status
     , order_quantity
@@ -62,6 +65,7 @@ order_count AS (
       order_id
     , product_order_id
     , shop_id
+    , account_no
     , product_id
     , order_status
     , order_quantity
@@ -79,8 +83,15 @@ order_count AS (
 SELECT
     fact.order_id
   , fact.product_order_id
-  , fact.product_id
+  -- Shop attributes
+  , fact.shop_id
+  , COALESCE(shop.shop_group, '-') AS shop_group
+  , COALESCE(shop.shop_alias, '-') AS shop_name
+  -- Account attributes
+  , fact.account_no
+  , COALESCE(account.corp_name, '사업자 없음') AS corp_name
   -- Item attributes
+  , fact.product_id
   , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
   , COALESCE(item.item_seq, 99999999) AS item_seq
   , COALESCE(item.team_name, '담당팀 없음') AS team_name
@@ -97,18 +108,16 @@ SELECT
         , CONCAT(item.category_name3, ' (', item.unit_name, ')'))
       , '-'
     ) AS category_unit_name
-  -- Shop attributes
-  , fact.shop_id
-  , COALESCE(shop.shop_group, '-') AS shop_group
-  , COALESCE(shop.shop_alias, '-') AS shop_name
   -- Order attributes
   , COALESCE(order_status.label, '알 수 없음') AS order_status
   , fact.order_quantity
   , fact.order_date
 FROM order_count AS fact
-LEFT JOIN {{ ref('core__product_master') }} AS item
-  ON fact.product_id = item.product_id
 LEFT JOIN {{ source('sabangnet', 'shop') }} AS shop
   ON fact.shop_id = shop.shop_id
+LEFT JOIN {{ ref('relation__acc_no_to_corp_name') }} AS account
+  ON fact.shop_id = account.shop_id AND fact.account_no = account.account_no
+LEFT JOIN {{ ref('core__product_master') }} AS item
+  ON fact.product_id = item.product_id
 LEFT JOIN order_status_mapping AS order_status
   ON fact.order_status = order_status.code

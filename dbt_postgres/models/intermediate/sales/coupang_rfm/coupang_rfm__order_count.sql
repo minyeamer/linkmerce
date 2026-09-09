@@ -13,6 +13,10 @@
 
 WITH{#
 
+#} product_renewal_mapping AS (
+  {{ core__product_renewal_mapping() }}
+),{#
+
 -- order_status IN (0, 1, 3, 6)
 
 #} rocket_sales AS (
@@ -33,6 +37,7 @@ WITH{#
 #} bundle_product_order AS (
   SELECT
       ord.order_id
+    , ord.vendor_id
     , ord.option_id
     , COALESCE(
           rel.bundle_product_ids
@@ -54,7 +59,11 @@ WITH{#
 #} exploded_product_order AS (
   SELECT
       ord.order_id
-    , (string_to_array(bundle_product, ':'))[1] AS product_id
+    , ord.vendor_id
+    , COALESCE(
+          renewal.product_id_old
+        , (string_to_array(bundle_product, ':'))[1]
+      ) AS product_id
     , (CASE
         WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
         ELSE LEAST(ord.order_status, 3)
@@ -63,17 +72,21 @@ WITH{#
     , ord.order_date
   FROM bundle_product_order AS ord
   CROSS JOIN LATERAL unnest(string_to_array(ord.bundle_product_ids, ',')) AS t(bundle_product)
+  LEFT JOIN product_renewal_mapping AS renewal
+    ON (string_to_array(bundle_product, ':'))[1] = renewal.product_id_new
+      AND ord.order_date < renewal.renewal_date
 ),{#
 
 #} order_count AS (
   SELECT
       order_id
+    , vendor_id
     , product_id
     , order_status
     , SUM(order_quantity) AS order_quantity
     , order_date
   FROM exploded_product_order
-  GROUP BY order_id, order_date, product_id, order_status
+  GROUP BY order_id, order_date, vendor_id, product_id, order_status
 ){#
 
 #} SELECT * FROM order_count

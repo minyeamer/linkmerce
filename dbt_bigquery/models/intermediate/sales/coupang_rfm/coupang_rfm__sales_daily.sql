@@ -42,13 +42,17 @@ product_delivery_unit AS (
   {{ core__product_delivery_unit() }}
 ),
 
+product_renewal_mapping AS (
+  {{ core__product_renewal_mapping() }}
+),
+
 -- Step 1: prepare sales and delivery data
 
 rocket_sales AS (
   SELECT
       order_id
+    , vendor_id
     , option_id
-    , ANY_VALUE(vendor_id) AS vendor_id
     , MAX(settlement_type) AS order_status
     , SUM(order_quantity) AS order_quantity
     , SUM(COALESCE(unit_price, 0) * COALESCE(order_quantity, 0)
@@ -60,14 +64,14 @@ rocket_sales AS (
   FROM {{ source('coupang_rfm', 'sales') }}
   WHERE sales_date BETWEEN DATE('{{ bq_week_start_date("ds_start_date") }}')
     AND DATE('{{ bq_week_end_date("ds_end_date") }}')
-  GROUP BY order_id, option_id
+  GROUP BY order_id, vendor_id, option_id
 ),
 
 rocket_shipping AS (
   SELECT
       order_id
+    , vendor_id
     , option_id
-    , ANY_VALUE(vendor_id) AS vendor_id
     , SUM(COALESCE(warehousing_fee, 0)
         - COALESCE(discount_amount, 0)
         + COALESCE(extra_fee, 0)
@@ -77,14 +81,14 @@ rocket_shipping AS (
   WHERE sales_date
     BETWEEN DATE('{{ bq_week_start_date("ds_start_date") }}')
     AND DATE('{{ bq_week_end_date("ds_end_date") }}')
-  GROUP BY order_id, option_id
+  GROUP BY order_id, vendor_id, option_id
 ),
 
 rocket_sales_shipping AS (
   SELECT
       COALESCE(sales.order_id, shipping.order_id) AS order_id
+    , COALESCE(sales.vendor_id, shipping.vendor_id) AS vendor_id
     , COALESCE(sales.option_id, shipping.option_id) AS option_id
-    , ANY_VALUE(COALESCE(sales.vendor_id, shipping.vendor_id)) AS vendor_id
     , (CASE
         WHEN MAX(sales.order_status) IS NULL THEN 7
         ELSE LEAST(MAX(sales.order_status), 3)
@@ -96,13 +100,16 @@ rocket_sales_shipping AS (
     , COALESCE(sales.sales_date, shipping.sales_date) AS sales_date
   FROM rocket_sales AS sales
   FULL OUTER JOIN rocket_shipping AS shipping
-    ON sales.order_id = shipping.order_id AND sales.option_id = shipping.option_id
-  GROUP BY sales_date, order_id, option_id
+    ON sales.order_id = shipping.order_id
+      AND sales.vendor_id = shipping.vendor_id
+      AND sales.option_id = shipping.option_id
+  GROUP BY sales_date, order_id, vendor_id, option_id
 ),
 
 bundle_product_order AS (
   SELECT
       ord.order_id
+    , ord.vendor_id
     , ord.option_id
     -- Sales dimensions
     , COALESCE(
@@ -134,7 +141,11 @@ exploded_product_order AS (
       ord.order_id
     , ord.option_id
     -- Sales dimensions
-    , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+    , ord.vendor_id
+    , COALESCE(
+          renewal.product_id_old
+        , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
+      ) AS product_id
     , (CASE
         WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
         ELSE ord.order_status
@@ -151,10 +162,19 @@ exploded_product_order AS (
     , ord.order_date
   FROM bundle_product_order AS ord
   CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
+  LEFT JOIN product_renewal_mapping AS renewal
+    ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = renewal.product_id_new
+      AND ord.order_date < renewal.renewal_date
   LEFT JOIN ecount_product AS prd
-    ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = prd.product_id
+    ON COALESCE(
+          renewal.product_id_old
+        , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
+      ) = prd.product_id
   LEFT JOIN {{ source('core', 'item') }} AS itm
-    ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = itm.product_id
+    ON COALESCE(
+          renewal.product_id_old
+        , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
+      ) = itm.product_id
 ),
 
 -- Step 3: add delivery extra cost per order option before amount allocation
@@ -164,6 +184,7 @@ product_order_with_delivery_extra AS (
       ord.order_id
     , ord.option_id
     -- Sales dimensions
+    , ord.vendor_id
     , ord.product_id
     , ord.order_status
     -- Sales metrics
@@ -194,6 +215,7 @@ product_order_with_split_amount AS (
       order_id
     , option_id
     -- Sales dimensions
+    , vendor_id
     , product_id
     , order_status
     -- Sales metrics
@@ -239,7 +261,8 @@ product_order_with_split_amount AS (
 
 sales_daily AS (
   SELECT
-      product_id
+      vendor_id
+    , product_id
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -254,7 +277,7 @@ sales_daily AS (
     UNION ALL
     (SELECT * FROM product_order_with_split_amount)
   ) AS t_
-  GROUP BY order_date, product_id, order_status
+  GROUP BY order_date, vendor_id, product_id, order_status
 )
 
 SELECT * FROM sales_daily

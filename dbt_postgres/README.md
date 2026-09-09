@@ -112,11 +112,15 @@ dbt_postgres/
 ```bash
 dbt_postgres/models/intermediate/
 ├── core__brand_master
-└── core__product_master
+├── core__product_master
+└── relation__acc_no_to_corp_name
 ```
 
 `core__product_master`, `core__brand_master` 모델은 대표상품을
 사방넷 상품 및 브랜드 기준으로 필터한 마스터 뷰 테이블을 제공한다.
+
+`relation__acc_no_to_corp_name` 모델은
+플랫폼별 쇼핑몰코드와 계정번호에 따른 운영사업자를 연결하는 관계 테이블을 제공한다.
 
 #### intermediate/ads
 

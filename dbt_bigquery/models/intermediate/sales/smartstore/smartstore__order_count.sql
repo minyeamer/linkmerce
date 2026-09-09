@@ -15,6 +15,10 @@
 
 WITH
 
+product_renewal_mapping AS (
+  {{ core__product_renewal_mapping() }}
+),
+
 -- order_status IN (0, 1, 2, 3, 5, 6)
 
 order_status_smt AS (
@@ -42,6 +46,7 @@ bundle_product_order AS (
   SELECT
       ord.order_id
     , ord.product_order_id
+    , ord.channel_seq
     , COALESCE(
           rel.bundle_product_ids
         , chl.brand_id
@@ -58,10 +63,10 @@ bundle_product_order AS (
     , COALESCE(ord.order_quantity, 0) AS order_quantity
     , DATE(ord.payment_dt) AS order_date
   FROM {{ source('smartstore', 'order_detail') }} AS ord
-  LEFT JOIN {{ ref('relation__smt_opt_to_sbn_ids') }} AS rel
-    ON ord.option_id = rel.option_id
   LEFT JOIN {{ source('smartstore', 'channel') }} AS chl
     ON ord.channel_seq = chl.channel_seq
+  LEFT JOIN {{ ref('relation__smt_opt_to_sbn_ids') }} AS rel
+    ON ord.option_id = rel.option_id
   LEFT JOIN order_status_smt AS status_smt
     ON ord.product_order_id = status_smt.product_order_id
   LEFT JOIN order_status_cor AS status_cor
@@ -74,26 +79,34 @@ exploded_product_order AS (
   SELECT
       ord.order_id
     , ord.product_order_id
-    , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] AS product_id
+    , ord.channel_seq
+    , COALESCE(
+          renewal.product_id_old
+        , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
+      ) AS product_id
     , IF((ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9'), 3, ord.order_status) AS order_status
     , ord.delivery_type
     , ord.order_quantity
     , ord.order_date
   FROM bundle_product_order AS ord
   CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
+  LEFT JOIN product_renewal_mapping AS renewal
+    ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = renewal.product_id_new
+      AND ord.order_date < renewal.renewal_date
 ),
 
 order_count AS (
   SELECT
       order_id
     , product_order_id
+    , channel_seq
     , product_id
     , delivery_type
     , order_status
     , SUM(order_quantity) AS order_quantity
     , order_date
   FROM exploded_product_order
-  GROUP BY order_id, product_order_id, order_date, product_id, delivery_type, order_status
+  GROUP BY order_id, product_order_id, order_date, channel_seq, product_id, delivery_type, order_status
 )
 
 SELECT * FROM order_count

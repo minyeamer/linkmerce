@@ -8,10 +8,12 @@ END
 {% macro sabangnet__bundle_option_rules() -%}
 CASE
   WHEN (option_id = '100345-0001') AND (sku_quantity >= 100) THEN '100330-0001:1'
-  WHEN (option_id = '100377-0001') AND (sku_quantity >= 100) THEN '100741-0001:1'
+  WHEN (option_id = '100377-0001') AND (sku_quantity >= 100) THEN '100742-0001:1'
+  WHEN (option_id = '100866-0001') AND (sku_quantity >= 100) THEN '101022-0001:1'
   WHEN bundle_option_ids IS NULL THEN NULL
   WHEN bundle_option_ids = '100345-0001:100' THEN '100330-0001:1'
-  WHEN bundle_option_ids = '100377-0001:100' THEN '100741-0001:1'
+  WHEN bundle_option_ids = '100377-0001:100' THEN '100742-0001:1'
+  WHEN bundle_option_ids = '100866-0001:100' THEN '101022-0001:1'
   ELSE bundle_option_ids
 END
 {%- endmacro %}
@@ -28,7 +30,7 @@ END
 
 {% macro sabangnet__sku_quantity_rules() -%}
 CASE
-  WHEN option_id IN ('100330-0001', '100741-0001') THEN order_quantity
+  WHEN option_id IN ('100330-0001', '100742-0001', '101022-0001') THEN order_quantity
   ELSE sku_quantity
 END
 {%- endmacro %}

@@ -163,6 +163,7 @@ WITH{#
 #} bundle_product_contract AS (
   SELECT
       sad.contract_id
+    , sad.customer_id
     , sad.adgroup_id
     , COALESCE(
           rel_grp_prd.bundle_product_ids
@@ -201,6 +202,7 @@ WITH{#
 #} exploded_product_contract AS (
   SELECT
       contract_id
+    , customer_id
     , adgroup_id
     , bundle_product_id AS product_id
     , (DIV(ad_cost, bundle_product_count)

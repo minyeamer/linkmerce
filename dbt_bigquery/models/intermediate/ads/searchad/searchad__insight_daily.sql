@@ -65,7 +65,8 @@ smt_prd_to_ranged_brd_ids AS (
 
 insight_sad_daily AS (
   SELECT
-      grp.campaign_id
+      sad.customer_id
+    , grp.campaign_id
     , sad.ad_id
     , sad.pc_mobile_type AS device_type
     , COALESCE(
@@ -120,7 +121,8 @@ insight_sad_daily AS (
 
 insight_gfa_daily AS (
   SELECT
-      CAST(gfa.campaign_no AS STRING) AS campaign_id
+      gfa.account_no AS customer_id
+    , CAST(gfa.campaign_no AS STRING) AS campaign_id
     , CAST(gfa.creative_no AS STRING) AS ad_id
     , 9 AS device_type
     , COALESCE(
@@ -171,7 +173,8 @@ insight_gfa_daily AS (
 
 bundle_product_insight AS (
   SELECT
-      campaign_id
+      customer_id
+    , campaign_id
     , ad_id
     , device_type
     , ANY_VALUE(bundle_product_ids) AS bundle_product_ids
@@ -189,14 +192,15 @@ bundle_product_insight AS (
     UNION ALL
     (SELECT * FROM insight_gfa_daily)
   ) AS t_
-  GROUP BY ymd, campaign_id, ad_id, device_type
+  GROUP BY ymd, customer_id, campaign_id, ad_id, device_type
 ),
 
 -- Step 4: explode bundle products and allocate metrics with equal weight
 
 exploded_product_insight AS (
   SELECT
-      campaign_id
+      customer_id
+    , campaign_id
     , ad_id
     , device_type
     , bundle_product_id AS product_id

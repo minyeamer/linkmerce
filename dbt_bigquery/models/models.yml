@@ -7,6 +7,9 @@ models:
   - name: "core__product_master"
     description: "`core.item` 테이블에서 품번코드가 존재하는 항목만 추출한 대표상품 마스터 모델"
 
+  - name: "relation__acc_no_to_corp_name"
+    description: "플랫폼별 계정 테이블에서 쇼핑몰코드와 계정번호에 따른 운영사업자 매핑을 제공하는 관계 모델"
+
   # intermediate > ads
 
   - name: "core__opex_daily"

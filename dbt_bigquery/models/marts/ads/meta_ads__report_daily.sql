@@ -13,8 +13,9 @@
 }}
 
 SELECT
-    master.account_id
-  , master.account_name
+  -- Account attributes
+    insight.account_id
+  , account.account_name
   -- Campaign attributes
   , master.campaign_id
   , master.campaign_name
@@ -46,6 +47,8 @@ SELECT
   , insight.ad_cost
   , insight.ymd
 FROM {{ ref('meta_ads__insight_daily') }} AS insight
+LEFT JOIN {{ source('meta_ads', 'account') }} AS account
+  ON insight.account_id = account.account_id
 LEFT JOIN {{ ref('meta_ads__ad_master') }} AS master
   ON insight.ad_id = master.ad_id
 LEFT JOIN {{ ref('core__product_master') }} AS product

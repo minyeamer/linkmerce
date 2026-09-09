@@ -31,8 +31,9 @@ WITH{#
 
 #} sales_ds_range AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -47,15 +48,16 @@ WITH{#
     , MAX(order_date) AS order_end_date
     , date_trunc('month', DS_END_DATE)::date AS order_ym
   FROM {{ ref('analytics__profit_base') }}(DS_START_DATE, DS_END_DATE)
-  GROUP BY product_id, shop_id, order_status
+  GROUP BY shop_id, account_no, product_id, order_status
 ),{#
 
 -- Step 2: aggregate monthly sales for dates before the DS_END_DATE month
 
 #} sales_monthly_lookback AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -73,15 +75,16 @@ WITH{#
       date_trunc('month', (DS_END_DATE) - (DS_INTERVAL_MONTH) * INTERVAL '1 month')::date
     , date_trunc('month', DS_END_DATE)::date - 1
   )
-  GROUP BY date_trunc('month', order_date)::date, product_id, shop_id, order_status
+  GROUP BY date_trunc('month', order_date)::date, shop_id, account_no, product_id, order_status
 ),{#
 
 -- Step 4: combine monthly sales and add custom metrics for reporting
 
 #} sales_monthly AS (
   SELECT
-      fact.product_id
-    , fact.shop_id
+      fact.shop_id
+    , fact.account_no
+    , fact.product_id
     , fact.order_status
     -- Primary metrics
     , fact.profit
@@ -124,8 +127,9 @@ WITH{#
 
 #} sales_monthly_unpivot AS (
   SELECT
-      product_id
-    , shop_id
+      shop_id
+    , account_no
+    , product_id
     , order_status
     , metric_name
     , metric_value
@@ -161,8 +165,15 @@ WITH{#
 
 #} profit_mom AS (
   SELECT
-      fact.product_id
+    -- Shop attributes
+      fact.shop_id
+    , COALESCE(shop.shop_group, '-') AS shop_group
+    , COALESCE(shop.shop_alias, '-') AS shop_name
+    -- Account attributes
+    , fact.account_no
+    , COALESCE(account.corp_name, '사업자 없음') AS corp_name
     -- Item attributes
+    , fact.product_id
     , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
     , COALESCE(item.item_seq, 99999999) AS item_seq
     , COALESCE(item.team_name, '담당팀 없음') AS team_name
@@ -181,10 +192,6 @@ WITH{#
         END)
         , '-'
       ) AS category_unit_name
-    -- Shop attributes
-    , fact.shop_id
-    , COALESCE(shop.shop_group, '-') AS shop_group
-    , COALESCE(shop.shop_alias, '-') AS shop_name
     -- Sales attributes
     , COALESCE(order_status.label, '알 수 없음') AS order_status
     -- Unpivot metrics
@@ -216,10 +223,12 @@ WITH{#
         , end_day.name_ko
       ) AS order_date_range
   FROM sales_monthly_unpivot AS fact
-  LEFT JOIN {{ ref('core__product_master') }} AS item
-    ON fact.product_id = item.product_id
   LEFT JOIN {{ source('sabangnet', 'shop') }} AS shop
     ON fact.shop_id = shop.shop_id
+  LEFT JOIN {{ ref('relation__acc_no_to_corp_name') }} AS account
+    ON fact.shop_id = account.shop_id AND fact.account_no = account.account_no
+  LEFT JOIN {{ ref('core__product_master') }} AS item
+    ON fact.product_id = item.product_id
   LEFT JOIN order_status_mapping AS order_status
     ON fact.order_status = order_status.code
   LEFT JOIN unpivot_metric_mapping AS metric
