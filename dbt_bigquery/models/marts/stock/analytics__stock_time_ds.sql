@@ -16,7 +16,7 @@ WITH primary_stock_time AS (
   SELECT
       ymd AS report_date
     , batch AS report_batch
-    , DATE_SUB(ymd, INTERVAL 30 DAY) AS order_start_date
+    , DATE_SUB(ymd, INTERVAL 60 DAY) AS order_start_date
     , DATE_SUB(ymd, INTERVAL 1 DAY) AS order_end_date
     , max_updated_at
     , ecount__max_updated_at
@@ -45,7 +45,7 @@ fallback_stock_time AS (
   SELECT
       ymd AS report_date
     , batch AS report_batch
-    , DATE_SUB(ymd, INTERVAL 30 DAY) AS order_start_date
+    , DATE_SUB(ymd, INTERVAL 60 DAY) AS order_start_date
     , DATE_SUB(ymd, INTERVAL 1 DAY) AS order_end_date
     , max_updated_at
     , ecount__max_updated_at

@@ -78,6 +78,17 @@ WITH{#
   WHERE ymd = REPORT_DATE
 ),{#
 
+#} sold_qty_daily_60d AS (
+  SELECT
+      product_id
+    , sold_qty_60d
+    , sabangnet__sold_qty_60d
+    , cj_eflexs__sold_qty_60d
+    , coupang_rfm__sold_qty_60d
+  FROM {{ ref('core__sold_qty_60d_daily') }}
+  WHERE ymd = REPORT_DATE
+),{#
+
 -- Step 2: attach stock quantity to ecount products
 
 #} stock_report_with_stock_qty AS (
@@ -144,26 +155,42 @@ WITH{#
     , report.expiration_date
     -- Stock metrics (total)
     , report.stock_qty
-    , COALESCE(qty.sold_qty_30d, 0) AS sold_qty_30d
+    , COALESCE(qty_30d.sold_qty_30d, 0) AS sold_qty_30d
     , NULLIF(
-        SUM(qty.sold_qty_30d) OVER (PARTITION BY report.product_id)
+        SUM(qty_30d.sold_qty_30d) OVER (PARTITION BY report.product_id)
       , 0) / 30::numeric AS avg_sold_qty_30d
+    , COALESCE(qty_60d.sold_qty_60d, 0) AS sold_qty_60d
+    , NULLIF(
+        SUM(qty_60d.sold_qty_60d) OVER (PARTITION BY report.product_id)
+      , 0) / 60::numeric AS avg_sold_qty_60d
     -- Stock metrics (partial)
     , report.ecount__stock_qty
-    , COALESCE(qty.sabangnet__sold_qty_30d, 0) AS sabangnet__sold_qty_30d
+    , COALESCE(qty_30d.sabangnet__sold_qty_30d, 0) AS sabangnet__sold_qty_30d
     , NULLIF(
-        SUM(qty.sabangnet__sold_qty_30d) OVER (PARTITION BY report.product_id)
+        SUM(qty_30d.sabangnet__sold_qty_30d) OVER (PARTITION BY report.product_id)
       , 0) / 30::numeric AS sabangnet__avg_sold_qty_30d
+    , COALESCE(qty_60d.sabangnet__sold_qty_60d, 0) AS sabangnet__sold_qty_60d
+    , NULLIF(
+        SUM(qty_60d.sabangnet__sold_qty_60d) OVER (PARTITION BY report.product_id)
+      , 0) / 60::numeric AS sabangnet__avg_sold_qty_60d
     , report.cj_eflexs__stock_qty
-    , COALESCE(qty.cj_eflexs__sold_qty_30d, 0) AS cj_eflexs__sold_qty_30d
+    , COALESCE(qty_30d.cj_eflexs__sold_qty_30d, 0) AS cj_eflexs__sold_qty_30d
     , NULLIF(
-        SUM(qty.cj_eflexs__sold_qty_30d) OVER (PARTITION BY report.product_id)
+        SUM(qty_30d.cj_eflexs__sold_qty_30d) OVER (PARTITION BY report.product_id)
       , 0) / 30::numeric AS cj_eflexs__avg_sold_qty_30d
-    , report.coupang_rfm__stock_qty
-    , COALESCE(qty.coupang_rfm__sold_qty_30d, 0) AS coupang_rfm__sold_qty_30d
+    , COALESCE(qty_60d.cj_eflexs__sold_qty_60d, 0) AS cj_eflexs__sold_qty_60d
     , NULLIF(
-        SUM(qty.coupang_rfm__sold_qty_30d) OVER (PARTITION BY report.product_id)
+        SUM(qty_60d.cj_eflexs__sold_qty_60d) OVER (PARTITION BY report.product_id)
+      , 0) / 60::numeric AS cj_eflexs__avg_sold_qty_60d
+    , report.coupang_rfm__stock_qty
+    , COALESCE(qty_30d.coupang_rfm__sold_qty_30d, 0) AS coupang_rfm__sold_qty_30d
+    , NULLIF(
+        SUM(qty_30d.coupang_rfm__sold_qty_30d) OVER (PARTITION BY report.product_id)
       , 0) / 30::numeric AS coupang_rfm__avg_sold_qty_30d
+    , COALESCE(qty_60d.coupang_rfm__sold_qty_60d, 0) AS coupang_rfm__sold_qty_60d
+    , NULLIF(
+        SUM(qty_60d.coupang_rfm__sold_qty_60d) OVER (PARTITION BY report.product_id)
+      , 0) / 60::numeric AS coupang_rfm__avg_sold_qty_60d
     -- Schedule attributes
     , report.order_date
     , report.delivery_date
@@ -175,8 +202,10 @@ WITH{#
         ORDER BY report.priority DESC, report.expiration_date ASC NULLS LAST, report.product_code ASC
       ) AS cumsum_seq
   FROM stock_report_with_schedule AS report
-  LEFT JOIN sold_qty_daily_30d AS qty
-    ON report.product_seq = 1 AND report.product_id = qty.product_id
+  LEFT JOIN sold_qty_daily_30d AS qty_30d
+    ON report.product_seq = 1 AND report.product_id = qty_30d.product_id
+  LEFT JOIN sold_qty_daily_60d AS qty_60d
+    ON report.product_seq = 1 AND report.product_id = qty_60d.product_id
 ),{#
 
 -- Step 5: calculate cumulative stock and remaining days
@@ -208,6 +237,13 @@ WITH{#
       , 0) AS avg_sold_qty_30d
     , COALESCE(
         FLOOR(cumsum.stock_qty / report.avg_sold_qty_30d)::integer
+      , 0) AS remain_days_30d
+    , report.sold_qty_60d
+    , COALESCE(
+        ROUND(report.avg_sold_qty_60d, 0)::integer
+      , 0) AS avg_sold_qty_60d
+    , COALESCE(
+        FLOOR(cumsum.stock_qty / report.avg_sold_qty_60d)::integer
       , 0) AS remain_days
     -- Stock metrics (partial)
     , report.ecount__stock_qty
@@ -217,6 +253,13 @@ WITH{#
       , 0) AS sabangnet__avg_sold_qty_30d
     , COALESCE(
         FLOOR(cumsum.ecount__stock_qty / report.sabangnet__avg_sold_qty_30d)::integer
+      , 0) AS ecount__remain_days_30d
+    , report.sabangnet__sold_qty_60d
+    , COALESCE(
+        ROUND(report.sabangnet__avg_sold_qty_60d, 0)::integer
+      , 0) AS sabangnet__avg_sold_qty_60d
+    , COALESCE(
+        FLOOR(cumsum.ecount__stock_qty / report.sabangnet__avg_sold_qty_60d)::integer
       , 0) AS ecount__remain_days
     , report.cj_eflexs__stock_qty
     , report.cj_eflexs__sold_qty_30d
@@ -225,6 +268,13 @@ WITH{#
       , 0) AS cj_eflexs__avg_sold_qty_30d
     , COALESCE(
         FLOOR(cumsum.cj_eflexs__stock_qty / report.cj_eflexs__avg_sold_qty_30d)::integer
+      , 0) AS cj_eflexs__remain_days_30d
+    , report.cj_eflexs__sold_qty_60d
+    , COALESCE(
+        ROUND(report.cj_eflexs__avg_sold_qty_60d, 0)::integer
+      , 0) AS cj_eflexs__avg_sold_qty_60d
+    , COALESCE(
+        FLOOR(cumsum.cj_eflexs__stock_qty / report.cj_eflexs__avg_sold_qty_60d)::integer
       , 0) AS cj_eflexs__remain_days
     , report.coupang_rfm__stock_qty
     , report.coupang_rfm__sold_qty_30d
@@ -233,6 +283,13 @@ WITH{#
       , 0) AS coupang_rfm__avg_sold_qty_30d
     , COALESCE(
         FLOOR(cumsum.coupang_rfm__stock_qty / report.coupang_rfm__avg_sold_qty_30d)::integer
+      , 0) AS coupang_rfm__remain_days_30d
+    , report.coupang_rfm__sold_qty_60d
+    , COALESCE(
+        ROUND(report.coupang_rfm__avg_sold_qty_60d, 0)::integer
+      , 0) AS coupang_rfm__avg_sold_qty_60d
+    , COALESCE(
+        FLOOR(cumsum.coupang_rfm__stock_qty / report.coupang_rfm__avg_sold_qty_60d)::integer
       , 0) AS coupang_rfm__remain_days
     -- Schedule attributes
     , report.order_date
@@ -286,23 +343,58 @@ WITH{#
     , report.avg_sold_qty_30d
     , (CASE
         WHEN product.product_keyword LIKE '%1포%' THEN NULL
+        ELSE report.remain_days_30d
+      END) AS remain_days_30d
+    , report.sold_qty_60d
+    , report.avg_sold_qty_60d
+    , (CASE
+        WHEN product.product_keyword LIKE '%1포%' THEN NULL
         ELSE report.remain_days
       END) AS remain_days
     -- Stock metrics (partial)
     , report.ecount__stock_qty
     , report.sabangnet__sold_qty_30d
     , report.sabangnet__avg_sold_qty_30d
+    , report.ecount__remain_days_30d
+    , report.sabangnet__sold_qty_60d
+    , report.sabangnet__avg_sold_qty_60d
     , report.ecount__remain_days
     , report.cj_eflexs__stock_qty
     , report.cj_eflexs__sold_qty_30d
     , report.cj_eflexs__avg_sold_qty_30d
+    , report.cj_eflexs__remain_days_30d
+    , report.cj_eflexs__sold_qty_60d
+    , report.cj_eflexs__avg_sold_qty_60d
     , report.cj_eflexs__remain_days
     , report.coupang_rfm__stock_qty
     , report.coupang_rfm__sold_qty_30d
     , report.coupang_rfm__avg_sold_qty_30d
+    , report.coupang_rfm__remain_days_30d
+    , report.coupang_rfm__sold_qty_60d
+    , report.coupang_rfm__avg_sold_qty_60d
     , report.coupang_rfm__remain_days
     -- Expected date
+    , report.expected_date_30d
     , report.expected_date
+    , (CASE
+        WHEN product.product_name LIKE '%1포%'
+          THEN '제외 상품 - 1포'
+        WHEN product.product_name LIKE '%불량%'
+          THEN '제외 상품 - 불량'
+        WHEN product.product_name LIKE '%비교%'
+          THEN '제외 상품 - 비교'
+        WHEN report.expiration_date IS NULL
+          THEN '소비기한 없음'
+        WHEN REPORT_DATE > report.expiration_date
+          THEN '소비기한 초과'
+        WHEN SUM(report.sold_qty_30d) OVER (PARTITION BY report.product_id) = 0
+          THEN '판매량 없음'
+        WHEN report.expected_date_30d > report.expiration_date
+          THEN '소비기한 초과'
+        WHEN ((report.expected_date_30d) + (6) * INTERVAL '1 month')::date > report.expiration_date
+          THEN '판매부진'
+        ELSE '정상'
+      END) AS performance_30d
     , (CASE
         WHEN product.product_name LIKE '%1포%'
           THEN '제외 상품 - 1포'
@@ -314,7 +406,7 @@ WITH{#
           THEN '소비기한 없음'
         WHEN REPORT_DATE > report.expiration_date
           THEN '소비기한 초과'
-        WHEN SUM(report.sold_qty_30d) OVER (PARTITION BY report.product_id) = 0
+        WHEN SUM(report.sold_qty_60d) OVER (PARTITION BY report.product_id) = 0
           THEN '판매량 없음'
         WHEN report.expected_date > report.expiration_date
           THEN '소비기한 초과'
@@ -332,7 +424,10 @@ WITH{#
     , report.delivery_date
     , report.schedule_remarks
   FROM (
-    SELECT *, ((REPORT_DATE) + (remain_days) * INTERVAL '1 day')::date AS expected_date
+    SELECT
+        *
+      , ((REPORT_DATE) + (remain_days_30d) * INTERVAL '1 day')::date AS expected_date_30d
+      , ((REPORT_DATE) + (remain_days) * INTERVAL '1 day')::date AS expected_date
     FROM stock_report_with_remain_days
   ) AS report
   INNER JOIN ecount_product AS product

@@ -16,7 +16,7 @@ WITH primary_stock_time AS (
   SELECT
       ymd AS report_date
     , batch AS report_batch
-    , ymd - 30 AS order_start_date
+    , ymd - 60 AS order_start_date
     , ymd - 1 AS order_end_date
     , max_updated_at
     , ecount__max_updated_at
@@ -45,7 +45,7 @@ WITH primary_stock_time AS (
   SELECT
       ymd AS report_date
     , batch AS report_batch
-    , (ymd - 30)::date AS order_start_date
+    , (ymd - 60)::date AS order_start_date
     , (ymd - 1)::date AS order_end_date
     , max_updated_at
     , ecount__max_updated_at

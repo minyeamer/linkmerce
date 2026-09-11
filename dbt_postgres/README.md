@@ -249,6 +249,7 @@ dbt_postgres/models/intermediate/stock/
 │   ├── coupang_rfm__stock_qty_batch
 │   └── ecount__stock_qty_batch
 ├── core__sold_qty_30d_daily
+├── core__sold_qty_60d_daily
 ├── core__stock_qty_batch
 └── core__stock_time_batch
 ```
@@ -256,8 +257,8 @@ dbt_postgres/models/intermediate/stock/
 이 계층에서는 채널마다 일별/차수별로 수집한 재고 내역을
 이카운트 상품 기준으로 매핑 및 집계하여 플랫폼별 재고수량 fact 테이블을 생성한다.
 
-`core__sold_qty_30d_daily` 모델은 `intermediate/sales/` 경로의
-`sales_daily` 모델을 참조하여 재고 플랫폼별 판매량(출고량) fact 테이블을 생성한다.
+`core__sold_qty_30d_daily`, `core__sold_qty_60d_daily` 모델은 `intermediate/sales/` 경로의
+`sales_daily` 모델을 참조하여 재고 플랫폼별 최근 판매량(출고량) fact 테이블을 생성한다.
 
 `core__stock_time_batch` 모델은 단일 날짜 및 차수를 지정하는
 대시보드에서 조회 범위 내 최종 재고 업데이트 시간을 표시하기 위한 목적을 가진다.
@@ -354,7 +355,7 @@ dbt_postgres/models/marts/stock/
 └── analytics__stock_cost_mom
 ```
 
-`analytics__stock_report` 모델은 재고수량과 30일 판매량을 결합해
+`analytics__stock_report` 모델은 재고수량과 최근 60일 판매량을 결합해
 이카운트 상품별 판매가능일과 예상소진일을 계산한다.
 단일 날짜 및 차수에 대한 조회만 허용하며, 대시보드 및 엑셀 보고서에서 공통으로 참조한다.
 

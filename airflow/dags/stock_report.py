@@ -320,7 +320,7 @@ with DAG(
             return {
                 "stock_updated_at": updated_at.format("YYYY-MM-DD(dd) HH:mm", locale="ko"),
                 "order_date_range": "{} ~ {}".format(
-                    updated_at.subtract(days=30).format("YYYY-MM-DD(dd)", locale="ko"),
+                    updated_at.subtract(days=60).format("YYYY-MM-DD(dd)", locale="ko"),
                     updated_at.subtract(days=1).format("YYYY-MM-DD(dd)", locale="ko"),
                 )
             }
@@ -336,20 +336,20 @@ with DAG(
                 ("product_name", (None, "품목명")),
                 ("expiration_date", (None, "소비기한")),
                 ("ecount__stock_qty", ("본사창고", "본사재고")),
-                ("sabangnet__sold_qty_30d", (None, "총 판매량\n(최근 30일)")),
-                ("sabangnet__avg_sold_qty_30d", (None, "일 평균 판매량\n(최근 30일)")),
+                ("sabangnet__sold_qty_60d", (None, "총 판매량\n(최근 60일)")),
+                ("sabangnet__avg_sold_qty_60d", (None, "일 평균 판매량\n(최근 60일)")),
                 ("ecount__remain_days", (None, "판매 가능일")),
                 ("cj_eflexs__stock_qty", ("N배송", "풀필재고")),
-                ("cj_eflexs__sold_qty_30d", (None, "총 판매량\n(최근 30일)")),
-                ("cj_eflexs__avg_sold_qty_30d", (None, "일 평균 판매량\n(최근 30일)")),
+                ("cj_eflexs__sold_qty_60d", (None, "총 판매량\n(최근 60일)")),
+                ("cj_eflexs__avg_sold_qty_60d", (None, "일 평균 판매량\n(최근 60일)")),
                 ("cj_eflexs__remain_days", (None, "판매 가능일")),
                 ("coupang_rfm__stock_qty", ("로켓그로스", "그로스재고")),
-                ("coupang_rfm__sold_qty_30d", (None, "총 판매량\n(최근 30일)")),
-                ("coupang_rfm__avg_sold_qty_30d", (None, "일 평균 판매량\n(최근 30일)")),
+                ("coupang_rfm__sold_qty_60d", (None, "총 판매량\n(최근 60일)")),
+                ("coupang_rfm__avg_sold_qty_60d", (None, "일 평균 판매량\n(최근 60일)")),
                 ("coupang_rfm__remain_days", (None, "판매 가능일")),
                 ("stock_qty", ("소비기한별 재고소진 예상일", "총 재고")),
-                ("sold_qty_30d", (None, "총 판매량\n(최근 30일)")),
-                ("avg_sold_qty_30d", (None, "일 평균 판매량\n(최근 30일)")),
+                ("sold_qty_60d", (None, "총 판매량\n(최근 60일)")),
+                ("avg_sold_qty_60d", (None, "일 평균 판매량\n(최근 60일)")),
                 ("remain_days", (None, "판매 가능일")),
                 ("expected_date", (None, "예상 소진일")),
                 ("performance", (None, "재고 알림")),
@@ -398,10 +398,10 @@ with DAG(
                 elif column.endswith("재고"):
                     column_styles[col_idx] = {"number_format": "#,##0;-#,##0;-"}
                     column_width[col_idx] = 9.75
-                elif column == "총 판매량\n(최근 30일)":
+                elif column == "총 판매량\n(최근 60일)":
                     column_styles[col_idx] = {"number_format": "#,##0;-;-"}
                     column_width[col_idx] = 10.5
-                elif column in ("일 평균 판매량\n(최근 30일)", "판매 가능일", "재고 알림"):
+                elif column in ("일 평균 판매량\n(최근 60일)", "판매 가능일", "재고 알림"):
                     if column == "판매 가능일":
                         column_styles[col_idx] = {"alignment": {"horizontal": "center"}, "number_format": "#,##0일 이내;-;-"}
                     elif column == "재고 알림":

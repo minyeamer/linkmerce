@@ -146,7 +146,10 @@ models:
   # intermediate > stock
 
   - name: "core__sold_qty_30d_daily"
-    description: "각종 플랫폼에서 요약된 판매수량을 SKU별 피벗 테이블로 가공한 일별 파티션 모델"
+    description: "각종 플랫폼에서 요약된 최근 30일 판매수량을 SKU별 피벗 테이블로 가공한 일별 파티션 모델"
+
+  - name: "core__sold_qty_60d_daily"
+    description: "각종 플랫폼에서 요약된 최근 60일 판매수량을 SKU별 피벗 테이블로 가공한 일별 파티션 모델"
 
   - name: "core__stock_qty_batch"
     description: "각종 플랫폼에서 요약된 재고수량을 SKU 및 차수별 피벗 테이블로 가공한 일별 파티션 모델"

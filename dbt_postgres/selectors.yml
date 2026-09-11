@@ -10,6 +10,8 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__sold_qty_30d_daily
         - method: fqn
+          value: intermediate.stock.core__sold_qty_60d_daily
+        - method: fqn
           value: intermediate.stock.core__stock_qty_batch
         - method: fqn
           value: intermediate.stock.core__stock_time_batch
@@ -57,6 +59,8 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__sold_qty_30d_daily
         - method: fqn
+          value: intermediate.stock.core__sold_qty_60d_daily
+        - method: fqn
           value: intermediate.stock.core__stock_qty_batch
         - method: fqn
           value: intermediate.stock.core__stock_time_batch
@@ -88,6 +92,8 @@ selectors:
           value: intermediate.stock.sources.ecount__stock_qty_batch
         - method: fqn
           value: intermediate.stock.core__sold_qty_30d_daily
+        - method: fqn
+          value: intermediate.stock.core__sold_qty_60d_daily
         - method: fqn
           value: intermediate.stock.core__stock_qty_batch
         - method: fqn
@@ -408,6 +414,8 @@ selectors:
       union:
         - method: fqn
           value: intermediate.stock.core__sold_qty_30d_daily
+        - method: fqn
+          value: intermediate.stock.core__sold_qty_60d_daily
         - method: fqn
           value: intermediate.stock.core__stock_qty_batch
           parents: true
