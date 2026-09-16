@@ -14,6 +14,7 @@ CREATE SCHEMA IF NOT EXISTS coupang_ads; -- cpa
 CREATE SCHEMA IF NOT EXISTS coupang_rfm; -- cpr
 CREATE SCHEMA IF NOT EXISTS dable; -- dbl
 CREATE SCHEMA IF NOT EXISTS ecount; -- eco
+CREATE SCHEMA IF NOT EXISTS ebay; -- eby
 CREATE SCHEMA IF NOT EXISTS ebay_ads; -- eba
 CREATE SCHEMA IF NOT EXISTS google_ads; -- ggl
 CREATE SCHEMA IF NOT EXISTS meta_ads; -- met
@@ -507,13 +508,37 @@ CREATE TABLE IF NOT EXISTS ecount.schedule (
 );
 
 -- ============================================================
+-- ebay (이베이 ESM PLUS)
+-- ============================================================
+
+-- [ESM PLUS 상품]
+CREATE TABLE IF NOT EXISTS ebay.item (
+    item_id BIGINT NOT NULL -- 마스터상품번호
+  , site_type SMALLINT NOT NULL -- 사이트유형
+  , site_item_id TEXT NOT NULL -- 상품번호
+  , item_name TEXT -- 상품명
+  , option_name TEXT -- 옵션명(프로모션 문구)
+  , seller_id TEXT -- 아이디
+  , brand_name TEXT -- 브랜드
+  , maker_name TEXT -- 제조사
+  , category_code TEXT -- 카테고리코드
+  , category_name TEXT -- 카테고리
+  , sell_status TEXT -- 판매상태
+  , image_url TEXT -- 이미지 주소
+  , price INTEGER -- 판매가
+  , created_at TIMESTAMP -- 최초 등록일
+  , updated_at TIMESTAMP -- 최종 변경일
+  , PRIMARY KEY (item_id, site_type)
+);
+
+-- ============================================================
 -- ebay_ads (이베이 광고센터)
 -- ============================================================
 
 -- [G마켓 광고 캠페인 그룹]
 CREATE TABLE IF NOT EXISTS ebay_ads.campaign_group (
     campaign_group_id BIGINT NOT NULL -- 그룹ID
-  , campaign_group_name VARCHAR -- 그룹명
+  , campaign_group_name TEXT -- 그룹명
   , campaign_group_type INTEGER -- 캠페인유형
   , campaign_group_status INTEGER -- 그룹상태
   , PRIMARY KEY (campaign_group_id)
@@ -523,29 +548,17 @@ CREATE TABLE IF NOT EXISTS ebay_ads.campaign_group (
 CREATE TABLE IF NOT EXISTS ebay_ads.campaign (
     campaign_id BIGINT NOT NULL -- 캠페인ID
   , campaign_group_id BIGINT NOT NULL -- 그룹ID
-  , campaign_name VARCHAR -- 캠페인명
+  , campaign_name TEXT -- 캠페인명
   , campaign_status INTEGER -- 캠페인상태
   , daily_budget INTEGER -- 일 예산
   , PRIMARY KEY (campaign_id)
 );
 
--- [G마켓 광고 상품]
-CREATE TABLE IF NOT EXISTS ebay_ads.product (
-    campaign_id BIGINT NOT NULL -- 캠페인ID
-  , adgroup_id BIGINT NOT NULL -- 광고그룹ID
-  , item_id BIGINT NOT NULL -- 상품번호
-  , item_name VARCHAR -- 상품명
-  , adgroup_status INTEGER -- 광고그룹상태
-  , image_url VARCHAR -- 이미지주소
-  , bid_amount INTEGER -- 입찰가
-  , PRIMARY KEY (item_id)
-);
-
--- [G마켓 광고 보고서]
-CREATE TABLE IF NOT EXISTS ebay_ads.report (
-    campaign_id BIGINT NOT NULL -- 캠페인ID
-  , campaign_group_id BIGINT NOT NULL -- 그룹ID
-  , item_id BIGINT NOT NULL -- 상품번호
+-- [G마켓 광고 리포트]
+CREATE TABLE IF NOT EXISTS ebay_ads.report_gmkt (
+    campaign_group_id BIGINT NOT NULL -- 그룹ID
+  , campaign_id BIGINT NOT NULL -- 캠페인ID
+  , item_id BIGINT NOT NULL -- 마스터상품번호
   , impression_count INTEGER -- 노출 수
   , click_count INTEGER -- 클릭 수
   , ad_cost INTEGER -- 광고 비용
@@ -555,6 +568,33 @@ CREATE TABLE IF NOT EXISTS ebay_ads.report (
   , sold_count INTEGER -- 광고 상품 전환 수량
   , ymd DATE -- 날짜
   , PRIMARY KEY (ymd, campaign_group_id, campaign_id, item_id)
+) PARTITION BY RANGE (ymd);
+
+-- [옥션 광고 - AI매출업 리포트]
+CREATE TABLE IF NOT EXISTS ebay_ads.report_ai (
+    site_type SMALLINT NOT NULL -- 사이트유형
+  , item_id TEXT NOT NULL -- 상품번호
+  , click_count INTEGER -- 클릭수
+  , ad_cost INTEGER -- 총비용(VAT포함)
+  , order_count INTEGER -- 광고 상품 주문수
+  , conv_count INTEGER -- 광고 상품 구매수
+  , conv_amount INTEGER -- 광고 상품 구매금액
+  , ymd DATE NOT NULL -- 날짜
+  , PRIMARY KEY (ymd, site_type, item_id)
+) PARTITION BY RANGE (ymd);
+
+-- [옥션 광고 - 파워클릭 리포트]
+CREATE TABLE IF NOT EXISTS ebay_ads.report_cpc (
+    site_type SMALLINT NOT NULL -- 사이트유형
+  , item_id TEXT NOT NULL -- 상품번호
+  , impression_count INTEGER -- 노출수
+  , click_count INTEGER -- 클릭수
+  , ad_cost INTEGER -- 총비용(VAT포함)
+  , ad_rank_sum INTEGER -- 노출순위합계
+  , conv_count INTEGER -- 구매수
+  , conv_amount INTEGER -- 구매금액
+  , ymd DATE NOT NULL -- 날짜
+  , PRIMARY KEY (ymd, site_type, item_id)
 ) PARTITION BY RANGE (ymd);
 
 -- ============================================================
@@ -899,6 +939,13 @@ CREATE TABLE IF NOT EXISTS relation.cpg_opt_to_sbn_ids (
     option_id BIGINT NOT NULL -- 노출옵션ID
   , bundle_product_ids TEXT -- 연결품번코드
   , PRIMARY KEY (option_id)
+);
+
+-- [이베이 상품 - 사방넷 묶음상품 관계]
+CREATE TABLE IF NOT EXISTS relation.eby_itm_to_sbn_ids (
+    item_id BIGINT NOT NULL -- 마스터상품번호
+  , bundle_product_ids TEXT -- 연결품번코드
+  , PRIMARY KEY (item_id)
 );
 
 -- [네이버 쇼핑 키워드 - 상품 관계]
@@ -1637,7 +1684,9 @@ SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory',		      'update
 SELECT public.bootstrap_daily_partitions('coupang_rfm.sales',			        'sales_date',			    '2023-08-07',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.shipping',		      'sales_date',			    '2023-08-04',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('dable.report',			            'ymd',      			    '2026-06-11',         	'1 day',  35);
-SELECT public.bootstrap_daily_partitions('ebay_ads.report',			          'ymd',			          '2026-07-01',	          '1 day',  35);
+SELECT public.bootstrap_daily_partitions('ebay_ads.report_ai',			      'ymd',			          '2026-04-01',	          '1 day',  35);
+SELECT public.bootstrap_daily_partitions('ebay_ads.report_cpc',			      'ymd',			          '2026-07-01',	          '1 day',  35);
+SELECT public.bootstrap_daily_partitions('ebay_ads.report_gmkt',			    'ymd',			          '2026-08-05',	          '1 day',  35);
 SELECT public.bootstrap_daily_partitions('ecount.inventory',			        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('google_ads.insight',			      'ymd',				        '2023-09-06',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('meta_ads.insight',			        'ymd',				        '2024-05-20',				    '1 day',  35);

@@ -433,8 +433,16 @@ class AddProductGroup(SabangnetAdmin):
         """
         from linkmerce.core.sabangnet.admin import get_product_date_pair
         start_date, end_date = get_product_date_pair(start_date, end_date)
-        return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
-                .run(start_date=start_date, end_date=end_date, shop_id=shop_id))
+        return (self.paginate_all(
+                    self.request_json_safe,
+                    counter = self.count_total,
+                    max_page_size = self.max_page_size,
+                    page_start = self.page_start
+                ).run(
+                    start_date = start_date,
+                    end_date = end_date,
+                    shop_id = shop_id,
+                ))
 
     def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 추가상품 그룹 건수를 추출한다."""

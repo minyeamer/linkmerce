@@ -262,14 +262,56 @@ class TestDable:
 
 
 ###################################################################
-############################### Ebay ##############################
+##################### Ebay - AUCTION Adcenter #####################
 ###################################################################
 
-class TestEbay:
+class TestAuctionAd:
+    """AUCTION 광고센터 데이터 추출 테스트.
+    - ebay.ad.report.AiReport
+    - ebay.ad.report.CpcReport
+    """
+
+    def cookies(self, reader: YamlReader) -> str:
+        return reader("ebay.ad")["cookies"]
+
+    @pytest.mark.ebay_ad
+    def test_ai_report(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """AUCTION 광고센터 AI 매출형 상품별 리포트를 조회하는 테스트."""
+        from linkmerce.core.ebay.ad.report.extract import AiReport
+        _configs = configs("ebay.ad.ai_report")
+        AiReport(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(AiReport, format="json"),
+        ).extract(
+            master_id = _configs["master_id"],
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+        )
+
+    @pytest.mark.ebay_ad
+    def test_cpc_report(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """AUCTION 광고센터 파워클릭 상품별 리포트를 조회하는 테스트."""
+        from linkmerce.core.ebay.ad.report.extract import CpcReport
+        _configs = configs("ebay.ad.cpc_report")
+        CpcReport(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(CpcReport, format="json"),
+        ).extract(
+            master_id = _configs["master_id"],
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+        )
+
+
+###################################################################
+##################### Ebay - Gmarket Adcenter #####################
+###################################################################
+
+class TestGmarketAdc:
     """Gmarket 광고센터 데이터 추출 테스트.
     - ebay.adcenter.management.CampaignGroup
     - ebay.adcenter.management.Campaign
-    - ebay.adcenter.management.Product
+    - ebay.adcenter.management.Adgroup
     - ebay.adcenter.report.Report
     - ebay.adcenter.report.ReportDownload
     """
@@ -277,7 +319,7 @@ class TestEbay:
     def cookies(self, reader: YamlReader) -> str:
         return reader("ebay.adcenter")["cookies"]
 
-    @pytest.mark.ebay_ads
+    @pytest.mark.ebay_adcenter
     def test_campaign_group(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """Gmarket 광고센터 캠페인 그룹 목록을 조회하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.extract import CampaignGroup
@@ -290,7 +332,7 @@ class TestEbay:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ebay_ads
+    @pytest.mark.ebay_adcenter
     def test_campaign(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """Gmarket 광고센터 캠페인 목록을 조회하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.extract import Campaign
@@ -304,21 +346,21 @@ class TestEbay:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ebay_ads
-    def test_campaign(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-        """Gmarket 광고센터 상품 목록을 조회하는 테스트."""
-        from linkmerce.core.ebay.adcenter.management.extract import Product
-        _configs = configs("ebay.adcenter.product")
-        Product(
+    @pytest.mark.ebay_adcenter
+    def test_adgroup(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """Gmarket 광고센터 광고그룹 목록을 조회하는 테스트."""
+        from linkmerce.core.ebay.adcenter.management.extract import Adgroup
+        _configs = configs("ebay.adcenter.adgroup")
+        Adgroup(
             cookies = self.cookies(credentials),
-            parser = dump_extract(Product, format="txt"),
+            parser = dump_extract(Adgroup, format="txt"),
         ).extract(
             campaign_id = _configs["campaign_id"],
             start_date = _configs.get("start_date", ":today:"),
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ebay_ads
+    @pytest.mark.ebay_adcenter
     def test_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """Gmarket 광고센터 상세 리포트를 조회하는 테스트."""
         from linkmerce.core.ebay.adcenter.report.extract import Report
@@ -333,7 +375,7 @@ class TestEbay:
             aggregate_type = _configs.get("aggregate_type", "daily"),
         )
 
-    @pytest.mark.ebay_ads
+    @pytest.mark.ebay_adcenter
     def test_report_download(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """Gmarket 광고센터 상세 리포트를 엑셀로 다운로드하는 테스트."""
         from linkmerce.core.ebay.adcenter.report.extract import ReportDownload
@@ -346,6 +388,33 @@ class TestEbay:
             end_date = _configs.get("end_date", ":start_date:"),
             report_type = _configs.get("report_type", "product"),
             aggregate_type = _configs.get("aggregate_type", "daily"),
+        )
+
+
+###################################################################
+######################### Ebay - ESM PLUS #########################
+###################################################################
+
+class TestEsmPlus:
+    """ESM PLUS 데이터 추출 테스트.
+    - ebay.esmplus.item.Item
+    """
+
+    def cookies(self, reader: YamlReader) -> str:
+        return reader("ebay.esmplus")["cookies"]
+
+    @pytest.mark.ebay_esmplus
+    def test_item(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """ESM PLUS 상품 목록을 조회하는 테스트."""
+        from linkmerce.core.ebay.esmplus.item.extract import Item
+        _configs = options("ebay.esmplus.item")
+        Item(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(Item, format="json"),
+        ).extract(
+            product_id = _configs.get("product_id", str()),
+            keyword = _configs.get("keyword", str()),
+            sell_status = _configs.get("sell_status", list()),
         )
 
 
@@ -1322,70 +1391,70 @@ class TestSmartstoreApi:
             "client_secret": _credentials["client_secret"],
         }
 
-    # @pytest.mark.smartstore_api
-    # def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
-    #     """네이버 커머스 API로 상품 목록 조회 결과를 수집하는 테스트."""
-    #     from linkmerce.core.smartstore.api.product.extract import Product
-    #     _configs = options("smartstore.api.product")
-    #     Product(
-    #         configs = self.credentials(credentials),
-    #         parser = dump_extract(Product, format="json"),
-    #     ).extract(
-    #         search_keyword = _configs.get("search_keyword", list()),
-    #         keyword_type = _configs.get("keyword_type", "CHANNEL_PRODUCT_NO"),
-    #         status_type = _configs.get("status_type", ["SALE"]),
-    #         period_type = _configs.get("period_type", "PROD_REG_DAY"),
-    #         from_date = _configs.get("from_date"),
-    #         to_date = _configs.get("to_date"),
-    #         max_retries = _configs.get("max_retries", 5),
-    #     )
+    @pytest.mark.smartstore_api
+    def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """네이버 커머스 API로 상품 목록 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.smartstore.api.product.extract import Product
+        _configs = options("smartstore.api.product")
+        Product(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Product, format="json"),
+        ).extract(
+            search_keyword = _configs.get("search_keyword", list()),
+            keyword_type = _configs.get("keyword_type", "CHANNEL_PRODUCT_NO"),
+            status_type = _configs.get("status_type", ["SALE"]),
+            period_type = _configs.get("period_type", "PROD_REG_DAY"),
+            from_date = _configs.get("from_date"),
+            to_date = _configs.get("to_date"),
+            max_retries = _configs.get("max_retries", 5),
+        )
 
-    # @pytest.mark.smartstore_api
-    # def test_option(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
-    #     """네이버 커머스 API로 채널 상품 조회 결과를 수집하는 테스트."""
-    #     from linkmerce.core.smartstore.api.product.extract import Option
-    #     _configs = configs("smartstore.api.option")
-    #     Option(
-    #         configs = self.credentials(credentials),
-    #         parser = dump_extract(Option, format="json", map_index="$product_id"),
-    #     ).extract(
-    #         product_id = _configs["product_id"],
-    #         max_retries = _configs.get("max_retries", 5),
-    #     )
+    @pytest.mark.smartstore_api
+    def test_option(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """네이버 커머스 API로 채널 상품 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.smartstore.api.product.extract import Option
+        _configs = configs("smartstore.api.option")
+        Option(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Option, format="json", map_index="$product_id"),
+        ).extract(
+            product_id = _configs["product_id"],
+            max_retries = _configs.get("max_retries", 5),
+        )
 
-    # @pytest.mark.smartstore_api
-    # def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
-    #     """네이버 커머스 API로 상품 주문 내역 조회 결과를 수집하는 테스트."""
-    #     from linkmerce.core.smartstore.api.order.extract import Order
-    #     _configs = options("smartstore.api.order")
-    #     Order(
-    #         configs = self.credentials(credentials),
-    #         parser = dump_extract(Order, format="json"),
-    #     ).extract(
-    #         start_date = _configs.get("start_date", yesterday),
-    #         end_date = _configs.get("end_date", ":start_date:"),
-    #         range_type = _configs.get("range_type", "PAYED_DATETIME"),
-    #         product_order_status = _configs.get("product_order_status", list()),
-    #         claim_status = _configs.get("claim_status", list()),
-    #         place_order_status = _configs.get("place_order_status", list()),
-    #         page_start = _configs.get("page_start", 1),
-    #         max_retries = _configs.get("max_retries", 5),
-    #     )
+    @pytest.mark.smartstore_api
+    def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """네이버 커머스 API로 상품 주문 내역 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.smartstore.api.order.extract import Order
+        _configs = options("smartstore.api.order")
+        Order(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Order, format="json"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+            range_type = _configs.get("range_type", "PAYED_DATETIME"),
+            product_order_status = _configs.get("product_order_status", list()),
+            claim_status = _configs.get("claim_status", list()),
+            place_order_status = _configs.get("place_order_status", list()),
+            page_start = _configs.get("page_start", 1),
+            max_retries = _configs.get("max_retries", 5),
+        )
 
-    # @pytest.mark.smartstore_api
-    # def test_order_status(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
-    #     """네이버 커머스 API로 변경 상품 주문 내역 조회 결과를 수집하는 테스트."""
-    #     from linkmerce.core.smartstore.api.order.extract import OrderStatus
-    #     _configs = options("smartstore.api.order_status")
-    #     OrderStatus(
-    #         configs = self.credentials(credentials),
-    #         parser = dump_extract(OrderStatus, format="json"),
-    #     ).extract(
-    #         start_date = _configs.get("start_date", yesterday),
-    #         end_date = _configs.get("end_date", ":start_date:"),
-    #         last_changed_type = _configs.get("last_changed_type"),
-    #         max_retries = _configs.get("max_retries", 5),
-    #     )
+    @pytest.mark.smartstore_api
+    def test_order_status(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """네이버 커머스 API로 변경 상품 주문 내역 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.smartstore.api.order.extract import OrderStatus
+        _configs = options("smartstore.api.order_status")
+        OrderStatus(
+            configs = self.credentials(credentials),
+            parser = dump_extract(OrderStatus, format="json"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+            last_changed_type = _configs.get("last_changed_type"),
+            max_retries = _configs.get("max_retries", 5),
+        )
 
     @pytest.mark.smartstore_api
     def test_settlement(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, days_ago: Callable):

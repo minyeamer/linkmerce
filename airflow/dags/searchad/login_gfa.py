@@ -90,7 +90,8 @@ with DAG(
             limit = (credentials["total"] * 3),
         )
         if credentials["save_to"]["naver"]:
-            save_naver_cookies(cookies, credentials["save_to"]["naver"])
+            from pw_actions import save_browser_cookies
+            save_browser_cookies(cookies, credentials["save_to"]["naver"])
 
         # 2. 네이버 광고주센터 인증 (`XSRF-TOKEN` 발급 및 쿠키 저장)
         cookies = center_login(credentials["account_no"], cookies, credentials["save_to"]["gfa"])
@@ -146,18 +147,6 @@ with DAG(
                     return response.text.strip()
 
         raise AuthenticationError(f"No message found containing the filename {userid}.txt.")
-
-
-    def save_naver_cookies(cookies: str, save_to: str | None = None, mkdir: bool = True):
-        """네이버 쿠키를 지정된 경로에 저장한다."""
-        from pathlib import Path
-        file_path = save_to if isinstance(save_to, Path) else Path(save_to)
-        if mkdir:
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(file_path, 'w', encoding="utf-8") as file:
-            file.write(cookies)
-        return cookies
 
 
     (login_gfa

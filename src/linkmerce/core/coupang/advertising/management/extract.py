@@ -62,8 +62,17 @@ class Campaign(CoupangAds):
         list[dict]
             전체 또는 삭제된 캠페인 목록
         """
-        return (self.paginate_all(self.request_json_with_timeout, self.count_total, self.max_page_size, self.page_start)
-                .run(goal_type=goal_type, is_deleted=is_deleted, vendor_id=vendor_id, **kwargs))
+        return (self.paginate_all(
+                    self.request_json_with_timeout,
+                    counter = self.count_total,
+                    max_page_size = self.max_page_size,
+                    page_start = self.page_start
+                ).run(
+                    goal_type = goal_type,
+                    is_deleted = is_deleted,
+                    vendor_id = vendor_id,
+                    **kwargs
+                ))
 
     def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 캠페인 수를 추출한다."""

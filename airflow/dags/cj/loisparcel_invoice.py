@@ -37,7 +37,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:cj-loisparcel", "objective:delivery", "credentials:userid",
-        "schedule:daily", "time:night", "plugin:playwright", "write:merge", "plugin:dbt"
+        "schedule:daily", "time:night", "write:merge", "plugin:playwright", "plugin:dbt"
     ],
 ) as dag:
 

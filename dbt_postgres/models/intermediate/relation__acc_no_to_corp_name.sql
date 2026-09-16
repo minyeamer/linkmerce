@@ -32,6 +32,16 @@ FROM {{ source('coupang', 'vendor') }}{#
 #} UNION ALL{#
 
 #} SELECT
+    shop_id
+  , userid AS account_no
+  , corp_name
+FROM {{ source('sabangnet', 'account') }}
+WHERE shop_id IN ('shop0067', 'shop0068')
+  AND userid IN (SELECT DISTINCT seller_id FROM {{ source('ebay', 'item') }}){#
+
+#} UNION ALL{#
+
+#} SELECT
     shop.shop_id
   , customer_id::text AS account_no
   , corp_name

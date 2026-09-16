@@ -83,6 +83,24 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
+  # Airflow Dags - ebay
+  - name: ebay_auction_ads
+    description: "'ebay_auction_ads' Dag 실행 후 옥션 AI매출업/파워클릭 광고 실적 변동을 매출에 반영"
+    definition:
+      union:
+        - method: fqn
+          value: intermediate.ads.ebay_ads.ebay_ads__insight_daily
+        - method: fqn
+          value: intermediate.sales.core__sales_daily
+  - name: ebay_gmarket_ads
+    description: "'ebay_gmarket_ads' Dag 실행 후 Gmarket 광고 목록 및 실적 변동을 매출에 반영"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/ads/ebay_ads
+        - method: fqn
+          value: intermediate.sales.core__sales_daily
+
   # Airflow Dags - ecount
   - name: ecount_inventory
     description: "'ecount_inventory' Dag 실행 후 이카운트 재고수량 변동을 업데이트"
@@ -356,6 +374,24 @@ selectors:
         - method: fqn
           value: intermediate.ads.searchad.searchad__ad_master
 
+  # Custom - ads
+  - name: adreport
+    description: "종합 광고 보고서 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: marts.ads.analytics__adreport_daily
+        - method: fqn
+          value: marts.ads.coupang_ads__report_daily
+        - method: fqn
+          value: marts.ads.ebay_ads__report_daily
+        - method: fqn
+          value: marts.ads.google_ads__report_daily
+        - method: fqn
+          value: marts.ads.meta_ads__report_daily
+        - method: fqn
+          value: marts.ads.searchad__report_daily
+
   # Custom - benchmark
   - name: naver_sales
     description: "네이버 판매처별 매출 업데이트"
@@ -370,6 +406,11 @@ selectors:
     definition:
       method: fqn
       value: marts.product.coupang__option_master
+  - name: ebay_master
+    description: "G마켓/옥션 상품 목록 업데이트"
+    definition:
+      method: fqn
+      value: marts.product.ebay_item_master
   - name: sabangnet_master
     description: "사방넷 상품/옵션 목록 업데이트"
     definition:

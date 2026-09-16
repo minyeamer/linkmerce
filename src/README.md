@@ -254,7 +254,9 @@ core/{platform}/{hostname}/{category}/
 | `coupang` | `advertising` | `management`, `report` | 쿠팡 광고센터 | 광고 |
 | `coupang` | `wing` | `product`, `settlement` | 쿠팡 판매자센터 | 상품, 매출 |
 | `dable` | `api` | `report` | 데이블 API | 광고 |
+| `ebay` | `ad` | `report` | AUCTION 광고센터 | 광고 |
 | `ebay` | `adcenter` | `management`, `report` | Gmarket 광고센터 | 광고 |
+| `ebay` | `esmplus` | `item` | ESM PLUS | 상품 |
 | `ecount` | `api` | `inventory`, `product` | 이카운트 API | 상품, 재고 |
 | `google` | `api` | `ads` | 구글 API | 광고 |
 | `meta` | `api` | `ads` | 메타 API | 광고 |

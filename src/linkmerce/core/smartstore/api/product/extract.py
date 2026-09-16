@@ -68,7 +68,7 @@ class Product(SmartstoreApi):
         status_type: Sequence[str]
             상품 판매 상태 목록
                 - `"WAIT"`: 판매 대기
-                - `"SALE"`: 판매 중
+                - `"SALE"`: 판매 중 (기본값)
                 - `"OUTOFSTOCK"`: 품절
                 - `"UNADMISSION"`: 승인 대기
                 - `"REJECTION"`: 승인 거부
@@ -77,7 +77,7 @@ class Product(SmartstoreApi):
                 - `"PROHIBITION"`: 판매 금지
         period_type: str
             검색 기간 유형
-                - `"PROD_REG_DAY"`: 상품 등록일
+                - `"PROD_REG_DAY"`: 상품 등록일 (기본값)
                 - `"SALE_START_DAY"`: 판매 시작일
                 - `"SALE_END_DAY"`: 판매 종료일
                 - `"PROD_MOD_DAY"`: 최종 수정일

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
 
-CHROME_VERSION = 146
+CHROME_VERSION = 152
 
 
 def build_headers(
@@ -133,7 +133,7 @@ def get_content_type(contents: Literal["form", "javascript", "json", "text", "mu
 
 def get_default_client(version: int = CHROME_VERSION) -> str:
     """sec-ch-ua 헤더 값을 생성한다."""
-    return f'"Not)A;Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
+    return f'"Chromium";v="{version}", "Not)A;Brand";v="24", "Google Chrome";v="{version}"'
 
 
 def get_current_platform() -> str:

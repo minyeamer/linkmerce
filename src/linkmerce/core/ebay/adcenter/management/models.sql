@@ -39,7 +39,7 @@ FROM {{ rows }}
 WHERE campaignGroupId IS NOT NULL
 ON CONFLICT DO NOTHING;
 
--- CampaignGroup: campaign_group_name
+-- CampaignGroup: campaign_group_type
 SELECT *
 FROM UNNEST([
     STRUCT(0 AS seq, 107020 AS code, '통합운영형' AS name)
@@ -82,7 +82,7 @@ WHERE campaignId IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 
--- Product: create
+-- Adgroup: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
       campaign_id BIGINT NOT NULL
     , adgroup_id BIGINT NOT NULL
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
     , PRIMARY KEY (item_id)
 );
 
--- Product: bulk_insert
+-- Adgroup: bulk_insert
 INSERT INTO {{ table }}
 SELECT
     campaignId AS campaign_id

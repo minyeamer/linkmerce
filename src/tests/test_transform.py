@@ -195,44 +195,83 @@ class TestDable:
 ############################### Ebay ##############################
 ###################################################################
 
-class TestEbay:
+class TestAuctionAd:
+    """AUCTION 광고센터 데이터 변환 테스트.
+    - ebay.ad.report.AiReport
+    - ebay.ad.report.CpcReport
+    """
+
+    @pytest.mark.ebay_ad
+    def test_ai_report(self, transformer_harness: Harness, yesterday: dt.date):
+        """AUCTION 광고센터 AI 매출형 상품별 리포트를 변환하는 테스트."""
+        from linkmerce.core.ebay.ad.report.transform import AiReport
+        transformer_harness(AiReport).transform(end_date=yesterday)
+
+    @pytest.mark.ebay_ad
+    def test_cpc_report(self, transformer_harness: Harness, yesterday: dt.date):
+        """AUCTION 광고센터 파워클릭 상품별 리포트를 변환하는 테스트."""
+        from linkmerce.core.ebay.ad.report.transform import CpcReport
+        transformer_harness(CpcReport).transform(end_date=yesterday)
+
+
+###################################################################
+##################### Ebay - Gmarket Adcenter #####################
+###################################################################
+
+class TestGmarketAdc:
     """Gmarket 광고센터 데이터 변환 테스트.
     - ebay.adcenter.management.CampaignGroup
     - ebay.adcenter.management.Campaign
-    - ebay.adcenter.management.Product
+    - ebay.adcenter.management.Adgroup
     - ebay.adcenter.report.Report
     - ebay.adcenter.report.ReportDownload
     """
 
-    @pytest.mark.ebay_ads
+    @pytest.mark.ebay_adcenter
     def test_campaign_group(self, transformer_harness: Harness):
         """Gmarket 광고센터 캠페인 목록을 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.transform import CampaignGroup
         transformer_harness(CampaignGroup).transform()
 
-    @pytest.mark.ebay_ads
+    @pytest.mark.ebay_adcenter
     def test_campaign(self, transformer_harness: Harness):
         """Gmarket 광고센터 캠페인 목록을 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.transform import Campaign
         transformer_harness(Campaign).transform()
 
-    @pytest.mark.ebay_ads
-    def test_product(self, transformer_harness: Harness):
-        """Gmarket 광고센터 캠페인 목록을 변환하는 테스트."""
-        from linkmerce.core.ebay.adcenter.management.transform import Product
-        transformer_harness(Product).transform()
+    @pytest.mark.ebay_adcenter
+    def test_adgroup(self, transformer_harness: Harness):
+        """Gmarket 광고센터 광고그룹 목록을 변환하는 테스트."""
+        from linkmerce.core.ebay.adcenter.management.transform import Adgroup
+        transformer_harness(Adgroup).transform()
 
-    @pytest.mark.ebay_ads
+    @pytest.mark.ebay_adcenter
     def test_report(self, transformer_harness: Harness):
         """Gmarket 광고센터 상세 리포트를 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.report.transform import Report
         transformer_harness(Report).transform()
 
-    @pytest.mark.ebay_ads
+    @pytest.mark.ebay_adcenter
     def test_report_download(self, transformer_harness: Harness):
         """Gmarket 광고센터 상세 리포트 다운로드 결과를 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.report.transform import ReportDownload
         transformer_harness(ReportDownload).transform()
+
+
+###################################################################
+######################### Ebay - ESM PLUS #########################
+###################################################################
+
+class TestEsmPlus:
+    """ESM PLUS 데이터 변환 테스트.
+    - ebay.esmplus.item.Item
+    """
+
+    @pytest.mark.ebay_esmplus
+    def test_item(self, transformer_harness: Harness):
+        """ESM PLUS 상품 목록을 변환하는 테스트."""
+        from linkmerce.core.ebay.esmplus.item.transform import Item
+        transformer_harness(Item).transform()
 
 
 ###################################################################

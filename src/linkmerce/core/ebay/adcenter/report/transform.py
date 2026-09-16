@@ -8,14 +8,14 @@ class Report(DuckDBTransformer):
     - **Extractor**: `Report`
 
     - **Parser** ( *parser_class: input_type -> output_type* ):
-        - `GmarketAdParser: str -> list[dict]`
+        `GmarketAdParser: str -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
-        `table: ebay_adreport`
+        `table: gmarket_adreport`
     """
 
     extractor = "Report"
-    tables = {"table": "ebay_adreport"}
+    tables = {"table": "gmarket_adreport"}
     parser = GmarketAdParser
     parser_config = dict(
         scope = "data",
@@ -32,14 +32,14 @@ class ReportDownload(DuckDBTransformer):
     - **Extractor**: `ReportDownload`
 
     - **Parser** ( *parser_class: input_type -> output_type* ):
-        - `ExcelTransformer: bytes -> list[dict]`
+        `ExcelTransformer: bytes -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
-        `table: ebay_adreport_dl`
+        `table: gmarket_adreport_dl`
     """
 
     extractor = "ReportDownload"
-    tables = {"table": "ebay_adreport_dl"}
+    tables = {"table": "gmarket_adreport_dl"}
     parser = "excel"
     parser_config = dict(
         header = 6,

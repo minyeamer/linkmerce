@@ -50,8 +50,12 @@ class ProductOption(CoupangWing):
         list[dict]
             전체 또는 삭제된 상품 목록
         """
-        return (self.paginate_all(self.request_json_safe, self.count_total, self.max_page_size, self.page_start)
-                .run(is_deleted=is_deleted))
+        return (self.paginate_all(
+                    self.request_json_safe,
+                    counter = self.count_total,
+                    max_page_size = self.max_page_size,
+                    page_start = self.page_start
+                ).run(is_deleted=is_deleted))
 
     def count_total(self, response: dict, **kwargs) -> int:
         """HTTP 응답에서 전체 상품 수를 추출한다."""

@@ -61,6 +61,30 @@ FROM {{ ref('coupang_ads__report_daily') }}(DS_START_DATE, DS_END_DATE)
 UNION ALL
 
 SELECT
+    site_name AS platform_name
+  , seller_id AS account_no
+  , seller_id AS account_name
+  , campaign_group_name AS campaign_name
+  , campaign_name AS adgroup_name
+  , site_item_name AS ad_name
+  , campaign_group_type AS ad_type
+  , ad_cost
+  , conv_amount
+  , product_id
+  , team_name
+  , brand_name
+  , category_name1
+  , category_name2
+  , category_name3
+  , category_name4
+  , color
+  , product_name
+  , ymd
+FROM {{ ref('ebay_ads__report_daily') }}(DS_START_DATE, DS_END_DATE)
+
+UNION ALL
+
+SELECT
     '구글' AS platform_name
   , CAST(customer_id AS STRING) AS account_no
   , account_name

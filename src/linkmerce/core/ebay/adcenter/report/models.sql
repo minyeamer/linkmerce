@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
 -- Report: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    groupId AS campaign_group_id
-  , campaignId AS campaign_id
+    campaignId AS campaign_group_id
+  , groupId AS campaign_id
   , itemId AS item_id
   , impressions AS impression_count
   , clicks AS click_count

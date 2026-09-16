@@ -30,6 +30,7 @@ class Report(GmarketAdCenter):
 
     method = "POST"
     path = "/report"
+    action_name = "getReportDetail"
     date_format = "%Y%m%d"
     days_limit = 93
     max_page_size = 1000
@@ -79,6 +80,7 @@ class Report(GmarketAdCenter):
                     max_page_size = self.max_page_size,
                     page_start = self.page_start
                 ).run(
+                    next_action = self.next_action,
                     start_date = start_date,
                     end_date = (start_date if end_date == ":start_date:" else end_date),
                     report_type = self.index_report_type(report_type),
@@ -111,9 +113,9 @@ class Report(GmarketAdCenter):
             "campaignGroupTypeList": [107020, 109020, 111020],
         }]
 
-    def build_request_headers(self, **kwargs) -> dict[str, str]:
+    def build_request_headers(self, next_action: str, **kwargs) -> dict[str, str]:
         return self.get_request_headers() | {
-            "next-action": "40d2626681cec51a59d422426865c41a67cb82d20f",
+            "next-action": next_action,
             "referer": (self.origin + "/report"),
         }
 
@@ -157,6 +159,7 @@ class ReportDownload(Report):
 
     method = "POST"
     path = "/report"
+    action_name = "createAndDownloadReportAction"
     date_format = "%Y%m%d"
     days_limit = 93
     default_options = dict()
@@ -199,6 +202,7 @@ class ReportDownload(Report):
             `{파일명: 엑셀 바이너리}` 구조의 상세 리포트 다운로드 결과
         """
         response = self.request_text(
+            next_action = self.next_action,
             start_date = start_date,
             end_date = (start_date if end_date == ":start_date:" else end_date),
             report_type = self.index_report_type(report_type),
@@ -235,8 +239,8 @@ class ReportDownload(Report):
             "campaignGroupTypeList": [107020, 109020, 111020],
         }]
 
-    def build_request_headers(self, **kwargs) -> dict[str, str]:
+    def build_request_headers(self, next_action: str, **kwargs) -> dict[str, str]:
         return self.get_request_headers() | {
-            "next-action": "60c5f67c5af4b4c453e627c6bf0df7213ec76c3ee8",
+            "next-action": next_action,
             "referer": (self.origin + "/report"),
         }

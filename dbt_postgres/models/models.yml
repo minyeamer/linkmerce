@@ -38,6 +38,17 @@ models:
   - name: "coupang_ads__insight_daily"
     description: "쿠팡 PA/NCA 광고 보고서를 결합하면서 SKU 단위로 세분화하고 집계 기준과 집계 항목만 남긴 일별 파티션 모델"
 
+  # intermediate > ads > ebay_ads
+
+  - name: "ebay_ads__group_master"
+    description: "G마켓 광고 캠페인 그룹 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "ebay_ads__campaign_master"
+    description: "G마켓 광고 캠페인과 캠페인 그룹을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "ebay_ads__insight_daily"
+    description: "옥션 AI매출업/파워클릭, G마켓 광고 리포트를 결합하면서 SKU 단위로 세분화하고 집계 기준과 집계 항목만 남긴 일별 파티션 모델"
+
   # intermediate > ads > google_ads
 
   - name: "google_ads__campaign_master"
@@ -176,6 +187,9 @@ models:
   - name: "coupang_ads__report_daily"
     description: "일별로 요약된 쿠팡 PA/NCA 광고 보고서와 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
 
+  - name: "ebay_ads__report_daily"
+    description: "일별로 요약된 G마켓/옥션 광고 실적과 그룹/캠페인/상품 마스터를 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
+
   - name: "google_ads__report_daily"
     description: "일별로 요약된 구글 광고 성과와 소재/상품 마스터 테이블을 결합해 통합 광고 보고서를 조회하기 위한 테이블 함수"
 
@@ -194,6 +208,9 @@ models:
 
   - name: "coupang__option_master"
     description: "쿠팡 윙 옵션 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "ebay_item_master"
+    description: "G마켓/옥션 상품 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
 
   - name: "sabangnet__option_master"
     description: "사방넷 옵션 테이블과 상품 테이블을 결합하면서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"

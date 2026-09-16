@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
-@with_duckdb_connection(table="ebay_campaign_group")
+@with_duckdb_connection(table="gmarket_campaign_group")
 def campaign_group(
         cookies: str,
         start_date: dt.date | str | Literal[":today:"] = ":today:",
@@ -25,7 +25,7 @@ def campaign_group(
     """Gmarket 광고센터 캠페인 그룹 목록을 수집해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
-        `table: ebay_campaign_group`
+        `table: gmarket_campaign_group`
 
     Parameters
     ----------
@@ -64,7 +64,7 @@ def campaign_group(
     )).extract(start_date, end_date)
 
 
-@with_duckdb_connection(table="ebay_campaign")
+@with_duckdb_connection(table="gmarket_campaign")
 def campaign(
         cookies: str,
         campaign_group_id: int | str | Iterable[int | str],
@@ -81,7 +81,7 @@ def campaign(
     """Gmarket 광고센터 캠페인 목록을 수집해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
-        `table: ebay_campaign`
+        `table: gmarket_campaign`
 
     Parameters
     ----------
@@ -132,8 +132,8 @@ def campaign(
     )).extract(campaign_group_id, start_date, end_date)
 
 
-@with_duckdb_connection(table="ebay_product")
-def product(
+@with_duckdb_connection(table="gmarket_adgroup")
+def adgroup(
         cookies: str,
         campaign_id: int | str | Iterable[int | str],
         start_date: dt.date | str | Literal[":today:"] = ":today:",
@@ -149,7 +149,7 @@ def product(
     """Gmarket 광고센터 캠페인 그룹 목록을 수집해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
-        `table: ebay_campaign`
+        `table: gmarket_adgroup`
 
     Parameters
     ----------
@@ -186,9 +186,9 @@ def product(
             - `"raw"`: 데이터 수집 후 Server Action 원본 응답 `str`을 반환한다.
             - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
     """
-    from linkmerce.core.ebay.adcenter.management.extract import Product
-    from linkmerce.core.ebay.adcenter.management.transform import Product as T
-    return Product(**prepare_duckdb_extract(
+    from linkmerce.core.ebay.adcenter.management.extract import Adgroup
+    from linkmerce.core.ebay.adcenter.management.transform import Adgroup as T
+    return Adgroup(**prepare_duckdb_extract(
         T, connection, extract_options, transform_options, return_type,
         cookies = cookies,
         options = {
@@ -200,7 +200,7 @@ def product(
     )).extract(campaign_id, start_date, end_date)
 
 
-@with_duckdb_connection(table="ebay_adreport")
+@with_duckdb_connection(table="gmarket_adreport")
 def report(
         cookies: str,
         start_date: dt.date | str,
@@ -218,7 +218,7 @@ def report(
     """Gmarket 광고센터 상세 리포트를 수집해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
-        `table: ebay_adreport`
+        `table: gmarket_adreport`
 
     Parameters
     ----------
@@ -279,7 +279,7 @@ def report(
     )).extract(start_date, end_date, report_type, aggregate_type)
 
 
-@with_duckdb_connection(table="ebay_adreport_dl")
+@with_duckdb_connection(table="gmarket_adreport_dl")
 def report_download(
         cookies: str,
         start_date: dt.date | str,
@@ -295,7 +295,7 @@ def report_download(
     """Gmarket 광고센터 상세 리포트를 생성 및 다운로드해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
-        `table: ebay_adreport_dl`
+        `table: gmarket_adreport_dl`
 
     Parameters
     ----------

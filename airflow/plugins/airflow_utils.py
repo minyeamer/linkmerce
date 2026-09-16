@@ -66,6 +66,7 @@ def read_config(
         tables: bool = False,
         sheets: bool = False,
         service_account: bool = False,
+        skip_subpath: bool = False,
     ) -> dict:
     """Airflow 전역 변수 경로가 가리키는 설정 파일을 읽는다. Airflow에 다음 변수들이 추가되어야 한다.
     - `config`, `credentials`, `cookies`, `schemas`, `service_account`
@@ -76,7 +77,8 @@ def read_config(
         `credentials`: 인증 정보 파일 포함 여부. (`expand` = 결과 딕셔너리에 인증 정보를 `update`로 추가)
         `tables`: 테이블 설정 포함 여부.
         `sheets`: 구글 시트 데이터 포함 여부.
-        `service_account`: GCP 서비스 계정 포함 여부."""
+        `service_account`: GCP 서비스 계정 포함 여부.
+        `skip_subpath`: 인증 정보의 `Path()` 참조를 파일 내용으로 치환하지 않고 유지할지 여부."""
     from airflow.sdk import Variable
     from linkmerce.api.config import read_config as read
 
@@ -87,7 +89,7 @@ def read_config(
         credentials_path = (Variable.get("credentials") if credentials else None),
         service_account = (Variable.get("service_account") if sheets or service_account else None),
         path_strings = ({"$cookies": Variable.get("cookies")} if credentials else None),
-        skip_subpath = False,
+        skip_subpath = skip_subpath,
         read_google_sheets = sheets,
     )
 

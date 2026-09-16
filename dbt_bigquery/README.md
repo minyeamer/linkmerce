@@ -133,6 +133,10 @@ dbt_bigquery/models/intermediate/ads/
 │   ├── coupang_ads__campaign_master
 │   ├── coupang_ads__adgroup_master
 │   └── coupang_ads__insight_daily
+├── ebay_ads/
+│   ├── ebay_ads__group_master
+│   ├── ebay_ads__campaign_master
+│   └── ebay_ads__insight_daily
 ├── google_ads/
 │   ├── google_ads__campaign_master
 │   ├── google_ads__adgroup_master
@@ -279,6 +283,7 @@ dbt_bigquery/models/intermediate/stock/
 dbt_bigquery/models/marts/ads/
 ├── analytics__adreport_daily
 ├── coupang_ads__report_daily
+├── ebay_ads__report_daily
 ├── google_ads__report_daily
 ├── meta_ads__report_daily
 └── searchad__report_daily
@@ -335,13 +340,14 @@ dbt_bigquery/models/marts/sales/
 ```bash
 dbt_bigquery/models/marts/product/
 ├── coupang__option_master
+├── ebay_item_master
 ├── sabangnet__product_master
 ├── sabangnet__option_master
 ├── smartstore__product_master
 └── smartstore__option_master
 ```
 
-`product_master` 및 `option_master` 모델은 쿠팡, 사방넷, 스마트스토어에 대해
+`product_master` 및 `option_master` 모델은 쿠팡, G마켓/옥션, 사방넷, 스마트스토어에 대해
 전체 상품 및 옵션 목록을 조회하기 위한 뷰 테이블을 생성한다.
 
 `product_master` 모델에는 유형 또는 상태 코드를 조합한 `sort_key`가 포함되며,
@@ -496,6 +502,9 @@ airflow/dags/
 ├── ecount/
 │   ├── inventory.py (ecount_inventory)
 │   └── product.py (ecount_product)
+├── ebay/
+│   ├── auction_ads.py (ebay_auction_ads)
+│   └── gmarket_ads.py (ebay_gmarket_ads)
 ├── gsheets/
 │   ├── sync_gsheets__ads_master.py (sync_gsheets__ads_master)
 │   ├── sync_gsheets__expense.py (sync_gsheets__expense)
@@ -525,7 +534,9 @@ airflow/dags/
 
 | selector | 역할 |
 | --- | --- |
+| `adreport` | 종합 광고 보고서 업데이트 |
 | `coupang_master` | 쿠팡 옵션 목록 업데이트 |
+| `ebay_master` | G마켓/옥션 상품 목록 업데이트 |
 | `sabangnet_master` | 사방넷 상품/옵션 목록 업데이트 |
 | `smartstore_master` | 스마트스토어 상품/옵션 목록 업데이트 |
 | `order_count` | 일별 주문 내역 업데이트 |

@@ -55,6 +55,20 @@ sources:
       - name: campaign
       - name: report
 
+  - name: ebay
+    schema: ebay
+    tables:
+      - name: item
+
+  - name: ebay_ads
+    schema: ebay_ads
+    tables:
+      - name: campaign
+      - name: campaign_group
+      - name: report_ai
+      - name: report_cpc
+      - name: report_gmkt
+
   - name: ecount
     schema: ecount
     tables:
@@ -106,6 +120,7 @@ sources:
     tables:
       - name: ad_id_to_sbn_ids
       - name: cpg_opt_to_sbn_ids
+      - name: eby_itm_to_sbn_ids
       - name: nsh_kwd_to_prd_id
       - name: nsh_prd_to_ctl_id
       - name: smt_opt_to_sbn_ids

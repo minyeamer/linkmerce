@@ -127,6 +127,18 @@ coupang_ads_insight_daily AS (
   GROUP BY ymd, vendor_id, product_id
 ),
 
+ebay_ads_insight_daily AS (
+  SELECT
+      IF(site_type = 1, 'shop0067', 'shop0068') AS shop_id
+    , seller_id AS account_no
+    , product_id
+    , SUM(ad_cost) AS ad_cost
+    , ymd AS order_date
+  FROM {{ ref('ebay_ads__insight_daily') }}
+  WHERE ymd BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
+  GROUP BY ymd, site_type, seller_id, product_id
+),
+
 google_ads_insight_daily AS (
   SELECT
       'adop0001' AS shop_id
@@ -380,6 +392,8 @@ insight_daily AS (
     (SELECT * FROM searchad_insight_daily_with_shop_mapping)
     UNION ALL
     (SELECT * FROM coupang_ads_insight_daily_with_shop_mapping)
+    UNION ALL
+    (SELECT * FROM ebay_ads_insight_daily)
     UNION ALL
     (SELECT * FROM google_ads_insight_daily)
     UNION ALL

@@ -43,6 +43,7 @@ airflow/
 │   ├── cj/
 │   ├── ads/
 │   ├── coupang/
+│   ├── ebay/
 │   ├── ecount/
 │   ├── gsheets/
 │   ├── naver/
@@ -238,6 +239,14 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | `coupang_product_option` | 트리거 전용 | 쿠팡 상품 옵션 ETL |
 | `coupang_rocket_sales` | 트리거 전용 | 쿠팡 로켓그로스 정산 리포트 ETL |
 
+### 이베이 (ebay)
+
+| Dag ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `ebay_auction_ads` | 매일 `08:20` | AUCTION AI매출업/파워클릭 리포트 ETL |
+| `ebay_gmarket_ads` | 매일 `08:40` | Gmarket 캠페인 그룹/캠페인/리포트 ETL |
+| `ebay_item` | 매일 `23:10` | ESM PLUS 상품 ETL |
+
 ### 이카운트 (ecount)
 
 | Dag ID | 스케줄 | 역할 |
@@ -350,9 +359,10 @@ objective: [
     product, rank, sales, search, statistics, stock
 ]
 platform: [
-    cj-eflexs, cj-loisparcel, coupang-ads, coupang-wing, dable, ecount,
-    google-ads, gsheets, meta-ads, naver-hcenter, naver-main, naver-shop,
-    postgres, sabangnet, searchad, smartstore
+    cj-eflexs, cj-loisparcel, coupang-ads, coupang-wing, dable,
+    auction-ad, gmarket-adc, esmplus, ecount, google-ads, gsheets,
+    meta-ads, naver-hcenter, naver-main, naver-shop, postgres,
+    sabangnet, searchad, smartstore
 ]
 plugin: [ dbt, playwright, rest-api ]
 priority: [ high, medium, low ]

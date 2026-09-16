@@ -23,6 +23,7 @@ class CampaignGroup(GmarketAdCenter):
 
     method = "POST"
     path = "/ad/management"
+    action_name = "getCampaignGroupList"
     date_format = "%Y%m%d"
     days_limit = 62
 
@@ -50,7 +51,10 @@ class CampaignGroup(GmarketAdCenter):
             캠페인 그룹 목록을 포함한 응답 텍스트
         """
         from linkmerce.core.ebay.adcenter import get_date_pair
-        response = self.request_text(**get_date_pair(start_date, end_date))
+        response = self.request_text(
+            next_action = self.next_action,
+            **get_date_pair(start_date, end_date),
+        )
         return self.parse(response, **kwargs)
 
     def build_request_json(
@@ -65,9 +69,9 @@ class CampaignGroup(GmarketAdCenter):
             "matchType": 2,
         }]
 
-    def build_request_headers(self, **kwargs) -> dict[str, str]:
+    def build_request_headers(self, next_action: str, **kwargs) -> dict[str, str]:
         return self.get_request_headers() | {
-            "next-action": "40de689aa8afc789ccca5a08703f99f733e7487267",
+            "next-action": next_action,
             "referer": (self.origin + "/ad/management"),
         }
 
@@ -93,6 +97,7 @@ class Campaign(GmarketAdCenter):
 
     method = "POST"
     path = "/ad/management"
+    action_name = "getCampaignList"
     date_format = "%Y%m%d"
     days_limit = 62
     default_options = {"RequestEach": {"request_delay": 1}}
@@ -125,7 +130,7 @@ class Campaign(GmarketAdCenter):
         """
         from linkmerce.core.ebay.adcenter import get_date_pair
         return (self.request_each(self.request_text)
-                .partial(**get_date_pair(start_date, end_date))
+                .partial(next_action=self.next_action, **get_date_pair(start_date, end_date))
                 .expand(campaign_group_id=campaign_group_id)
                 .run())
 
@@ -158,15 +163,20 @@ class Campaign(GmarketAdCenter):
             "campaignGroupId": int(campaign_group_id),
         }]
 
-    def build_request_headers(self, campaign_group_id: int | str, **kwargs) -> dict[str, str]:
+    def build_request_headers(
+            self,
+            campaign_group_id: int | str,
+            next_action: str,
+            **kwargs
+        ) -> dict[str, str]:
         q = self.build_request_params(campaign_group_id)["q"]
         return self.get_request_headers() | {
-            "next-action": "601f15a2d3bd42f39ead15b0b361e57e681f956e2d",
+            "next-action": next_action,
             "referer": (self.origin + f"/ad/management?q={q}"),
         }
 
 
-class Product(GmarketAdCenter):
+class Adgroup(GmarketAdCenter):
     """Gmarket 광고센터 상품 목록을 조회하는 클래스.
 
     - **Menu**: 광고 관리 > 캠페인 목록 > 그룹 목록 > 상품 목록
@@ -187,6 +197,7 @@ class Product(GmarketAdCenter):
 
     method = "POST"
     path = "/ad/management"
+    action_name = "getAdgroupList"
     date_format = "%Y%m%d"
     days_limit = 62
     default_options = {"RequestEach": {"request_delay": 1}}
@@ -219,7 +230,7 @@ class Product(GmarketAdCenter):
         """
         from linkmerce.core.ebay.adcenter import get_date_pair
         return (self.request_each(self.request_text)
-                .partial(**get_date_pair(start_date, end_date))
+                .partial(next_action=self.next_action, **get_date_pair(start_date, end_date))
                 .expand(campaign_id=campaign_id)
                 .run())
 
@@ -252,9 +263,14 @@ class Product(GmarketAdCenter):
             "campaignId": int(campaign_id),
         }]
 
-    def build_request_headers(self, campaign_id: int | str, **kwargs) -> dict[str, str]:
+    def build_request_headers(
+            self,
+            campaign_id: int | str,
+            next_action: str,
+            **kwargs
+        ) -> dict[str, str]:
         q = self.build_request_params(campaign_id)["q"]
         return self.get_request_headers() | {
-            "next-action": "605b86623577a01de2fa48e10d79687dcf66cf8d3a",
+            "next-action": next_action,
             "referer": (self.origin + f"/ad/management?q={q}"),
         }
