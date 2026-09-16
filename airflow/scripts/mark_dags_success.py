@@ -49,9 +49,14 @@ SCHEDULED_DAGS = {
     "dable_ads": last_cron_utc("30 7 * * *"), # 07:30 KST
     "google_ads": last_cron_utc("50 7 * * *"), # 07:50 KST
     "meta_ads": last_cron_utc("40 7 * * *"), # 07:40 KST
+    "ebay_auction_ads": last_cron_utc("20 8 * * *"), # 08:20 KST
+    "ebay_gmarket_ads": last_cron_utc("40 8 * * *"), # 08:40 KST
+    "ebay_item": last_cron_utc("10 23 * * *"), # 23:10 KST
+    "naver_connect_sales": last_cron_utc("10 8 * * *"), # 08:10 KST
     "naver_hcenter_login": last_cron_utc("0 1 * * *"), # 01:00 KST
     "naver_brand_price": last_cron_utc("1 0 * * *"), # 00:01 KST
     "naver_product_stock": last_cron_utc("0 3 * * *"), # 00:01 KST
+    "postgres_partman_maintenance": last_cron_utc("0 0 * * *"), # 00:00 KST
     "sabangnet_order": last_cron_utc("30 23 * * *"), # 23:30 KST
     "smartstore_bizdata": last_cron_utc("10 8 * * *"), # 08:10 KST
     "smartstore_order": last_cron_utc("30 8 * * *"), # 08:30 KST
@@ -63,6 +68,7 @@ SCHEDULED_DAGS = {
     "naver_cafe_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     "naver_main_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     # 평일(월-금)만 ───────────────────────────────────────────────────────────
+    "sabangnet_account": last_cron_utc("20 22 * * 1-5"), # 22:20 KST
     "sabangnet_product": last_cron_utc("20 23 * * 1-5"), # 23:20 KST
     "smartstore_product": last_cron_utc("30 23 * * 1-5"), # 23:30 KST
     "searchad_contract": last_cron_utc("30 5 * * 1-5"), # 05:30 KST
@@ -72,12 +78,15 @@ SCHEDULED_DAGS = {
     "cj_eflexs_stock": last_cron_utc(["0 11 * * *", "30 17 * * *"]),
     "coupang": last_cron_utc(["0 9,11,23 * * *", "30 17 * * *"]),
     "ecount_inventory": last_cron_utc(["0 11 * * *", "30 17 * * *"]),
-    "ecount_product": last_cron_utc(["50 8 * * 1-5", "20 17 * * 1-5"]),
+    # ㄴ 평일 11:00 / 17:30
+    "ecount_product": last_cron_utc(["50 10 * * 1-5", "20 17 * * 1-5"]),
+    # ㄴ 평일 10:50 / 17:20
     "sabangnet_invoice": last_multi_cron_utc(["30 10 * * 1-5", "30 14 * * 1-5", "50 23 * * 1-5"]),
-    "stock_report": last_cron_utc(["0 11 * * 1-5", "30 17 * * 1-5"]),
     # ㄴ 평일 10:30 / 14:30 / 23:50
     "smartstore_invoice": last_multi_cron_utc(["0 3 * * *", "30 10 * * 1-5", "0 15 * * 1-5"]),
     # ㄴ 매일 03:00 / 평일 10:30 / 15:00
+    "stock_report": last_cron_utc(["0 11 * * 1-5", "30 17 * * 1-5"]),
+    # ㄴ 매일 11:00 / 17:30
 }
 
 

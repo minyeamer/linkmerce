@@ -23,7 +23,7 @@ RUN echo "astronomer-cosmos==1.14.2" >> requirements.txt
 RUN echo "dbt-core==1.11.11" >> requirements.txt
 RUN echo "dbt-bigquery==1.11.1" >> requirements.txt
 RUN echo "dbt-postgres==1.11.0" >> requirements.txt
-RUN echo "playwright==1.60.0" >> requirements.txt
+RUN echo "playwright==1.63.0" >> requirements.txt
 
 # Install dependencies based on the requirements.txt file
 RUN pip install -r requirements.txt

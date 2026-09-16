@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
 
-CHROME_VERSION = 152
+CHROME_VERSION = 153
 
 
 def build_headers(

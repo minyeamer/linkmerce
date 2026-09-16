@@ -29,9 +29,9 @@ def get_browser_cookies(
     for _ in range(timeout):
         cookies = context.cookies(urls)
         if requires:
-            for kv in cookies:
-                if kv["name"] in requires:
-                    return "; ".join(f"{kv['name']}={kv['value']}" for kv in cookies)
+            cookie_names = {cookie["name"] for cookie in cookies}
+            if set(requires).issubset(cookie_names):
+                return "; ".join(f"{cookie['name']}={cookie['value']}" for cookie in cookies)
         elif cookies:
             return "; ".join(f"{kv['name']}={kv['value']}" for kv in cookies)
         time.sleep(1)
@@ -47,6 +47,18 @@ def save_browser_cookies(cookies: str, save_to: str | Path, mkdir: bool = True):
     if mkdir:
         file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(cookies, encoding="utf-8")
+
+
+def get_browser_version() -> int:
+    """Playwright 브라우저의 크롬 메이저 버전을 반환한다."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.connect(_ws_endpoint())
+        try:
+            return int(browser.version.split(".", maxsplit=1)[0])
+        finally:
+            browser.close()
 
 
 ###################################################################
@@ -197,16 +209,17 @@ def login_ebay(
         page.locator('div[style*="display: block"] input[type="password"]').first.type(passwd, delay=110)
         page.locator('#lnkLogin').first.click()
 
-        page.wait_for_url("https://ad.esmplus.com/**", timeout=(timeout*1000))
-        page.wait_for_load_state("domcontentloaded", timeout=30_000)
+        page.wait_for_url("https://ad.esmplus.com/cpc/main**", timeout=(timeout*1000))
+        page.wait_for_load_state("networkidle", timeout=30_000)
+        page.reload(wait_until="networkidle", timeout=(timeout*1000))
 
 
     def get_ad_cookies(context: BrowserContext):
-        """AUCTION 광고센터에서 쿠키에 `AD_AUTH` 값이 추가될 때까지 대기하고, 쿠키 문자열을 추출한다."""
+        """AUCTION 광고센터에서 인증 및 `/cpc` 세션 쿠키가 추가될 때까지 대기하고, 쿠키 문자열을 추출한다."""
         return get_browser_cookies(
                 context,
-                urls = ["https://ad.esmplus.com"],
-                requires = ["AD_AUTH"],
+                urls = ["https://ad.esmplus.com/cpc/main"],
+                requires = ["AD_AUTH", "ASP.NET_SessionId"],
                 err_msg = "Failed to login in to AUCTION Ad Center.",
             )
 

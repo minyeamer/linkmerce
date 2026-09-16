@@ -30,6 +30,7 @@ class AuctionAdCenter(Extractor):
         self.require_cookies()
 
     def set_request_headers(self, **kwargs):
+        """주의) 쿠키를 발급받은 크롬 브라우저의 버전과 요청 헤더의 크롬 버전(`Chrome 153`)이 일치해야 한다."""
         super().set_request_headers(
             contents = {"type": "json", "charset": "UTF-8"},
             host = self.origin,
