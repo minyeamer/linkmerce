@@ -50,6 +50,8 @@ def request(
         커머스 API 요청 본문 (JSON)
     headers: dict[str, str]
         커머스 API 요청 헤더
+    extract_options: dict
+        `SmartstoreTestAPI` 초기화 옵션
 
     Returns
     -------
@@ -81,7 +83,7 @@ def product(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1.1,
+        request_delay: float | int | tuple[int, int] = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -176,7 +178,7 @@ def option(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1.1,
+        request_delay: float | int | tuple[int, int] = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -254,7 +256,7 @@ def product_option(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1.1,
+        request_delay: float | int | tuple[int, int] = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: tuple[dict | None, dict | None] = (None, None),
@@ -438,7 +440,7 @@ def order(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1.1,
+        request_delay: float | int | tuple[int, int] = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -525,7 +527,7 @@ def order_status(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1.1,
+        request_delay: float | int | tuple[int, int] = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -602,7 +604,7 @@ def aggregated_order_status(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1.1,
+        request_delay: float | int | tuple[int, int] = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: tuple[dict | None, dict | None, dict | None] = (None, None, None),
@@ -714,7 +716,7 @@ def settlement(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1.1,
+        request_delay: float | int | tuple[int, int] = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -796,7 +798,7 @@ def marketing_channel(
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1.1,
+        request_delay: float | int | tuple[int, int] = 1.1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,

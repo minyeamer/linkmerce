@@ -117,7 +117,7 @@ class PostgresClient(Connection):
 
         Parameters
         ----------
-            dsn: str | dict | None
+            dsn: str
                 연결 문자열(`postgresql://user:pass@host:port/db`) 또는 키워드 인자.
         """
         import psycopg2
@@ -841,8 +841,14 @@ class PostgresClient(Connection):
             파티션 생성을 시작할 기준 시점. 생략하면 현재 시간을 기준으로 자동 계산된다.
         premake_days: int
             현재 시점 이후로 미리 생성할 파티션의 개수. 기본값은 `35`
+        cursor: PgCursor | None
+            PostgreSQL 커서
+        commit: bool
+            함수 실행 후 커밋 실행 여부. 기본값은 `False`
+        close: bool
+            함수 실행 후 커서 종료 여부. 기본값은 `False`
 
-        Returns
+    Returns
         -------
         psycopg2.extensions.cursor
             파티션 생성 실행 결과가 담긴 커서를 반환한다.
@@ -945,11 +951,11 @@ def infer_schema(
     ----------
     values: list[tuple]
         첫 번째 항목엔 칼럼명 목록을, 나머지 항목엔 데이터 행을 리스트로 묶어서 입력한다.
-    how: str
+    how: Literal['auto', 'numericise', 'stringfy']
         - `"auto"`: 모든 열의 데이터 타입을 추정한다.
         - `"numericise"`: 첫 번째 행의 값이 숫자인 경우만 데이터 타입을 추정한다.
         - `"stringfy"`: 모든 열을 TEXT 타입으로 처리한다.
-    constraint: dict | None
+    constraint: dict[str, str] | None
         칼럼 정의에 추가할 제약조건을 `{칼럼명: 조건_문자열}` 딕셔너리 형식으로 입력한다.
     primary_key: str | None
         기본 키를 `"PRIMARY KEY (col1, col2)"` 문자열 형식으로 입력한다.

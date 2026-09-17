@@ -420,7 +420,7 @@ class DBTransformer(Transformer, metaclass=ABCMeta):
             model_path: str | Path
                 `models.sql` 파일 경로
                     - `"this"`: 현재 모듈 경로 내에서 자동 탐색한다.
-            tables: dict | None
+            tables: dict[TableKey, TableName] | None
                 초기화 시 `self.tables`에 병합할 추가 테이블 매핑
             create_options: dict | None
                 초기화 시 테이블 생성에 사용할 옵션
@@ -709,7 +709,7 @@ class DuckDBTransformer(DBTransformer):
             model_path: str | Path
                 `models.sql` 파일 경로
                     - `"this"`: 현재 모듈 경로 내에서 자동 탐색한다.
-            tables: dict | None
+            tables: dict[TableKey, TableName] | None
                 초기화 시 `self.tables`에 병합할 추가 테이블 매핑
             create_options: dict | None
                 초기화 시 테이블 생성에 사용할 옵션
@@ -720,7 +720,7 @@ class DuckDBTransformer(DBTransformer):
                 파서 객체 초기화 시 전달할 설정 변수
             render: dict | None
                 SQL 쿼리 렌더링(Jinja)에 사용할 기본 컨텍스트 설정 변수
-            `params`: dict | None
+            params: dict | None
                 SQL 쿼리 실행 시 전달할 기본 파라미터($변수) 설정 변수
             `**kwargs`:
                 하위 클래스에서 `pre_init` 또는 `post_init`을 통해 처리할 추가 인자

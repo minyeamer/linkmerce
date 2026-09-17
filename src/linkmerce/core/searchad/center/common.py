@@ -86,7 +86,7 @@ class NaverAdLogin(LoginHandler):
         return self.get_cookies(to="dict")["XSRF-TOKEN"]
 
     @LoginHandler.with_session
-    def login(self, account_no: str, cookies: str, **kwargs) -> str:
+    def login(self, account_no: int | str, cookies: str, **kwargs) -> str:
         """네이버 쿠키를 가지고 네이버 광고주센터에 로그인해 `XSRF-TOKEN`을 발급받는다.
 
         Parameters

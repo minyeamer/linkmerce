@@ -346,7 +346,7 @@ class BrandProduct(_CatalogProduct):
     async def extract_async(
             self,
             brand_ids: str | Iterable[str],
-            mall_seq: int | str | Iterable | None = None,
+            mall_seq: int | str | Iterable[int | str] | None = None,
             sort_type: Literal["popular", "recent", "price"] = "recent",
             is_brand_store: bool | None = None,
             page: int | None = 0,
@@ -398,7 +398,7 @@ class BrandProduct(_CatalogProduct):
     def split_map_kwargs(
             self,
             brand_ids: str | Iterable[str],
-            mall_seq: int | str | Iterable | None = None,
+            mall_seq: int | str | Iterable[int | str] | None = None,
             sort_type: Literal["popular", "recent", "price"] = "recent",
             is_brand_store: bool | None = None,
             page: int | None = 0,

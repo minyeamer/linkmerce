@@ -58,7 +58,7 @@ def brand_catalog(
         connection: DuckDBConnection | None = None,
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -152,7 +152,7 @@ def brand_product(
         connection: DuckDBConnection | None = None,
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -242,14 +242,14 @@ def brand_price(
         brand_ids: str | Iterable[str],
         mall_seq: int | str | Iterable[int | str],
         sort_type: Literal["popular", "recent", "price"] = "recent",
-        is_brand_catalog: bool | None = None,
+        is_brand_store: bool | None = None,
         page: int | list[int] | None = 0,
         page_size: int = 100,
         *,
         connection: DuckDBConnection | None = None,
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -331,7 +331,7 @@ def brand_price(
                 "tqdm_options": {"disable": (not progress)},
             },
         },
-    )).run(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size, how_to_run=how_to_run)
+    )).run(brand_ids, mall_seq, sort_type, is_brand_store, page, page_size, how_to_run=how_to_run)
 
 
 @with_duckdb_connection(table="naver_catalog_product")
@@ -340,14 +340,14 @@ def product_catalog(
         brand_ids: str | Iterable[str],
         mall_seq: int | str | Iterable[int | str],
         sort_type: Literal["popular", "recent", "price"] = "recent",
-        is_brand_catalog: bool | None = None,
+        is_brand_store: bool | None = None,
         page: int | list[int] | None = 0,
         page_size: int = 100,
         *,
         connection: DuckDBConnection | None = None,
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_concurrent: int = 3,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -428,7 +428,7 @@ def product_catalog(
                 "tqdm_options": {"disable": (not progress)},
             },
         },
-    )).run(brand_ids, mall_seq, sort_type, is_brand_catalog, page, page_size, how_to_run=how_to_run)
+    )).run(brand_ids, mall_seq, sort_type, is_brand_store, page, page_size, how_to_run=how_to_run)
 
 
 def page_view(
@@ -442,7 +442,7 @@ def page_view(
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_retries: int = 5,
         max_concurrent: int = 3,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -551,7 +551,7 @@ def store_sales(
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_retries: int = 5,
         max_concurrent: int = 3,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -669,7 +669,7 @@ def aggregated_sales(
         how_to_run: Literal["sync", "async", "async_loop"] = "sync",
         max_retries: int = 5,
         max_concurrent: int = 3,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,

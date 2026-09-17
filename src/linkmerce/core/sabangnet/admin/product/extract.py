@@ -509,7 +509,7 @@ class AddProduct(SabangnetAdmin):
 
         Parameters
         ----------
-        group_id: Sequence[str]
+        group_id: str | Iterable[str]
             조회할 추가상품 그룹코드. 문자열 또는 문자열의 배열을 입력한다.
 
         Returns

@@ -384,7 +384,7 @@ class PerformanceReport(SearchAdGfa):
 
         Parameters
         ----------
-        ad_unit: Literal[str]
+        ad_unit: str
             분석 단위
                 - `"AD_ACCOUNT"`: 광고 계정
                 - `"CAMPAIGN"`: 캠페인

@@ -22,7 +22,7 @@ def sales_performances(
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,

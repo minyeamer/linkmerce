@@ -471,7 +471,7 @@ class RequestEachLoop(RequestEach):
             비동기 요청 시 최대 동시 실행 횟수
         tqdm_options: dict | None
             반복 요청 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
-        loop_options: dict
+        loop_options: dict | None
             `RequestLoop` Task에 전달할 속성
         """
         super().__init__(func, context, parser, request_delay, max_concurrent, tqdm_options)

@@ -45,7 +45,7 @@ def account(
         domain: int,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 0.3,
+        request_delay: float | int | tuple[int, int] = 0.3,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "none"] = "json",
         extract_options: tuple[dict | None, dict | None, dict | None] = (None, None, None),
@@ -72,9 +72,9 @@ def account(
         페이지 순회 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
         반환 형식. **Returns** 문단을 참고한다.
-    extract_options: dict | None
+    extract_options: tuple[dict | None, dict | None, dict | None]
         `Extractor` 초기화 옵션. `(Account, ShopNormal, AccountNormal)` 순서로 튜플을 구성한다.
-    transform_options: dict | None
+    transform_options: tuple[dict | None, dict | None, dict | None]
         `Transformer` 초기화 옵션. `(Account, ShopNormal, AccountNormal)` 순서로 튜플을 구성한다.
 
     Returns
@@ -163,7 +163,7 @@ def order(
         sort_type: str = "ord_no_asc",
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -345,7 +345,7 @@ def order_status(
         sort_type: str = "ord_no_asc",
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -432,7 +432,7 @@ def product_mapping(
         shop_id: str = str(),
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -506,7 +506,7 @@ def sku_mapping(
         query: dict | Iterable[dict],
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 0.3,
+        request_delay: float | int | tuple[int, int] = 0.3,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -580,7 +580,7 @@ def option_mapping(
         shop_id: str = str(),
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 0.3,
+        request_delay: float | int | tuple[int, int] = 0.3,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: tuple[dict | None, dict | None] = (None, None),
@@ -678,7 +678,7 @@ def product(
         product_status: str | None = None,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -763,7 +763,7 @@ def option(
         product_id: str | Iterable[str],
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 0.3,
+        request_delay: float | int | tuple[int, int] = 0.3,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -911,7 +911,7 @@ def add_product(
         shop_id: str = str(),
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,

@@ -252,17 +252,17 @@ class Insights(MetaAds):
 
         Parameters
         ----------
-        ad_level : str
+        ad_level: str
             보고서 집계 기준
                 - `"campaign"`: 캠페인
                 - `"adset"`: 광고세트
                 - `"ad"`: 광고
         start_date : dt.date | str
             조회 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date : dt.date | str
+        end_date: dt.date | str
             조회 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
-        date_type : str
+        date_type: str
             보고서 기간 구분
                 - `"total"`: 합계
                 - `"daily"`: 일별 (기본값)

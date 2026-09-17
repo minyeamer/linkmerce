@@ -72,7 +72,7 @@ def campaign(
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -99,8 +99,8 @@ def campaign(
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
         캠페인 그룹별 요청 간 대기 시간(초). 기본값은 `1`
-    tqdm_options: dict | None
-        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
+    progress: bool
+        반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
         반환 형식. **Returns** 문단을 참고한다.
     extract_options: dict | None
@@ -140,7 +140,7 @@ def adgroup(
         end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -167,8 +167,8 @@ def adgroup(
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
         캠페인별 요청 간 대기 시간(초). 기본값은 `1`
-    tqdm_options: dict | None
-        반복 요청 작업 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
+    progress: bool
+        반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
     return_type: str
         반환 형식. **Returns** 문단을 참고한다.
     extract_options: dict | None
@@ -209,7 +209,7 @@ def report(
         aggregate_type: Literal["total", "daily"] = "daily",
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,

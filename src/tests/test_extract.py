@@ -1557,7 +1557,7 @@ class TestShoppingPartnerCenter:
             brand_ids = _configs["brand_ids"],
             mall_seq = _configs.get("mall_seq"),
             sort_type = _configs.get("sort_type", "recent"),
-            is_brand_catalog = _configs.get("is_brand_catalog"),
+            is_brand_store = _configs.get("is_brand_store"),
             page = _configs.get("page", 0),
             page_size = _configs.get("page_size", 10),
         )

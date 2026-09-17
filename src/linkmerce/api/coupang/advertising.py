@@ -30,6 +30,8 @@ def login(
         로그인할 판매자 계정의 도메인
             - `"wing"`: 쿠팡 Wing (기본값)
             - `"supplier"`: 쿠팡 서플라이어 허브
+    save_to: str | Path | None
+        로그인 후 쿠키를 저장할 파일 경로. 상위 경로가 없으면 자동 생성한다.
 
     Returns
     -------
@@ -51,7 +53,7 @@ def campaign(
         is_deleted: bool = False,
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -122,7 +124,7 @@ def creative(
         campaign_id: int | str | Sequence[int | str],
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 0.3,
+        request_delay: float | int | tuple[int, int] = 0.3,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,

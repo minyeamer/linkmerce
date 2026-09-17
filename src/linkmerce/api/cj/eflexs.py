@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 def stock(
         userid: str,
         passwd: str,
-        mail_info: dict,
+        mail_info: dict[str, str],
         customer_id: int | str | Iterable[int | str],
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,

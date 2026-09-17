@@ -18,7 +18,7 @@ def item(
         sell_status: Sequence[str] = list(),
         *,
         connection: DuckDBConnection | None = None,
-        request_delay: float | int = 1,
+        request_delay: float | int | tuple[int, int] = 1,
         progress: bool = True,
         return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
         extract_options: dict | None = None,
@@ -33,11 +33,11 @@ def item(
     ----------
     cookies: str
         ESM PLUS 로그인 쿠키 문자열
-    product_id: str | Iterable[str]
+    product_id: str | Sequence[str]
         검색할 상품번호/마스터상품번호/판매자관리코드/SKU번호/그룹 번호. 문자열 또는 배열을 입력할 수 있다.
     keyword: str
         검색할 상품명, 브랜드명, 제조사명을 입력할 수 있다.
-    sell_status: list[str]
+    sell_status: Sequence[str]
         판매상태 목록
             - `"11"`: 판매가능
             - `"21"`: 판매불가
