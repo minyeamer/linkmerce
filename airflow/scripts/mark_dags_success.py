@@ -59,7 +59,6 @@ SCHEDULED_DAGS = {
     "postgres_partman_maintenance": last_cron_utc("0 0 * * *"), # 00:00 KST
     "sabangnet_order": last_cron_utc("30 23 * * *"), # 23:30 KST
     "smartstore_bizdata": last_cron_utc("10 8 * * *"), # 08:10 KST
-    "smartstore_order": last_cron_utc("30 8 * * *"), # 08:30 KST
     "searchad_login_gfa": last_cron_utc("0 5 * * *"), # 05:00 KST
     "searchad_report_gfa": last_cron_utc("20 5 * * *"), # 05:20 KST
     "searchad_report_sad": last_cron_utc("40 5 * * *"), # 05:40 KST
@@ -83,8 +82,8 @@ SCHEDULED_DAGS = {
     # ㄴ 평일 10:50 / 17:20
     "sabangnet_invoice": last_multi_cron_utc(["30 10 * * 1-5", "30 14 * * 1-5", "50 23 * * 1-5"]),
     # ㄴ 평일 10:30 / 14:30 / 23:50
-    "smartstore_invoice": last_multi_cron_utc(["0 3 * * *", "30 10 * * 1-5", "0 15 * * 1-5"]),
-    # ㄴ 매일 03:00 / 평일 10:30 / 15:00
+    "smartstore_order": last_multi_cron_utc(["*/10 9-19 * * 1-5", "0 0-8,20-23 * * 1-5", "0 * * * 0,6"]),
+    # ㄴ 영업시간 10분 간격 / 그 외 1시간 간격
     "stock_report": last_cron_utc(["0 11 * * 1-5", "30 17 * * 1-5"]),
     # ㄴ 매일 11:00 / 17:30
 }
@@ -153,7 +152,7 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
-    dag_ids = set(args.dag_ids.split(',') or SCHEDULED_DAGS.keys())
+    dag_ids = set(args.dag_ids.split(',') if args.dag_ids else SCHEDULED_DAGS.keys())
 
     count, headers = 0, build_auth_headers()
     for dag_id, last_date in SCHEDULED_DAGS.items():

@@ -56,7 +56,7 @@ with DAG(
     def main(
             client_id: str,
             client_secret: str,
-            channel_seq: str,
+            channel_seq: int | str,
             date: str,
             tables: dict[str, str],
             **kwargs

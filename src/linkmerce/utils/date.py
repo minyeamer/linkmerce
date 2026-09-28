@@ -29,9 +29,8 @@ def strptime(
         droptz: bool = False,
     ) -> dt.datetime:
     """문자열을 지정된 포맷으로 파싱하여 `datetime` 객체로 변환한다."""
-    if isinstance(datetime, dt.datetime):
-        return datetime
-    datetime = dt.datetime.strptime(str(datetime), format)
+    if not isinstance(datetime, dt.datetime):
+        datetime = dt.datetime.strptime(str(datetime), format)
     return set_timezone(datetime, tzinfo, astimezone, droptz)
 
 

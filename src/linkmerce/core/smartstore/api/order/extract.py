@@ -1,11 +1,47 @@
 from __future__ import annotations
+import datetime as dt
+
 from linkmerce.core.smartstore.api import SmartstoreApi
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Iterable
-    import datetime as dt
+
+
+def _strftime(datetime: dt.datetime) -> str:
+    """커머스 API 요청 일시를 KST ISO 8601 형식으로 변환한다."""
+    if not datetime.tzinfo:
+        return datetime.isoformat(timespec="milliseconds") + "+09:00"
+    return datetime.isoformat(timespec="milliseconds")
+
+
+def _split_datetime_context(
+        start_datetime: dt.datetime | str,
+        end_datetime: dt.datetime | str | Literal[":end_of_day:", ":max_window:"],
+        format: str = "%Y-%m-%dT%H:%M:%S.%f%z",
+    ) -> dict[str, dt.datetime] | list[dict[str, dt.datetime]]:
+    """최대 24시간인 커머스 API 조회 기간을 연속 구간으로 분할한다."""
+    from linkmerce.utils.date import strptime, dt
+    start_datetime = strptime(start_datetime, format, astimezone="Asia/Seoul")
+
+    if isinstance(end_datetime, str):
+        if end_datetime == ":end_of_day:":
+            end_datetime = start_datetime.replace(hour=23, minute=59, second=59, microsecond=999000)
+            return {"start_datetime": start_datetime, "end_datetime": end_datetime}
+        elif end_datetime == ":max_window:":
+            return {"start_datetime": start_datetime, "end_datetime": None}
+
+    end_datetime = strptime(end_datetime, format, astimezone="Asia/Seoul")
+    if end_datetime < start_datetime:
+        raise ValueError("The end_datetime must not be earlier than the start_datetime.")
+
+    context = list()
+    while start_datetime <= end_datetime:
+        segment_end = min(start_datetime + dt.timedelta(hours=24, milliseconds=-1000), end_datetime)
+        context.append({"start_datetime": start_datetime, "end_datetime": segment_end})
+        start_datetime = segment_end + dt.timedelta(milliseconds=1000)
+    return context[0] if len(context) == 1 else context
 
 
 class Order(SmartstoreApi):
@@ -41,7 +77,7 @@ class Order(SmartstoreApi):
     method = "GET"
     version = "v1"
     path = "/pay-order/seller/product-orders"
-    date_format = "%Y-%m-%d"
+    datetime_format = "%Y-%m-%dT%H:%M:%S.%f%z"
     default_options = {
         "CursorAll": {"request_delay": 1.1},
         "RequestEachCursor": {"request_delay": 1.1},
@@ -51,8 +87,8 @@ class Order(SmartstoreApi):
     @SmartstoreApi.with_token
     def extract(
             self,
-            start_date: dt.date | str,
-            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            start_datetime: dt.datetime | str,
+            end_datetime: dt.datetime | str | Literal[":end_of_day:", ":max_window:"] = ":end_of_day:",
             range_type: str = "PAYED_DATETIME",
             product_order_status: Iterable[str] = list(),
             claim_status: Iterable[str] = list(),
@@ -65,11 +101,12 @@ class Order(SmartstoreApi):
 
         Parameters
         ----------
-        start_date: dt.date | str
-            조회 기준의 시작 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str
-            조회 기준의 종료 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        start_datetime: dt.datetime | str
+            조회 기준의 시작 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+        end_datetime: dt.datetime | str
+            조회 기준의 종료 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+                - `":end_of_day:"`: `start_datetime`의 하루 중 마지막 시점 (기본값)
+                - `":max_window:"`: `start_datetime`으로부터 24시간이 지난 시점
         range_type: str
             조회 기준 유형. `range_type` 속성의 키를 전달할 수 있다. 기본값은 결제일시(`"PAYED_DATETIME"`)
         product_order_status: Iterable[str]
@@ -87,10 +124,12 @@ class Order(SmartstoreApi):
         -------
         dict | list[dict]
             상품 주문 내역. 조회 기간에 따라 반환 타입이 다르다.
-                - `start_date`와 `end_date`가 동일할 때 -> `dict`
-                - `start_date`와 `end_date`가 다를 때 -> `list[dict]`
+                - `start_datetime`와 `end_datetime`가 동일할 때 -> `dict`
+                - `start_datetime`와 `end_datetime`가 다를 때 -> `list[dict]`
         """
-        return (self.request_each_cursor(self.request_json_until_success)
+        return (self.request_each_cursor(
+                    self.request_json_until_success,
+                    context = _split_datetime_context(start_datetime, end_datetime, self.datetime_format))
                 .partial(
                     range_type = range_type,
                     product_order_status = product_order_status,
@@ -98,8 +137,7 @@ class Order(SmartstoreApi):
                     place_order_status = place_order_status,
                     max_retries = max_retries,
                     channel_seq = kwargs.get("channel_seq"),
-                ).expand(date=self.generate_date_range(start_date, end_date, freq='D'))
-                .all_cursor(self.get_next_cursor, next_cursor=page_start)
+                ).all_cursor(self.get_next_cursor, next_cursor=page_start)
                 .run())
 
     def get_next_cursor(self, response: dict, **context) -> int:
@@ -110,7 +148,8 @@ class Order(SmartstoreApi):
 
     def build_request_params(
             self,
-            date: dt.date,
+            start_datetime: dt.datetime,
+            end_datetime: dt.datetime | None = None,
             range_type: str = "PAYED_DATETIME",
             product_order_status: Iterable[str] = list(),
             claim_status: Iterable[str] = list(),
@@ -120,8 +159,8 @@ class Order(SmartstoreApi):
             **kwargs
         ) -> dict:
         return {
-            "from": f"{date}T00:00:00.000+09:00",
-            "to": f"{date}T23:59:59.999+09:00",
+            "from": start_datetime.isoformat(timespec="milliseconds"),
+            **({"to": _strftime(end_datetime)} if end_datetime is not None else {}),
             "rangeType": range_type,
             "productOrderStatuses": ','.join(product_order_status),
             "claimStatuses": ','.join(claim_status),
@@ -210,8 +249,8 @@ class OrderStatus(SmartstoreApi):
     @SmartstoreApi.with_token
     def extract(
             self,
-            start_date: dt.date | str,
-            end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+            start_datetime: dt.datetime | str,
+            end_datetime: dt.datetime | str | Literal[":end_of_day:", ":max_window:"] = ":end_of_day:",
             last_changed_type: str | None = None,
             channel_seq: int | str | None = None,
             max_retries: int = 5,
@@ -221,11 +260,12 @@ class OrderStatus(SmartstoreApi):
 
         Parameters
         ----------
-        start_date: dt.date | str
-            조회 기준의 시작 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-        end_date: dt.date | str | Literal[":start_date:"]
-            조회 기준의 종료 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-                - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+        start_datetime: dt.datetime | str
+            조회 기준의 시작 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+        end_datetime: dt.datetime | str | Literal[":start_datetime:"]
+            조회 기준의 종료 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+                - `":end_of_day:"`: `start_datetime`의 하루 중 마지막 시점 (기본값)
+                - `":max_window:"`: `start_datetime`으로부터 24시간이 지난 시점
         last_changed_type: str | None
             최종 변경 구분. `last_changed_type` 속성의 키를 전달할 수 있다.
         channel_seq: int | str | None
@@ -237,33 +277,43 @@ class OrderStatus(SmartstoreApi):
         -------
         dict | list[dict]
             변경 상품 주문 내역. 조회 기간에 따라 반환 타입이 다르다.
-                - `start_date`와 `end_date`가 동일할 때 -> `dict`
-                - `start_date`와 `end_date`가 다를 때 -> `list[dict]`
+                - `start_datetime`와 `end_datetime`가 동일할 때 -> `dict`
+                - `start_datetime`와 `end_datetime`가 다를 때 -> `list[dict]`
         """
-        return (self.request_each_cursor(self.request_json_until_success)
-                .partial(last_changed_type=last_changed_type, channel_seq=channel_seq, max_retries=max_retries)
-                .expand(date=self.generate_date_range(start_date, end_date, freq='D'))
-                .all_cursor(self.get_next_cursor, next_cursor=dict())
+        return (self.request_each_cursor(
+                    self.request_json_until_success,
+                    context = _split_datetime_context(start_datetime, end_datetime, self.datetime_format),
+                ).partial(
+                    last_changed_type = last_changed_type,
+                    channel_seq = channel_seq,
+                    max_retries = max_retries,
+                ).all_cursor(self.get_next_cursor, next_cursor=dict())
                 .run())
 
-    def get_next_cursor(self, response: dict, date: dt.date, **context) -> dict[str, str]:
+    def get_next_cursor(
+            self,
+            response: dict,
+            end_datetime: dt.datetime | dt.date | str,
+            **context,
+        ) -> dict[str, str]:
         """다음 페이지 `moreFrom` 커서를 추출한다."""
         from linkmerce.utils.nested import hier_get
         more = hier_get(response, "data.more") or dict()
-        if more.get("moreFrom") and ((more.get("moreFrom") or str()) <= f"{date}T23:59:59.999+09:00"):
+        if more.get("moreFrom") and ((more.get("moreFrom") or str()) <= _strftime(end_datetime)):
             return more
 
     def build_request_params(
             self,
-            date: dt.date,
+            start_datetime: dt.datetime,
+            end_datetime: dt.datetime | None = None,
             last_changed_type: str | None = None,
             next_cursor: dict[str, str] = dict(),
             limit_count: int = 300,
             **kwargs
         ) -> dict:
         return {
-            "lastChangedFrom": next_cursor.get("moreFrom") or f"{date}T00:00:00.000+09:00",
-            "lastChangedTo": f"{date}T23:59:59.999+09:00",
+            "lastChangedFrom": next_cursor.get("moreFrom") or start_datetime.isoformat(timespec="milliseconds"),
+            **({"lastChangedTo": _strftime(end_datetime)} if end_datetime is not None else {}),
             **({"lastChangedType": last_changed_type} if last_changed_type is not None else dict()),
             **({"moreSequence": next_cursor["moreSequence"]} if "moreSequence" in next_cursor else dict()),
             "limitCount": limit_count,

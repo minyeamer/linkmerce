@@ -299,8 +299,9 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
 | `smartstore_bizdata` | 매일 `08:10`, 비활성화 | 마케팅 채널 데이터 적재 |
-| `smartstore_invoice` | `03:00` 매일, `10:30`/`15:00` 평일 | 송장/주문 후속 상태 갱신 |
-| `smartstore_order` | 매일 `08:30` | 주문, 상품주문, 배송, 옵션, 변경 주문 상태 적재 |
+| `smartstore_order` | 영업시간 10분 간격, 그 외 1시간 간격 | 주문, 상품주문, 옵션 목록 적재 |
+| `smartstore_order_delivery` | 트리거 전용 | 주문 배송 내역 적재 |
+| `smartstore_order_status` | 트리거 전용 | 변경 주문 상태 적재 |
 | `smartstore_product` | 평일 `23:30` | 상품/옵션 카탈로그 적재 |
 
 ### 네이버 쇼핑파트너센터 (ss_hcenter)
@@ -367,7 +368,7 @@ platform: [
 plugin: [ dbt, playwright, rest-api ]
 priority: [ high, medium, low ]
 provider: [ slack ]
-schedule: [ daily, hourly, weekdays, none ]
+schedule: [ daily, hourly, weekdays, 10min, none ]
 status: [ disabled, private ] # [ deprecated ]
 time: [ afternoon, morning, night ]
 upstream: [ dagrun, fastapi, streamlit, extension, manual ]

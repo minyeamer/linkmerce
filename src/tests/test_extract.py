@@ -1431,8 +1431,8 @@ class TestSmartstoreApi:
             configs = self.credentials(credentials),
             parser = dump_extract(Order, format="json"),
         ).extract(
-            start_date = _configs.get("start_date", yesterday),
-            end_date = _configs.get("end_date", ":start_date:"),
+            start_datetime = _configs.get("start_datetime", f"{yesterday}T00:00:00.000+09:00"),
+            end_datetime = _configs.get("end_datetime", f"{yesterday}T23:59:59.999+09:00"),
             range_type = _configs.get("range_type", "PAYED_DATETIME"),
             product_order_status = _configs.get("product_order_status", list()),
             claim_status = _configs.get("claim_status", list()),
@@ -1450,8 +1450,8 @@ class TestSmartstoreApi:
             configs = self.credentials(credentials),
             parser = dump_extract(OrderStatus, format="json"),
         ).extract(
-            start_date = _configs.get("start_date", yesterday),
-            end_date = _configs.get("end_date", ":start_date:"),
+            start_datetime = _configs.get("start_datetime", f"{yesterday}T00:00:00.000+09:00"),
+            end_datetime = _configs.get("end_datetime", f"{yesterday}T23:59:59.999+09:00"),
             last_changed_type = _configs.get("last_changed_type"),
             max_retries = _configs.get("max_retries", 5),
         )

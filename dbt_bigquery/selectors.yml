@@ -266,15 +266,6 @@ selectors:
           value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - smartstore
-  - name: smartstore_invoice
-    description: "'smartstore_invoice' Dag 실행 후 스마트스토어 송장번호 변동을 매출에 반영"
-    definition:
-      union:
-        - method: fqn
-          value: intermediate.sales.smartstore.smartstore__sales_daily
-          parents: true
-        - method: fqn
-          value: intermediate.sales.core__sales_daily
   - name: smartstore_order
     description: "'smartstore_order' Dag 실행 후 스마트스토어 주문 내역 변동을 매출에 반영"
     definition:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import IO, Union
+    from typing import IO, Literal, Union
     import pendulum
     import requests
     JsonSerialize = Union[dict, list, bytes, IO]
@@ -51,61 +51,274 @@ def request(
 
 
 def list_dagruns(
-        dag_id: str,
         access_token: str,
+        dag_ids: list[str] | None = None,
         logical_date_gte: pendulum.DateTime | None = None,
         logical_date_lte: pendulum.DateTime | None = None,
-        limit: int = 100,
+        states: list[Literal["scheduled", "pending", "queued", "running", "success", "failed"]] | None = None,
+        order_by: str | None = None,
+        page_offset: int = 0,
+        page_limit: int = 100,
         timeout: int = 30,
+        **params
     ) -> list[dict]:
-    """특정 시간대의 DAG run 목록을 조회한다.
+    """조건에 맞는 Dag Run 목록을 조회한다.
 
-    Args:
-        dag_id: 조회할 Dag ID.
-        access_token: Airflow REST API JWT 액세스 토큰.
-        logical_date_gte: 조회 시작 시각. (logical_date >=)
-        logical_date_lte: 조회 종료 시각. (logical_date <=)
-        limit: 최대 조회 건수.
-        timeout: HTTP 요청 타임아웃(초).
+    Parameters: dict
+    ```python
+    {
+        "order_by": "string",
+        "page_offset": 0,
+        "page_limit": 100,
+        "dag_ids": [
+            "string"
+        ],
+        "states": [
+            "queued",
+            null
+        ],
+        "run_after_gte": "2000-01-01T00:00:00.000Z",
+        "run_after_gt": "2000-01-01T00:00:00.000Z",
+        "run_after_lte": "2000-01-01T00:00:00.000Z",
+        "run_after_lt": "2000-01-01T00:00:00.000Z",
+        "logical_date_gte": "2000-01-01T00:00:00.000Z",
+        "logical_date_gt": "2000-01-01T00:00:00.000Z",
+        "logical_date_lte": "2000-01-01T00:00:00.000Z",
+        "logical_date_lt": "2000-01-01T00:00:00.000Z",
+        "start_date_gte": "2000-01-01T00:00:00.000Z",
+        "start_date_gt": "2000-01-01T00:00:00.000Z",
+        "start_date_lte": "2000-01-01T00:00:00.000Z",
+        "start_date_lt": "2000-01-01T00:00:00.000Z",
+        "end_date_gte": "2000-01-01T00:00:00.000Z",
+        "end_date_gt": "2000-01-01T00:00:00.000Z",
+        "end_date_lte": "2000-01-01T00:00:00.000Z",
+        "end_date_lt": "2000-01-01T00:00:00.000Z",
+        "duration_gte": 0,
+        "duration_gt": 0,
+        "duration_lte": 0,
+        "duration_lt": 0,
+        "conf_contains": "string"
+    }
+    ```
 
     Returns: list[dict]
     ```python
     [{
-        "dag_run_id": str,
-        "dag_id": str,
-        "logical_date": "YYYY-MM-DDTHH:mm:ss[Z]",
-        "queued_at": "YYYY-MM-DDTHH:mm:ss.SSSSSS[Z]",
-        "start_date": "YYYY-MM-DDTHH:mm:ss.SSSSSS[Z]",
-        "end_date": "YYYY-MM-DDTHH:mm:ss.SSSSSS[Z]",
-        "duration": float,
-        "data_interval_start": "YYYY-MM-DDTHH:mm:ss[Z]",
-        "data_interval_end": "YYYY-MM-DDTHH:mm:ss[Z]",
-        "run_after": "YYYY-MM-DDTHH:mm:ss[Z]",
-        "last_scheduling_decision": "YYYY-MM-DDTHH:mm:ss.SSSSSS[Z]",
-        "run_type": ["scheduled" | "manual" | "backfill" | "dataset_triggered"],
-        "state": ["scheduled" | "pending" | "queued" | "running" | "success" | "failed"],
-        "triggered_by": str,
-        "triggering_user_name": str,
-        "conf": dict,
-        "note": str,
-        "dag_versions": list[dict],
-        "bundle_version": str,
-        "dag_display_name": str,
-        "partition_key": str,
+        "dag_run_id": "string",
+        "dag_id": "string",
+        "logical_date": "2000-01-01T00:00:00.000Z",
+        "queued_at": "2000-01-01T00:00:00.000Z",
+        "start_date": "2000-01-01T00:00:00.000Z",
+        "end_date": "2000-01-01T00:00:00.000Z",
+        "duration": 0,
+        "data_interval_start": "2000-01-01T00:00:00.000Z",
+        "data_interval_end": "2000-01-01T00:00:00.000Z",
+        "run_after": "2000-01-01T00:00:00.000Z",
+        "last_scheduling_decision": "2000-01-01T00:00:00.000Z",
+        "run_type": "backfill",
+        "state": "queued",
+        "triggered_by": "cli",
+        "triggering_user_name": "string",
+        "conf": {
+            "additionalProp1": {}
+        },
+        "note": "string",
+        "dag_versions": [
+            {
+            "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "version_number": 0,
+            "dag_id": "string",
+            "bundle_name": "string",
+            "bundle_version": "string",
+            "created_at": "2000-01-01T00:00:00.000Z",
+            "dag_display_name": "string",
+            "bundle_url": "string"
+            }
+        ],
+        "bundle_version": "string",
+        "dag_display_name": "string",
+        "partition_key": "string",
+        "partition_date": "2000-01-01T00:00:00.000Z"
     }]
     ```
     """
-    params = {"limit": limit}
+    body = params | {"page_offset": max(0, page_offset), "page_limit": max(1, page_limit)}
+    if dag_ids:
+        body["dag_ids"] = dag_ids
     if logical_date_gte is not None:
-        params["logical_date_gte"] = logical_date_gte.isoformat()
+        body["logical_date_gte"] = logical_date_gte.isoformat()
     if logical_date_lte is not None:
-        params["logical_date_lte"] = logical_date_lte.isoformat()
+        body["logical_date_lte"] = logical_date_lte.isoformat()
+    if states:
+        body["states"] = states
+    if order_by:
+        body["order_by"] = order_by
 
-    response = request("GET", f"/dags/{dag_id}/dagRuns", access_token, params=params, timeout=timeout)
+    response = request("POST", "/dags/~/dagRuns/list", access_token, json=body, timeout=timeout)
     response.raise_for_status()
     try:
         return response.json()["dag_runs"]
-    except:
+    except Exception:
+        return list()
+
+
+def list_task_instances(
+        access_token: str,
+        dag_ids: list[str] | None = None,
+        dag_run_ids: list[str] | None = None,
+        task_ids: list[str] | None = None,
+        logical_date_gte: pendulum.DateTime | None = None,
+        logical_date_lte: pendulum.DateTime | None = None,
+        states: list[Literal["scheduled", "pending", "queued", "running", "success", "failed"]] | None = None,
+        order_by: str | None = None,
+        page_offset: int = 0,
+        page_limit: int = 100,
+        timeout: int = 30,
+        **params
+    ) -> list[dict]:
+    """조건에 맞는 Task Instance 목록을 조회한다.
+
+    Parameters: dict
+    ```python
+    {
+        "dag_ids": [
+            "string"
+        ],
+        "dag_run_ids": [
+            "string"
+        ],
+        "task_ids": [
+            "string"
+        ],
+        "state": [
+            "removed",
+            null
+        ],
+        "run_after_gte": "2000-01-01T00:00:00.000Z",
+        "run_after_gt": "2000-01-01T00:00:00.000Z",
+        "run_after_lte": "2000-01-01T00:00:00.000Z",
+        "run_after_lt": "2000-01-01T00:00:00.000Z",
+        "logical_date_gte": "2000-01-01T00:00:00.000Z",
+        "logical_date_gt": "2000-01-01T00:00:00.000Z",
+        "logical_date_lte": "2000-01-01T00:00:00.000Z",
+        "logical_date_lt": "2000-01-01T00:00:00.000Z",
+        "start_date_gte": "2000-01-01T00:00:00.000Z",
+        "start_date_gt": "2000-01-01T00:00:00.000Z",
+        "start_date_lte": "2000-01-01T00:00:00.000Z",
+        "start_date_lt": "2000-01-01T00:00:00.000Z",
+        "end_date_gte": "2000-01-01T00:00:00.000Z",
+        "end_date_gt": "2000-01-01T00:00:00.000Z",
+        "end_date_lte": "2000-01-01T00:00:00.000Z",
+        "end_date_lt": "2000-01-01T00:00:00.000Z",
+        "duration_gte": 0,
+        "duration_gt": 0,
+        "duration_lte": 0,
+        "duration_lt": 0,
+        "pool": [
+            "string"
+        ],
+        "queue": [
+            "string"
+        ],
+        "executor": [
+            "string"
+        ],
+        "page_offset": 0,
+        "page_limit": 100,
+        "order_by": "string"
+    }
+    ```
+
+    Returns: list[dict]
+    ```python
+    [{
+        "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "task_id": "string",
+        "dag_id": "string",
+        "dag_run_id": "string",
+        "map_index": 0,
+        "logical_date": "2000-01-01T00:00:00.000Z",
+        "run_after": "2000-01-01T00:00:00.000Z",
+        "start_date": "2000-01-01T00:00:00.000Z",
+        "end_date": "2000-01-01T00:00:00.000Z",
+        "duration": 0,
+        "state": "removed",
+        "try_number": 0,
+        "max_tries": 0,
+        "task_display_name": "string",
+        "dag_display_name": "string",
+        "hostname": "string",
+        "unixname": "string",
+        "pool": "string",
+        "pool_slots": 0,
+        "queue": "string",
+        "priority_weight": 0,
+        "operator": "string",
+        "operator_name": "string",
+        "queued_when": "2000-01-01T00:00:00.000Z",
+        "scheduled_when": "2000-01-01T00:00:00.000Z",
+        "pid": 0,
+        "executor": "string",
+        "executor_config": "string",
+        "note": "string",
+        "rendered_map_index": "string",
+        "rendered_fields": {
+            "additionalProp1": {}
+        },
+        "trigger": {
+            "id": 0,
+            "classpath": "string",
+            "created_date": "2000-01-01T00:00:00.000Z",
+            "queue": "string",
+            "triggerer_id": 0
+        },
+        "triggerer_job": {
+            "id": 0,
+            "dag_id": "string",
+            "state": "string",
+            "job_type": "string",
+            "start_date": "2000-01-01T00:00:00.000Z",
+            "end_date": "2000-01-01T00:00:00.000Z",
+            "latest_heartbeat": "2000-01-01T00:00:00.000Z",
+            "executor_class": "string",
+            "hostname": "string",
+            "unixname": "string",
+            "dag_display_name": "string"
+        },
+        "dag_version": {
+            "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "version_number": 0,
+            "dag_id": "string",
+            "bundle_name": "string",
+            "bundle_version": "string",
+            "created_at": "2000-01-01T00:00:00.000Z",
+            "dag_display_name": "string",
+            "bundle_url": "string"
+        }
+    }]
+    ```
+    """
+    body = params | {"page_offset": page_offset, "page_limit": page_limit}
+    if dag_ids:
+        body["dag_ids"] = dag_ids
+    if dag_run_ids:
+        body["dag_run_ids"] = dag_run_ids
+    if task_ids:
+        body["task_ids"] = task_ids
+    if logical_date_gte is not None:
+        body["logical_date_gte"] = logical_date_gte.isoformat()
+    if logical_date_lte is not None:
+        body["logical_date_lte"] = logical_date_lte.isoformat()
+    if states:
+        body["state"] = states
+    if order_by:
+        body["order_by"] = order_by
+
+    response = request("POST", "/dags/~/dagRuns/~/taskInstances/list", access_token, json=body, timeout=timeout)
+    response.raise_for_status()
+    try:
+        return response.json()["task_instances"]
+    except Exception:
         return list()
 
 
@@ -146,7 +359,7 @@ def wait_for_completion(
     while start_time < timeout:
         response = request("GET", path, access_token)
         if response.ok:
-            state = response.json().get("state", str())
+            state = (response.json() or dict()).get("state", str())
             if state in ("success", "failed"):
                 return state
         time.sleep(poke_interval)
@@ -160,10 +373,48 @@ def get_xcom_value(
         task_id: str,
         access_token: str,
         key: str = "return_value",
+        map_index: int = -1,
         timeout: int = 30,
     ):
     """DAG Run의 특정 Task에서 XCom 값을 조회한다."""
     path = f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{key}"
-    response = request("GET", path, access_token, timeout=timeout)
+    response = request("GET", path, access_token, params={"map_index": map_index}, timeout=timeout)
     response.raise_for_status()
     return response.json()["value"]
+
+
+def get_task_xcom_values(
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        access_token: str,
+        key: str = "return_value",
+        page_offset: int = 0,
+        page_limit: int = 100,
+        timeout: int = 30,
+    ) -> list:
+    """Dag Run의 Task에서 반환한 모든 XCom 값을 조회한다."""
+    values = list()
+    task_instances = list_task_instances(
+        access_token = access_token,
+        dag_ids = [dag_id],
+        dag_run_ids = [run_id],
+        task_ids = [task_id],
+        page_offset = page_offset,
+        page_limit = page_limit,
+        timeout = timeout,
+    )
+    for task_instance in task_instances:
+        try:
+            values.append(get_xcom_value(
+                dag_id = dag_id,
+                run_id = run_id,
+                task_id = task_id,
+                access_token = access_token,
+                key = key,
+                map_index = task_instance["map_index"],
+                timeout = timeout,
+            ))
+        except Exception:
+            continue
+    return values

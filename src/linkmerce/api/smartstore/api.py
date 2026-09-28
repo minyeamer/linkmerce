@@ -430,8 +430,8 @@ def product_option(
 def order(
         client_id: str,
         client_secret: str,
-        start_date: dt.date | str,
-        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        start_datetime: dt.datetime | str,
+        end_datetime: dt.datetime | str | Literal[":end_of_day:", ":max_window:"] = ":end_of_day:",
         range_type: str = "PAYED_DATETIME",
         product_order_status: Iterable[str] = list(),
         claim_status: Iterable[str] = list(),
@@ -460,11 +460,12 @@ def order(
         커머스 API 애플리케이션 ID
     client_secret: str
         커머스 API 애플리케이션 시크릿
-    start_date: dt.date | str
-        조회 기준의 시작 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-    end_date: dt.date | str
-        조회 기준의 종료 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-            - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+    start_datetime: dt.datetime | str
+        조회 기준의 시작 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+    end_datetime: dt.datetime | str
+        조회 기준의 종료 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+            - `":end_of_day:"`: `start_datetime`의 하루 중 마지막 시점 (기본값)
+            - `":max_window:"`: `start_datetime`으로부터 24시간이 지난 시점
     range_type: str
         조회 기준 유형. 기본값은 결제일시(`"PAYED_DATETIME"`)
     product_order_status: Iterable[str]
@@ -513,7 +514,7 @@ def order(
                 "tqdm_options": {"disable": (not progress)}
             },
         },
-    )).extract(start_date, end_date, range_type, product_order_status, claim_status, place_order_status, page_start, max_retries)
+    )).extract(start_datetime, end_datetime, range_type, product_order_status, claim_status, place_order_status, page_start, max_retries)
 
 
 @with_duckdb_connection(table="smartstore_order_time")
@@ -521,8 +522,8 @@ def order_status(
         client_id: str,
         client_secret: str,
         channel_seq: int | str,
-        start_date: dt.date | str,
-        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        start_datetime: dt.datetime | str,
+        end_datetime: dt.datetime | str | Literal[":end_of_day:", ":max_window:"] = ":end_of_day:",
         last_changed_type: str | None = None,
         max_retries: int = 5,
         *,
@@ -546,11 +547,12 @@ def order_status(
         커머스 API 애플리케이션 시크릿
     channel_seq: int | str
         채널 번호
-    start_date: dt.date | str
-        조회 기준의 시작 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-    end_date: dt.date | str
-        조회 기준의 종료 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-            - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+    start_datetime: dt.datetime | str
+        조회 기준의 시작 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+    end_datetime: dt.datetime | str
+        조회 기준의 종료 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+            - `":end_of_day:"`: `start_datetime`의 하루 중 마지막 시점 (기본값)
+            - `":max_window:"`: `start_datetime`으로부터 24시간이 지난 시점
     last_changed_type: str | None
         최종 변경 구분
     max_retries: int
@@ -591,7 +593,7 @@ def order_status(
                 "tqdm_options": {"disable": (not progress)}
             },
         },
-    )).extract(start_date, end_date, last_changed_type, channel_seq, max_retries)
+    )).extract(start_datetime, end_datetime, last_changed_type, channel_seq, max_retries)
 
 
 @with_duckdb_connection(table="smartstore_order_time")
@@ -599,8 +601,8 @@ def aggregated_order_status(
         client_id: str,
         client_secret: str,
         channel_seq: int | str,
-        start_date: dt.date | str,
-        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        start_datetime: dt.datetime | str,
+        end_datetime: dt.datetime | str | Literal[":end_of_day:", ":max_window:"] = ":end_of_day:",
         max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
@@ -623,11 +625,12 @@ def aggregated_order_status(
         커머스 API 애플리케이션 시크릿
     channel_seq: int | str
         채널 번호
-    start_date: dt.date | str
-        조회 기준의 시작 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-    end_date: dt.date | str
-        조회 기준의 종료 일시. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
-            - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+    start_datetime: dt.datetime | str
+        조회 기준의 시작 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+    end_datetime: dt.datetime | str
+        조회 기준의 종료 일시. `dt.datetime` 객체 또는 ISO 8601 형식의 문자열을 입력한다.
+            - `":end_of_day:"`: `start_datetime`의 하루 중 마지막 시점 (기본값)
+            - `":max_window:"`: `start_datetime`으로부터 24시간이 지난 시점
     max_retries: int
         동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
@@ -681,7 +684,7 @@ def aggregated_order_status(
 
     results["order_status"] = OrderStatus(**prepare_duckdb_extract(
             T, connection, extract_options[STATUS], transform_options[STATUS], return_type, **common,
-        )).extract(start_date, end_date, **kwargs)
+        )).extract(start_datetime, end_datetime, **kwargs)
 
     from linkmerce.core.smartstore.api.order.extract import Order
     from linkmerce.core.smartstore.api.order.transform import OrderTime as T
@@ -692,13 +695,13 @@ def aggregated_order_status(
     transform_options_ = (transform_options[PURCHASE] or dict()) | {"tables": {"table": table}}
     results["purchase_decided"] = Order(**prepare_duckdb_extract(
             T, connection, extract_options[PURCHASE], transform_options_, return_type, **common,
-        )).extract(start_date, end_date, "PURCHASE_DECIDED_DATETIME", **kwargs)
+        )).extract(start_datetime, end_datetime, "PURCHASE_DECIDED_DATETIME", **kwargs)
 
     time.sleep(request_delay)
     transform_options_ = (transform_options[CLAIM] or dict()) | {"tables": {"table": table}}
     results["claim_completed"] = Order(**prepare_duckdb_extract(
             T, connection, extract_options[CLAIM], transform_options_, return_type, **common,
-        )).extract(start_date, end_date, "CLAIM_COMPLETED_DATETIME", **kwargs)
+        )).extract(start_datetime, end_datetime, "CLAIM_COMPLETED_DATETIME", **kwargs)
 
     return results
 

@@ -569,7 +569,6 @@ airflow/dags/
 │   ├── report_gfa.py (searchad_report_gfa)
 │   └── report_sad.py (searchad_report_sad)
 └── smartstore/
-    ├── invoice.py (smartstore_invoice)
     └── order.py (smartstore_order)
 ```
 

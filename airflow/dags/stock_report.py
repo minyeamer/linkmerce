@@ -69,8 +69,8 @@ with DAG(
 
         from airflow_api import authenticate, list_dagruns
         dag_runs = list_dagruns(
-            dag_id = "sabangnet_order",
             access_token = authenticate(),
+            dag_ids = ["sabangnet_order"],
             logical_date_gte = data_interval_end.start_of("day"),
             logical_date_lte = data_interval_end.end_of("day"),
         )
@@ -139,11 +139,7 @@ with DAG(
                 "logical_date_gte": pendulum.parse(states["start_time"]),
                 "logical_date_lte": pendulum.parse(states["end_time"]),
             }
-
-            def _get_lastest_dagruns(dag_id: str) -> dict | None:
-                """필터 조건에 해당하는 Dag run 중 실행 시간이 가장 빠른 것을 반환한다."""
-                dag_runs = [dag_run for dag_run in list_dagruns(dag_id, **params)]
-                return max(dag_runs, key=(lambda dag_run: dag_run.get("logical_date") or str()), default=None)
+            latest = {"order_by": "-logical_date", "page_limit": 1}
 
             def _wait_for_task(dag_id: str) -> bool:
                 """이벤트 범위 내 `dag_id` 실행 내역을 조회하고 `state`에 따라 분기한다.
@@ -151,12 +147,11 @@ with DAG(
                 - `"failed"`: `AirflowException`을 발생시킨다.
                 - 그 외 상태 또는 실행 내역이 없으면 INFO 로그와 함께 `False`를 반환한다.
                 """
-                dag_run = _get_lastest_dagruns(dag_id)
-                if dag_run is None:
+                if not (dagruns := list_dagruns(dag_ids=[dag_id], **params, **latest)):
                     logger.info(f"[{dag_id}] Waiting for Dag run")
                     return False
 
-                state = dag_run.get("state")
+                state = dagruns[0].get("state")
                 if state == "failed":
                     raise AirflowException(f"'{dag_id}' failed before 'stock_report' could start")
                 elif state == "success":
@@ -174,13 +169,12 @@ with DAG(
                 5. 그 외 경우는 `False`를 반환한다.
                 """
                 from linkmerce.utils.regex import regexp_extract
-                upstream = _get_lastest_dagruns(upstream_dag_id)
-                if upstream is None:
+                if not (upstream_dagruns := list_dagruns(dag_ids=[upstream_dag_id], **params, **latest)):
                     logger.info(f"[{upstream_dag_id}] Waiting for Dag run")
                     return False
 
                 success_ids, failed_ids = set(), set()
-                for dag_run in list_dagruns(downstream_dag_id, **params):
+                for dag_run in list_dagruns(dag_ids=[downstream_dag_id], **params):
                     if not (i := regexp_extract(r"^expanded__(\d+)", dag_run.get("dag_run_id") or str())):
                         continue
                     dag_id_i, state = f"{downstream_dag_id}[{i}]", dag_run.get("state")
@@ -198,7 +192,7 @@ with DAG(
                     raise AirflowException(f"'{dag_id_i}' failed before 'stock_report' could start")
 
                 count = "{}/{}".format(len(success_ids), states["expected_coupang_dag_runs"])
-                if upstream.get("state") in ("success", "failed"):
+                if upstream_dagruns[0].get("state") in ("success", "failed"):
                     message = f"[{upstream_dag_id}] Finished with only {count} '{downstream_dag_id}' runs completed"
                     raise AirflowException(message)
 
