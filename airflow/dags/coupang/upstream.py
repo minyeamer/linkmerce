@@ -86,12 +86,13 @@ with DAG(
         return read(PATH)
 
 
-    SUB_DAGS = [
-        # Wing
+    WING_DAGS = [
         ("coupang_rocket_sales", 10), # 평균 15초 소요
         ("coupang_inventory", 10), # 평균 10초 소요
         ("coupang_product_option", 30), # 상품 수에 비례 (20초 ~ 2분+)
-        # 광고
+    ]
+
+    ADS_DAGS = [
         ("coupang_adreport", 10), # 평균 15초 소요
         ("coupang_campaign", 10), # 평균 10초 소요
     ]
@@ -103,18 +104,20 @@ with DAG(
         23: ["coupang_product_option", "coupang_campaign"],
     }
 
-    def filter_subdag_ids(vendor_id: str, filters: dict) -> list[tuple[str, int]]:
+    def filter_subdag_ids(vendor_id: str, filters: dict, wing: bool = True, ads: bool = True) -> list[tuple[str, int]]:
+        """`vendor_id`에 할당된 SubDag의 `dag_id` 목록을 필터한다."""
         DAG_ID = 0
+        sub_dags = (WING_DAGS if wing else list()) + (ADS_DAGS if ads else list())
         if not filters:
-            return SUB_DAGS
+            return sub_dags
         elif vendor_id in filters:
             if "*" in filters[vendor_id]:
-                return SUB_DAGS
-            return [pair for pair in SUB_DAGS if pair[DAG_ID] in filters[vendor_id]]
+                return sub_dags
+            return [pair for pair in sub_dags if pair[DAG_ID] in filters[vendor_id]]
         elif "*" in filters:
             if "*" in filters["*"]:
-                return SUB_DAGS
-            return [pair for pair in SUB_DAGS if pair[DAG_ID] in filters["*"]]
+                return sub_dags
+            return [pair for pair in sub_dags if pair[DAG_ID] in filters["*"]]
         return list()
 
     @task(task_id="etl_coupang_integration")
@@ -157,7 +160,8 @@ with DAG(
             if not (isinstance(creds, dict) and ("vendor_id" in creds)):
                 continue
             vendor_id = creds["vendor_id"]
-            subdag_ids = filter_subdag_ids(vendor_id, filters)
+            wing, ads = creds.get("wing", True), creds.get("ad", True)
+            subdag_ids = filter_subdag_ids(vendor_id, filters, wing, ads)
 
             if not subdag_ids:
                 logger.info(f"[{vendor_id}] Skipped (not in filters)")
@@ -170,7 +174,7 @@ with DAG(
             login_error_flag = True
             for retry in range(1, 10+1):
                 try:
-                    exec_info["cookies"] = login_coupang(*user_info, navigate_to_ads=True, timeout=(30*retry))
+                    exec_info["cookies"] = login_coupang(*user_info, navigate_to_ads=ads, timeout=(30*retry))
                     exec_info["login"] = "success"
                     logger.info(f"[{vendor_id}] Login succeeded")
                     login_error_flag = False
