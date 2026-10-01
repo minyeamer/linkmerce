@@ -313,6 +313,7 @@ dbt_postgres/models/marts/sales/
 ├── analytics__profit_daily
 ├── analytics__profit_monthly
 ├── analytics__profit_mom
+├── analytics__sales_summary
 ├── analytics__sales_target
 └── analytics__total_order
 ```
@@ -326,6 +327,9 @@ dbt_postgres/models/marts/sales/
 
 `analytics__order_count` 모델은 플랫폼별 `order_count` 모델을 동일한 수준에서 병합하고
 `core__product_master` 모델로부터 카테고리 등 대표상품의 측정 기준을 연결한 테이블 함수를 생성한다.
+
+`analytics__sales_summary` 모델은 특정 쇼핑몰에 대한 일별 결제금액을 계정별로 집계한
+요약된 매출을 조회하기 위한 테이블 함수를 생성한다.
 
 `analytics__total_order` 모델은 사방넷, 스마트스토어, 쿠팡 로켓 주문내역을
 주문일시 기준으로 가공하고 상품 및 쇼핑몰 마스터 정보를 연결한 테이블 함수를 생성한다.

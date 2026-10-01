@@ -31,6 +31,7 @@ WITH{#
         * COALESCE(ord.order_quantity, 0)
         - COALESCE(ord.seller_discount_amount, 0)
       ) AS payment_amount
+    , MAX(ord.payment_dt) AS max_order_dt
     , ord.payment_dt::date AS order_date
   FROM {{ source('smartstore', 'order_detail') }} AS ord
   LEFT JOIN order_status AS status
