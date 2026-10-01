@@ -212,7 +212,8 @@ dbt_postgres/models/intermediate/sales/
 ├── smartstore/
 │   ├── relation__smt_opt_to_sbn_ids
 │   ├── smartstore__order_count
-│   └── smartstore__sales_daily
+│   ├── smartstore__sales_daily
+│   └── smartstore__sales_summary
 └── core__sales_daily
 ```
 

@@ -151,6 +151,9 @@ models:
   - name: "smartstore__sales_daily"
     description: "스마트스토어 주문내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
 
+  - name: "smartstore__sales_summary"
+    description: "스마트스토어 주문내역에서 채널별 결제금액 합계를 요약한 일별 파티션 모델"
+
   - name: "relation__smt_opt_to_sbn_ids"
     description: "스마트스토어 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 사방넷 매핑 규칙에 따라 자동 매칭한 모델"
 

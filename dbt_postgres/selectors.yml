@@ -267,14 +267,22 @@ selectors:
 
   # Airflow Dags - smartstore
   - name: smartstore_order
-    description: "'smartstore_order' Dag 실행 후 스마트스토어 주문 내역 변동을 매출에 반영"
+    description: "'smartstore_order' Dag 실행 후 1시간 단위로 스마트스토어 주문 내역 변동을 매출에 반영"
     definition:
       union:
-        - method: path
-          value: models/intermediate/sales/smartstore
+        - method: fqn
+          value: intermediate.sales.smartstore.smartstore__sales_daily
+          parents: true
+        - method: fqn
+          value: intermediate.sales.smartstore.smartstore__order_count
           parents: true
         - method: fqn
           value: intermediate.sales.core__sales_daily
+  - name: smartstore_order_summary
+    description: "'smartstore_order' Dag 실행 후 10분 단위로 스마트스토어 주문 내역 변동을 매출 요약에 반영"
+    definition:
+      method: fqn
+      value: intermediate.sales.smartstore.smartstore__sales_summary
 
   # Airflow Dags - tiktok_ads
   - name: tiktok_ads
