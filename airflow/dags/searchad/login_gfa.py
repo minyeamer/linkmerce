@@ -30,7 +30,8 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:searchad", "objective:login",
-        "schedule:daily", "time:morning", "write:file", "provider:slack", "upstream:extension"
+        "schedule:daily", "time:morning", "write:file", "provider:slack", "upstream:extension",
+        "status:disabled"
     ],
 ) as dag:
 

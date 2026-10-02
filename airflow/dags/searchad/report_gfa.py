@@ -35,7 +35,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:searchad", "objective:ads", "credentials:cookies",
-        "schedule:daily", "time:morning", "write:append", "plugin:dbt"
+        "schedule:daily", "time:morning", "write:append", "plugin:dbt", "status:disabled"
     ],
 ) as dag:
 
