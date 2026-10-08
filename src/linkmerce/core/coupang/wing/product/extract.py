@@ -384,7 +384,7 @@ class RocketInventory(CoupangWing):
         return (self.cursor_all(self.request_json_safe, self.get_next_cursor)
                 .run(hidden_status=hidden_status, vendor_id=vendor_id, referer=kwargs.get("referer")))
 
-    def get_next_cursor(self, response: dict, **context) -> dict:
+    def get_next_cursor(self, response: dict, **context) -> dict | None:
         """다음 페이지를 가리키는 `searchAfterSortValues` 커서를 추출한다."""
         from linkmerce.utils.nested import hier_get
         pagination = hier_get(response, "paginationResponse") or dict()

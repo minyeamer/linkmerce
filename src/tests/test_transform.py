@@ -25,13 +25,13 @@ pytestmark = pytest.mark.transform
 ################################ CJ ###############################
 ###################################################################
 
+@pytest.mark.cj_logistics
 class TestCjLogistics:
     """CJ대한통운 eFLEXs 데이터 변환 테스트.
     - cj.eflexs.stock.Stock
     """
 
     @pytest.mark.skip
-    @pytest.mark.cj_logistics
     def test_stock(self, transformer_harness: Harness):
         """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역을 변환하는 테스트."""
         from linkmerce.core.cj.eflexs.stock.transform import Stock
@@ -42,6 +42,7 @@ class TestCjLogistics:
 ########################### Coupang Ads ###########################
 ###################################################################
 
+@pytest.mark.coupang_ads
 class TestCoupangAds:
     """쿠팡 광고센터 데이터 변환 테스트.
     - coupang.advertising.management.Campaign
@@ -53,7 +54,6 @@ class TestCoupangAds:
     def vendor_id(self, reader: YamlReader) -> str:
         return reader("coupang.advertising.0")["vendor_id"]
 
-    @pytest.mark.coupang_ads
     def test_campaign(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 캠페인 목록을 변환하는 테스트."""
         from linkmerce.core.coupang.advertising.management.transform import Campaign
@@ -62,7 +62,6 @@ class TestCoupangAds:
         )
 
     @pytest.mark.skip
-    @pytest.mark.coupang_ads
     def test_creative(self, transformer_harness: Harness, configs: YamlReader, credentials: YamlReader):
         """쿠팡 광고센터 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 변환하는 테스트."""
         from linkmerce.core.coupang.advertising.management.transform import Creative
@@ -71,7 +70,6 @@ class TestCoupangAds:
             map_index = configs("coupang.advertising.creative")["campaign_ids"],
         )
 
-    @pytest.mark.coupang_ads
     def test_product_adreport(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 매출 성장 광고 보고서를 변환하는 테스트."""
         from linkmerce.core.coupang.advertising.report.transform import ProductAdReport
@@ -80,7 +78,6 @@ class TestCoupangAds:
         )
 
     @pytest.mark.skip
-    @pytest.mark.coupang_ads
     def test_new_customer_adreport(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 광고센터 신규 구매 고객 확보 광고 보고서를 변환하는 테스트."""
         from linkmerce.core.coupang.advertising.report.transform import NewCustomerAdReport
@@ -90,9 +87,69 @@ class TestCoupangAds:
 
 
 ###################################################################
+########################### Coupang Api ###########################
+###################################################################
+
+@pytest.mark.coupang_api
+class TestCoupangApi:
+    """쿠팡 Open API 데이터 변환 테스트.
+    - coupang.api.product.Product
+    - coupang.api.product.ProductDetail
+    - coupang.api.product.Inventory
+    - coupang.api.order.Order
+    - coupang.api.order.OrderDetail
+    - coupang.api.rocket_growth.Inventory
+    - coupang.api.rocket_growth.Order
+    """
+
+    def test_product(self, transformer_harness: Harness):
+        """쿠팡 상품 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.product.transform import Product
+        transformer_harness(Product).transform()
+
+    def test_product_item(self, transformer_harness: Harness):
+        """쿠팡 상품 옵션 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.product.transform import ProductItem
+        transformer_harness(ProductItem).transform()
+
+    def test_product_detail(self, transformer_harness: Harness):
+        """쿠팡 상품 상세 정보를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.product.transform import ProductDetail
+        transformer_harness(ProductDetail).transform()
+
+    def test_inventory(self, transformer_harness: Harness, credentials: YamlReader):
+        """쿠팡 옵션의 수량, 가격, 판매상태를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.product.transform import Inventory
+        transformer_harness(Inventory).transform(
+            vendor_id = credentials("coupang.api.0")["vendor_id"],
+        )
+
+    def test_order(self, transformer_harness: Harness):
+        """쿠팡 마켓플레이스 발주서 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.order.transform import Order
+        transformer_harness(Order).transform()
+
+    def test_order_detail(self, transformer_harness: Harness):
+        """쿠팡 마켓플레이스 발주서 단건 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.order.transform import OrderDetail
+        transformer_harness(OrderDetail).transform()
+
+    def test_rocket_inventory(self, transformer_harness: Harness):
+        """쿠팡 로켓창고 재고 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.rocket_growth.transform import Inventory
+        transformer_harness(Inventory).transform()
+
+    def test_rocket_order(self, transformer_harness: Harness):
+        """쿠팡 로켓그로스 주문 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.rocket_growth.transform import Order
+        transformer_harness(Order).transform()
+
+
+###################################################################
 ########################## Coupang Wing ###########################
 ###################################################################
 
+@pytest.mark.coupang_wing
 class TestCoupangWing:
     """쿠팡 Wing 데이터 변환 테스트.
     - coupang.wing.product.ProductOption
@@ -107,7 +164,6 @@ class TestCoupangWing:
     def vendor_id(self, reader: YamlReader) -> str:
         return reader("coupang.wing.0")["vendor_id"]
 
-    @pytest.mark.coupang_wing
     def test_product_option(self, transformer_harness: Harness, options: YamlReader):
         """쿠팡 Wing 상품 목록을 변환하는 테스트."""
         from linkmerce.core.coupang.wing.product.transform import ProductOption
@@ -116,7 +172,6 @@ class TestCoupangWing:
             is_deleted = _configs.get("is_deleted", False),
         )
 
-    @pytest.mark.coupang_wing
     def test_product_detail(self, transformer_harness: Harness, configs: YamlReader):
         """쿠팡 Wing 상품의 상세 정보를 변환하는 테스트."""
         from linkmerce.core.coupang.wing.product.transform import ProductDetail
@@ -126,7 +181,6 @@ class TestCoupangWing:
         )
 
     @pytest.mark.skip
-    @pytest.mark.coupang_wing
     def test_product_download(self, transformer_harness: Harness, options: YamlReader, credentials: YamlReader):
         """쿠팡 Wing 상품 목록을 변환하는 테스트."""
         from linkmerce.core.coupang.wing.product.transform import ProductDownload
@@ -136,7 +190,6 @@ class TestCoupangWing:
             is_deleted = _configs.get("is_deleted", False),
         )
 
-    @pytest.mark.coupang_wing
     def test_rocket_inventory(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 로켓그로스 재고현황을 변환하는 테스트."""
         from linkmerce.core.coupang.wing.product.transform import RocketInventory
@@ -144,7 +197,6 @@ class TestCoupangWing:
             vendor_id = self.vendor_id(credentials),
         )
 
-    @pytest.mark.coupang_wing
     def test_rocket_option(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 로켓그로스 재고현황을 변환하는 테스트."""
         from linkmerce.core.coupang.wing.product.transform import RocketOption
@@ -152,7 +204,6 @@ class TestCoupangWing:
             vendor_id = self.vendor_id(credentials),
         )
 
-    @pytest.mark.coupang_wing
     def test_rocket_settlement(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 로켓그로스 정산현황의 정산 리포트 목록을 변환하는 테스트."""
         from linkmerce.core.coupang.wing.settlement.transform import RocketSettlement
@@ -160,7 +211,6 @@ class TestCoupangWing:
             vendor_id = self.vendor_id(credentials),
         )
 
-    @pytest.mark.coupang_wing
     def test_rocket_settlement_download(self, transformer_harness: Harness, credentials: YamlReader):
         """쿠팡 로켓그로스 정산현황의 정산 리포트를 변환하는 테스트."""
         from linkmerce.core.coupang.wing.settlement.transform import RocketSettlementDownload
@@ -179,12 +229,12 @@ class TestCoupangWing:
 ############################## Dable ##############################
 ###################################################################
 
+@pytest.mark.dable
 class TestDable:
     """데이블 데이터 변환 테스트.
     - dable.api.report.DailyReport
     """
 
-    @pytest.mark.dable
     def test_report(self, transformer_harness: Harness):
         """데이블 광고 보고서를 보고서와 캠페인 데이터로 변환하는 테스트."""
         from linkmerce.core.dable.api.report.transform import DailyReport
@@ -195,19 +245,18 @@ class TestDable:
 ############################### Ebay ##############################
 ###################################################################
 
+@pytest.mark.ebay_ad
 class TestAuctionAd:
     """AUCTION 광고센터 데이터 변환 테스트.
     - ebay.ad.report.AiReport
     - ebay.ad.report.CpcReport
     """
 
-    @pytest.mark.ebay_ad
     def test_ai_report(self, transformer_harness: Harness, yesterday: dt.date):
         """AUCTION 광고센터 AI 매출형 상품별 리포트를 변환하는 테스트."""
         from linkmerce.core.ebay.ad.report.transform import AiReport
         transformer_harness(AiReport).transform(end_date=yesterday)
 
-    @pytest.mark.ebay_ad
     def test_cpc_report(self, transformer_harness: Harness, yesterday: dt.date):
         """AUCTION 광고센터 파워클릭 상품별 리포트를 변환하는 테스트."""
         from linkmerce.core.ebay.ad.report.transform import CpcReport
@@ -218,6 +267,7 @@ class TestAuctionAd:
 ##################### Ebay - Gmarket Adcenter #####################
 ###################################################################
 
+@pytest.mark.ebay_adcenter
 class TestGmarketAdc:
     """Gmarket 광고센터 데이터 변환 테스트.
     - ebay.adcenter.management.CampaignGroup
@@ -227,31 +277,26 @@ class TestGmarketAdc:
     - ebay.adcenter.report.ReportDownload
     """
 
-    @pytest.mark.ebay_adcenter
     def test_campaign_group(self, transformer_harness: Harness):
         """Gmarket 광고센터 캠페인 목록을 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.transform import CampaignGroup
         transformer_harness(CampaignGroup).transform()
 
-    @pytest.mark.ebay_adcenter
     def test_campaign(self, transformer_harness: Harness):
         """Gmarket 광고센터 캠페인 목록을 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.transform import Campaign
         transformer_harness(Campaign).transform()
 
-    @pytest.mark.ebay_adcenter
     def test_adgroup(self, transformer_harness: Harness):
         """Gmarket 광고센터 광고그룹 목록을 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.transform import Adgroup
         transformer_harness(Adgroup).transform()
 
-    @pytest.mark.ebay_adcenter
     def test_report(self, transformer_harness: Harness):
         """Gmarket 광고센터 상세 리포트를 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.report.transform import Report
         transformer_harness(Report).transform()
 
-    @pytest.mark.ebay_adcenter
     def test_report_download(self, transformer_harness: Harness):
         """Gmarket 광고센터 상세 리포트 다운로드 결과를 변환하는 테스트."""
         from linkmerce.core.ebay.adcenter.report.transform import ReportDownload
@@ -262,12 +307,12 @@ class TestGmarketAdc:
 ######################### Ebay - ESM PLUS #########################
 ###################################################################
 
+@pytest.mark.ebay_esmplus
 class TestEsmPlus:
     """ESM PLUS 데이터 변환 테스트.
     - ebay.esmplus.item.Item
     """
 
-    @pytest.mark.ebay_esmplus
     def test_item(self, transformer_harness: Harness):
         """ESM PLUS 상품 목록을 변환하는 테스트."""
         from linkmerce.core.ebay.esmplus.item.transform import Item
@@ -278,19 +323,18 @@ class TestEsmPlus:
 ############################## Ecount #############################
 ###################################################################
 
+@pytest.mark.ecount
 class TestEcount:
     """이카운트 데이터 변환 테스트.
     - ecount.api.inventory.Inventory
     - ecount.api.product.Product
     """
 
-    @pytest.mark.ecount
     def test_inventory(self, transformer_harness: Harness):
         """이카운트 재고현황을 변환하는 테스트."""
         from linkmerce.core.ecount.api.inventory.transform import Inventory
         transformer_harness(Inventory).transform()
 
-    @pytest.mark.ecount
     def test_product(self, transformer_harness: Harness):
         """이카운트 품목등록 리스트를 변환하는 테스트."""
         from linkmerce.core.ecount.api.product.transform import Product
@@ -301,6 +345,7 @@ class TestEcount:
 ########################### Google Ads ############################
 ###################################################################
 
+@pytest.mark.google_ads
 class TestGoogleAds:
     """구글 광고 데이터 변환 테스트.
     - google.api.ads.Campaign
@@ -314,7 +359,6 @@ class TestGoogleAds:
     def customer_id(self, reader: YamlReader) -> str:
         return reader("google.ads_api.0")["customer_id"]
 
-    @pytest.mark.google_ads
     def test_campaign(self, transformer_harness: Harness, credentials: YamlReader):
         """구글 광고 캠페인 보고서를 변환하는 테스트."""
         from linkmerce.core.google.api.ads.transform import Campaign
@@ -322,7 +366,6 @@ class TestGoogleAds:
             customer_id = self.customer_id(credentials),
         )
 
-    @pytest.mark.google_ads
     def test_ad_group(self, transformer_harness: Harness, credentials: YamlReader):
         """구글 광고그룹 보고서를 변환하는 테스트."""
         from linkmerce.core.google.api.ads.transform import AdGroup
@@ -330,7 +373,6 @@ class TestGoogleAds:
             customer_id = self.customer_id(credentials),
         )
 
-    @pytest.mark.google_ads
     def test_ad(self, transformer_harness: Harness, credentials: YamlReader):
         """구글 광고 소재 보고서를 변환하는 테스트."""
         from linkmerce.core.google.api.ads.transform import Ad
@@ -338,7 +380,6 @@ class TestGoogleAds:
             customer_id = self.customer_id(credentials),
         )
 
-    @pytest.mark.google_ads
     def test_insight(self, transformer_harness: Harness, credentials: YamlReader):
         """구글 광고 소재 보고서를 변환하는 테스트."""
         from linkmerce.core.google.api.ads.transform import Insight
@@ -346,7 +387,6 @@ class TestGoogleAds:
             customer_id = self.customer_id(credentials),
         )
 
-    @pytest.mark.google_ads
     def test_asset(self, transformer_harness: Harness, credentials: YamlReader):
         """구글 광고 애셋 보고서를 변환하는 테스트."""
         from linkmerce.core.google.api.ads.transform import Asset
@@ -354,7 +394,6 @@ class TestGoogleAds:
             customer_id = self.customer_id(credentials),
         )
 
-    @pytest.mark.google_ads
     def test_asset_view(self, transformer_harness: Harness, credentials: YamlReader):
         """구글 광고 소재-애셋 관계를 변환하는 테스트."""
         from linkmerce.core.google.api.ads.transform import AssetView
@@ -367,6 +406,7 @@ class TestGoogleAds:
 ############################ Meta Ads #############################
 ###################################################################
 
+@pytest.mark.meta_ads
 class TestMetaAds:
     """메타 광고 데이터 변환 테스트.
     - meta.api.ads.Campaigns
@@ -378,7 +418,6 @@ class TestMetaAds:
     def account_id(self, reader: YamlReader) -> str:
         return reader("meta.api.campaigns")["account_ids"][0]
 
-    @pytest.mark.meta_ads
     def test_campaigns(self, transformer_harness: Harness, configs: YamlReader):
         """메타 광고 캠페인 보고서를 변환하는 테스트."""
         from linkmerce.core.meta.api.ads.transform import Campaigns
@@ -386,7 +425,6 @@ class TestMetaAds:
             account_id = self.account_id(configs),
         )
 
-    @pytest.mark.meta_ads
     def test_adsets(self, transformer_harness: Harness, configs: YamlReader):
         """메타 광고세트 보고서를 변환하는 테스트."""
         from linkmerce.core.meta.api.ads.transform import Adsets
@@ -394,7 +432,6 @@ class TestMetaAds:
             account_id = self.account_id(configs),
         )
 
-    @pytest.mark.meta_ads
     def test_ads(self, transformer_harness: Harness, configs: YamlReader):
         """메타 광고 보고서를 변환하는 테스트."""
         from linkmerce.core.meta.api.ads.transform import Ads
@@ -402,7 +439,6 @@ class TestMetaAds:
             account_id = self.account_id(configs),
         )
 
-    @pytest.mark.meta_ads
     def test_insights(self, transformer_harness: Harness, configs: YamlReader):
         """메타 광고 성과 보고서를 변환하는 테스트."""
         from linkmerce.core.meta.api.ads.transform import Insights
@@ -415,12 +451,12 @@ class TestMetaAds:
 ######################## Naver BrandConnect ########################
 ###################################################################
 
+@pytest.mark.naver_connect
 class TestNaverBrandConnect:
     """네이버 브랜드 커넥트 데이터 변환 테스트.
     - naver.brandconnect.sales.SalesPerformances
     """
 
-    @pytest.mark.naver_connect
     def test_sales_performances(self, transformer_harness: Harness, configs: YamlReader, yesterday: dt.date):
         """네이버 쇼핑 커넥트 상품별 판매 실적을 변환하는 테스트."""
         from linkmerce.core.naver.brandconnect.sales.transform import SalesPerformances
@@ -437,6 +473,7 @@ class TestNaverBrandConnect:
 ########################## Naver Search ###########################
 ###################################################################
 
+@pytest.mark.naver_search
 class TestNaverSearch:
     """네이버 검색 결과 변환 테스트.
     - naver.main.search.Search
@@ -445,7 +482,6 @@ class TestNaverSearch:
     """
 
     @pytest.mark.skip
-    @pytest.mark.naver_search
     def test_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 통합검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.main.search.transform import Search
@@ -465,7 +501,6 @@ class TestNaverSearch:
         harness.bulk_insert(summary, map_index=query, render={"summary": harness.tables["summary"]})
 
     @pytest.mark.skip
-    @pytest.mark.naver_search
     def test_cafe_tab(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 탭별 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.main.search.transform import CafeTab
@@ -476,7 +511,6 @@ class TestNaverSearch:
         )
 
     @pytest.mark.skip
-    @pytest.mark.naver_search
     def test_cafe_article(self, transformer_harness: Harness):
         """네이버 카페 게시글의 정보를 변환하는 테스트."""
         from linkmerce.core.naver.main.search.transform import CafeArticle
@@ -487,6 +521,7 @@ class TestNaverSearch:
 ######################### Naver Open API ##########################
 ###################################################################
 
+@pytest.mark.naver_open_api
 class TestNaverOpenApi:
     """네이버 오픈 API 검색 결과 변환 테스트.
     - naver.openapi.search.BlogSearch
@@ -499,7 +534,6 @@ class TestNaverOpenApi:
     - naver.openapi.search.ShopRank
     """
 
-    @pytest.mark.naver_open_api
     def test_blog_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 블로그 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.openapi.search.transform import BlogSearch
@@ -510,7 +544,6 @@ class TestNaverOpenApi:
             map_index = _configs["query"],
         )
 
-    @pytest.mark.naver_open_api
     def test_news_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 뉴스 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.openapi.search.transform import NewsSearch
@@ -521,7 +554,6 @@ class TestNaverOpenApi:
             map_index = _configs["query"],
         )
 
-    @pytest.mark.naver_open_api
     def test_book_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 책 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.openapi.search.transform import BookSearch
@@ -532,7 +564,6 @@ class TestNaverOpenApi:
             map_index = _configs["query"],
         )
 
-    @pytest.mark.naver_open_api
     def test_cafe_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 카페글 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.openapi.search.transform import CafeSearch
@@ -543,7 +574,6 @@ class TestNaverOpenApi:
             map_index = _configs["query"],
         )
 
-    @pytest.mark.naver_open_api
     def test_kin_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 지식iN 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.openapi.search.transform import KiNSearch
@@ -554,7 +584,6 @@ class TestNaverOpenApi:
             map_index = _configs["query"],
         )
 
-    @pytest.mark.naver_open_api
     def test_image_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 이미지 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.openapi.search.transform import ImageSearch
@@ -565,7 +594,6 @@ class TestNaverOpenApi:
             map_index = _configs["query"],
         )
 
-    @pytest.mark.naver_open_api
     def test_shopping_search(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 쇼핑 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.openapi.search.transform import ShopSearch
@@ -576,7 +604,6 @@ class TestNaverOpenApi:
             map_index = _configs["query"],
         )
 
-    @pytest.mark.naver_open_api
     def test_shopping_rank(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 쇼핑 검색 결과를 변환하는 테스트."""
         from linkmerce.core.naver.openapi.search.transform import ShopRank
@@ -592,6 +619,7 @@ class TestNaverOpenApi:
 ########################### SabangNet #############################
 ###################################################################
 
+@pytest.mark.sabangnet
 class TestSabangNet:
     """사방넷 데이터 변환 테스트.
     - sabangnet.admin.account.Account
@@ -609,32 +637,27 @@ class TestSabangNet:
     - sabangnet.admin.product.AddProduct
     """
 
-    @pytest.mark.sabangnet
     def test_account(self, transformer_harness: Harness):
         """사방넷 쇼핑몰로그인 메뉴의 쇼핑몰 계정 목록을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.account.transform import Account
         for region_type in ["auto", "global"]:
             transformer_harness(Account).transform(map_index=region_type)
 
-    @pytest.mark.sabangnet
     def test_shop_normal(self, transformer_harness: Harness):
         """사방넷 쇼핑몰관리(일반) 메뉴의 일반 쇼핑몰 목록을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.account.transform import ShopNormal
         transformer_harness(ShopNormal).transform()
 
-    @pytest.mark.sabangnet
     def test_account_normal(self, transformer_harness: Harness):
         """사방넷 쇼핑몰 정보 보기 팝업의 일반 쇼핑몰 정보를 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.account.transform import AccountNormal
         transformer_harness(AccountNormal).transform()
 
-    @pytest.mark.sabangnet
     def test_order(self, transformer_harness: Harness):
         """사방넷 주문서확인처리 메뉴의 주문 내역을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.transform import Order
         transformer_harness(Order).transform()
 
-    @pytest.mark.sabangnet
     def test_order_download(self, transformer_harness: Harness, configs: YamlReader):
         """사방넷 주문서확인처리 메뉴의 주문 내역을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.transform import OrderDownload
@@ -653,7 +676,6 @@ class TestSabangNet:
             harness.bulk_insert(result, skip_dump=(i != len(params)))
 
     @pytest.mark.skip
-    @pytest.mark.sabangnet
     def test_order_status(self, transformer_harness: Harness):
         """사방넷 주문서확인처리 메뉴의 주문 내역에서 주문 상태에 따른 변경 날짜를 파싱해 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.transform import OrderStatus
@@ -661,13 +683,11 @@ class TestSabangNet:
         for date_type in ["delivery_confirm_date", "cancel_dt", "rtn_dt", "chng_dt"]:
             harness.transform(date_type=date_type, map_index=date_type)
 
-    @pytest.mark.sabangnet
     def test_product_mapping(self, transformer_harness: Harness):
         """사방넷 품번코드매핑관리 메뉴의 매핑 내역을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.transform import ProductMapping
         transformer_harness(ProductMapping).transform()
 
-    @pytest.mark.sabangnet
     def test_sku_mapping(self, transformer_harness: Harness, configs: YamlReader):
         """사방넷 단품코드매핑관리 메뉴의 매핑문자열을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.transform import SkuMapping
@@ -676,13 +696,11 @@ class TestSabangNet:
             query = {"shop_id": _configs["shop_id"]},
         )
 
-    @pytest.mark.sabangnet
     def test_product(self, transformer_harness: Harness):
         """사방넷상품조회수정 메뉴의 상품 목록을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.transform import Product
         transformer_harness(Product).transform()
 
-    @pytest.mark.sabangnet
     def test_option(self, transformer_harness: Harness, configs: YamlReader):
         """사방넷상품조회수정 메뉴의 옵션 목록을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.transform import Option
@@ -691,19 +709,16 @@ class TestSabangNet:
             map_index = _configs["product_id"],
         )
 
-    @pytest.mark.sabangnet
     def test_option_download(self, transformer_harness: Harness):
         """사방넷단품대량수정 메뉴의 옵션 목록을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.transform import OptionDownload
         transformer_harness(OptionDownload).transform()
 
-    @pytest.mark.sabangnet
     def test_add_product_group(self, transformer_harness: Harness):
         """사방넷추가상품관리 메뉴의 추가상품 그룹 목록을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.transform import AddProductGroup
         transformer_harness(AddProductGroup).transform()
 
-    @pytest.mark.sabangnet
     def test_add_product(self, transformer_harness: Harness, configs: YamlReader):
         """사방넷추가상품관리 메뉴의 추가상품 목록을 변환하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.transform import AddProduct
@@ -724,6 +739,7 @@ class TestSabangNet:
 ########################## SearchAd API ###########################
 ###################################################################
 
+@pytest.mark.searchad_api
 class TestSearchAdApi:
     """네이버 검색광고 API 데이터 변환 테스트.
     - searchad.api.contract.TimeContract
@@ -739,37 +755,31 @@ class TestSearchAdApi:
     def customer_id(self, reader: YamlReader):
         return reader("searchad.api.0")["customer_id"]
 
-    @pytest.mark.searchad_api
     def test_time_contract(self, transformer_harness: Harness):
         """네이버 브랜드검색 광고 계약기간 데이터를 변환하는 테스트."""
         from linkmerce.core.searchad.api.contract.transform import TimeContract
         transformer_harness(TimeContract).transform()
 
-    @pytest.mark.searchad_api
     def test_brand_new_contract(self, transformer_harness: Harness):
         """네이버 신제품검색 광고 계약기간 데이터를 변환하는 테스트."""
         from linkmerce.core.searchad.api.contract.transform import BrandNewContract
         transformer_harness(BrandNewContract).transform()
 
-    @pytest.mark.searchad_api
     def test_keyword(self, transformer_harness: Harness):
         """네이버 검색광고 키워드 도구의 연관키워드 조회 결과를 변환하는 테스트."""
         from linkmerce.core.searchad.api.keyword.transform import Keyword
         transformer_harness(Keyword).transform()
 
-    @pytest.mark.searchad_api
     def test_campaign(self, transformer_harness: Harness):
         """네이버 검색광고 캠페인 마스터 데이터를 변환하는 테스트."""
         from linkmerce.core.searchad.api.report.transform import Campaign
         transformer_harness(Campaign).transform()
 
-    @pytest.mark.searchad_api
     def test_adgroup(self, transformer_harness: Harness):
         """네이버 검색광고 광고그룹 마스터 데이터를 변환하는 테스트."""
         from linkmerce.core.searchad.api.report.transform import Adgroup
         transformer_harness(Adgroup).transform()
 
-    @pytest.mark.searchad_api
     def test_master_ad(self, transformer_harness: Harness, credentials: YamlReader):
         """모든 소재 유형의 네이버 검색광고 마스터 데이터를 변환하는 테스트."""
         from linkmerce.core.searchad.api.report.transform import MasterAd, AD_TABLE_KEYS
@@ -797,13 +807,11 @@ class TestSearchAdApi:
         harness.dump_tables()
 
     @pytest.mark.skip
-    @pytest.mark.searchad_api
     def test_media(self, transformer_harness: Harness):
         """네이버 검색광고 광고매체 마스터 데이터를 변환하는 테스트."""
         from linkmerce.core.searchad.api.report.transform import Media
         transformer_harness(Media).transform()
 
-    @pytest.mark.searchad_api
     def test_advanced_report(self, transformer_harness: Harness, credentials: YamlReader, yesterday: dt.date):
         """다차원 보고서의 바탕이 되는 광고성과 및 전환 보고서를 변환하는 테스트."""
         from linkmerce.core.searchad.api.report.transform import AdvancedReport
@@ -834,6 +842,7 @@ class TestSearchAdApi:
 ######################## SearchAd Center ##########################
 ###################################################################
 
+@pytest.mark.searchad_center
 class TestSearchAdCenter:
     """네이버 광고주센터 데이터 변환 테스트.
     - searchad.center.exposure.ExposureDiagnosis
@@ -844,7 +853,6 @@ class TestSearchAdCenter:
     def customer_id(self, reader: YamlReader):
         return reader("searchad.center.0")["customer_id"]
 
-    @pytest.mark.searchad_center
     def test_exposure_diagnosis(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 광고주센터에서 키워드별 노출 진단 결과를 변환하는 테스트."""
         from linkmerce.core.searchad.center.exposure.transform import ExposureDiagnosis
@@ -855,7 +863,6 @@ class TestSearchAdCenter:
             map_index = _configs["keyword"],
         )
 
-    @pytest.mark.searchad_center
     def test_exposure_rank(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 광고주센터에서 키워드별 노출 진단 결과를 변환하는 테스트."""
         from linkmerce.core.searchad.center.exposure.transform import ExposureRank
@@ -866,7 +873,6 @@ class TestSearchAdCenter:
             map_index = _configs["keyword"],
         )
 
-    @pytest.mark.searchad_center
     def test_daily_report(self, transformer_harness: Harness, credentials: YamlReader):
         """네이버 광고주센터에서 다차원 보고서를 변환하는 테스트."""
         from linkmerce.core.searchad.center.report.transform import DailyReport
@@ -879,6 +885,7 @@ class TestSearchAdCenter:
 ########################## SearchAd GFA ###########################
 ###################################################################
 
+@pytest.mark.searchad_gfa
 class TestSearchAdGfa:
     """네이버 성과형 디스플레이 광고 데이터 변환 테스트.
     - searchad.gfa.report.Campaign
@@ -891,7 +898,6 @@ class TestSearchAdGfa:
     def account_no(self, reader: YamlReader):
         return reader("searchad.gfa.0")["account_no"]
 
-    @pytest.mark.searchad_gfa
     def test_campaign(self, transformer_harness: Harness, options: YamlReader):
         """네이버 성과형 디스플레이 광고 캠페인 목록을 변환하는 테스트."""
         from linkmerce.core.searchad.gfa.report.transform import Campaign
@@ -900,7 +906,6 @@ class TestSearchAdGfa:
             map_index = _configs.get("status", "RUNNABLE"),
         )
 
-    @pytest.mark.searchad_gfa
     def test_ad_set(self, transformer_harness: Harness, options: YamlReader, credentials: YamlReader):
         """네이버 성과형 디스플레이 광고 그룹 목록을 변환하는 테스트."""
         from linkmerce.core.searchad.gfa.report.transform import AdSet
@@ -910,7 +915,6 @@ class TestSearchAdGfa:
             map_index = _configs.get("status", "ALL"),
         )
 
-    @pytest.mark.searchad_gfa
     def test_creative(self, transformer_harness: Harness, options: YamlReader, credentials: YamlReader):
         """네이버 성과형 디스플레이 광고 소재 목록을 변환하는 테스트."""
         from linkmerce.core.searchad.gfa.report.transform import Creative
@@ -920,7 +924,6 @@ class TestSearchAdGfa:
             map_index = _configs.get("status", "ALL"),
         )
 
-    @pytest.mark.searchad_gfa
     def test_campaign_report(self, transformer_harness: Harness, credentials: YamlReader):
         """네이버 성과형 디스플레이 광고 캠페인 성과 보고서를 변환하는 테스트."""
         from linkmerce.core.searchad.gfa.report.transform import CampaignReport
@@ -929,7 +932,6 @@ class TestSearchAdGfa:
             map_index = "campaign",
         )
 
-    @pytest.mark.searchad_gfa
     def test_creative_report(self, transformer_harness: Harness, credentials: YamlReader):
         """네이버 성과형 디스플레이 광고 소재 성과 보고서를 변환하는 테스트."""
         from linkmerce.core.searchad.gfa.report.transform import CreativeReport
@@ -943,6 +945,7 @@ class TestSearchAdGfa:
 ######################### SmartStore API ##########################
 ###################################################################
 
+@pytest.mark.smartstore_api
 class TestSmartstoreApi:
     """스마트스토어 커머스 API 데이터 변환 테스트.
     - smartstore.api.product.Product
@@ -997,7 +1000,6 @@ class TestSmartstoreApi:
     #         channel_seq = self.channel_seq(credentials),
     #     )
 
-    @pytest.mark.smartstore_api
     def test_settlement(self, transformer_harness: Harness, credentials: YamlReader):
         """스마트스토어 건별 정산 내역 조회 결과를 변환하는 테스트."""
         from linkmerce.core.smartstore.api.settlement.transform import Settlement
@@ -1010,6 +1012,7 @@ class TestSmartstoreApi:
 ###################### SmartStore Bizdata API #####################
 ###################################################################
 
+@pytest.mark.ss_bizdata_api
 class TestSmartstoreBizdataApi:
     """스마트스토어 API데이터솔루션(통계) 데이터 변환 테스트.
     - smartstore.api.bizdata.MarketingChannel
@@ -1018,7 +1021,6 @@ class TestSmartstoreBizdataApi:
     def channel_seq(self, reader: YamlReader):
         return reader("smartstore.bizdata.0")["channel_seq"]
 
-    @pytest.mark.ss_bizdata_api
     def test_marketing_channel(self, transformer_harness: Harness, credentials: YamlReader, yesterday: dt.date):
         """스마트스토어 사용자 정의 채널 상세 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.api.bizdata.transform import MarketingChannel
@@ -1032,6 +1034,7 @@ class TestSmartstoreBizdataApi:
 ##################### Shopping Partner Center #####################
 ###################################################################
 
+@pytest.mark.ss_hcenter
 class TestShoppingPartnerCenter:
     """네이버 쇼핑파트너센터 데이터 변환 테스트.
     - smartstore.hcenter.catalog.BrandCatalog
@@ -1049,7 +1052,6 @@ class TestShoppingPartnerCenter:
 
     eol_date = dt.date(2026, 2, 26)
 
-    @pytest.mark.ss_hcenter
     def test_brand_catalog(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 카탈로그 목록을 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.transform import BrandCatalog
@@ -1058,7 +1060,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_brand_product(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 상품 목록을 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.transform import BrandProduct
@@ -1068,7 +1069,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_brand_price(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 상품 목록에서 판매가 변동을 추적하기 위한 가격 정보를 추출 및 적재하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.transform import BrandPrice
@@ -1078,7 +1078,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_product_catalog(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 상품 목록에서 카탈로그-상품 매핑 내역을 추출 및 적재하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.transform import ProductCatalog
@@ -1088,7 +1087,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["brand_ids"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_page_view_by_device(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 스토어의 일별/기기별 방문 통계 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByDevice
@@ -1098,7 +1096,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_page_view_by_url(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByUrl
@@ -1108,7 +1105,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_page_view_by_product(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 일별/상품별 데이터로 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.transform import PageViewByProduct
@@ -1118,7 +1114,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_store_sales(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 스토어의 일간 매출 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.transform import StoreSales
@@ -1129,7 +1124,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_category_sales(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 스토어의 일간/카테고리별 매출 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.transform import CategorySales
@@ -1140,7 +1134,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_product_sales(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 스토어의 일간/상품별 매출 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.transform import ProductSales
@@ -1151,7 +1144,6 @@ class TestShoppingPartnerCenter:
             map_index = _configs["mall_seq"],
         )
 
-    @pytest.mark.ss_hcenter
     def test_aggregated_sales(self, transformer_harness: Harness, configs: YamlReader):
         """네이버 스토어의 일간/상품별 매출 데이터를 변환하는 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.transform import AggregatedSales

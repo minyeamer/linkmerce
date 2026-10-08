@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def _strftime(datetime: dt.datetime) -> str:
-    """커머스 API 요청 일시를 KST ISO 8601 형식으로 변환한다."""
+    """커머스 API 요청 일시를 KST ISO-8601 형식의 문자열로 변환한다."""
     if not datetime.tzinfo:
         return datetime.isoformat(timespec="milliseconds") + "+09:00"
     return datetime.isoformat(timespec="milliseconds")
@@ -97,7 +97,7 @@ class Order(SmartstoreApi):
             max_retries: int = 5,
             **kwargs
         ) -> dict | list[dict]:
-        """상품 주문 내역을 일별로 조회해 JSON 형식으로 반환한다.
+        """조회 기간에 대한 상품 주문 내역을 JSON 형식으로 반환한다.
 
         Parameters
         ----------
@@ -124,8 +124,8 @@ class Order(SmartstoreApi):
         -------
         dict | list[dict]
             상품 주문 내역. 조회 기간에 따라 반환 타입이 다르다.
-                - `start_datetime`와 `end_datetime`가 동일할 때 -> `dict`
-                - `start_datetime`와 `end_datetime`가 다를 때 -> `list[dict]`
+                - `start_datetime`부터 `end_datetime` 사이가 24시간 이내일 때 -> `dict`
+                - `start_datetime`부터 `end_datetime`사이가 24시간을 초과할 때 -> `list[dict]`
         """
         return (self.request_each_cursor(
                     self.request_json_until_success,
@@ -140,7 +140,7 @@ class Order(SmartstoreApi):
                 ).all_cursor(self.get_next_cursor, next_cursor=page_start)
                 .run())
 
-    def get_next_cursor(self, response: dict, **context) -> int:
+    def get_next_cursor(self, response: dict, **context) -> int | None:
         """다음 페이지 커서를 추출한다."""
         from linkmerce.utils.nested import hier_get
         pagination = hier_get(response, "data.pagination") or dict()
@@ -295,7 +295,7 @@ class OrderStatus(SmartstoreApi):
             response: dict,
             end_datetime: dt.datetime | dt.date | str,
             **context,
-        ) -> dict[str, str]:
+        ) -> dict[str, str] | None:
         """다음 페이지 `moreFrom` 커서를 추출한다."""
         from linkmerce.utils.nested import hier_get
         more = hier_get(response, "data.more") or dict()

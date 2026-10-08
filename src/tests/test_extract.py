@@ -22,6 +22,7 @@ pytestmark = pytest.mark.extract
 ################################ CJ ###############################
 ###################################################################
 
+@pytest.mark.cj_logistics
 class TestCjLogistics:
     """CJ대한통운 eFLEXs 데이터 추출 테스트.
     - cj.eflexs.stock.Stock
@@ -36,7 +37,6 @@ class TestCjLogistics:
         }
 
     @pytest.mark.skip
-    @pytest.mark.cj_logistics
     def test_stock(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역을 조회하는 테스트."""
         from linkmerce.core.cj.eflexs.stock.extract import Stock
@@ -53,6 +53,7 @@ class TestCjLogistics:
 ########################### Coupang Ads ###########################
 ###################################################################
 
+@pytest.mark.coupang_ads
 class TestCoupangAds:
     """쿠팡 광고센터 데이터 추출 테스트.
     - coupang.advertising.management.Campaign
@@ -64,7 +65,6 @@ class TestCoupangAds:
     def cookies(self, reader: YamlReader) -> str:
         return reader("coupang.advertising.0")["cookies"]
 
-    @pytest.mark.coupang_ads
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 광고센터 캠페인 목록을 조회하는 테스트."""
         from linkmerce.core.coupang.advertising.management.extract import Campaign
@@ -78,7 +78,6 @@ class TestCoupangAds:
         )
 
     @pytest.mark.skip
-    @pytest.mark.coupang_ads
     def test_creative(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 광고센터 신규 구매 고객 확보(NCA) 캠페인의 소재 정보를 조회하는 테스트."""
         from linkmerce.core.coupang.advertising.management.extract import Creative
@@ -90,7 +89,6 @@ class TestCoupangAds:
             campaign_id = _configs["campaign_id"],
         )
 
-    @pytest.mark.coupang_ads
     def test_product_adreport(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """쿠팡 매출 성장 광고 보고서를 생성 및 다운로드하는 테스트."""
         from linkmerce.core.coupang.advertising.report.extract import ProductAdReport
@@ -109,7 +107,6 @@ class TestCoupangAds:
         )
 
     @pytest.mark.skip
-    @pytest.mark.coupang_ads
     def test_new_customer_adreport(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """쿠팡 신규 구매 고객 확보 광고 보고서를 생성 및 다운로드하는 테스트."""
         from linkmerce.core.coupang.advertising.report.extract import NewCustomerAdReport
@@ -129,9 +126,116 @@ class TestCoupangAds:
 
 
 ###################################################################
+########################### Coupang API ###########################
+###################################################################
+
+@pytest.mark.coupang_api
+class TestCoupangApi:
+    """쿠팡 Open API 데이터 추출 테스트.
+    - coupang.api.product.Product
+    - coupang.api.product.ProductDetail
+    - coupang.api.product.Inventory
+    - coupang.api.order.Order
+    - coupang.api.order.OrderDetail
+    - coupang.api.rocket_growth.Inventory
+    - coupang.api.rocket_growth.Order
+    """
+
+    def credentials(self, reader: YamlReader) -> dict:
+        return reader("coupang.api.0")
+
+    def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """쿠팡 Open API로 상품 목록 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.product.extract import Product
+        _configs = options("coupang.api.product")
+        Product(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Product, format="json"),
+        ).extract(
+            business_type = _configs.get("business_type", None),
+            seller_product_id = _configs.get("seller_product_id", None),
+            seller_product_name = _configs.get("seller_product_name", None),
+            status = _configs.get("status", None),
+            manufacture = _configs.get("manufacture", None),
+            created_at = _configs.get("created_at", None),
+        )
+
+    def test_product_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """쿠팡 Open API로 상품의 상세 정보를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.product.extract import ProductDetail
+        _configs = configs("coupang.api.product_detail")
+        ProductDetail(
+            configs = self.credentials(credentials),
+            parser = dump_extract(ProductDetail, format="json"),
+        ).extract(
+            seller_product_id = _configs["seller_product_id"],
+        )
+
+    def test_inventory(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """쿠팡 Open API로 옵션의 수량, 가격, 판매상태를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.product.extract import Inventory
+        _configs = configs("coupang.api.inventory")
+        Inventory(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Inventory, format="json"),
+        ).extract(
+            vendor_item_id = _configs["vendor_item_id"],
+        )
+
+    def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """쿠팡 Open API로 마켓플레이스 발주서 목록 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.order.extract import Order
+        _configs = options("coupang.api.order")
+        Order(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Order, format="json"),
+        ).extract(
+            start_datetime = _configs.get("start_datetime", f"{yesterday}T00:00+09:00"),
+            end_datetime = _configs.get("end_datetime", ":end_of_day:"),
+            status = _configs.get("status", "FINAL_DELIVERY"),
+        )
+
+    def test_order_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """쿠팡 Open API로 마켓플레이스 발주서 단건 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.order.extract import OrderDetail
+        _configs = configs("coupang.api.order_detail")
+        OrderDetail(
+            configs = self.credentials(credentials),
+            parser = dump_extract(OrderDetail, format="json"),
+        ).extract(
+            query_id = _configs["query_id"],
+            query_type = _configs.get("query_type", "order_id"),
+        )
+
+    def test_rocket_inventory(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """쿠팡 Open API로 로켓창고 재고 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.rocket_growth.extract import Inventory
+        _configs = configs("coupang.api.rocket_inventory")
+        Inventory(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Inventory, format="json"),
+        ).extract(
+            vendor_item_id = _configs["vendor_item_id"],
+        )
+
+    def test_rocket_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """쿠팡 Open API로 로켓그로스 주문 목록 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.rocket_growth.extract import Order
+        _configs = options("coupang.api.rocket_order")
+        Order(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Order, format="json"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":next_start_date:"),
+        )
+
+
+###################################################################
 ######################### Coupang Wing ############################
 ###################################################################
 
+@pytest.mark.coupang_wing
 class TestCoupangWing:
     """쿠팡 Wing 데이터 추출 테스트.
     - coupang.wing.product.ProductOption
@@ -145,7 +249,6 @@ class TestCoupangWing:
     def cookies(self, reader: YamlReader) -> str:
         return reader("coupang.wing.0")["cookies"]
 
-    @pytest.mark.coupang_wing
     def test_product_option(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 Wing 상품 목록을 조회하는 테스트."""
         from linkmerce.core.coupang.wing.product.extract import ProductOption
@@ -157,7 +260,6 @@ class TestCoupangWing:
             is_deleted = _configs.get("is_deleted", False),
         )
 
-    @pytest.mark.coupang_wing
     def test_product_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 Wing 상품의 상세 정보를 조회하는 테스트."""
         from linkmerce.core.coupang.wing.product.extract import ProductDetail
@@ -170,7 +272,6 @@ class TestCoupangWing:
         )
 
     @pytest.mark.skip
-    @pytest.mark.coupang_wing
     def test_product_download(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 Wing 상품 목록을 엑셀로 다운로드하는 테스트."""
         from linkmerce.core.coupang.wing.product.extract import ProductDownload
@@ -186,7 +287,6 @@ class TestCoupangWing:
             wait_interval = _configs.get("wait_interval", 1),
         )
 
-    @pytest.mark.coupang_wing
     def test_rocket_inventory(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """쿠팡 로켓그로스 재고현황을 조회하는 테스트."""
         from linkmerce.core.coupang.wing.product.extract import RocketInventory
@@ -198,7 +298,6 @@ class TestCoupangWing:
             hidden_status = _configs.get("hidden_status"),
         )
 
-    @pytest.mark.coupang_wing
     def test_rocket_settlement(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, days_ago: Callable):
         """쿠팡 로켓그로스 정산현황의 정산 리포트 목록을 조회하는 테스트."""
         from linkmerce.core.coupang.wing.settlement.extract import RocketSettlement
@@ -212,7 +311,6 @@ class TestCoupangWing:
             date_type = _configs.get("date_type", "SALES"),
         )
 
-    @pytest.mark.coupang_wing
     def test_rocket_settlement_download(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, days_ago: Callable):
         """쿠팡 로켓그로스 정산현황의 정산 리포트를 엑셀로 다운로드하는 테스트."""
         from linkmerce.core.coupang.wing.settlement.extract import RocketSettlementDownload
@@ -234,6 +332,7 @@ class TestCoupangWing:
 ############################## Dable ##############################
 ###################################################################
 
+@pytest.mark.dable
 class TestDable:
     """데이블 API 데이터 추출 테스트.
     - dable.api.report.DailyReport
@@ -246,7 +345,6 @@ class TestDable:
             "client_name": _credentials["client_name"],
         }
 
-    @pytest.mark.dable
     def test_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """데이블 광고 보고서를 조회하는 테스트."""
         from linkmerce.core.dable.api.report.extract import DailyReport
@@ -265,6 +363,7 @@ class TestDable:
 ##################### Ebay - AUCTION Adcenter #####################
 ###################################################################
 
+@pytest.mark.ebay_ad
 class TestAuctionAd:
     """AUCTION 광고센터 데이터 추출 테스트.
     - ebay.ad.report.AiReport
@@ -274,7 +373,6 @@ class TestAuctionAd:
     def cookies(self, reader: YamlReader) -> str:
         return reader("ebay.ad")["cookies"]
 
-    @pytest.mark.ebay_ad
     def test_ai_report(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """AUCTION 광고센터 AI 매출형 상품별 리포트를 조회하는 테스트."""
         from linkmerce.core.ebay.ad.report.extract import AiReport
@@ -288,7 +386,6 @@ class TestAuctionAd:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ebay_ad
     def test_cpc_report(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """AUCTION 광고센터 파워클릭 상품별 리포트를 조회하는 테스트."""
         from linkmerce.core.ebay.ad.report.extract import CpcReport
@@ -307,6 +404,7 @@ class TestAuctionAd:
 ##################### Ebay - Gmarket Adcenter #####################
 ###################################################################
 
+@pytest.mark.ebay_adcenter
 class TestGmarketAdc:
     """Gmarket 광고센터 데이터 추출 테스트.
     - ebay.adcenter.management.CampaignGroup
@@ -319,7 +417,6 @@ class TestGmarketAdc:
     def cookies(self, reader: YamlReader) -> str:
         return reader("ebay.adcenter")["cookies"]
 
-    @pytest.mark.ebay_adcenter
     def test_campaign_group(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """Gmarket 광고센터 캠페인 그룹 목록을 조회하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.extract import CampaignGroup
@@ -332,7 +429,6 @@ class TestGmarketAdc:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ebay_adcenter
     def test_campaign(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """Gmarket 광고센터 캠페인 목록을 조회하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.extract import Campaign
@@ -346,7 +442,6 @@ class TestGmarketAdc:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ebay_adcenter
     def test_adgroup(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """Gmarket 광고센터 광고그룹 목록을 조회하는 테스트."""
         from linkmerce.core.ebay.adcenter.management.extract import Adgroup
@@ -360,7 +455,6 @@ class TestGmarketAdc:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ebay_adcenter
     def test_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """Gmarket 광고센터 상세 리포트를 조회하는 테스트."""
         from linkmerce.core.ebay.adcenter.report.extract import Report
@@ -375,7 +469,6 @@ class TestGmarketAdc:
             aggregate_type = _configs.get("aggregate_type", "daily"),
         )
 
-    @pytest.mark.ebay_adcenter
     def test_report_download(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """Gmarket 광고센터 상세 리포트를 엑셀로 다운로드하는 테스트."""
         from linkmerce.core.ebay.adcenter.report.extract import ReportDownload
@@ -395,6 +488,7 @@ class TestGmarketAdc:
 ######################### Ebay - ESM PLUS #########################
 ###################################################################
 
+@pytest.mark.ebay_esmplus
 class TestEsmPlus:
     """ESM PLUS 데이터 추출 테스트.
     - ebay.esmplus.item.Item
@@ -403,7 +497,6 @@ class TestEsmPlus:
     def cookies(self, reader: YamlReader) -> str:
         return reader("ebay.esmplus")["cookies"]
 
-    @pytest.mark.ebay_esmplus
     def test_item(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """ESM PLUS 상품 목록을 조회하는 테스트."""
         from linkmerce.core.ebay.esmplus.item.extract import Item
@@ -422,6 +515,7 @@ class TestEsmPlus:
 ############################ Ecount ###############################
 ###################################################################
 
+@pytest.mark.ecount
 class TestEcount:
     """이카운트 API 데이터 추출 테스트.
     - ecount.api.inventory.Inventory
@@ -436,7 +530,6 @@ class TestEcount:
             "api_key": _credentials["api_key"],
         }
 
-    @pytest.mark.ecount
     def test_inventory(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """이카운트 재고현황을 조회하는 테스트."""
         from linkmerce.core.ecount.api.inventory.extract import Inventory
@@ -454,7 +547,6 @@ class TestEcount:
             safe_yn = _configs.get("safe_yn", False),
         )
 
-    @pytest.mark.ecount
     def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """이카운트 품목등록 리스트를 조회하는 테스트."""
         from linkmerce.core.ecount.api.product.extract import Product
@@ -472,6 +564,7 @@ class TestEcount:
 ########################## Google Ads #############################
 ###################################################################
 
+@pytest.mark.google_ads
 class TestGoogleAds:
     """구글 광고 API 데이터 추출 테스트.
     - google.api.ads.Campaign
@@ -491,7 +584,6 @@ class TestGoogleAds:
             "service_account": _credentials.get("service_account", service_account),
         }
 
-    @pytest.mark.google_ads
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, service_account: dict):
         """구글 광고 캠페인 보고서를 조회하는 테스트."""
         from linkmerce.core.google.api.ads.extract import Campaign
@@ -506,7 +598,6 @@ class TestGoogleAds:
             fields = _configs.get("fields", list()),
         )
 
-    @pytest.mark.google_ads
     def test_ad_group(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, service_account: dict):
         """구글 광고그룹 보고서를 조회하는 테스트."""
         from linkmerce.core.google.api.ads.extract import AdGroup
@@ -521,7 +612,6 @@ class TestGoogleAds:
             fields = _configs.get("fields", list()),
         )
 
-    @pytest.mark.google_ads
     def test_ad(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, service_account: dict):
         """구글 광고 소재 보고서를 조회하는 테스트."""
         from linkmerce.core.google.api.ads.extract import Ad
@@ -536,7 +626,6 @@ class TestGoogleAds:
             fields = _configs.get("fields", list()),
         )
 
-    @pytest.mark.google_ads
     def test_insight(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, service_account: dict):
         """구글 광고 소재 보고서를 날짜/기기별로 구분해 조회하는 테스트."""
         from linkmerce.core.google.api.ads.extract import Insight
@@ -552,7 +641,6 @@ class TestGoogleAds:
             fields = _configs.get("fields", list()),
         )
 
-    @pytest.mark.google_ads
     def test_asset(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, service_account: dict):
         """구글 광고 애셋 보고서를 조회하는 테스트."""
         from linkmerce.core.google.api.ads.extract import Asset
@@ -564,7 +652,6 @@ class TestGoogleAds:
             fields = _configs.get("fields", list()),
         )
 
-    @pytest.mark.google_ads
     def test_asset_view(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, service_account: dict):
         """구글 광고 소재-애셋 관계를 조회하는 테스트."""
         from linkmerce.core.google.api.ads.extract import AssetView
@@ -585,6 +672,7 @@ class TestGoogleAds:
 ########################### Meta Ads ##############################
 ###################################################################
 
+@pytest.mark.meta_ads
 class TestMetaAds:
     """메타 광고 API 데이터 추출 테스트.
     - meta.api.ads.Campaigns
@@ -597,7 +685,6 @@ class TestMetaAds:
         _credentials = reader("meta.marketing_api.0")
         return {"access_token": _credentials["access_token"]}
 
-    @pytest.mark.meta_ads
     def test_campaigns(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """메타 광고 캠페인 보고서를 조회하는 테스트."""
         from linkmerce.core.meta.api.ads.extract import Campaigns
@@ -612,7 +699,6 @@ class TestMetaAds:
             fields = _configs.get("fields", list()),
         )
 
-    @pytest.mark.meta_ads
     def test_adsets(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """메타 광고세트 보고서를 조회하는 테스트."""
         from linkmerce.core.meta.api.ads.extract import Adsets
@@ -627,7 +713,6 @@ class TestMetaAds:
             fields = _configs.get("fields", list()),
         )
 
-    @pytest.mark.meta_ads
     def test_ads(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """메타 광고 보고서를 조회하는 테스트."""
         from linkmerce.core.meta.api.ads.extract import Ads
@@ -642,7 +727,6 @@ class TestMetaAds:
             fields = _configs.get("fields", list()),
         )
 
-    @pytest.mark.meta_ads
     def test_insights(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """메타 광고 성과 보고서를 날짜별로 조회하는 테스트."""
         from linkmerce.core.meta.api.ads.extract import Insights
@@ -664,6 +748,7 @@ class TestMetaAds:
 ######################## Naver BrandConnect #######################
 ###################################################################
 
+@pytest.mark.naver_connect
 class TestNaverBrandConnect:
     """네이버 브랜드 커넥트 데이터 추출 테스트.
     - naver.brandconnect.sales.SalesPerformances
@@ -672,7 +757,6 @@ class TestNaverBrandConnect:
     def cookies(self, reader: YamlReader) -> str:
         return reader("naver.brandconnect.0")["cookies"]
 
-    @pytest.mark.naver_connect
     def test_sales_performances(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 쇼핑 커넥트 상품별 판매 실적을 일별로 조회하는 테스트."""
         from linkmerce.core.naver.brandconnect.sales.extract import SalesPerformances
@@ -691,6 +775,7 @@ class TestNaverBrandConnect:
 ########################## Naver Main #############################
 ###################################################################
 
+@pytest.mark.naver_search
 class TestNaverSearch:
     """네이버 검색 결과 추출 테스트.
     - naver.main.search.Search
@@ -699,7 +784,6 @@ class TestNaverSearch:
     """
 
     @pytest.mark.skip
-    @pytest.mark.naver_search
     def test_search(self, configs: YamlReader, dump_extract: Callable):
         """네이버 통합검색 결과를 스크래핑하여 HTML 소스코드를 추출하는 테스트."""
         from linkmerce.core.naver.main.search.extract import Search
@@ -713,7 +797,6 @@ class TestNaverSearch:
         )
 
     @pytest.mark.skip
-    @pytest.mark.naver_search
     def test_search_tab(self, configs: YamlReader, dump_extract: Callable):
         """네이버 탭별 검색 결과를 스크래핑하여 HTML 소스코드를 추출하는 테스트."""
         from linkmerce.core.naver.main.search.extract import SearchTab
@@ -727,7 +810,6 @@ class TestNaverSearch:
         )
 
     @pytest.mark.skip
-    @pytest.mark.naver_search
     def test_cafe_article(self, configs: YamlReader, dump_extract: Callable):
         """네이버 카페 게시글을 조회하는 테스트."""
         from linkmerce.core.naver.main.search.extract import CafeArticle
@@ -744,6 +826,7 @@ class TestNaverSearch:
 ########################## Naver Open API #########################
 ###################################################################
 
+@pytest.mark.naver_open_api
 class TestNaverOpenApi:
     """네이버 오픈 API 검색 결과 추출 테스트.
     - naver.openapi.search.BlogSearch
@@ -762,7 +845,6 @@ class TestNaverOpenApi:
             "client_secret": _credentials["client_secret"],
         }
 
-    @pytest.mark.naver_open_api
     def test_blog_search(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 블로그 검색 API 요청을 처리하는 테스트."""
         from linkmerce.core.naver.openapi.search.extract import BlogSearch
@@ -777,7 +859,6 @@ class TestNaverOpenApi:
             sort = _configs.get("sort", "sim"),
         )
 
-    @pytest.mark.naver_open_api
     def test_news_search(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 블로그 뉴스 API 요청을 처리하는 테스트."""
         from linkmerce.core.naver.openapi.search.extract import NewsSearch
@@ -792,7 +873,6 @@ class TestNaverOpenApi:
             sort = _configs.get("sort", "sim"),
         )
 
-    @pytest.mark.naver_open_api
     def test_book_search(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 블로그 책 API 요청을 처리하는 테스트."""
         from linkmerce.core.naver.openapi.search.extract import BookSearch
@@ -807,7 +887,6 @@ class TestNaverOpenApi:
             sort = _configs.get("sort", "sim"),
         )
 
-    @pytest.mark.naver_open_api
     def test_cafe_search(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 카페글 API 요청을 처리하는 테스트."""
         from linkmerce.core.naver.openapi.search.extract import CafeSearch
@@ -822,7 +901,6 @@ class TestNaverOpenApi:
             sort = _configs.get("sort", "sim"),
         )
 
-    @pytest.mark.naver_open_api
     def test_kin_search(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 지식iN API 요청을 처리하는 테스트."""
         from linkmerce.core.naver.openapi.search.extract import KiNSearch
@@ -837,7 +915,6 @@ class TestNaverOpenApi:
             sort = _configs.get("sort", "sim"),
         )
 
-    @pytest.mark.naver_open_api
     def test_image_search(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 이미지 API 요청을 처리하는 테스트."""
         from linkmerce.core.naver.openapi.search.extract import ImageSearch
@@ -853,7 +930,6 @@ class TestNaverOpenApi:
             filter = _configs.get("filter", "all"),
         )
 
-    @pytest.mark.naver_open_api
     def test_shopping_search(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 쇼핑 API 요청을 처리하는 테스트."""
         from linkmerce.core.naver.openapi.search.extract import ShopSearch
@@ -873,6 +949,7 @@ class TestNaverOpenApi:
 ########################## Sabangnet ##############################
 ###################################################################
 
+@pytest.mark.sabangnet
 class TestSabangnet:
     """사방넷 데이터 추출 테스트.
     - sabangnet.admin.account.Account
@@ -898,7 +975,6 @@ class TestSabangnet:
             "domain": _credentials["domain"],
         }
 
-    @pytest.mark.sabangnet
     def test_account(self, credentials: YamlReader, dump_extract: Callable):
         """사방넷 쇼핑몰로그인 메뉴의 쇼핑몰 계정 목록을 검색 유형 단위로 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.account.extract import Account
@@ -908,7 +984,6 @@ class TestSabangnet:
                 parser = dump_extract(Account, format="json", map_index=region_type),
             ).extract(region_type=region_type)
 
-    @pytest.mark.sabangnet
     def test_shop_normal(self, credentials: YamlReader, dump_extract: Callable):
         """사방넷 쇼핑몰관리(일반) 메뉴의 일반 쇼핑몰 목록을 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.account.extract import ShopNormal
@@ -917,7 +992,6 @@ class TestSabangnet:
             parser = dump_extract(ShopNormal, format="json"),
         ).extract()
 
-    @pytest.mark.sabangnet
     def test_account_normal(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """사방넷 쇼핑몰 정보 보기 팝업의 일반 쇼핑몰 정보를 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.account.extract import AccountNormal
@@ -929,7 +1003,6 @@ class TestSabangnet:
             shop_id = _configs["shop_id"],
         )
 
-    @pytest.mark.sabangnet
     def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """사방넷 주문서확인처리 메뉴의 주문 내역을 페이지 단위로 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.extract import Order
@@ -947,7 +1020,6 @@ class TestSabangnet:
             sort_type = _configs.get("sort_type", "ord_no_asc"),
         )
 
-    @pytest.mark.sabangnet
     def test_order_download(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """사방넷 주문서확인처리 메뉴의 주문 내역을 엑셀로 다운로드하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.extract import OrderDownload
@@ -969,7 +1041,6 @@ class TestSabangnet:
             )
 
     @pytest.mark.skip
-    @pytest.mark.sabangnet
     def test_order_status(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """사방넷 주문서확인처리 메뉴의 주문 내역을 일자 유형별로 엑셀 다운로드하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.extract import OrderStatus
@@ -989,7 +1060,6 @@ class TestSabangnet:
             sort_type = _configs.get("sort_type", "ord_no_asc"),
         )
 
-    @pytest.mark.sabangnet
     def test_product_mapping(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """사방넷 품번코드매핑관리 메뉴의 매핑 내역을 페이지 단위로 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.extract import ProductMapping
@@ -1003,7 +1073,6 @@ class TestSabangnet:
             shop_id = _configs.get("shop_id", str()),
         )
 
-    @pytest.mark.sabangnet
     def test_sku_mapping(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """사방넷 단품코드매핑관리 메뉴의 매핑문자열 보기 팝업에서 매핑문자열을 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.order.extract import SkuMapping
@@ -1019,7 +1088,6 @@ class TestSabangnet:
             },
         )
 
-    @pytest.mark.sabangnet
     def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """사방넷상품조회수정 메뉴의 상품 목록을 페이지 단위로 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.extract import Product
@@ -1037,7 +1105,6 @@ class TestSabangnet:
             product_status = _configs.get("product_status"),
         )
 
-    @pytest.mark.sabangnet
     def test_option(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """사방넷상품조회수정 메뉴의 옵션관리 팝업에서 옵션 목록을 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.extract import Option
@@ -1049,7 +1116,6 @@ class TestSabangnet:
             product_id = _configs["product_id"],
         )
 
-    @pytest.mark.sabangnet
     def test_option_download(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """사방넷단품대량수정 메뉴의 옵션 목록을 엑셀로 다운로드하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.extract import OptionDownload
@@ -1067,7 +1133,6 @@ class TestSabangnet:
             product_status = _configs.get("product_status", list()),
         )
 
-    @pytest.mark.sabangnet
     def test_add_product_group(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """사방넷추가상품관리 메뉴의 추가상품 그룹 목록을 페이지 단위로 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.extract import AddProductGroup
@@ -1081,7 +1146,6 @@ class TestSabangnet:
             shop_id = _configs.get("shop_id", str()),
         )
 
-    @pytest.mark.sabangnet
     def test_add_product(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """사방넷추가상품관리 메뉴의 추가상품그룹관리 팝업에서 추가상품 목록을 조회하는 테스트."""
         from linkmerce.core.sabangnet.admin.product.extract import AddProduct
@@ -1098,6 +1162,7 @@ class TestSabangnet:
 ######################### SearchAd API ############################
 ###################################################################
 
+@pytest.mark.searchad_api
 class TestSearchAdApi:
     """네이버 검색광고 API 데이터 추출 테스트.
     - searchad.api.report.Campaign
@@ -1118,7 +1183,6 @@ class TestSearchAdApi:
             "customer_id": _credentials["customer_id"],
         }
 
-    @pytest.mark.searchad_api
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 검색광고 캠페인 마스터 데이터를 다운로드하는 테스트."""
         from linkmerce.core.searchad.api.report.extract import Campaign
@@ -1130,7 +1194,6 @@ class TestSearchAdApi:
             from_date = _configs.get("from_date"),
         )
 
-    @pytest.mark.searchad_api
     def test_adgroup(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 검색광고 광고그룹 마스터 데이터를 다운로드하는 테스트."""
         from linkmerce.core.searchad.api.report.extract import Adgroup
@@ -1142,7 +1205,6 @@ class TestSearchAdApi:
             from_date = _configs.get("from_date"),
         )
 
-    @pytest.mark.searchad_api
     def test_master_ad(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """모든 소재 유형의 네이버 검색광고 마스터 데이터를 일괄 다운로드하는 테스트."""
         from linkmerce.core.searchad.api.report.extract import MasterAd
@@ -1161,7 +1223,6 @@ class TestSearchAdApi:
         )
 
     @pytest.mark.skip
-    @pytest.mark.searchad_api
     def test_media(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 검색광고 광고매체 마스터 데이터를 다운로드하는 테스트."""
         from linkmerce.core.searchad.api.report.extract import Media
@@ -1173,7 +1234,6 @@ class TestSearchAdApi:
             from_date = _configs.get("from_date"),
         )
 
-    @pytest.mark.searchad_api
     def test_advanced_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """다차원 보고서의 바탕이 되는 광고성과 및 전환 보고서를 다운로드하는 테스트."""
         from linkmerce.core.searchad.api.report.extract import AdvancedReport
@@ -1192,7 +1252,6 @@ class TestSearchAdApi:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.searchad_api
     def test_time_contract(self, credentials: YamlReader, dump_extract: Callable):
         """네이버 검색광고 API로 브랜드검색 광고 계약기간 데이터를 조회하는 테스트."""
         from linkmerce.core.searchad.api.contract.extract import TimeContract
@@ -1201,7 +1260,6 @@ class TestSearchAdApi:
             parser = dump_extract(TimeContract, format="json"),
         ).extract()
 
-    @pytest.mark.searchad_api
     def test_brand_new_contract(self, credentials: YamlReader, dump_extract: Callable):
         """네이버 검색광고 API로 신제품검색 광고 계약기간 데이터를 조회하는 테스트."""
         from linkmerce.core.searchad.api.contract.extract import BrandNewContract
@@ -1210,7 +1268,6 @@ class TestSearchAdApi:
             parser = dump_extract(BrandNewContract, format="json"),
         ).extract()
 
-    @pytest.mark.searchad_api
     def test_keyword(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """검색광고 API로 키워드 도구의 연관키워드 조회 결과를 수집하는 테스트."""
         from linkmerce.core.searchad.api.keyword.extract import Keyword
@@ -1229,6 +1286,7 @@ class TestSearchAdApi:
 ######################## SearchAd Center ##########################
 ###################################################################
 
+@pytest.mark.searchad_center
 class TestSearchAdCenter:
     """네이버 광고주센터 데이터 추출 테스트.
     - searchad.center.report.DailyReport
@@ -1245,7 +1303,6 @@ class TestSearchAdCenter:
             cookies = _credentials["cookies"],
         )
 
-    @pytest.mark.searchad_center
     def test_daily_report(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 광고주센터에서 고정된 항목의 다차원 보고서를 다운로드하는 테스트."""
         from linkmerce.core.searchad.center.report.extract import DailyReport
@@ -1261,7 +1318,6 @@ class TestSearchAdCenter:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.searchad_center
     def test_exposure_diagnosis(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 광고주센터에서 광고 노출 진단 메뉴의 키워드별 노출 진단 결과를 조회하는 테스트."""
         from linkmerce.core.searchad.center.exposure.extract import ExposureDiagnosis
@@ -1281,6 +1337,7 @@ class TestSearchAdCenter:
 ######################### SearchAd GFA ############################
 ###################################################################
 
+@pytest.mark.searchad_gfa
 class TestSearchAdGfa:
     """네이버 성과형 디스플레이 광고 데이터 추출 테스트.
     - searchad.gfa.report.Campaign
@@ -1296,7 +1353,6 @@ class TestSearchAdGfa:
             cookies = _credentials["cookies"],
         )
 
-    @pytest.mark.searchad_gfa
     def test_campaign(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 성과형 디스플레이 광고 캠페인 목록을 조회하는 테스트."""
         from linkmerce.core.searchad.gfa.report.extract import Campaign
@@ -1308,7 +1364,6 @@ class TestSearchAdGfa:
             status = _configs.get("status", "RUNNABLE"),
         )
 
-    @pytest.mark.searchad_gfa
     def test_ad_set(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 성과형 디스플레이 광고 그룹 목록을 조회하는 테스트."""
         from linkmerce.core.searchad.gfa.report.extract import AdSet
@@ -1320,7 +1375,6 @@ class TestSearchAdGfa:
             status = _configs.get("status", "ALL"),
         )
 
-    @pytest.mark.searchad_gfa
     def test_creative(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 성과형 디스플레이 광고 소재 목록을 조회하는 테스트."""
         from linkmerce.core.searchad.gfa.report.extract import Creative
@@ -1332,7 +1386,6 @@ class TestSearchAdGfa:
             status = _configs.get("status", "ALL"),
         )
 
-    @pytest.mark.searchad_gfa
     def test_campaign_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 성과형 디스플레이 광고 성과 보고서를 다운로드하는 테스트."""
         from linkmerce.core.searchad.gfa.report.extract import PerformanceReport
@@ -1351,7 +1404,6 @@ class TestSearchAdGfa:
             progress = _configs.get("progress", True),
         )
 
-    @pytest.mark.searchad_gfa
     def test_creative_report(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 성과형 디스플레이 광고 성과 보고서를 다운로드하는 테스트."""
         from linkmerce.core.searchad.gfa.report.extract import PerformanceReport
@@ -1375,6 +1427,7 @@ class TestSearchAdGfa:
 ######################## SmartStore API ###########################
 ###################################################################
 
+@pytest.mark.smartstore_api
 class TestSmartstoreApi:
     """스마트스토어 커머스 API 데이터 추출 테스트.
     - smartstore.api.product.Product
@@ -1391,7 +1444,6 @@ class TestSmartstoreApi:
             "client_secret": _credentials["client_secret"],
         }
 
-    @pytest.mark.smartstore_api
     def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 커머스 API로 상품 목록 조회 결과를 수집하는 테스트."""
         from linkmerce.core.smartstore.api.product.extract import Product
@@ -1409,7 +1461,6 @@ class TestSmartstoreApi:
             max_retries = _configs.get("max_retries", 5),
         )
 
-    @pytest.mark.smartstore_api
     def test_option(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 커머스 API로 채널 상품 조회 결과를 수집하는 테스트."""
         from linkmerce.core.smartstore.api.product.extract import Option
@@ -1422,7 +1473,6 @@ class TestSmartstoreApi:
             max_retries = _configs.get("max_retries", 5),
         )
 
-    @pytest.mark.smartstore_api
     def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 커머스 API로 상품 주문 내역 조회 결과를 수집하는 테스트."""
         from linkmerce.core.smartstore.api.order.extract import Order
@@ -1441,7 +1491,6 @@ class TestSmartstoreApi:
             max_retries = _configs.get("max_retries", 5),
         )
 
-    @pytest.mark.smartstore_api
     def test_order_status(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 커머스 API로 변경 상품 주문 내역 조회 결과를 수집하는 테스트."""
         from linkmerce.core.smartstore.api.order.extract import OrderStatus
@@ -1456,7 +1505,6 @@ class TestSmartstoreApi:
             max_retries = _configs.get("max_retries", 5),
         )
 
-    @pytest.mark.smartstore_api
     def test_settlement(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, days_ago: Callable):
         """네이버 커머스 API로 건별 정산 내역 조회 결과를 수집하는 테스트."""
         from linkmerce.core.smartstore.api.settlement.extract import Settlement
@@ -1478,6 +1526,7 @@ class TestSmartstoreApi:
 ###################### SmartStore Bizdata API #####################
 ###################################################################
 
+@pytest.mark.ss_bizdata_api
 class TestSmartstoreBizdataApi:
     """스마트스토어 API데이터솔루션(통계) 데이터 추출 테스트.
     - smartstore.api.bizdata.MarketingChannel
@@ -1493,7 +1542,6 @@ class TestSmartstoreBizdataApi:
     def channel_seq(self, reader: YamlReader) -> int | str:
         return reader("smartstore.bizdata.0")["channel_seq"]
 
-    @pytest.mark.ss_bizdata_api
     def test_marketing_channel(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 커머스 API로 사용자 정의 채널 상세 데이터를 조회하는 테스트."""
         from linkmerce.core.smartstore.api.bizdata.extract import MarketingChannel
@@ -1513,6 +1561,7 @@ class TestSmartstoreBizdataApi:
 ##################### Shopping Partner Center #####################
 ###################################################################
 
+@pytest.mark.ss_hcenter
 class TestShoppingPartnerCenter:
     """네이버 쇼핑파트너센터 데이터 추출 테스트.
     - smartstore.hcenter.catalog.BrandCatalog
@@ -1529,7 +1578,6 @@ class TestShoppingPartnerCenter:
     def cookies(self, reader: YamlReader) -> str:
         return reader("smartstore.hcenter")["cookies"]
 
-    @pytest.mark.ss_hcenter
     def test_brand_catalog(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 브랜드 카탈로그 목록을 조회하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.extract import BrandCatalog
@@ -1545,7 +1593,6 @@ class TestShoppingPartnerCenter:
             page_size = _configs.get("page_size", 10),
         )
 
-    @pytest.mark.ss_hcenter
     def test_brand_product(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 브랜드 상품 목록을 조회하는 테스트."""
         from linkmerce.core.smartstore.hcenter.catalog.extract import BrandProduct
@@ -1562,7 +1609,6 @@ class TestShoppingPartnerCenter:
             page_size = _configs.get("page_size", 10),
         )
 
-    @pytest.mark.ss_hcenter
     def test_page_view_by_device(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 브랜드 스토어의 일별/기기별 방문 통계 데이터를 조회하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByDevice
@@ -1576,7 +1622,6 @@ class TestShoppingPartnerCenter:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ss_hcenter
     def test_page_view_by_url(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 브랜드 스토어의 일별/URL별 방문 통계 데이터를 조회하는 테스트."""
         from linkmerce.core.smartstore.hcenter.pageview.extract import PageViewByUrl
@@ -1590,7 +1635,6 @@ class TestShoppingPartnerCenter:
             end_date = _configs.get("end_date", ":start_date:"),
         )
 
-    @pytest.mark.ss_hcenter
     def test_store_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 스토어의 매출 데이터를 조회하는 공통 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.extract import StoreSales
@@ -1607,7 +1651,6 @@ class TestShoppingPartnerCenter:
             page_size = _configs.get("page_size", 1000),
         )
 
-    @pytest.mark.ss_hcenter
     def test_category_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 스토어의 카테고리별 매출 데이터를 조회하는 공통 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.extract import CategorySales
@@ -1624,7 +1667,6 @@ class TestShoppingPartnerCenter:
             page_size = _configs.get("page_size", 1000),
         )
 
-    @pytest.mark.ss_hcenter
     def test_product_sales(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """네이버 스토어의 상품별 매출 데이터를 조회하는 공통 테스트."""
         from linkmerce.core.smartstore.hcenter.sales.extract import ProductSales

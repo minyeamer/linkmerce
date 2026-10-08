@@ -109,6 +109,32 @@ coupang/
 │       │       └── ProductAdReport(DuckDBTransformer)::transform >> excel
 │       └── NewCustomerAdReport(_AdReport)::extract
 │               └── NewCustomerAdReport(DuckDBTransformer)::transform >> excel
+├── api/
+│   ├─x CoupangApi(Extractor)::common
+│   ├─x CoupangTestApi(CoupangApi)::common
+│   ├── order/
+│   │   ├── Order(CoupangApi)::extract
+│   │   │   └── Order(DuckDBTransformer)::transform
+│   │   │       ├── OrderParser(JsonTransformer)::transform
+│   │   │       └── OrderItemParser(OrderParser)::transform
+│   │   └── OrderDetail(CoupangApi)::extract
+│   │       └── OrderDetail(Order)::transform
+│   ├── product/
+│   │   ├── Product(CoupangApi)::extract
+│   │   │   ├── Product(DuckDBTransformer)::transform >> json
+│   │   │   └── ProductItem(DuckDBTransformer)::transform
+│   │   │       └── ProducItemParser(JsonTransformer)::transform
+│   │   ├── ProductDetail(CoupangApi)::extract
+│   │   │   └── ProductDetail(DuckDBTransformer)::transform
+│   │   │       └── DetailedItemParser(JsonTransformer)::transform
+│   │   └── Inventory(CoupangApi)::extract
+│   │       └── Inventory(DuckDBTransformer)::transform >> json
+│   └── rocket_growth/
+│       ├── Inventory(CoupangApi)::extract
+│       │   └── Inventory(DuckDBTransformer)::transform >> json
+│       └── Order(CoupangApi)::extract
+│           └── Order(DuckDBTransformer)::transform
+│               └── OrderParser(JsonTransformer)::transform
 └── wing/
     ├─x CoupangWing(Extractor)::common
     ├─x CoupangSupplierHub(CoupangWing)::common

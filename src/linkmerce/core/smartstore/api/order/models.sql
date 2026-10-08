@@ -185,7 +185,7 @@ SELECT
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS first_payment_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS last_payment_dt
 FROM {{ rows }}
-QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.itemNo) = 1
+QUALIFY ROW_NUMBER() OVER (PARTITION BY content.productOrder.itemNo ORDER BY content.order.paymentDate DESC) = 1
 ON CONFLICT DO UPDATE SET
     product_id = COALESCE(EXCLUDED.product_id, product_id)
   , channel_seq = COALESCE(EXCLUDED.channel_seq, channel_seq)
