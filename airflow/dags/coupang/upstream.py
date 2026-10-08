@@ -17,9 +17,7 @@
 ## 트리거 대상 Dag
 1. 'coupang_adreport' (광고)
 2. 'coupang_campaign' (광고)
-3. 'coupang_inventory' (Wing)
-4. 'coupang_product_option' (Wing)
-5. 'coupang_rocket_sales' (Wing)
+3. 'coupang_rocket_sales' (Wing)
 
 ## 적재 후처리
 실행된 SubDag 중 dbt 후속 모델이 연결된 대상만 결과 파티션을 수집한 뒤 dbt 모델을 실행한다.
@@ -53,7 +51,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.exceptions import AirflowException
-from airflow.timetables.trigger import MultipleCronTriggerTimetable
 from cosmos import DbtTaskGroup
 from datetime import timedelta
 import pendulum
@@ -61,18 +58,14 @@ import pendulum
 
 with DAG(
     dag_id = "coupang",
-    schedule = MultipleCronTriggerTimetable(
-        "0 9,11,23 * * *",
-        "30 17 * * *",
-        timezone = "Asia/Seoul",
-    ),
+    schedule = "0 9,23 * * *",
     start_date = pendulum.datetime(2026, 4, 9, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(hours=1), # Airflow 액세스 토큰의 기본 유효 기간만큼 동작
     catchup = False,
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:coupang-wing", "platform:coupang-ads", "objective:login",
-        "objective:ads", "objective:sales", "objective:product", "credentials:userid",
+        "objective:ads", "objective:sales", "credentials:userid",
         "schedule:daily", "time:morning", "time:afternoon", "time:night",
         "plugin:playwright", "plugin:rest-api", "plugin:dbt"
     ],
@@ -88,8 +81,8 @@ with DAG(
 
     WING_DAGS = [
         ("coupang_rocket_sales", 10), # 평균 15초 소요
-        ("coupang_inventory", 10), # 평균 10초 소요
-        ("coupang_product_option", 30), # 상품 수에 비례 (20초 ~ 2분+)
+        # ("coupang_rocket_inventory", 10), # 평균 10초 소요
+        # ("coupang_product", 30), # 상품 수에 비례 (20초 ~ 2분+)
     ]
 
     ADS_DAGS = [
@@ -99,9 +92,7 @@ with DAG(
 
     SCHEDULES = {
         9: ["coupang_rocket_sales", "coupang_adreport"],
-        11: ["coupang_inventory"],
-        17: ["coupang_inventory"],
-        23: ["coupang_product_option", "coupang_campaign"],
+        23: ["coupang_campaign"],
     }
 
     def filter_subdag_ids(vendor_id: str, filters: dict, wing: bool = True, ads: bool = True) -> list[tuple[str, int]]:
@@ -160,7 +151,7 @@ with DAG(
             if not (isinstance(creds, dict) and ("vendor_id" in creds)):
                 continue
             vendor_id = creds["vendor_id"]
-            wing, ads = creds.get("wing", True), creds.get("ad", True)
+            wing, ads = creds.get("wing", True), creds.get("ads", True)
             subdag_ids = filter_subdag_ids(vendor_id, filters, wing, ads)
 
             if not subdag_ids:
@@ -275,36 +266,7 @@ with DAG(
             ds_task_id = "generate_dbt_date_range__rocket_sales",
         )
 
-    # 2. subdag_id = "coupang_inventory"
-
-    @task(task_id="generate_dbt_date_range__inventory", trigger_rule="all_done")
-    def generate_dbt_date_range__inventory(results: dict) -> dict:
-        return generate_dbt_date_range(results, subdag_id="coupang_inventory")
-
-    @task.short_circuit(task_id="prepare_dbt_run__inventory", ignore_downstream_trigger_rules=False)
-    def prepare_dbt_run__inventory(ti: TaskInstance, **kwargs) -> bool:
-        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range__inventory")
-        if isinstance(date_range, dict):
-            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
-        return False
-
-    def dbt_bigquery_coupang_inventory_group() -> DbtTaskGroup:
-        from dbt_cosmos import dynamic_mapping_dbt_bigquery
-        return dynamic_mapping_dbt_bigquery(
-            group_id = "dbt_bigquery_coupang_inventory",
-            selector = "coupang_inventory",
-            ds_task_id = "generate_dbt_date_range__inventory",
-        )
-
-    def dbt_postgres_coupang_inventory_group() -> DbtTaskGroup:
-        from dbt_cosmos import dynamic_mapping_dbt_postgres
-        return dynamic_mapping_dbt_postgres(
-            group_id = "dbt_postgres_coupang_inventory",
-            selector = "coupang_inventory",
-            ds_task_id = "generate_dbt_date_range__inventory",
-        )
-
-    # 4. subdag_id = "coupang_adreport"
+    # 2. subdag_id = "coupang_adreport"
 
     @task(task_id="generate_dbt_date_range__adreport", trigger_rule="all_done")
     def generate_dbt_date_range__adreport(results: dict) -> dict:
@@ -333,7 +295,7 @@ with DAG(
             ds_task_id = "generate_dbt_date_range__adreport",
         )
 
-    # 5. subdag_id = "coupang_campaign"
+    # 3. subdag_id = "coupang_campaign"
 
     @task(task_id="generate_dbt_date_range__campaign", trigger_rule="all_done")
     def generate_dbt_date_range__campaign(results: dict) -> dict:
@@ -372,21 +334,14 @@ with DAG(
 
     dbt_date_range__rocket_sales >> prepare_dbt_run__rocket_sales() >> dbt_run__rocket_sales
 
-    # 2. subdag_id = "coupang_inventory"
-
-    dbt_date_range__inventory = generate_dbt_date_range__inventory(etl_results)
-    dbt_run__inventory = [dbt_bigquery_coupang_inventory_group(), dbt_postgres_coupang_inventory_group()]
-
-    dbt_date_range__inventory >> prepare_dbt_run__inventory() >> dbt_run__inventory
-
-    # 4. subdag_id = "coupang_adreport"
+    # 2. subdag_id = "coupang_adreport"
 
     dbt_date_range__adreport = generate_dbt_date_range__adreport(etl_results)
     dbt_run__adreport = [dbt_bigquery_coupang_adreport_group(), dbt_postgres_coupang_adreport_group()]
 
     dbt_date_range__adreport >> prepare_dbt_run__adreport() >> dbt_run__adreport
 
-    # 5. subdag_id = "coupang_campaign"
+    # 3. subdag_id = "coupang_campaign"
 
     dbt_date_range__campaign = generate_dbt_date_range__campaign(etl_results)
     dbt_run__campaign = [dbt_bigquery_coupang_campaign_group(), dbt_postgres_coupang_campaign_group()]
@@ -407,5 +362,5 @@ with DAG(
         from dbt_cosmos import raise_on_failure
         raise_on_failure(ti)
 
-    dbt_runs = [*dbt_run__rocket_sales, *dbt_run__inventory, *dbt_run__adreport, *dbt_run__campaign]
+    dbt_runs = [*dbt_run__rocket_sales, *dbt_run__adreport, *dbt_run__campaign]
     dbt_runs >> finalize_dag_run(etl_results)

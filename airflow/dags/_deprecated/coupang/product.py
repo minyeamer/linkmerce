@@ -1,7 +1,9 @@
 """
 # 쿠팡 상품 옵션 ETL 파이프라인
 
-> 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+> 안내1) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+
+> 안내2) 요청 방식을 API로 변경하면서 기존 로그인 방식 사용 중지 (~ v1.0.16)
 
 ## 인증(Credentials)
 'coupang' Dag에서 Playwright 브라우저로 쿠팡 Wing 로그인 후 쿠키를 추출한다.
@@ -32,7 +34,7 @@ import pendulum
 
 
 with DAG(
-    dag_id = "coupang_product_option",
+    dag_id = "coupang_product",
     schedule = None, # `coupang` Dag 실행 후 트리거 (0 23 * * *)
     start_date = pendulum.datetime(2025, 11, 4, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
@@ -45,7 +47,7 @@ with DAG(
     ],
 ) as dag:
 
-    PATH = "coupang.wing.product_option"
+    PATH = "coupang.wing.product"
     RETRY_OPTIONS = {"retries": 3, "retry_delay": timedelta(seconds=10)}
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
@@ -61,8 +63,8 @@ with DAG(
         }
 
 
-    @task(task_id="etl_coupang_product_option", map_index_template="{{ credentials['vendor_id'] }}", **RETRY_OPTIONS)
-    def etl_coupang_product_option(credentials: dict, configs: dict, **kwargs) -> dict:
+    @task(task_id="etl_coupang_product", map_index_template="{{ credentials['vendor_id'] }}", **RETRY_OPTIONS)
+    def etl_coupang_product(credentials: dict, configs: dict, **kwargs) -> dict:
         return main(**credentials, **configs)
 
     def main(
@@ -144,7 +146,7 @@ with DAG(
             """).strip()
 
 
-    etl_coupang_product_option(
+    etl_coupang_product(
         configs = read_configs(),
         credentials = read_credentials(),
     )

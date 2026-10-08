@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
     from typing import IO, Literal, Union
     import pendulum
     import requests
@@ -418,3 +419,77 @@ def get_task_xcom_values(
         except Exception:
             continue
     return values
+
+
+def get_last_task_end_ts(
+        dag_ids: list[str],
+        task_ids: list[str],
+        data_interval_end: pendulum.DateTime,
+        rendered_map_index: str = str(),
+        states: list[str] = ["success"],
+    ) -> pendulum.DateTime:
+    """직전에 실행된 Dag run에서 `rendered_map_index`와 일치하는 Task Instance의 실행 시간을 가져온다."""
+    from airflow_api import authenticate, list_dagruns, list_task_instances, get_xcom_value
+    common = {
+        "access_token": authenticate(),
+        "dag_ids": dag_ids,
+        "logical_date_gte": data_interval_end.subtract(days=1),
+        "logical_date_lte": data_interval_end,
+        "states": states,
+        "page_limit": 100,
+    }
+    ti_params = {"task_ids": task_ids, "order_by": "-start_date"}
+
+    for dag_run in list_dagruns(**common, order_by="-logical_date"):
+        for ti in list_task_instances(**common, dag_run_ids=[dag_run["dag_run_id"]], **ti_params):
+            if (not rendered_map_index) or (ti["rendered_map_index"] == rendered_map_index):
+                try:
+                    result = get_xcom_value(
+                        dag_id = ti["dag_id"],
+                        run_id = ti["dag_run_id"],
+                        task_id = ti["task_id"],
+                        access_token = common["access_token"],
+                        map_index = ti["map_index"],
+                    )
+                    end_datetime = pendulum.parse(result["params"]["end_datetime"])
+                    return end_datetime.in_timezone("Asia/Seoul").add(microseconds=1000)
+                except (KeyError, TypeError, ValueError):
+                    continue
+
+    object = f" for map index '{rendered_map_index}'" if rendered_map_index else str()
+    raise LookupError(f"No successful task result with end_datetime found{object}")
+
+
+def get_next_datetime_range(
+        dag_run: DagRun,
+        etl_task_id: str,
+        data_interval_end: pendulum.DateTime,
+        rendered_map_index: str = str(),
+        states: list[str] = ["success"],
+        format: str = "YYYY-MM-DDTHH:mm:ss.SSSZ",
+        timedelta: dict = {"microseconds": 1000},
+    ) -> dict[str, str]:
+    """직전에 실행된 Dag run의 종료 시각을 기준으로 다음 조회 기간을 계산해 반환한다."""
+    conf = (dag_run.conf or dict()).get("channels") or dict()
+    channel_conf = conf.get(rendered_map_index) or conf.get('*') or dict()
+
+    if channel_conf.get("skip") is True:
+        from airflow.sdk.exceptions import AirflowSkipException
+        object = f" for map index '{rendered_map_index}' " if rendered_map_index else str()
+        raise AirflowSkipException(f"Task skipped{object} because the 'skip' flag is enabled")
+
+    if "start_datetime" in channel_conf:
+        start_datetime = pendulum.parse(channel_conf["start_datetime"]).in_timezone("Asia/Seoul")
+    else:
+        start_datetime = get_last_task_end_ts(
+            [dag_run.dag_id], [etl_task_id], data_interval_end, rendered_map_index, states)
+
+    if "end_datetime" in channel_conf:
+        end_datetime = pendulum.parse(channel_conf["end_datetime"]).in_timezone("Asia/Seoul")
+    else:
+        end_datetime = data_interval_end.subtract(**timedelta)
+
+    return {
+        "start_datetime": start_datetime.format(format),
+        "end_datetime": end_datetime.format(format),
+    }

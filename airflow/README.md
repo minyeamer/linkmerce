@@ -225,18 +225,18 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
-| `cj_eflexs_stock` | 매일 `09:00`, `17:00` | CJ대한통운 eFLEXs 상세재고조회 ETL |
+| `cj_eflexs_stock` | 매일 `11:00`, `17:30` | CJ대한통운 eFLEXs 상세재고조회 ETL |
 | `cj_loisparcel_invoice` | 매일 `02:00` | CJ대한통운 로이스파셀 기업고객일별배송상세 ETL |
 
 ### 쿠팡 (coupang)
 
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
-| `coupang` | 매일 `09:00`, `17:00`, `23:00` | 판매자별 로그인 후 시간대별 downstream Dag을 트리거하는 통합 오케스트레이터 |
+| `coupang` | 매일 `09:00`, `23:00` | 판매자별 로그인 후 시간대별 downstream Dag을 트리거하는 통합 오케스트레이터 |
 | `coupang_adreport` | 트리거 전용 | 쿠팡 광고 보고서 ETL |
 | `coupang_campaign` | 트리거 전용 | 쿠팡 광고 캠페인/광고그룹/소재 ETL |
-| `coupang_inventory` | 트리거 전용 | 쿠팡 로켓그로스 재고현황 ETL |
-| `coupang_product_option` | 트리거 전용 | 쿠팡 상품 옵션 ETL |
+| `coupang_product` | 평일 `23:00` | 쿠팡 상품 옵션 ETL |
+| `coupang_rocket_inventory` | 매일 `11:00`, `17:30` | 쿠팡 로켓그로스 재고현황 ETL |
 | `coupang_rocket_sales` | 트리거 전용 | 쿠팡 로켓그로스 정산 리포트 ETL |
 
 ### 이베이 (ebay)
@@ -251,8 +251,8 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
-| `ecount_inventory` | 매일 `09:00`, `17:00` | 이카운트 재고현황 ETL |
-| `ecount_product` | 평일 `08:50`, `16:50` | 이카운트 품목등록 리스트 ETL |
+| `ecount_inventory` | 매일 `11:00`, `17:30` | 이카운트 재고현황 ETL |
+| `ecount_product` | 평일 `10:50`, `17:20` | 이카운트 품목등록 리스트 ETL |
 
 ### 구글 시트 (gsheets)
 
@@ -360,7 +360,7 @@ objective: [
     product, rank, sales, search, statistics, stock
 ]
 platform: [
-    cj-eflexs, cj-loisparcel, coupang-ads, coupang-wing, dable,
+    cj-eflexs, cj-loisparcel, coupang-ads, coupang-api, coupang-wing, dable,
     auction-ad, gmarket-adc, esmplus, ecount, google-ads, gsheets,
     meta-ads, naver-hcenter, naver-main, naver-shop, postgres,
     sabangnet, searchad, smartstore
@@ -399,6 +399,8 @@ write: [ append, overwrite, merge, file ]
 - `trigger_dagrun`: Dag ID에 대한 Dag 실행을 트리거
 - `wait_for_completion`: Dag run ID에 대한 Dag 실행 대기
 - `get_xcom_value`: Dag run의 특정 Task에서 XCom 값을 조회
+- `get_last_task_end_ts`: 직전에 실행된 Dag run의 특정 Task에서 실행 시간을 조회
+- `get_next_datetime_range`: 직전에 실행된 Dag run의 종료 시간을 기준으로 다음 조회 기간 계산
 
 ### `dbt_cosmos.py`
 

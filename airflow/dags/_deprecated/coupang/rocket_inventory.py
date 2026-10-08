@@ -1,7 +1,9 @@
 """
 # 쿠팡 로켓그로스 재고 ETL 파이프라인
 
-> 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+> 안내1) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+
+> 안내2) 요청 방식을 API로 변경하면서 기존 로그인 방식 사용 중지 (~ v1.0.16)
 
 ## 인증(Credentials)
 'coupang' Dag에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
@@ -24,7 +26,7 @@ import pendulum
 
 
 with DAG(
-    dag_id = "coupang_inventory",
+    dag_id = "coupang_rocket_inventory",
     schedule = None, # `coupang` Dag 실행 후 트리거 ["0 11 * * *", "30 17 * * *"]
     start_date = pendulum.datetime(2026, 5, 27, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
@@ -53,8 +55,8 @@ with DAG(
         }
 
 
-    @task(task_id="etl_coupang_inventory", map_index_template="{{ credentials['vendor_id'] }}", **RETRY_OPTIONS)
-    def etl_coupang_inventory(credentials: dict, configs: dict, **kwargs) -> dict:
+    @task(task_id="etl_coupang_rocket_inventory", map_index_template="{{ credentials['vendor_id'] }}", **RETRY_OPTIONS)
+    def etl_coupang_rocket_inventory(credentials: dict, configs: dict, **kwargs) -> dict:
         return main(**credentials, **configs)
 
     def main(
@@ -93,7 +95,7 @@ with DAG(
             }
 
 
-    etl_coupang_inventory(
+    etl_coupang_rocket_inventory(
         configs = read_configs(),
         credentials = read_credentials(),
     )

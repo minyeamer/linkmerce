@@ -91,7 +91,7 @@ class DetailedItemParser(JsonTransformer):
     fields = [
         "sellerProductId", "sellerProductName", "displayCategoryCode", {"categoryId": None},
         {"productId": None}, "vendorId", "saleStartedAt", "saleEndedAt", "displayProductName",
-        "brand", "statusName", "deliveryCharge", "manufacture", "businessType",
+        "brand", "statusName", {"deliveryCharge": None}, "manufacture", "businessType",
         {"item": [
             "sellerProductItemId", "vendorItemId", "itemId", "itemName",
             "originalPrice", "salePrice", "barcode", "images.0.cdnPath"]}

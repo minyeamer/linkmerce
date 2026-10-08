@@ -73,10 +73,17 @@ with DAG(
 
     @task(task_id="etl_smartstore_order_status", map_index_template="{{ credentials['channel_seq'] }}")
     def etl_smartstore_order_status(credentials: dict, configs: dict, dag_run: DagRun, **kwargs) -> dict:
+        from airflow_api import get_next_datetime_range
         from airflow_utils import get_datetime
-        from smartstore_utils import get_datetime_range
-        args = (str(credentials["channel_seq"]), dag_run, "etl_smartstore_order_status", get_datetime(kwargs))
-        datetime_range = get_datetime_range(*args)
+        datetime_range = get_next_datetime_range(
+            dag_run = dag_run,
+            etl_task_id = "etl_smartstore_order_status",
+            data_interval_end = get_datetime(kwargs),
+            rendered_map_index = str(credentials["channel_seq"]),
+            states = ["success"],
+            format = "YYYY-MM-DDTHH:mm:ss.SSSZ",
+            timedelta = { "microseconds": 1000 },
+        )
         return main(**credentials, **configs, **datetime_range)
 
     def main(
@@ -118,7 +125,7 @@ with DAG(
                     "end_datetime": end_datetime,
                     "range_types": ["PAYED_DATETIME", "PURCHASE_DECIDED_DATETIME", "CLAIM_COMPLETED_DATETIME"],
                 },
-                "results": merge_table_from_duckdb(
+                "result": merge_table_from_duckdb(
                     connection = conn,
                     source_table = source,
                     target_table = tables["table"],

@@ -248,31 +248,37 @@ CREATE TABLE IF NOT EXISTS cj_loisparcel.invoice (
 -- coupang (쿠팡 Wing)
 -- ============================================================
 
--- [쿠팡 Wing 상품]
-CREATE TABLE IF NOT EXISTS coupang.option (
+-- [쿠팡 마켓플레이스/로켓그로스 상품]
+CREATE TABLE IF NOT EXISTS coupang.product (
     vendor_inventory_id BIGINT NOT NULL -- 등록상품ID
-  , vendor_inventory_item_id BIGINT NOT NULL -- 등록옵션ID
-  , product_id BIGINT NOT NULL -- 노출상품ID
-  , option_id BIGINT NOT NULL -- 노출옵션ID
-  , item_id BIGINT NOT NULL -- 옵션ID
-  , barcode TEXT -- 바코드
+  , product_id BIGINT -- 노출상품ID
   , vendor_id TEXT NOT NULL -- 업체코드
   , product_name TEXT -- 등록상품명
-  , option_name TEXT -- 등록옵션명
   , display_category_id INTEGER -- 노출카테고리코드
   , category_id INTEGER -- 등록카테고리코드
-  , category_name TEXT -- 카테고리
   , brand_name TEXT -- 브랜드
   , maker_name TEXT -- 제조사
   , product_status SMALLINT -- 판매상태
-  , is_deleted BOOLEAN -- 삭제여부
+  , delivery_fee INTEGER -- 배송비
+  , sales_started_at TIMESTAMP -- 판매시작일시
+  , sales_ended_at TIMESTAMP -- 판매종료일시
+  , created_at TIMESTAMP -- 판매등록일시
+  , PRIMARY KEY (vendor_inventory_id)
+);
+
+-- [쿠팡 마켓플레이스/로켓그로스 옵션]
+CREATE TABLE IF NOT EXISTS coupang.item (
+    vendor_inventory_id BIGINT NOT NULL -- 등록상품ID
+  , vendor_inventory_item_id BIGINT NOT NULL -- 등록옵션ID
+  , product_id BIGINT -- 노출상품ID
+  , option_id BIGINT -- 노출옵션ID
+  , item_id BIGINT -- 옵션ID
+  , vendor_id TEXT NOT NULL -- 업체코드
+  , option_name TEXT -- 등록옵션명
+  , barcode TEXT -- 바코드
+  , image_url TEXT -- 이미지주소
   , price INTEGER -- 판매가
   , sales_price INTEGER -- 할인가
-  , delivery_fee INTEGER -- 배송비
-  , order_quantity INTEGER -- 판매량
-  , stock_quantity INTEGER -- 재고수량
-  , register_dt TIMESTAMP -- 생성일시
-  , modify_dt TIMESTAMP -- 수정일시
   , PRIMARY KEY (vendor_inventory_item_id)
 );
 
@@ -379,20 +385,11 @@ CREATE INDEX IF NOT EXISTS cpa_report__creative_idx ON coupang_ads.report_nca (c
 
 -- [쿠팡 로켓그로스 재고현황]
 CREATE TABLE IF NOT EXISTS coupang_rfm.inventory (
-    vendor_inventory_id BIGINT NOT NULL -- 등록상품ID
-  , vendor_inventory_item_id BIGINT -- 등록옵션ID
-  , product_id BIGINT NOT NULL -- 노출상품ID
-  , option_id BIGINT NOT NULL -- 노출옵션ID
+    option_id BIGINT NOT NULL -- 노출옵션ID
   , sku_id BIGINT -- SKU ID
   , vendor_id TEXT NOT NULL -- 업체코드
   , stock_quantity INTEGER -- 판매가능재고
-  , inprogress_quantity INTEGER -- 입고예정재고
-  , sales_amount_7d INTEGER -- 최근매출 (지난7일)
-  , sales_amount_30d INTEGER -- 최근매출 (지난30일)
-  , unit_sold_7d INTEGER -- 최근판매수량 (지난7일)
   , unit_sold_30d INTEGER -- 최근판매수량 (지난30일)
-  , days_of_cover INTEGER -- 재고예상소진일
-  , fee_amount INTEGER -- 이번달 누적보관료
   , updated_at TIMESTAMP NOT NULL -- 갱신일시
   , PRIMARY KEY (updated_at, option_id)
 ) PARTITION BY RANGE (updated_at);
