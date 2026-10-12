@@ -64,7 +64,7 @@ class SmartstoreApi(Extractor):
         }
 
     def request_json_until_success(self, max_retries: int = 5, **kwargs) -> dict:
-        """동시 요청 제한이 발생할 경우에 대비해 오류가 캐치하고 API 요청을 재시도 한다."""
+        """동시 요청 제한이 발생할 경우에 대비해 오류를 캐치하고 API 요청을 재시도 한다."""
         session = self.get_session()
         message = self.build_request_message(**kwargs)
         for retry_count in range(1, max_retries+1):

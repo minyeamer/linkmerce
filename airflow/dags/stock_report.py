@@ -7,7 +7,7 @@
 오전/오후 시간대에 트리거된 상위 3개의 Dag run 상태가 전부 성공할 때까지 실행 대기한다.
 1. cj_eflexs_stock
 2. ecount_inventory
-3. coupang_inventory
+3. coupang_rocket_inventory
 
 ## 추출(Extract)
 BigQuery 테이블에 업로드된 3가지 플랫폼의 재고 내역을 테이블 함수로 병합해 가져온다.
@@ -43,7 +43,7 @@ with DAG(
     catchup = False,
     doc_md = __doc__,
     tags = [
-        "priority:high", "platform:ecount", "platform:cj-eflexs", "platform:coupang-wing",
+        "priority:high", "platform:ecount", "platform:cj-eflexs", "platform:coupang-api",
         "objective:alert", "objective:stock", "credentials:service-account",
         "schedule:weekdays", "time:morning", "time:afternoon", "provider:slack"
     ],
@@ -51,7 +51,6 @@ with DAG(
 
     PATH = "core.stock_report"
     AM_PM_CUTOFF_HOUR = 17
-    COUPANG_CREDENTIALS = "coupang.vendor"
 
     SENSOR_POKE_INTERVAL = 30
     SENSOR_TIMEOUT = int(timedelta(minutes=59).total_seconds())
@@ -87,17 +86,12 @@ with DAG(
         @task(task_id="init_sensor_states")
         def init_sensor_states(**kwargs) -> dict:
             """KST 실행 시각을 기준으로 오전/오후를 구분하고, 재고 수집 이벤트 범위를 계산한다."""
-            from airflow_utils import get_datetime, read_credentials
+            from airflow_utils import get_datetime
 
             # `AM_PM_CUTOFF_HOUR`을 기준으로 실행 시간이 오전/오후인지 구분한다.
             datetime = get_datetime(kwargs)
             start_of_day = datetime.start_of("day")
             afternoon_start = start_of_day.add(hours=AM_PM_CUTOFF_HOUR)
-
-            # 쿠팡 업체 수를 집계하여 생성될 Dag run 개수를 미리 예측한다.
-            credentials = read_credentials(COUPANG_CREDENTIALS)
-            num_vendors = sum([1 for credential in credentials
-                if isinstance(credential, dict) and credential.get("vendor_id")])
 
             if datetime < afternoon_start:
                 return {
@@ -105,7 +99,6 @@ with DAG(
                         "datetime": datetime.isoformat(),
                         "start_time": start_of_day.isoformat(),
                         "end_time": afternoon_start.subtract(microseconds=1).isoformat(),
-                        "expected_coupang_dag_runs": num_vendors,
                     },
                     "downstream": {
                         "report_date": datetime.format("YYYY-MM-DD"),
@@ -118,7 +111,6 @@ with DAG(
                         "datetime": datetime.isoformat(),
                         "start_time": afternoon_start.isoformat(),
                         "end_time": datetime.end_of("day").isoformat(),
-                        "expected_coupang_dag_runs": num_vendors,
                     },
                     "downstream": {
                         "report_date": datetime.format("YYYY-MM-DD"),
@@ -160,48 +152,9 @@ with DAG(
                     logger.info(f"[{dag_id}] Current state: {state}")
                     return False
 
-            def _wait_for_coupang_task(upstream_dag_id: str, downstream_dag_id: str) -> bool:
-                """이벤트 범위 내 `ecount_inventory` Dag 실행 내역을 조회하고 다음 조건에 따라 순차적으로 분기한다.
-                1. Dag(upstream) run이 없으면 INFO 로그와 함께 `False`를 반환한다.
-                2. 성공한 Dag(downstream) runs 개수가 `credentials`의 `vendor_id` 개수 이상이면 `True`를 반환한다.
-                3. 실패한 Dag(downstream) run이 있다면 `AirflowException`을 발생시킨다.
-                4. Dag(upstream) run이 이미 종료되었다면 `AirflowException`을 발생시킨다.
-                5. 그 외 경우는 `False`를 반환한다.
-                """
-                from linkmerce.utils.regex import regexp_extract
-                if not (upstream_dagruns := list_dagruns(dag_ids=[upstream_dag_id], **params, **latest)):
-                    logger.info(f"[{upstream_dag_id}] Waiting for Dag run")
-                    return False
-
-                success_ids, failed_ids = set(), set()
-                for dag_run in list_dagruns(dag_ids=[downstream_dag_id], **params):
-                    if not (i := regexp_extract(r"^expanded__(\d+)", dag_run.get("dag_run_id") or str())):
-                        continue
-                    dag_id_i, state = f"{downstream_dag_id}[{i}]", dag_run.get("state")
-
-                    if state == "success":
-                        success_ids.add(i)
-                    elif state == "failed":
-                        failed_ids.add(i)
-                    else:
-                        logger.info(f"[{dag_id_i}] Current state: {state}")
-
-                if len(success_ids) >= states["expected_coupang_dag_runs"]:
-                    return True
-                elif len(failed_ids) > 0:
-                    raise AirflowException(f"'{dag_id_i}' failed before 'stock_report' could start")
-
-                count = "{}/{}".format(len(success_ids), states["expected_coupang_dag_runs"])
-                if upstream_dagruns[0].get("state") in ("success", "failed"):
-                    message = f"[{upstream_dag_id}] Finished with only {count} '{downstream_dag_id}' runs completed"
-                    raise AirflowException(message)
-
-                logger.info(f"[{upstream_dag_id}] Waiting for '{downstream_dag_id}' runs: {count} completed")
-                return False
-
             return (_wait_for_task("cj_eflexs_stock")
                 and _wait_for_task("ecount_inventory")
-                and _wait_for_coupang_task("coupang", "coupang_inventory"))
+                and _wait_for_task("coupang_rocket_inventory"))
 
         execute_sensor = PythonSensor(
             task_id = "wait_for_upstreams",

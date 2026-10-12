@@ -299,6 +299,7 @@ def product_option(
     from linkmerce.core.coupang.api.product.extract import ProductDetail
     from linkmerce.core.coupang.api.product.transform import ProductDetail as T2
 
+    query = f"SELECT DISTINCT vendor_inventory_id FROM {product_table} WHERE vendor_id = '{vendor_id}'"
     options = ProductDetail(**prepare_duckdb_extract(
         T2, connection, extract_options[OPTION], transform_options[OPTION], return_type,
         configs = _get_api_configs(access_key, secret_key, vendor_id),
@@ -308,16 +309,17 @@ def product_option(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(connection.fetch_values(f"SELECT DISTINCT vendor_inventory_id FROM {product_table}", axis=1))
+    )).extract(connection.fetch_values(query, axis=1))
 
     if return_type == "raw":
         return {"product": products, "option": options}
 
     table = merged_table or "coupang_product_option"
+    keyword = f"INSERT INTO {table}" if connection.table_exists(table) else f"CREATE TABLE {table} AS"
 
     from textwrap import dedent
     connection.execute(
-        dedent(f"""CREATE OR REPLACE TABLE {table} AS
+        dedent(f"""{keyword}
         SELECT
             O.vendor_inventory_id,
             O.vendor_inventory_item_id,
@@ -342,9 +344,13 @@ def product_option(
             O.sales_started_at,
             O.sales_ended_at,
             P.created_at
-        FROM {option_table} AS O
+        FROM (
+            SELECT * FROM {option_table}
+            WHERE vendor_id = '{vendor_id}'
+        ) AS O
         LEFT JOIN (
             SELECT * FROM {product_table}
+            WHERE vendor_id = '{vendor_id}'
             QUALIFY ROW_NUMBER() OVER (PARTITION BY vendor_inventory_id) = 1
         ) AS P
             ON O.vendor_inventory_id = P.vendor_inventory_id
@@ -378,10 +384,11 @@ def product_option(
             P.created_at
         FROM (
             SELECT * FROM {product_table}
-            WHERE vendor_inventory_item_id != 0
+            WHERE (vendor_id = '{vendor_id}') AND (vendor_inventory_item_id != 0)
         ) AS P
         LEFT JOIN (
             SELECT * FROM {option_table}
+            WHERE vendor_id = '{vendor_id}'
             QUALIFY ROW_NUMBER() OVER (PARTITION BY vendor_inventory_id) = 1
         ) AS O
             ON P.vendor_inventory_id = O.vendor_inventory_id
@@ -659,8 +666,6 @@ def rocket_inventory(
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
         요청 간 대기 시간(초). 기본값은 `1.3`
-    progress: bool
-        반복 요청 작업의 진행률 출력 여부. 기본값은 `True`
     return_type: Literal["csv", "json", "parquet", "raw", "none"]
         반환 형식. **Returns** 문단을 참고한다.
     extract_options: dict | None

@@ -39,15 +39,33 @@ class CoupangApi(Extractor):
     def url(self) -> str:
         return self.concat_path(self.origin, self.path.format(vendor_id=self.vendor_id))
 
-    def request_json(self, **kwargs) -> dict:
-        """HTTP 요청을 수행하고 응답 본문을 JSON 형식의 객체로 반환한다."""
-        response = super().request_json(**kwargs)
-        if isinstance(response, dict) and (response.get("code") not in ("SUCCESS", 200, "200")):
-            from linkmerce.common.exceptions import RequestError
-            code = response.get("code") or "ERROR"
-            message = response.get("message") or "오류가 발생하였습니다."
-            raise RequestError(f"{code}: {message}")
-        return response
+    def request_json_until_success(self, max_retries: int = 5, **kwargs) -> dict:
+        """\"ERROR\" 코드가 아닌 오류가 발생하면 API 요청을 재시도 한다."""
+        message = self.build_request_message(**kwargs)
+        for retry_count in range(1, max_retries+1):
+            try:
+                with self.get_session().request(**message, timeout=60) as response:
+                    import json
+                    data = json.loads(response.text)
+            except Exception as error:
+                response = {"code": "REQUEST", "message": f"{error.__class__.__name__}: {error}"}
+            if self.is_valid_response(data, (retry_count if retry_count != max_retries else None)):
+                return data
+
+    def is_valid_response(self, response: dict, retry_count: int | None = None) -> bool:
+        """오류 메시지를 구분하여 재시도 요청 또는 `ConnectionError`를 발생시킨다."""
+        if isinstance(response, dict):
+            code = response.get("code")
+            if code in ("SUCCESS", 200, "200", None):
+                return True
+            elif (code != "ERROR") and isinstance(retry_count, int):
+                import time
+                time.sleep(retry_count)
+                return False
+            else:
+                message = response.get("message") or "오류가 발생하였습니다."
+                raise ConnectionError(f"{code}: {message}")
+        return True
 
     def set_request_headers(self, **kwargs):
         common = {"Accept": "application/json", "Content-Type": "application/json"}

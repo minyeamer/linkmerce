@@ -50,8 +50,8 @@ selectors:
         #   value: intermediate.ads.coupang_ads.coupang_ads__insight_daily
         # - method: fqn
         #   value: intermediate.sales.core__sales_daily
-  - name: coupang_inventory
-    description: "'coupang' >> 'coupang_inventory' Dag 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
+  - name: coupang_rocket_inventory
+    description: "'coupang' >> 'coupang_rocket_inventory' Dag 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
     definition:
       union:
         - method: fqn

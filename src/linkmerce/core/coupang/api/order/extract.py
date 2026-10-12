@@ -79,7 +79,7 @@ class Order(CoupangApi):
         if isinstance(status, str) and (status == "ALL"):
             status = list(self.status.keys())
 
-        return (self.request_each(self.request_json, context=context)
+        return (self.request_each(self.request_json_until_success, context=context)
                 .expand(status=status)
                 .run())
 
@@ -170,7 +170,7 @@ class OrderDetail(CoupangApi):
                 - `query_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """
         query_id = query_id if isinstance(query_id, (int, str)) else list(query_id)
-        return (self.request_each(self.request_json)
+        return (self.request_each(self.request_json_until_success)
                 .partial(query_path=self.get_query_path(query_type))
                 .expand(query_id=query_id)
                 .run())

@@ -116,7 +116,7 @@ with DAG(
                     "date": date,
                     "master_id": master_id,
                 },
-                "results": load_table_from_duckdb(
+                "result": load_table_from_duckdb(
                     connection = conn,
                     source_table = source,
                     target_table = tables[f"report_{report_type}"],

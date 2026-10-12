@@ -77,7 +77,7 @@ class Product(CoupangApi):
         list[dict]
             전체 또는 조건에 맞는 상품 목록
         """
-        return (self.cursor_all(self.request_json, self.get_next_cursor)
+        return (self.cursor_all(self.request_json_until_success, self.get_next_cursor)
             .run(
                 business_type = business_type,
                 seller_product_id = seller_product_id,
@@ -181,7 +181,7 @@ class ProductDetail(CoupangApi):
                 - `seller_product_id`가 `int | str` 타입일 때 -> `dict`
                 - `seller_product_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """
-        return (self.request_each(self.request_json)
+        return (self.request_each(self.request_json_until_success)
                 .expand(seller_product_id=seller_product_id)
                 .run())
 
@@ -238,7 +238,7 @@ class Inventory(CoupangApi):
                 - `vendor_item_id`가 `int | str` 타입일 때 -> `dict`
                 - `vendor_item_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """
-        return (self.request_each(self.request_json)
+        return (self.request_each(self.request_json_until_success)
                 .partial(vendor_id=self.vendor_id)
                 .expand(vendor_item_id=vendor_item_id)
                 .run())

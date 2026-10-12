@@ -50,7 +50,7 @@ class Inventory(CoupangApi):
         list[dict]
             로켓창고 재고 요약 목록
         """
-        return (self.cursor_all(self.request_json, self.get_next_cursor)
+        return (self.cursor_all(self.request_json_until_success, self.get_next_cursor)
             .run(vendor_item_id=vendor_item_id))
 
     def get_next_cursor(self, response: dict, **context) -> str | None:
@@ -129,7 +129,7 @@ class Order(CoupangApi):
             import datetime as dt
             end_date = strpdate(start_date) + dt.timedelta(days=1)
 
-        return (self.cursor_all(self.request_json, self.get_next_cursor)
+        return (self.cursor_all(self.request_json_until_success, self.get_next_cursor)
             .run(start_date=start_date, end_date=end_date))
 
     def get_next_cursor(self, response: dict, **context) -> str | None:

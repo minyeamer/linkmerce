@@ -173,7 +173,7 @@ with DAG(
                     "report_type": "product",
                     "aggregate_type": "daily",
                 },
-                "results": load_table_from_duckdb(
+                "result": load_table_from_duckdb(
                     connection = conn,
                     source_table = source,
                     target_table = tables["report"],
