@@ -41,16 +41,19 @@ class CoupangApi(Extractor):
 
     def request_json_until_success(self, max_retries: int = 5, **kwargs) -> dict:
         """\"ERROR\" 코드가 아닌 오류가 발생하면 API 요청을 재시도 한다."""
+        session, timeout = self.get_session(), None
         message = self.build_request_message(**kwargs)
         for retry_count in range(1, max_retries+1):
             try:
-                with self.get_session().request(**message, timeout=60) as response:
-                    import json
-                    data = json.loads(response.text)
+                with session.request(**message, timeout=timeout) as response:
+                    response = response.json()
             except Exception as error:
                 response = {"code": "REQUEST", "message": f"{error.__class__.__name__}: {error}"}
-            if self.is_valid_response(data, (retry_count if retry_count != max_retries else None)):
-                return data
+            if self.is_valid_response(response, (retry_count if retry_count != max_retries else None)):
+                return response
+            elif (timeout is None) and self.is_timeout_response(response):
+                timeout = 100
+                message["headers"]["X-EXTENDED-TIMEOUT"] = "90000"
 
     def is_valid_response(self, response: dict, retry_count: int | None = None) -> bool:
         """오류 메시지를 구분하여 재시도 요청 또는 `ConnectionError`를 발생시킨다."""
@@ -67,9 +70,16 @@ class CoupangApi(Extractor):
                 raise ConnectionError(f"{code}: {message}")
         return True
 
+    def is_timeout_response(self, response: dict) -> bool:
+        """오류 메시지 유형이 Timeout인지 판별한다."""
+        return (response.get("message") or str()).startswith("Request timed out")
+
     def set_request_headers(self, **kwargs):
-        common = {"Accept": "application/json", "Content-Type": "application/json"}
-        super().set_request_headers(headers=common)
+        super().set_request_headers(headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "X-Requested-By": self.vendor_id,
+        })
 
     def build_request_headers(self, **kwargs) -> dict[str, str]:
         return self.get_request_headers() | {"Authorization": self.build_authorization(**kwargs)}

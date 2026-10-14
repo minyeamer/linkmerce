@@ -235,8 +235,10 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | `coupang` | 매일 `09:00`, `23:00` | 판매자별 로그인 후 시간대별 downstream Dag을 트리거하는 통합 오케스트레이터 |
 | `coupang_adreport` | 트리거 전용 | 쿠팡 광고 보고서 ETL |
 | `coupang_campaign` | 트리거 전용 | 쿠팡 광고 캠페인/광고그룹/소재 ETL |
+| `coupang_order` | 영업시간 10분 간격, 그 외 1시간 간격 | 주문, 상품주문, 옵션 목록 적재 |
+| `coupang_order_delivery` | 트리거 전용 | 주문 배송 내역 적재 |
 | `coupang_product` | 평일 `23:00` | 쿠팡 상품 옵션 ETL |
-| `coupang_rocket_inventory` | 매일 `11:00`, `17:30` | 쿠팡 로켓그로스 재고현황 ETL |
+| `coupang_rocket_inventory` | 매일 `11:00`, `17:30`, `20:00` | 쿠팡 로켓그로스 재고현황 ETL |
 | `coupang_rocket_sales` | 트리거 전용 | 쿠팡 로켓그로스 정산 리포트 ETL |
 
 ### 이베이 (ebay)
@@ -251,7 +253,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
-| `ecount_inventory` | 매일 `11:00`, `17:30` | 이카운트 재고현황 ETL |
+| `ecount_inventory` | 매일 `11:00`, `17:30`, `20:00` | 이카운트 재고현황 ETL |
 | `ecount_product` | 평일 `10:50`, `17:20` | 이카운트 품목등록 리스트 ETL |
 
 ### 구글 시트 (gsheets)
@@ -319,7 +321,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
 | `postgres_partman_maintenance` | 매일 `00:00` | PostgreSQL pg_partman 파티션 갱신 |
-| `stock_report` | 평일 `11:00`, `17:30` | 재고 내역을 엑셀 파일로 변환해 Slack 업로드 |
+| `stock_report` | 평일 `11:00`, `17:30`, `20:00` | 재고 내역을 엑셀 파일로 변환해 Slack 업로드 |
 
 스크래핑 대상 웹사이트의 구조적 변경으로 비활성화된 Dag은 `dags/_deprecated/` 경로로 옮긴다.
 

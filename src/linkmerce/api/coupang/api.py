@@ -471,7 +471,7 @@ def inventory(
     "order": "coupang_order",
     "delivery": "coupang_order_delivery",
     "detail": "coupang_order_detail",
-    "item": "coupang_order_item",
+    "option": "coupang_order_option",
 })
 def order(
         access_key: str,
@@ -494,7 +494,7 @@ def order(
         1. `order: coupang_order` (발주서 정보)
         2. `delivery: coupang_order_delivery` (발주서 배송 정보)
         3. `detail: coupang_order_detail` (발주서 결제 정보)
-        4. `item: coupang_order_item` (발주서 상품 정보)
+        4. `option: coupang_order_option` (발주서 옵션 정보)
 
     Parameters
     ----------
@@ -559,7 +559,7 @@ def order(
     "order": "coupang_order",
     "delivery": "coupang_order_delivery",
     "detail": "coupang_order_detail",
-    "item": "coupang_order_item",
+    "option": "coupang_order_option",
 })
 def order_detail(
         access_key: str,
@@ -581,7 +581,7 @@ def order_detail(
         1. `order: coupang_order` (발주서 정보)
         2. `delivery: coupang_order_delivery` (발주서 배송 정보)
         3. `detail: coupang_order_detail` (발주서 결제 정보)
-        4. `item: coupang_order_item` (발주서 상품 정보)
+        4. `option: coupang_order_option` (발주서 옵션 정보)
 
     Parameters
     ----------

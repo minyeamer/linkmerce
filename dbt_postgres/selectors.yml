@@ -72,6 +72,11 @@ selectors:
           value: models/intermediate/sales/coupang_rfm
         - method: fqn
           value: intermediate.sales.core__sales_daily
+  - name: coupang_order_summary
+    description: "'coupang_order' Dag 실행 후 10분 단위로 쿠팡 주문 내역 변동을 매출 요약에 반영"
+    definition:
+      method: fqn
+      value: intermediate.sales.coupang.coupang__sales_summary
 
   # Airflow Dags - dable
   - name: dable_ads
@@ -446,6 +451,12 @@ selectors:
       method: fqn
       value: marts.sales.analytics__profit_base
       children: true
+  - name: sales_summary
+    description: "매출 요약 보고서 업데이트"
+    definition:
+      method: fqn
+      value: marts.sales.analytics__sales_summary
+      parents: true
 
   # Custom - stock
   - name: stock

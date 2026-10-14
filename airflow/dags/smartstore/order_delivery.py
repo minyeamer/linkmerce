@@ -1,7 +1,7 @@
 """
 # 스마트스토어 주문 배송 내역 ETL 파이프라인
 
-> 안내) 스마트스토어 상품 주문 내역을 수집하는 'smartstore_order' Dag 실행 후 트리거된다.
+> 안내) 스마트스토어 상품 주문 내역을 수집하는 'smartstore_order' Dag 실행 후 매시 0분에 트리거된다.
 
 ## 인증(Credentials)
 스마트스토어 커머스 API 인증 키(애플리케이션 ID/시크릿)가 필요하다.
@@ -75,14 +75,17 @@ with DAG(
     def etl_smartstore_order_delivery(credentials: dict, configs: dict, dag_run: DagRun, **kwargs) -> dict:
         from airflow_api import get_next_datetime_range
         from airflow_utils import get_datetime
+        conf = (dag_run.conf or dict()).get("channels") or dict()
+
         datetime_range = get_next_datetime_range(
-            dag_run = dag_run,
-            etl_task_id = "etl_smartstore_order_delivery",
+            dag_id = dag_run.dag_id,
+            task_id = "etl_smartstore_order_delivery",
             data_interval_end = get_datetime(kwargs),
             rendered_map_index = str(credentials["channel_seq"]),
             states = ["success"],
             format = "YYYY-MM-DDTHH:mm:ss.SSSZ",
             timedelta = { "microseconds": 1000 },
+            conf = (conf.get(str(credentials["channel_seq"])) or conf.get('*') or dict()),
         )
         return main(**credentials, **configs, **datetime_range)
 

@@ -15,10 +15,26 @@
 
 WITH{#
 
+#} coupang_sales_summary AS (
+  SELECT
+      '쿠팡' AS shop_name
+    , vendor.vendor_id AS account_no
+    , vendor.vendor_name AS account_name
+    , vendor.corp_name
+    , vendor.team_name
+    , summary.payment_amount
+    , summary.max_order_dt
+    , summary.order_date
+  FROM {{ ref('coupang__sales_summary') }} AS summary
+  LEFT JOIN {{ source('coupang', 'vendor') }} AS vendor
+    ON summary.vendor_id = vendor.vendor_id
+  WHERE summary.order_date BETWEEN DS_START_DATE AND DS_END_DATE
+),{#
+
 #} smartstore_sales_summary AS (
   SELECT
       '스마트스토어' AS shop_name
-    , summary.channel_seq AS account_no
+    , summary.channel_seq::text AS account_no
     , channel.channel_name AS account_name
     , channel.corp_name
     , channel.team_name
@@ -32,5 +48,9 @@ WITH{#
 ){#
 
 #} SELECT *
-FROM smartstore_sales_summary
+FROM (
+  SELECT * FROM coupang_sales_summary
+  UNION ALL
+  SELECT * FROM smartstore_sales_summary
+)
 WHERE shop_name = SHOP_FILTER

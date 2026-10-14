@@ -52,7 +52,7 @@ class Order(DuckDBTransformer):
         1. `order: coupang_order` (발주서 정보)
         2. `delivery: coupang_order_delivery` (발주서 배송 정보)
         3. `detail: coupang_order_detail` (발주서 결제 정보)
-        4. `item: coupang_order_item` (발주서 상품 정보)
+        4. `option: coupang_order_option` (발주서 옵션 정보)
     """
 
     extractor = "Order"
@@ -60,7 +60,7 @@ class Order(DuckDBTransformer):
         "order": "coupang_order",
         "delivery": "coupang_order_delivery",
         "detail": "coupang_order_detail",
-        "item": "coupang_order_item",
+        "option": "coupang_order_option",
     }
     parser = {"order": OrderParser, "order_item": OrderItemParser}
 
@@ -79,7 +79,7 @@ class OrderDetail(Order):
         1. `order: coupang_order` (발주서 정보)
         2. `delivery: coupang_order_delivery` (발주서 배송 정보)
         3. `detail: coupang_order_detail` (발주서 결제 정보)
-        4. `item: coupang_order_item` (발주서 상품 정보)
+        4. `option: coupang_order_option` (발주서 옵션 정보)
     """
 
     extractor = "OrderDetail"
@@ -87,7 +87,7 @@ class OrderDetail(Order):
         "order": "coupang_order",
         "delivery": "coupang_order_delivery",
         "detail": "coupang_order_detail",
-        "item": "coupang_order_item",
+        "option": "coupang_order_option",
     }
     parser = {"order": OrderParser, "order_item": OrderItemParser}
 

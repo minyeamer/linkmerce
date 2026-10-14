@@ -89,14 +89,17 @@ with DAG(
     def etl_smartstore_order(credentials: dict, configs: dict, dag_run: DagRun, **kwargs) -> dict:
         from airflow_api import get_next_datetime_range
         from airflow_utils import get_datetime
+        conf = (dag_run.conf or dict()).get("channels") or dict()
+
         datetime_range = get_next_datetime_range(
-            dag_run = dag_run,
-            etl_task_id = "etl_smartstore_order",
+            dag_id = dag_run.dag_id,
+            task_id = "etl_smartstore_order",
             data_interval_end = get_datetime(kwargs),
             rendered_map_index = str(credentials["channel_seq"]),
             states = ["success"],
             format = "YYYY-MM-DDTHH:mm:ss.SSSZ",
             timedelta = { "microseconds": 1000 },
+            conf = (conf.get(str(credentials["channel_seq"])) or conf.get('*') or dict()),
         )
         return main(**credentials, **configs, **datetime_range)
 

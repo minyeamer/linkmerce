@@ -256,6 +256,7 @@ CREATE TABLE IF NOT EXISTS coupang.vendor (
   , vendor_seq BIGINT -- 업체순번
   , userid TEXT -- 계정ID
   , corp_name TEXT -- 운영사업자
+  , team_name TEXT -- 영업팀
   , bundle_brand_ids TEXT -- 연결브랜드ID
   , rocket_sales_date DATE -- 매출인식일
   , rocket_settle_date DATE -- 정산시작일
@@ -295,6 +296,71 @@ CREATE TABLE IF NOT EXISTS coupang.item (
   , price INTEGER -- 판매가
   , sales_price INTEGER -- 할인가
   , PRIMARY KEY (vendor_inventory_item_id)
+);
+
+-- [쿠팡 마켓플레이스 발주서]
+CREATE TABLE IF NOT EXISTS coupang.order (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , shipment_box_id BIGINT NOT NULL -- 배송번호
+  , order_id BIGINT NOT NULL -- 주문번호
+  , orderer_name TEXT -- 주문자명
+  , orderer_number TEXT -- 주문자안심번호
+  , paid_location TEXT -- 결제위치
+  , order_dt TIMESTAMP NOT NULL -- 주문일시
+  , paid_dt TIMESTAMP NOT NULL -- 결제일시
+  , PRIMARY KEY (order_dt, vendor_id, shipment_box_id)
+) PARTITION BY RANGE (order_dt);
+CREATE INDEX IF NOT EXISTS cpg_order__order_idx ON coupang.order (vendor_id, order_id);
+
+-- [쿠팡 마켓플레이스 발주서 배송]
+CREATE TABLE IF NOT EXISTS coupang.order_delivery (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , shipment_box_id BIGINT NOT NULL -- 배송번호
+  , order_id BIGINT NOT NULL -- 주문번호
+  , invoice_no TEXT -- 송장번호
+  , post_code TEXT -- 수취인우편번호
+  , shipment_type SMALLINT -- 배송유형
+  , shipment_status SMALLINT -- 발주서상태
+  , delivery_fee INTEGER -- 배송비
+  , order_dt TIMESTAMP NOT NULL -- 주문일시
+  , send_dt TIMESTAMP -- 발송일시
+  , delivered_dt TIMESTAMP -- 배송완료일시
+  , PRIMARY KEY (order_dt, vendor_id, shipment_box_id)
+) PARTITION BY RANGE (order_dt);
+CREATE INDEX IF NOT EXISTS cpg_order_delivery__order_idx ON coupang.order_delivery (vendor_id, order_id);
+
+-- [쿠팡 마켓플레이스 발주서 상세]
+CREATE TABLE IF NOT EXISTS coupang.order_detail (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , shipment_box_id BIGINT NOT NULL -- 배송번호
+  , order_id BIGINT NOT NULL -- 주문번호
+  , sequence_no TEXT NOT NULL -- 상품순번
+  , vendor_inventory_id BIGINT -- 등록상품ID
+  , product_id BIGINT -- 상품코드
+  , option_id BIGINT NOT NULL -- 옵션코드
+  , order_quantity INTEGER -- 주문수량
+  , unit_price INTEGER -- 상품가격
+  , instant_coupon_discount INTEGER -- 즉시할인쿠폰금액
+  , download_coupon_discount INTEGER -- 다운로드쿠폰할인금액
+  , coupang_discount INTEGER -- 쿠팡할인금액
+  , order_dt TIMESTAMP NOT NULL -- 주문일시
+  , PRIMARY KEY (order_dt, vendor_id, shipment_box_id, sequence_no)
+) PARTITION BY RANGE (order_dt);
+CREATE INDEX IF NOT EXISTS cpg_order_detail__order_idx ON coupang.order_detail (vendor_id, order_id);
+
+-- [쿠팡 마켓플레이스 발주서 옵션]
+CREATE TABLE IF NOT EXISTS coupang.order_option (
+    vendor_inventory_id BIGINT -- 등록상품ID
+  , product_id BIGINT -- 상품코드
+  , option_id BIGINT NOT NULL -- 옵션코드
+  , vendor_id TEXT NOT NULL -- 업체코드
+  , seller_product_name TEXT -- 등록상품명
+  , display_product_name TEXT -- 노출상품명
+  , option_name TEXT -- 옵션명
+  , sales_price INTEGER -- 판매가
+  , first_order_dt TIMESTAMP -- 최초주문일시
+  , last_order_dt TIMESTAMP -- 최종주문일시
+  , PRIMARY KEY (option_id)
 );
 
 -- ============================================================
@@ -1677,6 +1743,9 @@ SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice',			        'pickup_
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order',		    'order_date',			    '2023-05-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.stock',				        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_loisparcel.invoice',		      'register_date',		  '2025-08-01',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang.order',		              'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang.order_delivery',		    'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang.order_detail',		      'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_ads.report_pa',		      'ymd',				        '2023-10-31',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca',		    'ymd',				        '2025-01-07',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory',		      'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);

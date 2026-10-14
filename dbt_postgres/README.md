@@ -203,6 +203,8 @@ fact 테이블 및 view 테이블을 생성한다. 현재는 네이버 채널의
 
 ```bash
 dbt_postgres/models/intermediate/sales/
+├── coupang/
+│   ├── coupang__sales_summary
 ├── coupang_rfm/
 │   ├── coupang_rfm__order_count
 │   └── coupang_rfm__sales_daily
@@ -546,6 +548,7 @@ airflow/dags/
 │   │   ├── adreport.py (coupang_adreport)
 │   │   ├── campaign.py (coupang_campaign)
 │   │   └── rocket_sales.py (coupang_rocket_sales)
+│   ├── order.py (coupang_order)
 │   └── rocket_inventory.py (coupang_rocket_inventory)
 ├── ecount/
 │   ├── inventory.py (ecount_inventory)

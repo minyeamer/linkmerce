@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS {{ delivery }} (
   , post_code VARCHAR
   , shipment_type TINYINT -- {0: 'THIRD_PARTY', 1: 'CGF', 2: 'CGF LITE'}
   , shipment_status TINYINT
-  , delivery_fee BIGINT
+  , delivery_fee INTEGER
   , order_dt TIMESTAMP NOT NULL
   , send_dt TIMESTAMP
   , delivered_dt TIMESTAMP
@@ -34,16 +34,16 @@ CREATE TABLE IF NOT EXISTS {{ detail }} (
   , vendor_inventory_id BIGINT NOT NULL
   , product_id BIGINT
   , option_id BIGINT NOT NULL
-  , order_quantity BIGINT
-  , unit_price BIGINT
-  , instant_coupon_discount BIGINT
-  , download_coupon_discount BIGINT
-  , coupang_discount BIGINT
+  , order_quantity INTEGER
+  , unit_price INTEGER
+  , instant_coupon_discount INTEGER
+  , download_coupon_discount INTEGER
+  , coupang_discount INTEGER
   , order_dt TIMESTAMP NOT NULL
   , PRIMARY KEY (vendor_id, shipment_box_id, sequence_no)
 );
 
-CREATE TABLE IF NOT EXISTS {{ item }} (
+CREATE TABLE IF NOT EXISTS {{ option }} (
     vendor_inventory_id BIGINT NOT NULL
   , product_id BIGINT
   , option_id BIGINT NOT NULL
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS {{ item }} (
   , seller_product_name VARCHAR
   , display_product_name VARCHAR
   , option_name VARCHAR
-  , sales_price BIGINT
+  , sales_price INTEGER
   , first_order_dt TIMESTAMP
   , last_order_dt TIMESTAMP
   , PRIMARY KEY (option_id)
@@ -64,7 +64,7 @@ SELECT
   , shipmentBoxId AS shipment_box_id
   , orderId AS order_id
   , orderer.name AS orderer_name
-  , orderer.safeNumber AS orderer_number
+  , NULLIF(orderer.safeNumber, '') AS orderer_number
   , refer AS paid_location
   , TRY_STRPTIME(SUBSTR(orderedAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS order_dt
   , TRY_STRPTIME(SUBSTR(paidAt, 1, 19), '%Y-%m-%dT%H:%M:%S') AS paid_dt
@@ -119,7 +119,7 @@ FROM {{ order_item_rows }}
 WHERE TRY_STRPTIME(SUBSTR(orderedAt, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL
 ON CONFLICT DO NOTHING;
 
-INSERT INTO {{ item }}
+INSERT INTO {{ option }}
 SELECT
     item.sellerProductId AS vendor_inventory_id
   , NULLIF(item.productId, 0) AS product_id

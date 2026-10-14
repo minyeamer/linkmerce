@@ -33,6 +33,10 @@ sources:
       - name: product
       - name: item
       - name: option
+      - name: order
+      - name: order_delivery
+      - name: order_detail
+      - name: order_option
 
   - name: coupang_ads
     schema: coupang_ads
