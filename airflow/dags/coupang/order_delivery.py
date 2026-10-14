@@ -152,6 +152,7 @@ with DAG(
                 "params": {
                     "vendor_id": vendor_id,
                     "status": ["DEPARTURE", "DELIVERING", "FINAL_DELIVERY"],
+                    "end_datetime": ranges["search"]["end"].format(format),
                     "ranges": {
                         "filter": {
                             "gte": ranges["filter"]["gte"].format(format),
