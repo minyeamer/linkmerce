@@ -53,7 +53,7 @@ stock_qty_batch AS (
   WHERE ymd = REPORT_DATE
     AND batch = (
       CASE
-        WHEN REPORT_BATCH IN (10, 20) THEN REPORT_BATCH
+        WHEN REPORT_BATCH IN (10, 20, 30) THEN REPORT_BATCH
         ELSE (
           SELECT MAX(batch)
           FROM {{ ref('core__stock_qty_batch') }}
@@ -124,6 +124,7 @@ stock_report_with_schedule AS (
     -- Schedule attributes
     , schedule.order_date
     , schedule.delivery_date
+    , schedule.expected_quantity
     , COALESCE(schedule.remarks, '-') AS schedule_remarks
     -- Join metrics
     , report.priority
@@ -190,6 +191,7 @@ stock_report_with_sold_qty AS (
     -- Schedule attributes
     , report.order_date
     , report.delivery_date
+    , report.expected_quantity
     , report.schedule_remarks
     -- Join metrics
     , report.priority
@@ -290,6 +292,7 @@ stock_report_with_remain_days AS (
     -- Schedule attributes
     , report.order_date
     , report.delivery_date
+    , report.expected_quantity
     , report.schedule_remarks
     -- Order priority
     , report.priority
@@ -418,6 +421,7 @@ stock_report_final AS (
     -- Schedule attributes
     , report.order_date
     , report.delivery_date
+    , report.expected_quantity
     , report.schedule_remarks
   FROM (
     SELECT

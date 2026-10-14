@@ -248,6 +248,20 @@ CREATE TABLE IF NOT EXISTS cj_loisparcel.invoice (
 -- coupang (쿠팡 Wing)
 -- ============================================================
 
+-- [쿠팡 업체]
+CREATE TABLE IF NOT EXISTS coupang.vendor (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , vendor_name TEXT -- 업체명
+  , vendor_alias TEXT -- 업체별칭
+  , vendor_seq BIGINT -- 업체순번
+  , userid TEXT -- 계정ID
+  , corp_name TEXT -- 운영사업자
+  , bundle_brand_ids TEXT -- 연결브랜드ID
+  , rocket_sales_date DATE -- 매출인식일
+  , rocket_settle_date DATE -- 정산시작일
+  , PRIMARY KEY (vendor_id)
+);
+
 -- [쿠팡 마켓플레이스/로켓그로스 상품]
 CREATE TABLE IF NOT EXISTS coupang.product (
     vendor_inventory_id BIGINT NOT NULL -- 등록상품ID
@@ -281,20 +295,6 @@ CREATE TABLE IF NOT EXISTS coupang.item (
   , price INTEGER -- 판매가
   , sales_price INTEGER -- 할인가
   , PRIMARY KEY (vendor_inventory_item_id)
-);
-
--- [쿠팡 업체]
-CREATE TABLE IF NOT EXISTS coupang.vendor (
-    vendor_id TEXT NOT NULL -- 업체코드
-  , vendor_name TEXT -- 업체명
-  , vendor_alias TEXT -- 업체별칭
-  , vendor_seq BIGINT -- 업체순번
-  , userid TEXT -- 계정ID
-  , corp_name TEXT -- 운영사업자
-  , bundle_brand_ids TEXT -- 연결브랜드ID
-  , rocket_sales_date DATE -- 매출인식일
-  , rocket_settle_date DATE -- 정산시작일
-  , PRIMARY KEY (vendor_id)
 );
 
 -- ============================================================
@@ -501,6 +501,7 @@ CREATE TABLE IF NOT EXISTS ecount.schedule (
     product_code TEXT NOT NULL -- 품목코드
   , order_date DATE -- 발주진행일
   , delivery_date DATE -- 입고예정일
+  , expected_quantity INTEGER -- 입고예정수량
   , remarks TEXT -- 구분
   , PRIMARY KEY (product_code)
 );

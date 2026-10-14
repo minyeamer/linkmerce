@@ -26,7 +26,7 @@ import pendulum
 with DAG(
     dag_id = "ecount_inventory",
     schedule = MultipleCronTriggerTimetable(
-        "0 11 * * *",
+        "0 11,20 * * *",
         "30 17 * * *",
         timezone = "Asia/Seoul",
     ),
@@ -36,7 +36,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:ecount", "objective:stock", "credentials:api-key",
-        "schedule:daily", "time:morning", "time:afternoon", "write:append", "plugin:dbt"
+        "schedule:daily", "time:morning", "time:afternoon", "time:night", "write:append", "plugin:dbt"
     ],
 ) as dag:
 

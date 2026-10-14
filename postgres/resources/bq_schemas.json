@@ -165,6 +165,17 @@
     {"name": "delivery_date", "type": "DATE", "description": "배송일자"},
     "PARTITION BY register_date"
   ],
+  "coupang.vendor": [
+    {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},
+    {"name": "vendor_name", "type": "STRING", "description": "업체명"},
+    {"name": "vendor_alias", "type": "STRING", "description": "업체별칭"},
+    {"name": "vendor_seq", "type": "INTEGER", "description": "업체순번"},
+    {"name": "userid", "type": "STRING", "description": "계정ID"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
+    {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"},
+    {"name": "rocket_sales_date", "type": "DATE", "description": "매출인식일"},
+    {"name": "rocket_settle_date", "type": "DATE", "description": "정산시작일"}
+  ],
   "coupang.product": [
     {"name": "vendor_inventory_id", "type": "INTEGER", "description": "등록상품ID", "mode": "REQUIRED"},
     {"name": "product_id", "type": "INTEGER", "description": "노출상품ID"},
@@ -195,17 +206,6 @@
     {"name": "price", "type": "INTEGER", "description": "판매가"},
     {"name": "sales_price", "type": "INTEGER", "description": "할인가"},
     "CLUSTER BY vendor_id"
-  ],
-  "coupang.vendor": [
-    {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},
-    {"name": "vendor_name", "type": "STRING", "description": "업체명"},
-    {"name": "vendor_alias", "type": "STRING", "description": "업체별칭"},
-    {"name": "vendor_seq", "type": "INTEGER", "description": "업체순번"},
-    {"name": "userid", "type": "STRING", "description": "계정ID"},
-    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
-    {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"},
-    {"name": "rocket_sales_date", "type": "DATE", "description": "매출인식일"},
-    {"name": "rocket_settle_date", "type": "DATE", "description": "정산시작일"}
   ],
   "coupang_ads.campaign": [
     {"name": "campaign_id", "type": "INTEGER", "description": "캠페인ID", "mode": "REQUIRED"},
@@ -439,6 +439,7 @@
     {"name": "product_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
     {"name": "order_date", "type": "DATE", "description": "발주진행일"},
     {"name": "delivery_date", "type": "DATE", "description": "입고예정일"},
+    {"name": "expected_quantity", "type": "INTEGER", "description": "입고예정수량"},
     {"name": "remarks", "type": "STRING", "description": "구분"}
   ],
   "google_ads.account": [

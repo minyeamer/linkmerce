@@ -25,13 +25,13 @@ WITH primary_stock_time AS (
   FROM {{ ref('core__stock_time_batch') }}
   WHERE ymd = (
       CASE
-        WHEN REPORT_BATCH IN (10, 20) THEN REPORT_DATE
+        WHEN REPORT_BATCH IN (10, 20, 30) THEN REPORT_DATE
         ELSE (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
       END
     )
     AND batch = (
       CASE
-        WHEN REPORT_BATCH IN (10, 20) THEN REPORT_BATCH
+        WHEN REPORT_BATCH IN (10, 20, 30) THEN REPORT_BATCH
         ELSE (
           SELECT MAX(batch)
           FROM {{ ref('core__stock_time_batch') }}
@@ -54,7 +54,7 @@ WITH primary_stock_time AS (
   FROM {{ ref('core__stock_time_batch') }}
   WHERE ymd = (
       CASE
-        WHEN REPORT_BATCH IN (10, 20)
+        WHEN REPORT_BATCH IN (10, 20, 30)
           -- Disable fallback by returning no rows
           THEN (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date + 1
         -- Fallback to the previous day if no rows are found for today.
@@ -63,7 +63,7 @@ WITH primary_stock_time AS (
     )
     AND batch = (
       CASE
-        WHEN REPORT_BATCH IN (10, 20) THEN REPORT_BATCH
+        WHEN REPORT_BATCH IN (10, 20, 30) THEN REPORT_BATCH
         ELSE (
           SELECT MAX(batch)
           FROM {{ ref('core__stock_time_batch') }}
@@ -71,7 +71,7 @@ WITH primary_stock_time AS (
         )
       END
     )
-    AND REPORT_BATCH NOT IN (10, 20)
+    AND REPORT_BATCH NOT IN (10, 20, 30)
 ){#
 
 #} SELECT * FROM primary_stock_time{#

@@ -20,7 +20,11 @@ SELECT
 FROM (
   SELECT
       inv.updated_at::date AS ymd
-    , (CASE WHEN inv.updated_at::time < TIME '17:00:00' THEN 10 ELSE 20 END) AS batch
+    , (CASE
+        WHEN (inv.updated_at)::time < TIME '17:00:00' THEN 10
+        WHEN (inv.updated_at)::time < TIME '20:00:00' THEN 20
+        ELSE 30
+      END) AS batch
     , COALESCE((string_to_array(product, ':'))[1], '200000') AS product_id
     , COALESCE(exp.expiration_date, DATE '2999-12-31') AS expiration_date
       , (CASE

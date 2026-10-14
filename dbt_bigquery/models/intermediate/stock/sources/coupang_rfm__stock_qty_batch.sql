@@ -22,7 +22,11 @@ SELECT
 FROM (
   SELECT
       DATE(inv.updated_at) AS ymd
-    , IF(TIME(inv.updated_at) < TIME '17:00:00', 10, 20) AS batch
+    , (CASE
+        WHEN TIME(inv.updated_at) < TIME '17:00:00' THEN 10
+        WHEN TIME(inv.updated_at) < TIME '20:00:00' THEN 20
+        ELSE 30
+      END) AS batch
     , COALESCE(SPLIT(product, ':')[SAFE_OFFSET(0)], '200000') AS product_id
     , COALESCE(exp.expiration_date, DATE(2999, 12, 31)) AS expiration_date
     , inv.stock_quantity * COALESCE(SAFE_CAST(SPLIT(product, ':')[SAFE_OFFSET(1)] AS INT64), 1) AS stock_quantity

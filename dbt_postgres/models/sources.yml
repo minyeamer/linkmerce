@@ -29,8 +29,10 @@ sources:
   - name: coupang
     schema: coupang
     tables:
-      - name: option
       - name: vendor
+      - name: product
+      - name: item
+      - name: option
 
   - name: coupang_ads
     schema: coupang_ads

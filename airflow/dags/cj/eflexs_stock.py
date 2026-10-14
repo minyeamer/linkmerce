@@ -29,7 +29,7 @@ import pendulum
 with DAG(
     dag_id = "cj_eflexs_stock",
     schedule = MultipleCronTriggerTimetable(
-        "0 11 * * *",
+        "0 11,20 * * *",
         "30 17 * * *",
         timezone = "Asia/Seoul",
     ),
@@ -39,7 +39,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:cj-eflexs", "objective:stock", "credentials:userid",
-        "schedule:daily", "time:morning", "time:afternoon", "write:append",
+        "schedule:daily", "time:morning", "time:afternoon", "time:night", "write:append",
         "plugin:playwright", "plugin:dbt"
     ],
 ) as dag:

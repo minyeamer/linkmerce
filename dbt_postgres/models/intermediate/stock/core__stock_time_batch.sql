@@ -18,7 +18,11 @@ WITH{#
 #} ecount_updated_at AS (
   SELECT
       (updated_at)::date AS ymd
-    , (CASE WHEN (updated_at)::time < TIME '17:00:00' THEN 10 ELSE 20 END) AS batch
+    , (CASE
+        WHEN (updated_at)::time < TIME '17:00:00' THEN 10
+        WHEN (updated_at)::time < TIME '20:00:00' THEN 20
+        ELSE 30
+      END) AS batch
     , 0 AS group_id
     , updated_at
   FROM {{ source('ecount', 'inventory') }}
@@ -29,7 +33,11 @@ WITH{#
 #} cj_eflexs_updated_at AS (
   SELECT
       (updated_at)::date AS ymd
-    , (CASE WHEN (updated_at)::time < TIME '17:00:00' THEN 10 ELSE 20 END) AS batch
+    , (CASE
+        WHEN (updated_at)::time < TIME '17:00:00' THEN 10
+        WHEN (updated_at)::time < TIME '20:00:00' THEN 20
+        ELSE 30
+      END) AS batch
     , 1 AS group_id
     , updated_at
   FROM {{ source('cj_eflexs', 'stock') }}
@@ -40,7 +48,11 @@ WITH{#
 #} coupang_rfm_updated_at AS (
   SELECT
       (updated_at)::date AS ymd
-    , (CASE WHEN (updated_at)::time < TIME '17:00:00' THEN 10 ELSE 20 END) AS batch
+    , (CASE
+        WHEN (updated_at)::time < TIME '17:00:00' THEN 10
+        WHEN (updated_at)::time < TIME '20:00:00' THEN 20
+        ELSE 30
+      END) AS batch
     , 2 AS group_id
     , updated_at
   FROM {{ source('coupang_rfm', 'inventory') }}

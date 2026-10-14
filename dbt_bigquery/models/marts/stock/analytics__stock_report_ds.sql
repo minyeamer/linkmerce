@@ -17,7 +17,7 @@ WITH primary_report AS (
   FROM {{ ref('analytics__stock_report') }}(
     REPORT_DATE =>
       CASE
-        WHEN REPORT_BATCH IN (10, 20) THEN REPORT_DATE
+        WHEN REPORT_BATCH IN (10, 20, 30) THEN REPORT_DATE
         ELSE CURRENT_DATE('Asia/Seoul')
       END,
     REPORT_BATCH => REPORT_BATCH
@@ -29,7 +29,7 @@ fallback_report AS (
   FROM {{ ref('analytics__stock_report') }}(
     REPORT_DATE =>
       CASE
-        WHEN REPORT_BATCH IN (10, 20)
+        WHEN REPORT_BATCH IN (10, 20, 30)
           -- Disable fallback by returning no rows
           THEN DATE_ADD(CURRENT_DATE('Asia/Seoul'), INTERVAL 1 DAY)
         -- Fallback to the previous day if no rows are found for today.

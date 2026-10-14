@@ -76,10 +76,10 @@ SCHEDULED_DAGS = {
     "searchad_master_gfa": last_cron_utc("30 5 * * 1-5"), # 05:30 KST
     "searchad_master_sad": last_cron_utc("40 23 * * 1-5"), # 23:40 KST
     # MultipleCronTriggerTimetable ──────────────────────────────────────────
-    "cj_eflexs_stock": last_cron_utc(["0 11 * * *", "30 17 * * *"]),
-    "coupang_rocket_inventory": last_cron_utc(["0 11 * * *", "30 17 * * *"]),
-    "ecount_inventory": last_cron_utc(["0 11 * * *", "30 17 * * *"]),
-    # ㄴ 평일 11:00 / 17:30
+    "cj_eflexs_stock": last_cron_utc(["0 11,20 * * *", "30 17 * * *"]),
+    "coupang_rocket_inventory": last_cron_utc(["0 11,20 * * *", "30 17 * * *"]),
+    "ecount_inventory": last_cron_utc(["0 11,20 * * *", "30 17 * * *"]),
+    # ㄴ 매일 11:00 / 17:30 / 20:00
     "ecount_product": last_cron_utc(["50 10 * * 1-5", "20 17 * * 1-5"]),
     # ㄴ 평일 10:50 / 17:20
     "sabangnet_invoice": last_multi_cron_utc(["30 10 * * 1-5", "30 14 * * 1-5", "50 23 * * 1-5"]),

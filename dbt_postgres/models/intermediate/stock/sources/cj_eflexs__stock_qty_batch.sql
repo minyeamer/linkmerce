@@ -32,7 +32,11 @@ WITH{#
 FROM (
   SELECT
       (stock.updated_at)::date AS ymd
-    , (CASE WHEN stock.updated_at::time < TIME '17:00:00' THEN 10 ELSE 20 END) AS batch
+    , (CASE
+        WHEN (stock.updated_at)::time < TIME '17:00:00' THEN 10
+        WHEN (stock.updated_at)::time < TIME '20:00:00' THEN 20
+        ELSE 30
+      END) AS batch
     , COALESCE(item.product_id, '200000') AS product_id
     , COALESCE(stock.validate_date, DATE '2999-12-31') AS validate_date
     , stock.usable_quantity

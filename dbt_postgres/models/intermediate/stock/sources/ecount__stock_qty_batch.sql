@@ -19,7 +19,11 @@ SELECT
 FROM (
   SELECT
       updated_at::date AS ymd
-    , (CASE WHEN updated_at::time < TIME '17:00:00' THEN 10 ELSE 20 END) AS batch
+    , (CASE
+        WHEN (updated_at)::time < TIME '17:00:00' THEN 10
+        WHEN (updated_at)::time < TIME '20:00:00' THEN 20
+        ELSE 30
+      END) AS batch
     , product_code
     , quantity
   FROM {{ source('ecount', 'inventory') }}
