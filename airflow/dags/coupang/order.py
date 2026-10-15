@@ -168,6 +168,11 @@ with DAG(
         from airflow_utils import get_datetime
         return trigger_child_dag("coupang_order_delivery", dag_run.run_id, get_datetime(kwargs))
 
+    @task(task_id="trigger_rocket_order", trigger_rule="all_done")
+    def trigger_rocket_order(dag_run: DagRun, **kwargs) -> dict:
+        from airflow_utils import get_datetime
+        return trigger_child_dag("coupang_rocket_order", dag_run.run_id, get_datetime(kwargs))
+
     def trigger_child_dag(dag_id: str, dag_run_id: str, data_interval_end: pendulum.DateTime) -> dict:
         from airflow_api import authenticate, trigger_dagrun, wait_for_completion, get_task_xcom_values
 
@@ -187,12 +192,18 @@ with DAG(
 
 
     @task(task_id="generate_dbt_date_range", trigger_rule="all_done")
-    def generate_dbt_date_range(etl_results: list[dict], delivery_dag_run: dict | None) -> dict:
+    def generate_dbt_date_range(
+            etl_results: list[dict],
+            delivery_dag_run: dict | None,
+            rfm_order_dag_run: dict | None,
+        ) -> dict:
         from dbt_cosmos import generate_dbt_date_range as generate
 
         etl_results = list(etl_results)
         if isinstance(delivery_dag_run, dict) and isinstance(delivery_dag_run.get("results"), list):
             etl_results += delivery_dag_run["results"]
+        if isinstance(rfm_order_dag_run, dict) and isinstance(rfm_order_dag_run.get("results"), list):
+            etl_results += rfm_order_dag_run["results"]
 
         return generate(etl_results, "context.partitions")
 
@@ -250,16 +261,21 @@ with DAG(
 
 
     @task(task_id="finalize_dag_run", trigger_rule="all_done")
-    def finalize_dag_run(delivery_dag_run: dict | None, ti: RuntimeTaskInstance):
+    def finalize_dag_run(
+            delivery_dag_run: dict | None,
+            rfm_order_dag_run: dict | None,
+            ti: RuntimeTaskInstance,
+        ):
         from airflow.exceptions import AirflowException
         from dbt_cosmos import raise_on_failure
 
-        if isinstance(delivery_dag_run, dict) and delivery_dag_run.get("triggered"):
-            if delivery_dag_run.get("state") != "success":
-                raise AirflowException(
-                    f"Triggered Dag '{delivery_dag_run['dag_id']}' finished "
-                    f"with state '{delivery_dag_run.get('state')}'"
-                    )
+        for dag_run_info in [delivery_dag_run, rfm_order_dag_run]:
+            if isinstance(dag_run_info, dict) and dag_run_info.get("triggered"):
+                if dag_run_info.get("state") != "success":
+                    raise AirflowException(
+                        f"Triggered Dag '{dag_run_info['dag_id']}' finished "
+                        f"with state '{dag_run_info.get('state')}'"
+                        )
         raise_on_failure(ti)
 
 
@@ -268,9 +284,10 @@ with DAG(
         .expand(credentials=read_credentials()))
 
     delivery_dag_run = trigger_order_delivery()
-    etl_results >> delivery_dag_run
+    rfm_order_dag_run = trigger_rocket_order()
+    etl_results >> rfm_order_dag_run >> delivery_dag_run
 
-    dbt_date_range = generate_dbt_date_range(etl_results, delivery_dag_run)
+    dbt_date_range = generate_dbt_date_range(etl_results, delivery_dag_run, rfm_order_dag_run)
 
     # prepare_1h = prepare_dbt_run_1h()
     # dbt_run_1h = [dbt_bigquery_coupang_order_group(), dbt_postgres_coupang_order_1h_group()]
@@ -282,6 +299,6 @@ with DAG(
     # prepare_1h >> dbt_run_1h
     # prepare_10m >> dbt_run_10m
 
-    finalize = finalize_dag_run(delivery_dag_run)
+    finalize = finalize_dag_run(delivery_dag_run, rfm_order_dag_run)
     # [*dbt_run_1h, dbt_run_10m] >> finalize
     dbt_date_range >> prepare_10m >> dbt_run_10m >> finalize

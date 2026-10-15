@@ -12,11 +12,29 @@
 }}
 
 SELECT
-    ord.vendor_id
-  , SUM(COALESCE(order_quantity, 0) * COALESCE(unit_price, 0)) AS payment_amount
-  , MAX(ord.order_dt) AS max_order_dt
-  , ord.order_dt::date AS order_date
-FROM {{ source('coupang', 'order_detail') }} AS ord
-WHERE ord.order_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
-  AND ord.order_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone
-GROUP BY ord.order_dt::date, ord.vendor_id
+    vendor_id
+  , SUM(payment_amount) AS payment_amount
+  , MAX(order_dt) AS max_order_dt
+  , order_date
+FROM (
+  SELECT
+      vendor_id
+    , COALESCE(order_quantity, 0) * COALESCE(unit_price, 0) AS payment_amount
+    , order_dt
+    , order_dt::date AS order_date
+  FROM {{ source('coupang', 'order_detail') }}
+  WHERE order_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
+    AND order_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone{#
+
+  #} UNION ALL{#
+
+  #} SELECT
+      vendor_id
+    , COALESCE(order_quantity, 0) * COALESCE(unit_price, 0) AS payment_amount
+    , payment_dt AS order_dt
+    , payment_dt::date AS order_date
+  FROM {{ source('coupang_rfm', 'order') }}
+  WHERE payment_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
+    AND payment_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone
+)
+GROUP BY order_date, vendor_id

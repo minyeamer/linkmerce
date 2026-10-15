@@ -52,6 +52,7 @@ sources:
     tables:
       - name: inventory
       - name: inventory_exp
+      - name: order
       - name: sales
       - name: shipping
 

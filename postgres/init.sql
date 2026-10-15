@@ -470,6 +470,17 @@ CREATE TABLE IF NOT EXISTS coupang_rfm.inventory_exp (
   , PRIMARY KEY (option_id, expiration_date)
 );
 
+-- [쿠팡 로켓그로스 주문]
+CREATE TABLE IF NOT EXISTS coupang_rfm.order (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , order_id BIGINT NOT NULL -- 주문번호
+  , option_id BIGINT NOT NULL -- 노출옵션ID
+  , order_quantity INTEGER -- 주문수량
+  , unit_price INTEGER -- 상품가격
+  , payment_dt TIMESTAMP NOT NULL -- 결제일시
+  , PRIMARY KEY (payment_dt, vendor_id, order_id, option_id)
+) PARTITION BY RANGE (payment_dt);
+
 -- [쿠팡 로켓그로스 정산현황 - 판매 수수료 리포트]
 CREATE TABLE IF NOT EXISTS coupang_rfm.sales (
     order_id BIGINT NOT NULL -- 주문ID
@@ -1749,6 +1760,7 @@ SELECT public.bootstrap_daily_partitions('coupang.order_detail',		      'order_d
 SELECT public.bootstrap_daily_partitions('coupang_ads.report_pa',		      'ymd',				        '2023-10-31',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca',		    'ymd',				        '2025-01-07',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory',		      'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang_rfm.order',			        'payment_dt',			    '2023-07-15 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.sales',			        'sales_date',			    '2023-08-07',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.shipping',		      'sales_date',			    '2023-08-04',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('dable.report',			            'ymd',      			    '2026-06-11',         	'1 day',  35);

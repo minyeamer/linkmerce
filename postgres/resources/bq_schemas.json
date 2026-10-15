@@ -351,6 +351,16 @@
     {"name": "end_time", "type": "DATETIME", "description": "종료일시", "mode": "REQUIRED"},
     "CLUSTER BY option_id"
   ],
+  "coupang_rfm.order": [
+    {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},
+    {"name": "order_id", "type": "INTEGER", "description": "주문번호", "mode": "REQUIRED"},
+    {"name": "option_id", "type": "INTEGER", "description": "노출옵션ID", "mode": "REQUIRED"},
+    {"name": "order_quantity", "type": "INTEGER", "description": "주문수량"},
+    {"name": "unit_price", "type": "INTEGER", "description": "상품가격"},
+    {"name": "payment_dt", "type": "DATETIME", "description": "결제일시", "mode": "REQUIRED"},
+    "PARTITION BY DATE(payment_dt)",
+    "CLUSTER BY vendor_id"
+  ],
   "coupang_rfm.sales": [
     {"name": "order_id", "type": "INTEGER", "description": "주문ID", "mode": "REQUIRED"},
     {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},

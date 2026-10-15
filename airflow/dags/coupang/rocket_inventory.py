@@ -40,7 +40,7 @@ with DAG(
     ],
 ) as dag:
 
-    PATH = "coupang.api.inventory"
+    PATH = "coupang.api.rocket_inventory"
 
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
