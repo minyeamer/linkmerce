@@ -4,7 +4,7 @@ from linkmerce.core.coupang.api import CoupangApi
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Iterable, Literal
     import datetime as dt
 
 
@@ -149,3 +149,61 @@ class Order(CoupangApi):
             "paidDateTo": str(end_date).replace('-', ''),
             **({"nextToken": next_cursor} if next_cursor is not None else {})
         }
+
+
+class OrderDetail(CoupangApi):
+    """쿠팡 주문번호별 로켓그로스 주문을 수집하는 클래스.
+
+    - **Menu**: Rocket Growth > 로켓그로스 주문API
+    - **API**: https://api-gateway.coupang.com/v2/providers/rg_open_api/apis/api/v1/vendors/{vendor_id}/rg/order/{order_id}
+    - **Docs**: https://developers.coupang.com/ko/api/rocket-growth/api
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_key: str
+        쿠팡 Open API 액세스 키
+    secret_key: str
+        쿠팡 Open API 시크릿 키
+    vendor_id: str
+        업체 코드
+
+    **NOTE** 인스턴스 생성 시 `options` 인자로 `RequestEach` Task 옵션을 전달할 수 있다.
+
+    request_delay: float | int | tuple[int, int]
+        주문별 요청 간 대기 시간(초). 기본값은 `1.3`
+    tqdm_options: dict | None
+        반복 요청 작업의 진행도를 출력하는 `tqdm`에 전달할 매개변수
+    """
+
+    method = "GET"
+    path = "/v2/providers/rg_open_api/apis/api/v1/vendors/{vendor_id}/rg/order/{order_id}"
+    default_options = {"RequestEach": {"request_delay": 1.3}}
+
+    @CoupangApi.with_session
+    def extract(self, order_id: int | str | Iterable[int | str], **kwargs) -> dict | list[dict]:
+        """주문번호별 로켓그로스 주문을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        order_id: int | str | Iterable[int | str]
+            주문번호. 단일 값 또는 배열
+
+        Returns
+        -------
+        dict | list[dict]
+            주문 단건 또는 목록. `order_id` 타입에 따라 반환 타입이 다르다.
+                - `order_id`가 `int | str` 타입일 때 -> `dict`
+                - `order_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
+        """
+        order_id = order_id if isinstance(order_id, (int, str)) else list(order_id)
+        return (self.request_each(self.request_json_until_success)
+                .expand(order_id=order_id)
+                .run())
+
+    def build_request_message(self, order_id: int | str, **kwargs) -> dict:
+        """주문번호를 로켓그로스 주문 단건 조회 경로에 붙인다."""
+        path = self.path.format(vendor_id=self.vendor_id, order_id=str(order_id))
+        kwargs["url"] = self.concat_path(self.origin, path)
+        return super().build_request_message(**kwargs)

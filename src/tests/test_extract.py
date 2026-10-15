@@ -139,6 +139,7 @@ class TestCoupangApi:
     - coupang.api.order.OrderDetail
     - coupang.api.rocket_growth.Inventory
     - coupang.api.rocket_growth.Order
+    - coupang.api.rocket_growth.OrderDetail
     """
 
     def credentials(self, reader: YamlReader) -> dict:
@@ -228,6 +229,17 @@ class TestCoupangApi:
         ).extract(
             start_date = _configs.get("start_date", yesterday),
             end_date = _configs.get("end_date", ":next_start_date:"),
+        )
+
+    def test_rocket_order_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """쿠팡 Open API로 로켓그로스 주문 단건 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.rocket_growth.extract import OrderDetail
+        _configs = configs("coupang.api.rocket_order_detail")
+        OrderDetail(
+            configs = self.credentials(credentials),
+            parser = dump_extract(OrderDetail, format="json"),
+        ).extract(
+            order_id = _configs["order_id"],
         )
 
 

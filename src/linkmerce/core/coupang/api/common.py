@@ -45,8 +45,8 @@ class CoupangApi(Extractor):
         message = self.build_request_message(**kwargs)
         for retry_count in range(1, max_retries+1):
             try:
-                with session.request(**message, timeout=timeout) as response:
-                    response = response.json()
+                with session.request(**message, timeout=timeout) as resp:
+                    response = resp.json()
             except Exception as error:
                 response = {"code": "REQUEST", "message": f"{error.__class__.__name__}: {error}"}
             if self.is_valid_response(response, (retry_count if retry_count != max_retries else None)):

@@ -21,7 +21,7 @@ DuckDB 기반 변환을 거쳐 BigQuery, PostgreSQL, Google Sheets 같은 외부
 ## 한눈에 보기
 
 - **패키지명**: `linkmerce`
-- **버전**: `1.0.17`
+- **버전**: `1.0.18`
 - **Python**: `>=3.12`
 - **핵심 의존성**: `aiohttp`, `requests`, `duckdb`, `bs4`, `openpyxl`, `ruamel-yaml`, `tqdm`
 

@@ -100,6 +100,7 @@ class TestCoupangApi:
     - coupang.api.order.OrderDetail
     - coupang.api.rocket_growth.Inventory
     - coupang.api.rocket_growth.Order
+    - coupang.api.rocket_growth.OrderDetail
     """
 
     def test_product(self, transformer_harness: Harness):
@@ -143,6 +144,11 @@ class TestCoupangApi:
         """쿠팡 로켓그로스 주문 목록 조회 결과를 변환하는 테스트."""
         from linkmerce.core.coupang.api.rocket_growth.transform import Order
         transformer_harness(Order).transform()
+
+    def test_rocket_order_detail(self, transformer_harness: Harness):
+        """쿠팡 로켓그로스 주문 단건 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.rocket_growth.transform import OrderDetail
+        transformer_harness(OrderDetail).transform()
 
 
 ###################################################################

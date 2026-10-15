@@ -119,6 +119,8 @@ coupang/
 │   │   │       └── OrderItemParser(OrderParser)::transform
 │   │   └── OrderDetail(CoupangApi)::extract
 │   │       └── OrderDetail(Order)::transform
+│   │           ├── OrderParser(JsonTransformer)::transform
+│   │           └── OrderItemParser(OrderParser)::transform
 │   ├── product/
 │   │   ├── Product(CoupangApi)::extract
 │   │   │   ├── Product(DuckDBTransformer)::transform >> json
@@ -132,8 +134,11 @@ coupang/
 │   └── rocket_growth/
 │       ├── Inventory(CoupangApi)::extract
 │       │   └── Inventory(DuckDBTransformer)::transform >> json
-│       └── Order(CoupangApi)::extract
-│           └── Order(DuckDBTransformer)::transform
+│       ├── Order(CoupangApi)::extract
+│       │   └── Order(DuckDBTransformer)::transform
+│       │       └── OrderParser(JsonTransformer)::transform
+│       └── OrderDetail(CoupangApi)::extract
+│           └── OrderDetail(Order)::transform
 │               └── OrderParser(JsonTransformer)::transform
 └── wing/
     ├─x CoupangWing(Extractor)::common

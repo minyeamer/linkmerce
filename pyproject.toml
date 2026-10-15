@@ -1,6 +1,6 @@
 [project]
 name = "linkmerce"
-version = "1.0.17"
+version = "1.0.18"
 description = "E-commerce API integration management"
 readme = "README.md"
 requires-python = ">=3.12"

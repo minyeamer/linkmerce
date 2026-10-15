@@ -24,20 +24,20 @@ ON CONFLICT DO NOTHING;
 
 -- Order: create
 CREATE TABLE IF NOT EXISTS {{ table }} (
-    order_id BIGINT NOT NULL
-  , vendor_id VARCHAR NOT NULL
+    vendor_id VARCHAR NOT NULL
+  , order_id BIGINT NOT NULL
   , option_id BIGINT NOT NULL
   , order_quantity INTEGER
   , unit_price INTEGER
   , payment_dt TIMESTAMP NOT NULL
-  , PRIMARY KEY (order_id, option_id)
+  , PRIMARY KEY (vendor_id, order_id, option_id)
 );
 
 -- Order: bulk_insert
 INSERT INTO {{ table }}
 SELECT
-    orderId AS order_id
-  , vendorId AS vendor_id
+    vendorId AS vendor_id
+  , orderId AS order_id
   , orderItem.vendorItemId AS option_id
   , orderItem.salesQuantity AS order_quantity
   , orderItem.unitSalesPrice AS unit_price
