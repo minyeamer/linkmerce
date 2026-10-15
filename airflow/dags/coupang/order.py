@@ -177,9 +177,10 @@ with DAG(
 
         access_token = authenticate()
         run_id = f"expanded__{data_interval_end.isoformat()}"
+        conf = {"load_method": "merge"} if data_interval_end.hour == 0 else None
         dag_run_info = {"dag_id": dag_id, "run_id": run_id, "triggered": True}
 
-        trigger_dagrun(dag_id, run_id, access_token, data_interval_end)
+        trigger_dagrun(dag_id, run_id, access_token, data_interval_end, conf)
         dag_run_info["state"] = wait_for_completion(dag_id, run_id, access_token, poke_interval=15, timeout=60*4)
         dag_run_info["results"] = get_task_xcom_values(dag_id, run_id, f"etl_{dag_id}", access_token)
         return dag_run_info

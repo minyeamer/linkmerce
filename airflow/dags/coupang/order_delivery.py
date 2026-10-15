@@ -30,7 +30,7 @@ Airflow UI에서 Dag을 트리거하면서 Configuration JSON에 ISO 8601 형식
             "skip": false
         }
     },
-    "dbt_run": true
+    "load_method": "append" | "merge"
 }
 ```
 
@@ -38,7 +38,8 @@ Airflow UI에서 Dag을 트리거하면서 Configuration JSON에 ISO 8601 형식
 JSON 형식의 발주서 내역으로부터 배송 정보를 분리해 각각의 DuckDB 테이블에 적재한다.
 
 ## 적재(Load)
-데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+- 'load_method = "append"' 또는 생략 시 데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+- 'load_method = "merge"' 전달 시 데이터를 BigQuery/Postgres 테이블과 MERGE 문으로 병합한다.
 """
 
 from airflow.sdk import DAG, task
@@ -58,7 +59,7 @@ with DAG(
     tags = [
         "priority:high", "platform:coupang-api", "objective:delivery", "credentials:api-key",
         "schedule:none", "time:morning", "time:afternoon", "time:night",
-        "write:append", "upstream:dagrun"
+        "write:append", "write:merge", "upstream:dagrun"
     ],
 ) as dag:
 
@@ -91,7 +92,11 @@ with DAG(
             timedelta = { "minutes": 1 },
             conf = (conf.get(credentials["vendor_id"]) or conf.get('*') or dict()),
         )
-        return main(**credentials, **configs, ranges=parse_datetime_range(**datetime_range))
+
+        if (dag_run.conf or dict()).get("load_method") == "merge":
+            return etl_merge(**credentials, **configs, ranges=parse_datetime_range(**datetime_range))
+        else:
+            return etl_append(**credentials, **configs, ranges=parse_datetime_range(**datetime_range))
 
     def parse_datetime_range(start_datetime: str, end_datetime: str) -> dict:
         """\"yyyy-mm-ddT00:00+09:00\" 형태의 문자열 필터 기간을 파싱하고 조회 기간을 계산해 함께 반환한다."""
@@ -114,7 +119,8 @@ with DAG(
             }
         }
 
-    def main(
+
+    def etl_append(
             access_key: str,
             secret_key: str,
             vendor_id: str,
@@ -122,6 +128,7 @@ with DAG(
             tables: dict[str, str],
             **kwargs
         ) -> dict:
+        """발주서 수집 후 필터 기간에 해당하는 배송 정보를 Append 방식으로 적재한다."""
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.coupang.api import order
         from dual_load import load_table_from_duckdb
@@ -168,6 +175,60 @@ with DAG(
                     connection = conn,
                     source_table = source,
                     target_table = tables["table"],
+                )
+            }
+
+
+    def etl_merge(
+            access_key: str,
+            secret_key: str,
+            vendor_id: str,
+            ranges: dict[str, dict[str, pendulum.DateTime]],
+            tables: dict[str, str],
+            merge: dict[str, dict],
+            **kwargs
+        ) -> dict:
+        """발주서 수집 후 필터의 종료 시각을 초과하지 않는 배송 정보를 Merge 방식으로 적재한다."""
+        from linkmerce.common.load import DuckDBConnection
+        from linkmerce.api.coupang.api import order
+        from dual_load import merge_table_from_duckdb
+        source = "coupang_order_delivery"
+        format = "YYYY-MM-DDTHH:mmZ"
+
+        with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
+            order(
+                access_key = access_key,
+                secret_key = secret_key,
+                vendor_id = vendor_id,
+                start_datetime = ranges["search"]["start"].format(format),
+                end_datetime = ranges["search"]["end"].format(format),
+                status = ["DEPARTURE", "DELIVERING", "FINAL_DELIVERY", "NONE_TRACKING"],
+                connection = conn,
+                progress = False,
+                return_type = "none",
+            )
+
+            where_gte = "send_dt >= '{}'".format(ranges["filter"]["le"].format("YYYY-MM-DDTHH:mm:ss"))
+            conn.execute(f"DELETE FROM {source} WHERE send_dt IS NULL OR {where_gte}")
+            partitions = conn.unique(source, "DATE(order_dt)")
+
+            return {
+                "context": {
+                    "partitions": sorted(map(str, partitions)),
+                },
+                "params": {
+                    "vendor_id": vendor_id,
+                    "status": ["DEPARTURE", "DELIVERING", "FINAL_DELIVERY", "NONE_TRACKING"],
+                    "start_datetime": ranges["search"]["start"].format(format),
+                    "end_datetime": ranges["search"]["end"].format(format),
+                },
+                "result": merge_table_from_duckdb(
+                    connection = conn,
+                    source_table = source,
+                    target_table = tables["table"],
+                    **merge["table"],
+                    where_clause = conn.expr_datetime_range("T.order_dt", partitions),
+                    execute = bool(partitions),
                 )
             }
 
