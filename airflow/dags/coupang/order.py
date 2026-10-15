@@ -166,19 +166,25 @@ with DAG(
     @task(task_id="trigger_order_delivery", trigger_rule="all_done")
     def trigger_order_delivery(dag_run: DagRun, **kwargs) -> dict:
         from airflow_utils import get_datetime
-        return trigger_child_dag("coupang_order_delivery", dag_run.run_id, get_datetime(kwargs))
+        return trigger_child_dag("coupang_order_delivery", dag_run.run_id, get_datetime(kwargs), only_at_minute=0)
 
     @task(task_id="trigger_rocket_order", trigger_rule="all_done")
     def trigger_rocket_order(dag_run: DagRun, **kwargs) -> dict:
         from airflow_utils import get_datetime
-        return trigger_child_dag("coupang_rocket_order", dag_run.run_id, get_datetime(kwargs))
+        return trigger_child_dag("coupang_rocket_order", dag_run.run_id, get_datetime(kwargs), only_at_minute=None)
 
-    def trigger_child_dag(dag_id: str, dag_run_id: str, data_interval_end: pendulum.DateTime) -> dict:
+    def trigger_child_dag(
+            dag_id: str,
+            dag_run_id: str,
+            data_interval_end: pendulum.DateTime,
+            only_at_minute: int | None = None,
+        ) -> dict:
         from airflow_api import authenticate, trigger_dagrun, wait_for_completion, get_task_xcom_values
 
-        if (not dag_run_id.startswith("scheduled__")) or (data_interval_end.minute != 0):
-            from airflow.sdk.exceptions import AirflowSkipException
-            raise AirflowSkipException(f"'{dag_id}' Dag is triggered only for scheduled runs at minute 0")
+        if not dag_run_id.startswith("scheduled__"):
+            skip_this_task(dag_id, only_at_minute)
+        if (only_at_minute is not None) and (data_interval_end.minute != only_at_minute):
+            skip_this_task(dag_id, only_at_minute)
 
         access_token = authenticate()
         run_id = f"expanded__{data_interval_end.isoformat()}"
@@ -189,6 +195,11 @@ with DAG(
         dag_run_info["state"] = wait_for_completion(dag_id, run_id, access_token, poke_interval=15, timeout=60*4)
         dag_run_info["results"] = get_task_xcom_values(dag_id, run_id, f"etl_{dag_id}", access_token)
         return dag_run_info
+
+    def skip_this_task(dag_id: str, only_at_minute: int | None = None):
+        from airflow.sdk.exceptions import AirflowSkipException
+        at = f" at minute {only_at_minute}" if only_at_minute is not None else str()
+        raise AirflowSkipException(f"'{dag_id}' Dag is triggered only for scheduled runs{at}")
 
 
     @task(task_id="generate_dbt_date_range", trigger_rule="all_done")
