@@ -202,3 +202,56 @@ SELECT
   , ROW_NUMBER() OVER () AS register_order
 FROM {{ supplement_rows }}
 ON CONFLICT DO NOTHING;
+
+
+-- Category: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    category_id INTEGER NOT NULL
+  , category_name VARCHAR NOT NULL
+  , category_id1 INTEGER
+  , category_id2 INTEGER
+  , category_id3 INTEGER
+  , category_id4 INTEGER
+  , category_name1 VARCHAR
+  , category_name2 VARCHAR
+  , category_name3 VARCHAR
+  , category_name4 VARCHAR
+  , depth SMALLINT NOT NULL
+  , PRIMARY KEY (category_id)
+);
+
+-- Category: bulk_insert
+INSERT INTO {{ table }}
+WITH categories AS (
+  SELECT
+      CAST(id AS INTEGER) AS category_id
+    , name AS category_name
+    , wholeCategoryName AS full_category_name
+    , STRING_SPLIT(wholeCategoryName, '>') AS category_names
+  FROM {{ rows }}
+)
+SELECT
+    cat.category_id
+  , cat.category_name
+  , cat1.category_id AS category_id1
+  , cat2.category_id AS category_id2
+  , cat3.category_id AS category_id3
+  , cat4.category_id AS category_id4
+  , cat.category_names[1] AS category_name1
+  , cat.category_names[2] AS category_name2
+  , cat.category_names[3] AS category_name3
+  , cat.category_names[4] AS category_name4
+  , LEN(cat.category_names) AS depth
+FROM categories AS cat
+LEFT JOIN categories AS cat1
+  ON cat1.full_category_name = ARRAY_TO_STRING(cat.category_names[1:1], '>')
+LEFT JOIN categories AS cat2
+  ON (LEN(cat.category_names) >= 2)
+  AND (cat2.full_category_name = ARRAY_TO_STRING(cat.category_names[1:2], '>'))
+LEFT JOIN categories AS cat3
+  ON (LEN(cat.category_names) >= 3)
+  AND (cat3.full_category_name = ARRAY_TO_STRING(cat.category_names[1:3], '>'))
+LEFT JOIN categories AS cat4
+  ON (LEN(cat.category_names) >= 4)
+  AND (cat4.full_category_name = ARRAY_TO_STRING(cat.category_names[1:4], '>'))
+ON CONFLICT DO NOTHING;

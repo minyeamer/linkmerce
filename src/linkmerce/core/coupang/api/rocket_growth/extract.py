@@ -37,13 +37,15 @@ class Inventory(CoupangApi):
     default_options = {"CursorAll": {"request_delay": 1.3}}
 
     @CoupangApi.with_session
-    def extract(self, vendor_item_id: int | str | None = None, **kwargs) -> list[dict]:
+    def extract(self, vendor_item_id: int | str | None = None, max_retries: int = 5, **kwargs) -> list[dict]:
         """로켓창고의 모든 상품 또는 특정 SKU에 대한 재고 목록을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         vendor_item_id: int | str | None
             노출옵션ID. 생략하면 전체 옵션 조회
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
@@ -51,7 +53,7 @@ class Inventory(CoupangApi):
             로켓창고 재고 요약 목록
         """
         return (self.cursor_all(self.request_json_until_success, self.get_next_cursor)
-            .run(vendor_item_id=vendor_item_id))
+            .run(vendor_item_id=vendor_item_id, max_retries=max_retries))
 
     def get_next_cursor(self, response: dict, **context) -> str | None:
         """다음 페이지를 가리키는 `nextToken` 커서를 추출한다."""
@@ -107,6 +109,7 @@ class Order(CoupangApi):
             self,
             start_date: dt.date | str,
             end_date: dt.date | str | Literal[":next_start_date:"] = ":next_start_date:",
+            max_retries: int = 5,
             **kwargs
         ) -> list[dict]:
         """로켓그로스 주문 목록을 결제일 기준으로 조회해 JSON 형식으로 반환한다.
@@ -118,6 +121,8 @@ class Order(CoupangApi):
         end_date: dt.date | str
             검색 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
                 - `":next_start_date:"`: `start_date`의 1일 후 날짜 (기본값)
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
@@ -130,7 +135,7 @@ class Order(CoupangApi):
             end_date = strpdate(start_date) + dt.timedelta(days=1)
 
         return (self.cursor_all(self.request_json_until_success, self.get_next_cursor)
-            .run(start_date=start_date, end_date=end_date))
+            .run(start_date=start_date, end_date=end_date, max_retries=max_retries))
 
     def get_next_cursor(self, response: dict, **context) -> str | None:
         """다음 페이지를 가리키는 `nextToken` 커서를 추출한다."""
@@ -182,13 +187,15 @@ class OrderDetail(CoupangApi):
     default_options = {"RequestEach": {"request_delay": 1.3}}
 
     @CoupangApi.with_session
-    def extract(self, order_id: int | str | Iterable[int | str], **kwargs) -> dict | list[dict]:
+    def extract(self, order_id: int | str | Iterable[int | str], max_retries: int = 5, **kwargs) -> dict | list[dict]:
         """주문번호별 로켓그로스 주문을 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         order_id: int | str | Iterable[int | str]
             주문번호. 단일 값 또는 배열
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
@@ -199,6 +206,7 @@ class OrderDetail(CoupangApi):
         """
         order_id = order_id if isinstance(order_id, (int, str)) else list(order_id)
         return (self.request_each(self.request_json_until_success)
+                .partial(max_retries=max_retries)
                 .expand(order_id=order_id)
                 .run())
 

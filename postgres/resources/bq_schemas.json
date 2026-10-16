@@ -177,6 +177,25 @@
     {"name": "rocket_sales_date", "type": "DATE", "description": "매출인식일"},
     {"name": "rocket_settle_date", "type": "DATE", "description": "정산시작일"}
   ],
+  "coupang.category": [
+    {"name": "category_id", "type": "INTEGER", "description": "카테고리코드", "mode": "REQUIRED"},
+    {"name": "category_name", "type": "STRING", "description": "카테고리", "mode": "REQUIRED"},
+    {"name": "category_id1", "type": "INTEGER", "description": "카테고리코드1"},
+    {"name": "category_id2", "type": "INTEGER", "description": "카테고리코드2"},
+    {"name": "category_id3", "type": "INTEGER", "description": "카테고리코드3"},
+    {"name": "category_id4", "type": "INTEGER", "description": "카테고리코드4"},
+    {"name": "category_id5", "type": "INTEGER", "description": "카테고리코드5"},
+    {"name": "category_id6", "type": "INTEGER", "description": "카테고리코드6"},
+    {"name": "category_name1", "type": "STRING", "description": "카테고리명1"},
+    {"name": "category_name2", "type": "STRING", "description": "카테고리명2"},
+    {"name": "category_name3", "type": "STRING", "description": "카테고리명3"},
+    {"name": "category_name4", "type": "STRING", "description": "카테고리명4"},
+    {"name": "category_name5", "type": "STRING", "description": "카테고리명5"},
+    {"name": "category_name6", "type": "STRING", "description": "카테고리명6"},
+    {"name": "depth", "type": "INTEGER", "description": "카테고리단계", "mode": "REQUIRED"},
+    "PARTITION BY RANGE_BUCKET(depth, GENERATE_ARRAY(1, 6, 1))",
+    "CLUSTER BY category_id1, category_id2, category_id3, category_id4"
+  ],
   "coupang.product": [
     {"name": "vendor_inventory_id", "type": "INTEGER", "description": "등록상품ID", "mode": "REQUIRED"},
     {"name": "product_id", "type": "INTEGER", "description": "노출상품ID"},

@@ -241,3 +241,42 @@ class Option(SmartstoreApi):
     def build_request_message(self, product_id: int | str, **kwargs) -> dict:
         kwargs["url"] = self.url.format(product_id)
         return super().build_request_message(**kwargs)
+
+
+class Category(SmartstoreApi):
+    """네이버 커머스 API로 전체 카테고리 조회 결과를 수집하는 클래스.
+
+    - **Menu**: 상품 > 카테고리 > 전체 카테고리 조회
+    - **API**: https://api.commerce.naver.com/external/v1/categories
+    - **Docs**: https://apicenter.commerce.naver.com/docs/commerce-api/current/get-category-list-product
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    client_id: str
+        커머스 API 애플리케이션 ID
+    client_secret: str
+        커머스 API 애플리케이션 시크릿
+    """
+
+    method = "GET"
+    version = "v1"
+    path = "/categories"
+
+    @SmartstoreApi.with_session
+    @SmartstoreApi.with_token
+    def extract(self, max_retries: int = 5, **kwargs) -> list[dict]:
+        """전체 카테고리 목록을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+
+        Returns
+        -------
+        list[dict]
+            전체 카테고리 목록
+        """
+        return self.parse(self.request_json_until_success(max_retries=max_retries, **kwargs), **kwargs)

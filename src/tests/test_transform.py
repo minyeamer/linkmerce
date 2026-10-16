@@ -96,6 +96,7 @@ class TestCoupangApi:
     - coupang.api.product.Product
     - coupang.api.product.ProductDetail
     - coupang.api.product.Inventory
+    - coupang.api.product.Category
     - coupang.api.order.Order
     - coupang.api.order.OrderDetail
     - coupang.api.rocket_growth.Inventory
@@ -124,6 +125,11 @@ class TestCoupangApi:
         transformer_harness(Inventory).transform(
             vendor_id = credentials("coupang.api.0")["vendor_id"],
         )
+
+    def test_category(self, transformer_harness: Harness):
+        """쿠팡 전체 카테고리 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.product.transform import Category
+        transformer_harness(Category).transform()
 
     def test_order(self, transformer_harness: Harness):
         """쿠팡 마켓플레이스 발주서 목록 조회 결과를 변환하는 테스트."""
@@ -956,6 +962,7 @@ class TestSmartstoreApi:
     """스마트스토어 커머스 API 데이터 변환 테스트.
     - smartstore.api.product.Product
     - smartstore.api.product.Option
+    - smartstore.api.product.Category
     - smartstore.api.order.Order
     - smartstore.api.order.OrderTime
     - smartstore.api.order.OrderStatus
@@ -964,6 +971,11 @@ class TestSmartstoreApi:
 
     def channel_seq(self, reader: YamlReader):
         return reader("smartstore.api.0")["channel_seq"]
+
+    def test_category(self, transformer_harness: Harness):
+        """스마트스토어 전체 카테고리 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.smartstore.api.product.transform import Category
+        transformer_harness(Category).transform()
 
     # @pytest.mark.smartstore_api
     # def test_product(self, transformer_harness: Harness, credentials: YamlReader):

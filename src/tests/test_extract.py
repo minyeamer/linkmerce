@@ -135,6 +135,7 @@ class TestCoupangApi:
     - coupang.api.product.Product
     - coupang.api.product.ProductDetail
     - coupang.api.product.Inventory
+    - coupang.api.product.Category
     - coupang.api.order.Order
     - coupang.api.order.OrderDetail
     - coupang.api.rocket_growth.Inventory
@@ -159,6 +160,7 @@ class TestCoupangApi:
             status = _configs.get("status", None),
             manufacture = _configs.get("manufacture", None),
             created_at = _configs.get("created_at", None),
+            max_retries = _configs.get("max_retries", 5),
         )
 
     def test_product_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
@@ -170,6 +172,7 @@ class TestCoupangApi:
             parser = dump_extract(ProductDetail, format="json"),
         ).extract(
             seller_product_id = _configs["seller_product_id"],
+            max_retries = _configs.get("max_retries", 5),
         )
 
     def test_inventory(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
@@ -181,7 +184,17 @@ class TestCoupangApi:
             parser = dump_extract(Inventory, format="json"),
         ).extract(
             vendor_item_id = _configs["vendor_item_id"],
+            max_retries = _configs.get("max_retries", 5),
         )
+
+    def test_category(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """쿠팡 Open API로 전체 카테고리 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.coupang.api.product.extract import Category
+        _configs = options("coupang.api.category")
+        Category(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Category, format="json"),
+        ).extract(max_retries=_configs.get("max_retries", 5))
 
     def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """쿠팡 Open API로 마켓플레이스 발주서 목록 조회 결과를 수집하는 테스트."""
@@ -194,6 +207,7 @@ class TestCoupangApi:
             start_datetime = _configs.get("start_datetime", f"{yesterday}T00:00+09:00"),
             end_datetime = _configs.get("end_datetime", ":end_of_day:"),
             status = _configs.get("status", "FINAL_DELIVERY"),
+            max_retries = _configs.get("max_retries", 5),
         )
 
     def test_order_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
@@ -206,6 +220,7 @@ class TestCoupangApi:
         ).extract(
             query_id = _configs["query_id"],
             query_type = _configs.get("query_type", "order_id"),
+            max_retries = _configs.get("max_retries", 5),
         )
 
     def test_rocket_inventory(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
@@ -217,6 +232,7 @@ class TestCoupangApi:
             parser = dump_extract(Inventory, format="json"),
         ).extract(
             vendor_item_id = _configs["vendor_item_id"],
+            max_retries = _configs.get("max_retries", 5),
         )
 
     def test_rocket_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
@@ -229,6 +245,7 @@ class TestCoupangApi:
         ).extract(
             start_date = _configs.get("start_date", yesterday),
             end_date = _configs.get("end_date", ":next_start_date:"),
+            max_retries = _configs.get("max_retries", 5),
         )
 
     def test_rocket_order_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
@@ -240,6 +257,7 @@ class TestCoupangApi:
             parser = dump_extract(OrderDetail, format="json"),
         ).extract(
             order_id = _configs["order_id"],
+            max_retries = _configs.get("max_retries", 5),
         )
 
 
@@ -1444,6 +1462,7 @@ class TestSmartstoreApi:
     """스마트스토어 커머스 API 데이터 추출 테스트.
     - smartstore.api.product.Product
     - smartstore.api.product.Option
+    - smartstore.api.product.Category
     - smartstore.api.order.Order
     - smartstore.api.order.OrderStatus
     - smartstore.api.settlement.Settlement
@@ -1484,6 +1503,14 @@ class TestSmartstoreApi:
             product_id = _configs["product_id"],
             max_retries = _configs.get("max_retries", 5),
         )
+
+    def test_category(self, credentials: YamlReader, dump_extract: Callable):
+        """네이버 커머스 API로 전체 카테고리 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.smartstore.api.product.extract import Category
+        Category(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Category, format="json"),
+        ).extract()
 
     def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
         """네이버 커머스 API로 상품 주문 내역 조회 결과를 수집하는 테스트."""

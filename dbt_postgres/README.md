@@ -343,7 +343,8 @@ dbt_postgres/models/marts/sales/
 
 ```bash
 dbt_postgres/models/marts/product/
-├── coupang__option_master
+├── coupang__product_master
+├── coupang__item_master
 ├── ebay_item_master
 ├── sabangnet__product_master
 ├── sabangnet__option_master
@@ -585,7 +586,7 @@ airflow/dags/
 | selector | 역할 |
 | --- | --- |
 | `adreport` | 종합 광고 보고서 업데이트 |
-| `coupang_master` | 쿠팡 옵션 목록 업데이트 |
+| `coupang_master` | 쿠팡 상품/옵션 목록 업데이트 |
 | `ebay_master` | G마켓/옥션 상품 목록 업데이트 |
 | `sabangnet_master` | 사방넷 상품/옵션 목록 업데이트 |
 | `smartstore_master` | 스마트스토어 상품/옵션 목록 업데이트 |

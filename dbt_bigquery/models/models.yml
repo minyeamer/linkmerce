@@ -206,8 +206,11 @@ models:
 
   # marts > product
 
-  - name: "coupang__option_master"
-    description: "쿠팡 윙 옵션 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+  - name: "coupang__product_master"
+    description: "쿠팡 상품 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
+
+  - name: "coupang__item_master"
+    description: "쿠팡 옵션 테이블과 상품 테이블을 결합하고 최초 및 최종 주문일시를 추가한 마스터 모델"
 
   - name: "ebay_item_master"
     description: "G마켓/옥션 상품 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"

@@ -437,10 +437,9 @@ def get_last_task_end_ts(
         "dag_ids": dag_ids,
         "logical_date_gte": data_interval_end.subtract(days=1),
         "logical_date_lte": data_interval_end,
-        "states": states,
         "page_limit": 100,
     }
-    ti_params = {"task_ids": task_ids, "order_by": "-start_date"}
+    ti_params = {"task_ids": task_ids, "states": states, "order_by": "-start_date"}
 
     for dag_run in list_dagruns(**common, order_by="-logical_date"):
         for ti in list_task_instances(**common, dag_run_ids=[dag_run["dag_run_id"]], **ti_params):

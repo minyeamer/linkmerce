@@ -188,3 +188,62 @@ SELECT
   , CAST(DATE_TRUNC('second', CURRENT_TIMESTAMP) AS TIMESTAMP) AS updated_at
 FROM {{ rows }}
 ON CONFLICT DO NOTHING;
+
+
+-- Category: create
+CREATE TABLE IF NOT EXISTS {{ table }} (
+    category_id INTEGER NOT NULL
+  , category_name VARCHAR NOT NULL
+  , category_id1 INTEGER
+  , category_id2 INTEGER
+  , category_id3 INTEGER
+  , category_id4 INTEGER
+  , category_id5 INTEGER
+  , category_id6 INTEGER
+  , category_name1 VARCHAR
+  , category_name2 VARCHAR
+  , category_name3 VARCHAR
+  , category_name4 VARCHAR
+  , category_name5 VARCHAR
+  , category_name6 VARCHAR
+  , depth SMALLINT NOT NULL
+  , PRIMARY KEY (category_id)
+);
+
+-- Category: bulk_insert
+INSERT INTO {{ table }}
+WITH RECURSIVE category_tree AS (
+  SELECT
+      CAST(category AS JSON) AS category
+    , []::INTEGER[] AS category_ids
+    , []::VARCHAR[] AS category_names
+  FROM {{ rows }}
+
+  UNION ALL
+
+  SELECT
+      child.value AS category
+    , LIST_APPEND(parent.category_ids, CAST(child.value ->> 'displayItemCategoryCode' AS INTEGER))
+    , LIST_APPEND(parent.category_names, child.value ->> 'name')
+  FROM category_tree AS parent
+  CROSS JOIN JSON_EACH(parent.category, '$.child') AS child
+)
+SELECT
+    CAST(category ->> 'displayItemCategoryCode' AS INTEGER) AS category_id
+  , category ->> 'name' AS category_name
+  , category_ids[1] AS category_id1
+  , category_ids[2] AS category_id2
+  , category_ids[3] AS category_id3
+  , category_ids[4] AS category_id4
+  , category_ids[5] AS category_id5
+  , category_ids[6] AS category_id6
+  , category_names[1] AS category_name1
+  , category_names[2] AS category_name2
+  , category_names[3] AS category_name3
+  , category_names[4] AS category_name4
+  , category_names[5] AS category_name5
+  , category_names[6] AS category_name6
+  , LEN(category_ids) AS depth
+FROM category_tree
+WHERE LEN(category_ids) > 0
+ON CONFLICT DO NOTHING;

@@ -263,6 +263,28 @@ CREATE TABLE IF NOT EXISTS coupang.vendor (
   , PRIMARY KEY (vendor_id)
 );
 
+-- [쿠팡 노출 카테고리]
+CREATE TABLE IF NOT EXISTS coupang.category (
+    category_id INTEGER NOT NULL -- 카테고리코드
+  , category_name TEXT NOT NULL -- 카테고리명
+  , category_id1 INTEGER -- 카테고리코드1
+  , category_id2 INTEGER -- 카테고리코드2
+  , category_id3 INTEGER -- 카테고리코드3
+  , category_id4 INTEGER -- 카테고리코드4
+  , category_id5 INTEGER -- 카테고리코드5
+  , category_id6 INTEGER -- 카테고리코드6
+  , category_name1 TEXT -- 카테고리명1
+  , category_name2 TEXT -- 카테고리명2
+  , category_name3 TEXT -- 카테고리명3
+  , category_name4 TEXT -- 카테고리명4
+  , category_name5 TEXT -- 카테고리명5
+  , category_name6 TEXT -- 카테고리명6
+  , depth SMALLINT NOT NULL -- 카테고리단계
+  , PRIMARY KEY (category_id)
+);
+CREATE INDEX IF NOT EXISTS cpg_category__depth_idx ON coupang.category (depth);
+CREATE INDEX IF NOT EXISTS cpg_category__id6_idx ON coupang.category (category_id1, category_id2, category_id3, category_id4, category_id5, category_id6);
+
 -- [쿠팡 마켓플레이스/로켓그로스 상품]
 CREATE TABLE IF NOT EXISTS coupang.product (
     vendor_inventory_id BIGINT NOT NULL -- 등록상품ID

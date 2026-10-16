@@ -167,3 +167,33 @@ class Inventory(DuckDBTransformer):
         fields = ["sellerItemId", "amountInStock", "salePrice", "onSale"],
     )
     params = {"vendor_id": "$vendor_id"}
+
+
+class CategoryParser(JsonTransformer):
+    """쿠팡 노출 카테고리 트리를 DuckDB에서 전개할 JSON 문자열로 변환하는 클래스."""
+
+    dtype = dict
+    scope = "data"
+    fields = ["category"]
+
+    def parse(self, obj: dict, **kwargs) -> list[dict]:
+        """하위 카테고리의 계층 구조를 보존한 JSON 문자열을 반환한다."""
+        import json
+        return [{"category": json.dumps(obj, ensure_ascii=False)}]
+
+
+class Category(DuckDBTransformer):
+    """쿠팡 노출 카테고리 목록을 DuckDB 테이블로 변환 및 적재한다.
+
+    - **Extractor**: `Category`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `CategoryParser: dict -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: coupang_category`
+    """
+
+    extractor = "Category"
+    tables = {"table": "coupang_category"}
+    parser = CategoryParser

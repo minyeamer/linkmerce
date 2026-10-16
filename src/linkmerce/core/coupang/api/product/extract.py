@@ -51,6 +51,7 @@ class Product(CoupangApi):
             status: Literal["IN_REVIEW", "SAVED", "APPROVING", "APPROVED", "PARTIAL_APPROVED", "DENIED", "DELETED"] | None = None,
             manufacture: str | None = None,
             created_at: dt.date | str | None = None,
+            max_retries: int = 5,
             **kwargs
         ) -> list[dict]:
         """상품 목록을 조회해 JSON 형식으로 반환한다.
@@ -71,6 +72,8 @@ class Product(CoupangApi):
         created_at: dt.date | str
             상품등록일시를 제한할 수 있다.   
             예) '2015-12-17'과 같이 입력하면, '2015-12-17T00:00:00' ~ '2015-12-17T23:59:59'와 같이 조회됨
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
@@ -85,6 +88,7 @@ class Product(CoupangApi):
                 status = status,
                 manufacture = manufacture,
                 created_at = created_at,
+                max_retries = max_retries,
             ))
 
     def get_next_cursor(self, response: dict, **context) -> str | None:
@@ -165,6 +169,7 @@ class ProductDetail(CoupangApi):
     def extract(
             self,
             seller_product_id: int | str | Iterable[int | str],
+            max_retries: int = 5,
             **kwargs
         ) -> dict | list[dict]:
         """상품별 상세 정보를 조회해 JSON 형식으로 반환한다.
@@ -173,6 +178,8 @@ class ProductDetail(CoupangApi):
         ----------
         seller_product_id: int | str | Iterable[int | str]
             등록상품ID. 단일 값 또는 배열
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
@@ -182,6 +189,7 @@ class ProductDetail(CoupangApi):
                 - `seller_product_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_until_success)
+                .partial(max_retries=max_retries)
                 .expand(seller_product_id=seller_product_id)
                 .run())
 
@@ -223,13 +231,15 @@ class Inventory(CoupangApi):
     default_options = {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangApi.with_session
-    def extract(self, vendor_item_id: int | str | Iterable[int | str], **kwargs) -> list[dict]:
+    def extract(self, vendor_item_id: int | str | Iterable[int | str], max_retries: int = 5, **kwargs) -> list[dict]:
         """옵션별 수량, 가격, 판매상태를 조회해 JSON 형식으로 반환한다.
 
         Parameters
         ----------
         vendor_item_id: int | str | Iterable[int | str]
             노출옵션ID. 단일 값 또는 배열
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
@@ -239,7 +249,7 @@ class Inventory(CoupangApi):
                 - `vendor_item_id`가 `Iterable[int | str]` 타입일 때 -> `list[dict]`
         """
         return (self.request_each(self.request_json_until_success)
-                .partial(vendor_id=self.vendor_id)
+                .partial(vendor_id=self.vendor_id, max_retries=max_retries)
                 .expand(vendor_item_id=vendor_item_id)
                 .run())
 
@@ -247,3 +257,42 @@ class Inventory(CoupangApi):
         path = self.path.format(vendor_id=self.vendor_id, vendor_item_id=str(vendor_item_id))
         kwargs["url"] = self.concat_path(self.origin, path)
         return super().build_request_message(**kwargs)
+
+
+class Category(CoupangApi):
+    """쿠팡 노출 카테고리 전체 목록을 수집하는 클래스.
+
+    - **Menu**: 카테고리 API > 카테고리 목록조회
+    - **API**: https://api-gateway.coupang.com/v2/providers/seller_api/apis/api/v1/marketplace/meta/display-categories
+    - **Docs**: https://developers.coupang.com/ko/api/categories/how-to-get-category-list
+
+    Attributes
+    ----------
+    **NOTE** 인스턴스 생성 시 `configs` 인자로 아래 설정값들을 반드시 전달해야 한다.
+
+    access_key: str
+        쿠팡 Open API 액세스 키
+    secret_key: str
+        쿠팡 Open API 시크릿 키
+    vendor_id: str
+        업체 코드
+    """
+
+    method = "GET"
+    path = "/v2/providers/seller_api/apis/api/v1/marketplace/meta/display-categories"
+
+    @CoupangApi.with_session
+    def extract(self, max_retries: int = 5, **kwargs) -> dict:
+        """전체 노출 카테고리 목록을 조회해 JSON 형식으로 반환한다.
+
+        Parameters
+        ----------
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+
+        Returns
+        -------
+        dict
+            ROOT와 하위 노출 카테고리를 포함한 원본 응답
+        """
+        return self.parse(self.request_json_until_success(max_retries=max_retries, **kwargs), **kwargs)

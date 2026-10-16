@@ -129,3 +129,24 @@ class Option(DuckDBTransformer):
         "supplement": SupplementParser
     }
     params = {"product_id": "$product_id", "channel_seq": "$channel_seq"}
+
+
+class Category(DuckDBTransformer):
+    """스마트스토어 전체 카테고리 조회 결과를 변환 및 적재하는 클래스.
+
+    - **Extractor**: `Category`
+
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: list[dict] -> list[dict]`
+
+    - **Table** ( *table_key: table_name* ):
+        `table: smartstore_category`
+    """
+
+    extractor = "Category"
+    tables = {"table": "smartstore_category"}
+    parser = "json"
+    parser_config = dict(
+        dtype = list,
+        fields = ["id", "name", "wholeCategoryName"],
+    )

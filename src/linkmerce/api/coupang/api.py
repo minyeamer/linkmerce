@@ -78,6 +78,7 @@ def product(
         status: Literal["IN_REVIEW", "SAVED", "APPROVING", "APPROVED", "PARTIAL_APPROVED", "DENIED", "DELETED"] | None = None,
         manufacture: str | None = None,
         created_at: dt.date | str | None = None,
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 0.3,
@@ -112,6 +113,8 @@ def product(
     created_at: dt.date | str
         상품등록일시를 제한할 수 있다.   
         예) '2015-12-17'과 같이 입력하면, '2015-12-17T00:00:00' ~ '2015-12-17T23:59:59'와 같이 조회됨
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -139,7 +142,7 @@ def product(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(access_key, secret_key, vendor_id),
         options = {"CursorAll": {"request_delay": request_delay}},
-    )).extract(business_type, seller_product_id, seller_product_name, status, manufacture, created_at)
+    )).extract(business_type, seller_product_id, seller_product_name, status, manufacture, created_at, max_retries)
 
 
 @with_duckdb_connection(table="coupang_product_detail")
@@ -148,6 +151,7 @@ def product_detail(
         secret_key: str,
         vendor_id: str,
         seller_product_id: int | str | Iterable[int | str],
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 0.3,
@@ -171,6 +175,8 @@ def product_detail(
         업체 코드
     seller_product_id: int | str | Iterable[int | str]
         등록상품ID. 단일 값 또는 배열
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -205,7 +211,7 @@ def product_detail(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(seller_product_id)
+    )).extract(seller_product_id, max_retries)
 
 
 @with_duckdb_connection(table="coupang_product_option")
@@ -219,6 +225,7 @@ def product_option(
         statuses: Iterable[Literal["IN_REVIEW", "SAVED", "APPROVING", "APPROVED", "PARTIAL_APPROVED", "DENIED", "DELETED"] | None] = [None, "DELETED"],
         manufacture: str | None = None,
         created_at: dt.date | str | None = None,
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 0.3,
@@ -255,6 +262,8 @@ def product_option(
     created_at: dt.date | str
         상품등록일시를 제한할 수 있다.   
         예) '2015-12-17'과 같이 입력하면, '2015-12-17T00:00:00' ~ '2015-12-17T23:59:59'와 같이 조회됨
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -294,7 +303,7 @@ def product_option(
                 T1, connection, extract_options[PRODUCT], transform_options[PRODUCT], return_type,
                 configs = _get_api_configs(access_key, secret_key, vendor_id),
                 options = {"CursorAll": {"request_delay": request_delay}},
-            )).extract(business_type, seller_product_id, seller_product_name, status, manufacture, created_at)
+            )).extract(business_type, seller_product_id, seller_product_name, status, manufacture, created_at, max_retries)
 
     from linkmerce.core.coupang.api.product.extract import ProductDetail
     from linkmerce.core.coupang.api.product.transform import ProductDetail as T2
@@ -309,7 +318,7 @@ def product_option(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(connection.fetch_values(query, axis=1))
+    )).extract(connection.fetch_values(query, axis=1), max_retries)
 
     if return_type == "raw":
         return {"product": products, "option": options}
@@ -407,6 +416,7 @@ def inventory(
         secret_key: str,
         vendor_id: str,
         vendor_item_id: int | str | Iterable[int | str],
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 0.3,
@@ -430,6 +440,8 @@ def inventory(
         업체 코드
     vendor_item_id: int | str | Iterable[int | str]
         노출옵션ID. 단일 값 또는 배열
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -464,7 +476,61 @@ def inventory(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(vendor_item_id)
+    )).extract(vendor_item_id, max_retries)
+
+
+@with_duckdb_connection(table="coupang_category")
+def category(
+        access_key: str,
+        secret_key: str,
+        vendor_id: str,
+        max_retries: int = 5,
+        *,
+        connection: DuckDBConnection | None = None,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> DuckDBResult | dict | None:
+    """쿠팡 노출 카테고리 전체 목록을 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    **Table** ( *table_key: table_name* ):
+        `table: coupang_category`
+
+    Parameters
+    ----------
+    access_key: str
+        쿠팡 Open API 액세스 키
+    secret_key: str
+        쿠팡 Open API 시크릿 키
+    vendor_id: str
+        업체 코드
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    return_type: Literal["csv", "json", "parquet", "raw", "none"]
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션
+
+    Returns
+    -------
+    DuckDBResult | dict | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 테이블 조회 결과를 CSV 형식의 `list[tuple]`로 반환한다.
+            - `"json"`: 테이블 조회 결과를 JSON 형식의 `list[dict]`로 반환한다. (기본값)
+            - `"parquet"`: 테이블 조회 결과를 Parquet 바이너리로 반환한다.
+            - `"raw"`: 데이터 수집 후 `dict` 형식의 원본 응답을 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.coupang.api.product.extract import Category
+    from linkmerce.core.coupang.api.product.transform import Category as T
+    return Category(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(access_key, secret_key, vendor_id),
+    )).extract(max_retries)
 
 
 @with_duckdb_connection(tables = {
@@ -480,6 +546,7 @@ def order(
         start_datetime: dt.datetime | str,
         end_datetime: dt.datetime | str | Literal[":end_of_day:", ":max_window:"] = ":end_of_day:",
         status: Literal["ALL", "ACCEPT", "INSTRUCT", "DEPARTURE", "DELIVERING", "FINAL_DELIVERY", "NONE_TRACKING"] | Iterable[str] = "ALL",
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 0.3,
@@ -518,6 +585,8 @@ def order(
             - `"DELIVERING"`: 배송중
             - `"FINAL_DELIVERY"`: 배송완료
             - `"NONE_TRACKING"`: 업체 직접 배송
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -552,7 +621,7 @@ def order(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(start_datetime, end_datetime, status)
+    )).extract(start_datetime, end_datetime, status, max_retries)
 
 
 @with_duckdb_connection(tables = {
@@ -567,6 +636,7 @@ def order_detail(
         vendor_id: str,
         query_id: int | str | Iterable[int | str],
         query_type: Literal["order_id", "shipment_box_id"] = "order_id",
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 0.3,
@@ -597,6 +667,8 @@ def order_detail(
         번호 유형
             - `"order_id"`: 주문번호 (기본값)
             - `"shipment_box_id"`: 배송번호
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -631,7 +703,7 @@ def order_detail(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(query_id, query_type)
+    )).extract(query_id, query_type, max_retries)
 
 
 @with_duckdb_connection(table="coupang_rocket_inventory")
@@ -640,6 +712,7 @@ def rocket_inventory(
         secret_key: str,
         vendor_id: str,
         vendor_item_id: int | str | None = None,
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 1.3,
@@ -662,6 +735,8 @@ def rocket_inventory(
         업체 코드
     vendor_item_id: int | str | None
         노출옵션ID. 생략하면 전체 옵션 조회
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -689,7 +764,7 @@ def rocket_inventory(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(access_key, secret_key, vendor_id),
         options = {"CursorAll": {"request_delay": request_delay}},
-    )).extract(vendor_item_id)
+    )).extract(vendor_item_id, max_retries)
 
 
 @with_duckdb_connection(table="coupang_rocket_order")
@@ -699,6 +774,7 @@ def rocket_order(
         vendor_id: str,
         start_date: dt.date | str, 
         end_date: dt.date | str | Literal[":next_start_date:"] = ":next_start_date:",
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 1.3,
@@ -724,6 +800,8 @@ def rocket_order(
     end_date: dt.date | str
         검색 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
             - `":next_start_date:"`: `start_date`의 1일 후 날짜 (기본값)
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -753,7 +831,7 @@ def rocket_order(
         T, connection, extract_options, transform_options, return_type,
         configs = _get_api_configs(access_key, secret_key, vendor_id),
         options = {"CursorAll": {"request_delay": request_delay}},
-    )).extract(start_date, end_date)
+    )).extract(start_date, end_date, max_retries)
 
 
 @with_duckdb_connection(table="coupang_rocket_order")
@@ -762,6 +840,7 @@ def rocket_order_detail(
         secret_key: str,
         vendor_id: str,
         order_id: int | str | Iterable[int | str],
+        max_retries: int = 5,
         *,
         connection: DuckDBConnection | None = None,
         request_delay: float | int | tuple[int, int] = 1.3,
@@ -785,6 +864,8 @@ def rocket_order_detail(
         업체 코드
     order_id: int | str | Iterable[int | str]
         주문번호. 단일 값 또는 배열
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
     connection: DuckDBConnection | None
         사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
     request_delay: float | int | tuple[int, int]
@@ -819,4 +900,4 @@ def rocket_order_detail(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(order_id)
+    )).extract(order_id, max_retries)

@@ -238,6 +238,57 @@ def option(
     )).extract(product_id, channel_seq, max_retries)
 
 
+@with_duckdb_connection(table="smartstore_category")
+def category(
+        client_id: str,
+        client_secret: str,
+        max_retries: int = 5,
+        *,
+        connection: DuckDBConnection | None = None,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> DuckDBResult | list[dict] | None:
+    """스마트스토어 전체 카테고리 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    **Table** ( *table_key: table_name* ):
+        `table: smartstore_category`
+
+    Parameters
+    ----------
+    client_id: str
+        커머스 API 애플리케이션 ID
+    client_secret: str
+        커머스 API 애플리케이션 시크릿
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    return_type: Literal["csv", "json", "parquet", "raw", "none"]
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션
+
+    Returns
+    -------
+    DuckDBResult | list[dict] | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 테이블 조회 결과를 CSV 형식의 `list[tuple]`로 반환한다.
+            - `"json"`: 테이블 조회 결과를 JSON 형식의 `list[dict]`로 반환한다. (기본값)
+            - `"parquet"`: 테이블 조회 결과를 Parquet 바이너리로 반환한다.
+            - `"raw"`: 데이터 수집 후 `list[dict]` 형식의 원본 응답을 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.smartstore.api.product.extract import Category
+    from linkmerce.core.smartstore.api.product.transform import Category as T
+    return Category(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(client_id, client_secret),
+    )).extract(max_retries)
+
+
 @with_duckdb_connection(tables={
     "product": "smartstore_product",
     "option": "smartstore_option",

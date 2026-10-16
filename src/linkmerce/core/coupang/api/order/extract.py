@@ -46,6 +46,7 @@ class Order(CoupangApi):
             start_datetime: dt.datetime | str,
             end_datetime: dt.datetime | str | Literal[":end_of_day:", ":max_window:"] = ":end_of_day:",
             status: Literal["ALL", "ACCEPT", "INSTRUCT", "DEPARTURE", "DELIVERING", "FINAL_DELIVERY", "NONE_TRACKING"] | Iterable[str] = "ALL",
+            max_retries: int = 5,
             **kwargs
         ) -> dict | list[dict]:
         """검색 기간에 대한 마켓플레이스 발주서 목록을 JSON 형식으로 반환한다.
@@ -66,6 +67,8 @@ class Order(CoupangApi):
                 - `"DELIVERING"`: 배송중
                 - `"FINAL_DELIVERY"`: 배송완료
                 - `"NONE_TRACKING"`: 업체 직접 배송
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
@@ -80,6 +83,7 @@ class Order(CoupangApi):
             status = list(self.status.keys())
 
         return (self.request_each(self.request_json_until_success, context=context)
+                .partial(max_retries=max_retries)
                 .expand(status=status)
                 .run())
 
@@ -149,6 +153,7 @@ class OrderDetail(CoupangApi):
             self,
             query_id: int | str | Iterable[int | str],
             query_type: Literal["order_id", "shipment_box_id"] = "order_id",
+            max_retries: int = 5,
             **kwargs
         ) -> dict | list[dict]:
         """주문번호별 또는 배송번호별 마켓플레이스 발주서를 조회해 JSON 형식으로 반환한다.
@@ -161,6 +166,8 @@ class OrderDetail(CoupangApi):
             번호 유형
                 - `"order_id"`: 주문번호 (기본값)
                 - `"shipment_box_id"`: 배송번호
+        max_retries: int
+            동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
 
         Returns
         -------
@@ -171,7 +178,7 @@ class OrderDetail(CoupangApi):
         """
         query_id = query_id if isinstance(query_id, (int, str)) else list(query_id)
         return (self.request_each(self.request_json_until_success)
-                .partial(query_path=self.get_query_path(query_type))
+                .partial(query_path=self.get_query_path(query_type), max_retries=max_retries)
                 .expand(query_id=query_id)
                 .run())
 

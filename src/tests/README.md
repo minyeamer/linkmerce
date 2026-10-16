@@ -129,8 +129,11 @@ coupang/
 │   │   ├── ProductDetail(CoupangApi)::extract
 │   │   │   └── ProductDetail(DuckDBTransformer)::transform
 │   │   │       └── DetailedItemParser(JsonTransformer)::transform
-│   │   └── Inventory(CoupangApi)::extract
-│   │       └── Inventory(DuckDBTransformer)::transform >> json
+│   │   ├── Inventory(CoupangApi)::extract
+│   │   │   └── Inventory(DuckDBTransformer)::transform >> json
+│   │   └── Category(CoupangApi)::extract
+│   │       └── Category(DuckDBTransformer)::transform
+│   │           └── CategoryParser(JsonTransformer)::transform
 │   └── rocket_growth/
 │       ├── Inventory(CoupangApi)::extract
 │       │   └── Inventory(DuckDBTransformer)::transform >> json
@@ -470,11 +473,13 @@ smartstore/
 │   │   ├── Product(SmartstoreApi)::extract
 │   │   │   └── Product(DuckDBTransformer)::transform
 │   │   │       └── ProductParser(JsonTransformer)::transform
-│   │   └── Option(SmartstoreApi)::extract
-│   │       └── Option(DuckDBTransformer)::transform
-│   │           ├── OptionSimpleParser(JsonTransformer)::transform
-│   │           ├── OptionCombParser(JsonTransformer)::transform
-│   │           └── SupplementParser(JsonTransformer)::transform
+│   │   ├── Option(SmartstoreApi)::extract
+│   │   │   └── Option(DuckDBTransformer)::transform
+│   │   │       ├── OptionSimpleParser(JsonTransformer)::transform
+│   │   │       ├── OptionCombParser(JsonTransformer)::transform
+│   │   │       └── SupplementParser(JsonTransformer)::transform
+│   │   └── Category(SmartstoreApi)::extract
+│   │       └── Category(DuckDBTransformer)::transform >> json
 │   ├── order/
 │   │   ├── Order(SmartstoreApi)::extract
 │   │   │   ├── Order(DuckDBTransformer)::transform >> json

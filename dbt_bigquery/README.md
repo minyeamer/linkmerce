@@ -339,7 +339,8 @@ dbt_bigquery/models/marts/sales/
 
 ```bash
 dbt_bigquery/models/marts/product/
-├── coupang__option_master
+├── coupang__product_master
+├── coupang__item_master
 ├── ebay_item_master
 ├── sabangnet__product_master
 ├── sabangnet__option_master
@@ -353,6 +354,11 @@ dbt_bigquery/models/marts/product/
 `product_master` 모델에는 유형 또는 상태 코드를 조합한 `sort_key`가 포함되며,
 `option_master` 모델은 상품코드를 기준으로 `product_master` 모델을 결합해
 `sort_key`를 참조한다.
+
+쿠팡의 `coupang__product_master`는 `coupang.product`에 카테고리와 상품상태 라벨을 연결한다.
+`coupang__item_master`는 `coupang.item`에 상품 마스터와 `coupang.order_option`의
+최초 및 최종 주문일시를 연결하고, 마지막 두 단계의 카테고리명과 이미지 주소를 제공한다.
+두 모델은 `coupang_master` selector로 실행한다.
 
 #### marts/stock
 
@@ -535,7 +541,7 @@ airflow/dags/
 | selector | 역할 |
 | --- | --- |
 | `adreport` | 종합 광고 보고서 업데이트 |
-| `coupang_master` | 쿠팡 옵션 목록 업데이트 |
+| `coupang_master` | 쿠팡 상품/옵션 목록 업데이트 |
 | `ebay_master` | G마켓/옥션 상품 목록 업데이트 |
 | `sabangnet_master` | 사방넷 상품/옵션 목록 업데이트 |
 | `smartstore_master` | 스마트스토어 상품/옵션 목록 업데이트 |

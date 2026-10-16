@@ -406,10 +406,13 @@ selectors:
 
   # Custom - product
   - name: coupang_master
-    description: "쿠팡 옵션 목록 업데이트"
+    description: "쿠팡 상품/옵션 목록 업데이트"
     definition:
-      method: fqn
-      value: marts.product.coupang__option_master
+      union:
+        - method: fqn
+          value: marts.product.coupang__product_master
+        - method: fqn
+          value: marts.product.coupang__item_master
   - name: ebay_master
     description: "G마켓/옥션 상품 목록 업데이트"
     definition:

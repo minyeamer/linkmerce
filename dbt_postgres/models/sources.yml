@@ -30,6 +30,7 @@ sources:
     schema: coupang
     tables:
       - name: vendor
+      - name: category
       - name: product
       - name: item
       - name: option
