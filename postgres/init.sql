@@ -191,7 +191,7 @@ CREATE TABLE IF NOT EXISTS cj_eflexs.invoice_order (
   , box_cost INTEGER -- 부자재금액
   , order_date DATE NOT NULL -- 주문일자
   , pickup_date DATE NOT NULL -- 집하일자
-  , PRIMARY KEY (order_date, invoice_no, order_id)
+  , PRIMARY KEY (order_date, invoice_no)
 ) PARTITION BY RANGE (order_date);
 
 -- [CJ대한통운 eFLEXs 상세재고조회]

@@ -28,10 +28,21 @@ pytestmark = pytest.mark.transform
 @pytest.mark.cj_logistics
 class TestCjLogistics:
     """CJ대한통운 eFLEXs 데이터 변환 테스트.
+    - cj.eflexs.invoice.Invoice
+    - cj.eflexs.invoice.InvoiceOrder
     - cj.eflexs.stock.Stock
     """
 
-    @pytest.mark.skip
+    def test_invoice(self, transformer_harness: Harness, configs: YamlReader):
+        """CJ대한통운 eFLEXs 고객매출확인 메뉴의 운송장 상세 내역을 변환하는 테스트."""
+        from linkmerce.core.cj.eflexs.invoice.transform import Invoice
+        transformer_harness(Invoice).transform()
+
+    def test_invoice_order(self, transformer_harness: Harness, configs: YamlReader):
+        """CJ대한통운 eFLEXs 운송장 상세 내역에서 주문별 정산 내역을 변환하는 테스트."""
+        from linkmerce.core.cj.eflexs.invoice.transform import InvoiceOrder
+        transformer_harness(InvoiceOrder).transform()
+
     def test_stock(self, transformer_harness: Harness):
         """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역을 변환하는 테스트."""
         from linkmerce.core.cj.eflexs.stock.transform import Stock

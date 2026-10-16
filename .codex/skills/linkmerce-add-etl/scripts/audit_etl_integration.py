@@ -444,32 +444,43 @@ def audit_api_tables(
         api_tables = api_decorator_tables(node)
         if api_tables is None:
             continue
-        transform_import: tuple[str, str] | None = None
+        transform_imports: list[tuple[str, str]] = list()
         for item in ast.walk(node):
             if not isinstance(item, ast.ImportFrom) or not item.module or not item.module.endswith(".transform"):
                 continue
             for name in item.names:
-                if name.asname == "T":
-                    transform_import = (item.module, name.name)
-        if transform_import is None:
+                if name.asname and re.fullmatch(r"T\d*", name.asname):
+                    transform_imports.append((item.module, name.name))
+        if not transform_imports:
             audit.error(path, f"API `{node.name}` does not import its Transformer as `T`", node.lineno)
             continue
-        module, class_name = transform_import
-        transform_path = module.replace(".", "/") + ".py"
-        if transform_path.startswith("linkmerce/"):
-            transform_path = "src/" + transform_path
-        try:
-            transform_tree = ast.parse(content_for(args, transform_path), filename=transform_path)
-        except (RuntimeError, FileNotFoundError, SyntaxError) as exc:
-            audit.error(path, f"cannot inspect Transformer `{transform_path}`: {exc}", node.lineno)
+        resolved: list[dict[str, str]] = list()
+        for module, class_name in transform_imports:
+            transform_path = module.replace(".", "/") + ".py"
+            if transform_path.startswith("linkmerce/"):
+                transform_path = "src/" + transform_path
+            try:
+                transform_tree = ast.parse(content_for(args, transform_path), filename=transform_path)
+            except (RuntimeError, FileNotFoundError, SyntaxError) as exc:
+                audit.error(path, f"cannot inspect Transformer `{transform_path}`: {exc}", node.lineno)
+                continue
+            transform_tables = literal_tables(transform_tree).get(class_name)
+            if transform_tables is None:
+                audit.error(transform_path, f"cannot resolve literal tables for Transformer `{class_name}`")
+            else:
+                resolved.append(transform_tables)
+        if len(resolved) != len(transform_imports):
             continue
-        transform_tables = literal_tables(transform_tree).get(class_name)
-        if transform_tables is None:
-            audit.error(transform_path, f"cannot resolve literal tables for Transformer `{class_name}`")
-        elif api_tables != transform_tables:
+        if len(resolved) == 1:
+            matches = api_tables == resolved[0]
+        else:
+            # Independent Transformers may each use the local single-table key `table`.
+            names = [name for tables in resolved for name in tables.values()]
+            matches = sorted(api_tables.values()) == sorted(names)
+        if not matches:
             audit.error(
                 path,
-                f"API decorator tables {api_tables} differ from {class_name}.tables {transform_tables}",
+                f"API decorator tables {api_tables} differ from Transformer tables {resolved}",
                 node.lineno,
             )
 

@@ -25,6 +25,7 @@ pytestmark = pytest.mark.extract
 @pytest.mark.cj_logistics
 class TestCjLogistics:
     """CJ대한통운 eFLEXs 데이터 추출 테스트.
+    - cj.eflexs.invoice.Invoice
     - cj.eflexs.stock.Stock
     """
 
@@ -35,6 +36,18 @@ class TestCjLogistics:
             "passwd": _credentials["passwd"],
             "mail_info": _credentials["mail_info"],
         }
+
+    def test_invoice(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """CJ대한통운 eFLEXs 고객매출확인 메뉴의 운송장 상세 내역을 조회하는 테스트."""
+        from linkmerce.core.cj.eflexs.invoice.extract import Invoice
+        _configs = configs("cj.eflexs.invoice")
+        Invoice(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Invoice, format="json"),
+        ).extract(
+            customer_id = _configs["customer_id"],
+            bill_ym = _configs["bill_ym"],
+        )
 
     @pytest.mark.skip
     def test_stock(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):

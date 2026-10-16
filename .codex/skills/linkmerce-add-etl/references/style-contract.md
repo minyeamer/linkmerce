@@ -166,7 +166,8 @@ Copy the exact option name, default value, Attributes wording, and chaining orde
 
 Keep the section order exactly: one-line description, `Extractor`, `Parser` or `Parsers`, `Table` or `Tables`, then optional `Parameters`.
 
-Put only the class name in `Extractor`. Never add input or output types there.
+Put only the class name in `Extractor`, inline after `- **Extractor**:`. Never add input or output types there or turn the class name into a nested list item.
+Keep the parser legend exactly as `- **Parser** ( *parser_class: input_type -> output_type* ):`, followed by an indented code span without a list marker.
 
 Use this single-table structure:
 
@@ -174,11 +175,10 @@ Use this single-table structure:
 class Feature(DuckDBTransformer):
     """<business data>를 DuckDB 테이블로 변환 및 적재한다.
 
-    - **Extractor**
-        - `Feature`
+    - **Extractor**: `Feature`
 
-    - **Parser**
-        - `JsonTransformer: dict -> list[dict]`
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
         `table: provider_feature`
@@ -196,11 +196,10 @@ Use this multi-table structure:
 class Feature(DuckDBTransformer):
     """<business data>와 <derived data>를 DuckDB 테이블로 변환 및 적재한다.
 
-    - **Extractor**
-        - `Feature`
+    - **Extractor**: `Feature`
 
-    - **Parser**
-        - `JsonTransformer: dict -> list[dict]`
+    - **Parser** ( *parser_class: input_type -> output_type* ):
+        `JsonTransformer: dict -> list[dict]`
 
     - **Tables** ( *table_key: table_name (description)* ):
         1. `first: provider_first` (<approved description>)
@@ -213,7 +212,7 @@ class Feature(DuckDBTransformer):
     """
 ```
 
-Use `Parsers` only when more than one parser actually participates. Use actual parser class names, not the shorthand assigned to `parser`. Keep table keys, internal names, order, and descriptions identical to `tables` and the API decorator.
+Use `Parsers` only when more than one parser actually participates; retain the same parser legend and follow the closest current approved implementation for its entries. Use actual parser class names, not the shorthand assigned to `parser`. Keep table keys, internal names, order, and descriptions identical to `tables` and the API decorator.
 
 Document `Parameters` only for values consumed by `params`, parser options, or overridden transform logic. Do not insert stock prose that is absent from the approved local pattern.
 

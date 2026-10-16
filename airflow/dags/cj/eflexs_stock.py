@@ -68,7 +68,7 @@ with DAG(
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.cj.eflexs import stock
         from dual_load import load_table_from_duckdb
-        source = "eflexs_stock"
+        source = "cj_eflexs_stock"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
             stock(

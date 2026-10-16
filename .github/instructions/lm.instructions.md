@@ -74,11 +74,10 @@ Use this as the default skeleton for `core/**/transform.py` classes.
 ```python
 """<one-line summary>
 
-- **Extractor**
-    - `<ExtractorClass>`
+- **Extractor**: `<ExtractorClass>`
 
-- **Parser** / **Parsers**
-    - `<ParserClass>: <input> -> <output>`
+- **Parser** ( *parser_class: input_type -> output_type* ):
+    `<ParserClass>: <input> -> <output>`
 
 - **Table** ( *table_key: table_name* ):
     `table: physical_table`
@@ -97,6 +96,8 @@ Rules:
 
 - Section order: summary -> `Extractor` -> `Parser` / `Parsers` -> `Table` / `Tables` -> optional `Parameters`
 - Write only the Extractor class name in `Extractor`. Never add input or output types there.
+- Keep the Extractor class name inline after `- **Extractor**:`; do not use a nested list item.
+- Keep the parser legend exactly as shown above and indent the single parser code span without a list marker. Use `Parsers` only for multiple parsers, retaining the same legend and following the closest current approved implementation for its entries.
 - Single parser values such as `json`, `html`, `excel` should be written as their actual class names
 - Table legend format must stay exactly in the current codebase style
 - Document runtime parameters when they are actually consumed, but do not insert a stock `NOTE` sentence unless the selected approved local pattern contains it.

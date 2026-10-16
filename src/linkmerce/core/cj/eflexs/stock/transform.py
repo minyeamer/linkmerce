@@ -12,11 +12,11 @@ class Stock(DuckDBTransformer):
         `JsonTransformer: dict -> list[dict]`
 
     - **Table** ( *table_key: table_name* ):
-        `table: eflexs_stock`
+        `table: cj_eflexs_stock`
     """
 
     extractor = "Stock"
-    tables = {"table": "eflexs_stock"}
+    tables = {"table": "cj_eflexs_stock"}
     parser = "json"
     parser_config = dict(
         dtype = dict,

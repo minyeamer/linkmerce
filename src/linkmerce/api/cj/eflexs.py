@@ -10,7 +10,99 @@ if TYPE_CHECKING:
     from linkmerce.common.load import DuckDBConnection
 
 
-@with_duckdb_connection(table="eflexs_stock")
+@with_duckdb_connection(tables={"invoice": "cj_eflexs_invoice", "invoice_order": "cj_eflexs_invoice_order"})
+def invoice(
+        userid: str,
+        passwd: str,
+        mail_info: dict[str, str],
+        customer_id: int | str | Iterable[int | str],
+        bill_ym: int | str | Iterable[int | str],
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int | tuple[int, int] = 1,
+        progress: bool = True,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: tuple[dict | None, dict | None] = (None, None),
+    ) -> dict[str, DuckDBResult] | dict | list[dict] | None:
+    """CJ대한통운 eFLEXs 운송장 상세 내역을 수집해 운송장 및 주문별 DuckDB 테이블에 변환 및 적재한다.
+
+    **Tables** ( *table_key: table_name (description)* ):
+        1. `invoice: cj_eflexs_invoice` (운송장 상세 내역)
+        2. `invoice_order: cj_eflexs_invoice_order` (주문별 정산 내역)
+
+    Parameters
+    ----------
+    userid: str
+        CJ eFLEXs 로그인을 위한 User ID
+    passwd: str
+        CJ eFLEXs 로그인을 위한 Password
+    mail_info: dict[str, str]
+        2단계 인증을 위한 이메일 정보. 다음 키값을 포함해야 한다.
+            - `origin`: 메일 서비스 도메인
+            - `email`: 메일 계정 아이디
+            - `passwd`: 메일 계정 비밀번호
+    customer_id: int | str | Iterable[int | str]
+        조회할 고객 ID. 단일 값 또는 배열을 입력한다.
+    bill_ym: int | str | Iterable[int | str]
+        정산년월. `YYYYMM` 또는 `YYYY-MM` 형식의 단일 값 또는 배열을 입력한다.
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    request_delay: float | int | tuple[int, int]
+        고객 및 정산년월별 요청 간 대기 시간(초). 기본값은 `1`
+    progress: bool
+        반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
+    return_type: str
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션. `(Invoice, InvoiceOrder)` 순서로 튜플을 구성한다.
+
+    Returns
+    -------
+    dict[str, DuckDBResult] | dict | list[dict] | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 모든 테이블 조회 결과를 `{table_key: list[tuple]}` 구조로 반환한다.
+            - `"json"`: 모든 테이블 조회 결과를 `{table_key: list[dict]}` 구조로 반환한다. (기본값)
+            - `"parquet"`: 모든 테이블 조회 결과를 `{table_key: Parquet 바이너리}` 구조로 반환한다.
+            - `"raw"`: 데이터 수집 후 `dict` 또는 `list[dict]` 형식의 원본 응답을 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.cj.eflexs.invoice.extract import Invoice
+    from linkmerce.core.cj.eflexs.invoice.transform import Invoice as T1, InvoiceOrder as T2
+    INVOICE, ORDER = 0, 1
+
+    response = Invoice(**prepare_duckdb_extract(
+        T1, connection, extract_options, return_type="raw",
+        configs = {
+            "userid": userid,
+            "passwd": passwd,
+            "mail_info": mail_info
+        },
+        options = {
+            "RequestEach": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(customer_id, bill_ym)
+
+    if return_type == "raw":
+        return response
+
+    from linkmerce.utils.nested import merge
+    db_info = {"db_info": {"conn": connection}}
+    t1 = T1(**merge(transform_options[INVOICE] or dict(), db_info))
+    t2 = T2(**merge(transform_options[ORDER] or dict(), db_info))
+
+    for obj in (response if isinstance(response, list) else [response]):
+        t1.transform(obj)
+        t2.transform(obj)
+    return None
+
+
+@with_duckdb_connection(table="cj_eflexs_stock")
 def stock(
         userid: str,
         passwd: str,
@@ -27,7 +119,7 @@ def stock(
     """CJ대한통운 eFLEXs 상세재고조회 메뉴의 재고 내역 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
 
     **Table** ( *table_key: table_name* ):
-        `table: eflexs_stock`
+        `table: cj_eflexs_stock`
 
     Parameters
     ----------

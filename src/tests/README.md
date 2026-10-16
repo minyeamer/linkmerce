@@ -84,6 +84,10 @@
 cj/
 └── eflexs/
     ├─x CjEflexs(Extractor)::common
+    ├── invoice/
+    │   └── Invoice(CjEflexs)::extract
+    │       ├── Invoice(DuckDBTransformer)::transform >> json
+    │       └── InvoiceOrder(Invoice)::transform >> json
     └── stock/
         └── Stock(CjEflexs)::extract
             └── Stock(DuckDBTransformer)::transform >> json
