@@ -102,6 +102,7 @@ class Order(CoupangApi):
     path = "/v2/providers/rg_open_api/apis/api/v1/vendors/{vendor_id}/rg/orders"
     date_format = "%Y%m%d"
     days_limit = 30
+    extend_timeout = True
     default_options = {"CursorAll": {"request_delay": 1.3}}
 
     @CoupangApi.with_session
@@ -184,6 +185,7 @@ class OrderDetail(CoupangApi):
 
     method = "GET"
     path = "/v2/providers/rg_open_api/apis/api/v1/vendors/{vendor_id}/rg/order/{order_id}"
+    extend_timeout = True
     default_options = {"RequestEach": {"request_delay": 1.3}}
 
     @CoupangApi.with_session

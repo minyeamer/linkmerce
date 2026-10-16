@@ -30,6 +30,7 @@ class CoupangApi(Extractor):
     origin = "https://api-gateway.coupang.com"
     path: str | None = None
     config_fields = ["access_key", "secret_key", "vendor_id"]
+    extend_timeout: bool = False
 
     @property
     def vendor_id(self) -> str:
@@ -41,19 +42,16 @@ class CoupangApi(Extractor):
 
     def request_json_until_success(self, max_retries: int = 5, **kwargs) -> dict:
         """\"ERROR\" 코드가 아닌 오류가 발생하면 API 요청을 재시도 한다."""
-        session, timeout = self.get_session(), None
+        session = self.get_session()
         message = self.build_request_message(**kwargs)
         for retry_count in range(1, max_retries+1):
             try:
-                with session.request(**message, timeout=timeout) as resp:
+                with session.request(**message) as resp:
                     response = resp.json()
             except Exception as error:
                 response = {"code": "REQUEST", "message": f"{error.__class__.__name__}: {error}"}
             if self.is_valid_response(response, (retry_count if retry_count != max_retries else None)):
                 return response
-            elif (timeout is None) and self.is_timeout_response(response):
-                timeout = 100
-                message["headers"]["X-EXTENDED-TIMEOUT"] = "90000"
 
     def is_valid_response(self, response: dict, retry_count: int | None = None) -> bool:
         """오류 메시지를 구분하여 재시도 요청 또는 `ConnectionError`를 발생시킨다."""
@@ -61,7 +59,7 @@ class CoupangApi(Extractor):
             code = response.get("code")
             if code in ("SUCCESS", 200, "200", None):
                 return True
-            elif (code != "ERROR") and isinstance(retry_count, int):
+            elif ((code != "ERROR") or self.is_timeout_response(response)) and isinstance(retry_count, int):
                 import time
                 time.sleep(retry_count)
                 return False
@@ -79,6 +77,7 @@ class CoupangApi(Extractor):
             "Accept": "application/json",
             "Content-Type": "application/json",
             "X-Requested-By": self.vendor_id,
+            **({"X-EXTENDED-TIMEOUT": "90000"} if self.extend_timeout else dict()),
         })
 
     def build_request_headers(self, **kwargs) -> dict[str, str]:
@@ -100,6 +99,13 @@ class CoupangApi(Extractor):
         signature = hmac.new(secret_key.encode("utf-8"), message.encode("utf-8"), hashlib.sha256).hexdigest()
         return (f"CEA algorithm=HmacSHA256, access-key={self.get_config('access_key')}, "
                 f"signed-date={datetime}, signature={signature}")
+
+    def build_request_message(self, **kwargs) -> dict:
+        """HTTP 요청에 필요한 `method`, `url`, `params`, `data`, `json`, `headers`를 하나의 딕셔너리로 조합한다."""
+        message = super().build_request_message(**kwargs)
+        if self.extend_timeout:
+            message["timeout"] = 100
+        return message
 
     def _get_path(self, url: str | None = None, **kwargs) -> str:
         """키워드 인자에 완성된 URL이 있으면 `path`를 추출하고, 없으면 기본 `path`에 `vendor_id`를 대입하여 반환한다."""

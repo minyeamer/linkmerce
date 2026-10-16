@@ -38,6 +38,7 @@ class Order(CoupangApi):
     method = "GET"
     path = "/v2/providers/openapi/apis/api/v5/vendors/{vendor_id}/ordersheets"
     datetime_format = "%Y-%m-%dT%H:%M%z"
+    extend_timeout = True
     default_options = {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangApi.with_session
@@ -146,6 +147,7 @@ class OrderDetail(CoupangApi):
 
     method = "GET"
     path = "/v2/providers/openapi/apis/api/v5/vendors/{vendor_id}/{query_id}/ordersheets"
+    extend_timeout = True
     default_options = {"RequestEach": {"request_delay": 0.3}}
 
     @CoupangApi.with_session
