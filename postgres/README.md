@@ -112,6 +112,7 @@ ${POSTGRES_DATA_DIR:-./data} -> /var/lib/postgresql
 | 스키마 | 데이터 범위 |
 | --- | --- |
 | `analytics` | 통합 분석 데이터 |
+| `cafe24` | 카페24 주문 및 상품 데이터 |
 | `cj_eflexs`, `cj_loisparcel` | CJ대한통운 재고 및 배송 데이터 |
 | `coupang`, `coupang_ads`, `coupang_rfm` | 쿠팡 상품, 광고, 로켓그로스 데이터 |
 | `dable` | 데이블 광고 데이터 |

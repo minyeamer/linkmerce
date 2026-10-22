@@ -19,6 +19,108 @@ pytestmark = pytest.mark.extract
 
 
 ###################################################################
+############################## Cafe24 #############################
+###################################################################
+
+@pytest.mark.cafe24
+class TestCafe24:
+    """카페24 API 데이터 추출 테스트.
+    - cafe24.api.product.Product
+    - cafe24.api.product.Variant
+    - cafe24.api.product.Category
+    - cafe24.api.order.Order
+    - cafe24.api.order.OrderDetail
+    - cafe24.api.order.OrderChange
+    """
+
+    def credentials(self, reader: YamlReader) -> dict:
+        return reader("cafe24.api.0")
+
+    def test_product(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """카페24 Admin API로 상품 목록 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.cafe24.api.product.extract import Product
+        _configs = options("cafe24.api.product")
+        Product(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Product, format="json"),
+        ).extract(
+            product_name = _configs.get("product_name"),
+            display = _configs.get("display", None),
+            selling = _configs.get("selling", None),
+            shop_no = _configs.get("shop_no", 1),
+            embed = _configs.get("embed", None),
+        )
+
+    def test_product_variant(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """카페24 Admin API로 상품번호별 상품 품목 목록을 수집하는 테스트."""
+        from linkmerce.core.cafe24.api.product.extract import Variant
+        _configs = configs("cafe24.api.product_variant")
+        Variant(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Variant, format="json"),
+        ).extract(
+            product_no = _configs["product_no"],
+            shop_no = _configs.get("shop_no", 1),
+            embed = _configs.get("embed", None),
+        )
+
+    def test_category(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """카페24 Admin API로 상품분류 목록 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.cafe24.api.product.extract import Category
+        _configs = options("cafe24.api.category")
+        Category(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Category, format="json"),
+        ).extract(
+            category_depth = _configs.get("category_depth"),
+            parent_category_no = _configs.get("parent_category_no"),
+            shop_no = _configs.get("shop_no", 1),
+        )
+
+    def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """카페24 Admin API로 주문 목록 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.cafe24.api.order.extract import Order
+        _configs = options("cafe24.api.order")
+        Order(
+            configs = self.credentials(credentials),
+            parser = dump_extract(Order, format="json"),
+        ).extract(
+            start_datetime = _configs.get("start_datetime", f"{yesterday}T00:00:00+09:00"),
+            end_datetime = _configs.get("end_datetime", ":end_of_day:"),
+            date_type = _configs.get("date_type", "order_date"),
+            order_status = _configs.get("order_status", None),
+            shop_no = _configs.get("shop_no", 1),
+            embed = _configs.get("embed", None),
+        )
+
+    def test_order_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """카페24 Admin API로 주문번호별 주문 상세 내역 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.cafe24.api.order.extract import OrderDetail
+        _configs = configs("cafe24.api.order_detail")
+        OrderDetail(
+            configs = self.credentials(credentials),
+            parser = dump_extract(OrderDetail, format="json"),
+        ).extract(
+            order_id = _configs["order_id"],
+            shop_no = _configs.get("shop_no", 1),
+            embed = _configs.get("embed", None),
+        )
+
+    def test_order_change(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """카페24 Admin API로 품목별 상태 변경 주문 목록 조회 결과를 수집하는 테스트."""
+        from linkmerce.core.cafe24.api.order.extract import OrderChange
+        _configs = options("cafe24.api.order_change")
+        OrderChange(
+            configs = self.credentials(credentials),
+            parser = dump_extract(OrderChange, format="json"),
+        ).extract(
+            start_datetime = _configs.get("start_datetime", f"{yesterday}T00:00:00+09:00"),
+            end_datetime = _configs.get("end_datetime", ":end_of_day:"),
+            shop_no = _configs.get("shop_no", 1),
+        )
+
+
+###################################################################
 ################################ CJ ###############################
 ###################################################################
 

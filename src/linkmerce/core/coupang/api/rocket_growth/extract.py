@@ -14,6 +14,7 @@ class Inventory(CoupangApi):
     - **Menu**: Rocket Growth > 로켓창고 재고 API
     - **API**: https://api-gateway.coupang.com/v2/providers/rg_open_api/apis/api/v1/vendors/{vendor_id}/rg/inventory/summaries
     - **Docs**: https://developers.coupang.com/ko/api/rocket-growth/rg-inventory-api
+    - **Referer**: https://wing.coupang.com/tenants/rfm-inventory/management/list
 
     Attributes
     ----------

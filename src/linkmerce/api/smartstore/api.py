@@ -58,9 +58,9 @@ def request(
     dict
         커머스 API 응답 결과
     """
-    from linkmerce.core.smartstore.api.common import SmartstoreTestAPI
+    from linkmerce.core.smartstore.api.common import SmartstoreTestApi
     from linkmerce.utils.nested import merge
-    extractor = SmartstoreTestAPI(**merge(
+    extractor = SmartstoreTestApi(**merge(
         extract_options or dict(),
         configs = _get_api_configs(client_id, client_secret),
     ))

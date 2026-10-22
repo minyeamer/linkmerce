@@ -13,7 +13,7 @@ class Settlement(SmartstoreApi):
 
     - **Menu**: 정산관리 > 정산 내역 (일별/건별) > 건별 정산내역 (건별 정산 내역 조회)
     - **API**: https://api.commerce.naver.com/external/v1/pay-settle/settle/case
-    - **Docs**: https://apicenter.commerce.naver.com/ko/basic/commerce-api
+    - **Docs**: https://apicenter.commerce.naver.com/docs/commerce-api/current/find-settle-by-case-pay-settle
     - **Referer**: https://sell.smartstore.naver.com/#/naverpay/settlemgt/sellerdailysettle
 
     Attributes

@@ -267,6 +267,17 @@ def audit_multiline_equals(audit: Audit, path: str, source: str, changed: set[in
         return
     spans = bracket_spans(tokens)
     source_lines = source.splitlines()
+    compact_keywords: list[tuple[tuple[int, int], tuple[int, int]]] = list()
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call) or node.args or len(node.keywords) != 1:
+            continue
+        keyword = node.keywords[0]
+        if (keyword.arg is None or keyword.lineno != node.func.end_lineno
+                or keyword.value.lineno == keyword.value.end_lineno):
+            continue
+        start_column = len(source_lines[keyword.lineno - 1].encode("utf-8")[:keyword.col_offset].decode("utf-8"))
+        value_column = len(source_lines[keyword.value.lineno - 1].encode("utf-8")[:keyword.value.col_offset].decode("utf-8"))
+        compact_keywords.append(((keyword.lineno, start_column), (keyword.value.lineno, value_column)))
     for token in tokens:
         if token.type != tokenize.OP or token.string != "=" or token.start[0] not in changed:
             continue
@@ -280,6 +291,10 @@ def audit_multiline_equals(audit: Audit, path: str, source: str, changed: set[in
         line = source_lines[line_no - 1]
         before = line[column - 1] if column else ""
         after = line[column + 1] if column + 1 < len(line) else ""
+        if any(start < token.start < end for start, end in compact_keywords):
+            if before.isspace() or after.isspace():
+                audit.error(path, "sole keyword with a multiline value requires no spaces around outer `=`", line_no)
+            continue
         if before != " " or after != " ":
             audit.error(path, "multiline parameter or keyword `=` requires one space on both sides", line_no)
 

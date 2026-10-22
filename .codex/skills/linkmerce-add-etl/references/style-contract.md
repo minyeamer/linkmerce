@@ -47,7 +47,7 @@ class Example:
         ) -> dict:
 ```
 
-For every multiline call, use one space on each side of `=` and a trailing comma:
+For multiline calls, use one space on each side of `=` and a trailing comma, except for the inline sole-keyword form described below:
 
 ```python
 result = function_name(
@@ -56,13 +56,21 @@ result = function_name(
 )
 ```
 
-For a compact one-line call, use standard Python keyword-argument form without spaces around `=`. The spaced form applies only when the call itself spans multiple lines:
+For a compact one-line call, use standard Python keyword-argument form without spaces around `=`:
 
 ```python
 result = function_name(required=value, optional=1)
 ```
 
-For a multiline `dict(...)` constructor, use the same rule:
+When a call has exactly one keyword argument on the call's opening line, no positional arguments or argument unpacking, and its value spans multiple lines, keep the outer `key=value` without spaces around `=`. Apply the multiline spacing rule only inside the value, including nested calls and `dict(...)` constructors. Arguments placed on their own continuation lines retain the spaced form:
+
+```python
+super().set_request_headers(headers={
+    "Content-Type": "application/json",
+})
+```
+
+For a multiline `dict(...)` constructor with arguments on continuation lines, use the same spaced rule:
 
 ```python
 parser_config = dict(

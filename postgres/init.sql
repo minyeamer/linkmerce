@@ -7,6 +7,7 @@
 -- ============================================================
 
 CREATE SCHEMA IF NOT EXISTS core; -- cor
+CREATE SCHEMA IF NOT EXISTS cafe24; -- c24
 CREATE SCHEMA IF NOT EXISTS cj_eflexs; -- cje
 CREATE SCHEMA IF NOT EXISTS cj_loisparcel; -- cjl
 CREATE SCHEMA IF NOT EXISTS coupang; -- cpg
@@ -157,6 +158,140 @@ CREATE TABLE IF NOT EXISTS core.order_status (
 ) PARTITION BY RANGE (order_date);
 
 -- ============================================================
+-- cafe24 (카페24)
+-- ============================================================
+
+-- [쿠팡 업체]
+CREATE TABLE IF NOT EXISTS cafe24.mall (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , mall_name TEXT -- 쇼핑몰명
+  , mall_seq BIGINT -- 쇼핑몰순번
+  , corp_name TEXT -- 운영사업자
+  , team_name TEXT -- 영업팀
+  , bundle_brand_ids TEXT -- 연결브랜드ID
+  , order_start_date DATE -- 주문집계시작일
+  , PRIMARY KEY (mall_id)
+);
+
+-- [카페24 상품 정보]
+CREATE TABLE IF NOT EXISTS cafe24.product (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , product_no BIGINT NOT NULL -- 상품번호
+  , product_code TEXT -- 상품코드
+  , custom_product_code TEXT -- 자체상품코드
+  , model_name TEXT -- 모델명
+  , product_name TEXT -- 상품명
+  , image_url TEXT -- 목록이미지
+  , display BOOLEAN -- 진열상태
+  , selling BOOLEAN -- 판매상태
+  , sold_out BOOLEAN -- 품절여부
+  , price INTEGER -- 판매가
+  , retail_price INTEGER -- 소비자가
+  , supply_price INTEGER -- 공급가
+  , margin_rate TEXT -- 마진율
+  , tags TEXT -- 상품태그
+  , register_dt TIMESTAMP -- 등록일시
+  , modify_dt TIMESTAMP -- 수정일시
+  , PRIMARY KEY (mall_id, product_no)
+);
+
+-- [카페24 상품 품목 정보]
+CREATE TABLE IF NOT EXISTS cafe24.product_variant (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , product_no BIGINT NOT NULL -- 상품번호
+  , variant_code TEXT NOT NULL -- 품목코드
+  , option_group1 TEXT -- 옵션그룹1
+  , option_name1 TEXT -- 옵션명1
+  , option_group2 TEXT -- 옵션그룹2
+  , option_name2 TEXT -- 옵션명2
+  , option_group3 TEXT -- 옵션그룹3
+  , option_name3 TEXT -- 옵션명3
+  , image_url TEXT -- 품목이미지
+  , display BOOLEAN -- 진열상태
+  , selling BOOLEAN -- 판매상태
+  , option_price INTEGER -- 추가금액
+  , supply_price INTEGER -- 공급가액
+  , display_order INTEGER -- 진열순서
+  , PRIMARY KEY (mall_id, variant_code)
+);
+
+-- [카페24 주문 정보]
+CREATE TABLE IF NOT EXISTS cafe24.order (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , order_id TEXT NOT NULL -- 주문번호
+  , member_id TEXT -- 회원아이디
+  , member_name TEXT -- 결제자명
+  , payment_method TEXT -- 결제수단
+  , order_place TEXT -- 주문경로
+  , first_order BOOLEAN -- 최초주문여부
+  , order_dt TIMESTAMP NOT NULL -- 주문일시
+  , payment_dt TIMESTAMP -- 결제일시
+  , PRIMARY KEY (order_dt, mall_id, order_id)
+) PARTITION BY RANGE (order_dt);
+
+-- [카페24 주문 배송 정보]
+CREATE TABLE IF NOT EXISTS cafe24.order_delivery (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , order_item_code TEXT NOT NULL -- 품주코드
+  , order_id TEXT NOT NULL -- 주문번호
+  , shipping_code TEXT -- 배송번호
+  , invoice_no TEXT -- 송장번호
+  , zip_code TEXT -- 우편번호
+  , order_dt TIMESTAMP NOT NULL -- 주문일시
+  , shipped_dt TIMESTAMP -- 발송일시
+  , PRIMARY KEY (order_dt, mall_id, order_item_code)
+) PARTITION BY RANGE (order_dt);
+
+-- [카페24 주문 결제 정보]
+CREATE TABLE IF NOT EXISTS cafe24.order_detail (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , order_item_code TEXT NOT NULL -- 품주코드
+  , order_id TEXT NOT NULL -- 주문번호
+  , product_no BIGINT NOT NULL -- 상품번호
+  , variant_code VARCHAR NOT NULL -- 품목코드
+  , order_quantity INTEGER -- 수량
+  , product_price INTEGER -- 상품 판매가
+  , option_price INTEGER -- 옵션 추가 가격
+  , additional_discount_price INTEGER -- 상품추가할인액
+  , coupon_discount_price INTEGER -- 상품별 쿠폰 할인금액
+  , app_item_discount_amount INTEGER -- 앱 상품할인금액
+  , shipping_fee INTEGER -- 개별배송비
+  , supply_price INTEGER -- 상품 공급가
+  , order_dt TIMESTAMP NOT NULL -- 주문일시
+  , PRIMARY KEY (order_dt, mall_id, order_item_code)
+) PARTITION BY RANGE (order_dt);
+
+-- [카페24 주문 품목 정보]
+CREATE TABLE IF NOT EXISTS cafe24.order_option (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , product_no BIGINT NOT NULL -- 상품번호
+  , variant_code VARCHAR NOT NULL -- 품목코드
+  , custom_product_code TEXT -- 자체상품코드
+  , product_name TEXT -- 상품명
+  , option_name TEXT -- 옵션값
+  , option_type SMALLINT -- 옵션 구성방식
+  , product_price INTEGER -- 상품 판매가
+  , option_price INTEGER -- 옵션 추가 가격
+  , first_order_dt TIMESTAMP -- 최초주문일시
+  , last_order_dt TIMESTAMP -- 최종주문일시
+  , PRIMARY KEY (mall_id, variant_code)
+);
+CREATE INDEX IF NOT EXISTS c24_order_option__product_idx ON cafe24.order_option (mall_id, product_no);
+
+-- [카페24 품목별 상태 변경 주문 목록]
+CREATE TABLE IF NOT EXISTS cafe24.order_change (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , order_item_code TEXT NOT NULL -- 품주코드
+  , order_id TEXT NOT NULL -- 주문번호
+  , order_status TEXT NOT NULL -- 주문상태
+  , order_status_type SMALLINT -- 주문상태유형
+  , order_date DATE NOT NULL -- 주문생성일
+  , search_start_dt TIMESTAMP -- 검색시작일시
+  , search_end_dt TIMESTAMP -- 검색종료일시
+  , PRIMARY KEY (order_date, mall_id, order_item_code, order_status)
+) PARTITION BY RANGE (order_date);
+
+-- ============================================================
 -- cj_eflexs (CJ대한통운 eFLEXs)
 -- ============================================================
 
@@ -258,8 +393,9 @@ CREATE TABLE IF NOT EXISTS coupang.vendor (
   , corp_name TEXT -- 운영사업자
   , team_name TEXT -- 영업팀
   , bundle_brand_ids TEXT -- 연결브랜드ID
-  , rocket_sales_date DATE -- 매출인식일
-  , rocket_settle_date DATE -- 정산시작일
+  , order_start_date DATE -- 주문집계시작일
+  , rocket_sales_date DATE -- 로켓_매출인식일
+  , rocket_settle_date DATE -- 로켓_정산시작일
   , PRIMARY KEY (vendor_id)
 );
 
@@ -1516,7 +1652,6 @@ CREATE TABLE IF NOT EXISTS smartstore.order_delivery (
   , zip_code TEXT -- 우편번호
   , latitude TEXT -- 위도
   , longitude TEXT -- 경도
-  , pickup_dt TIMESTAMP -- 집화일시
   , send_dt TIMESTAMP -- 발송일시
   , payment_dt TIMESTAMP NOT NULL -- 결제일시
   , PRIMARY KEY (payment_dt, product_order_id)
@@ -1772,6 +1907,10 @@ SELECT public.bootstrap_daily_partitions('core.extra_profit',             'ymd',
 SELECT public.bootstrap_daily_partitions('core.extra_sales',              'sales_date',		      '2026-01-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.opex',				              'end_date',			      '2025-01-13',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('core.order_status',		          'order_date',			    '2025-04-03',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('cafe24.order',		              'order_dt',				    '2023-01-28 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('cafe24.order_delivery',		      'order_dt',				    '2023-01-28 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('cafe24.order_detail',		        'order_dt',				    '2023-01-28 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('cafe24.order_change',		        'order_date',			    '2023-01-28',           '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice',			        'pickup_date',			  '2023-05-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.invoice_order',		    'order_date',			    '2023-05-01',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('cj_eflexs.stock',				        'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);

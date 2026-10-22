@@ -23,6 +23,7 @@
 ## Python formatting
 
 - In multiline function definitions, calls, and `dict(...)` constructors, put one space on both sides of `=`.
+- For a call with exactly one keyword argument on the call's opening line, no positional arguments or argument unpacking, and a multiline value, keep the outer `key=value` without spaces around `=`; apply the multiline spacing rule only inside the value.
 - Indent multiline parameters by two levels relative to `def`; align the closing parenthesis one level relative to `def`.
 - Preserve the local single-line style. Do not expand unrelated code solely to normalize formatting.
 

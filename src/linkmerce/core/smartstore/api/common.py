@@ -90,7 +90,7 @@ class SmartstoreApi(Extractor):
         return True
 
 
-class SmartstoreTestAPI(SmartstoreApi):
+class SmartstoreTestApi(SmartstoreApi):
     """커머스 API 경로에 대한 요청을 처리하는 테스트 클래스.
 
     - **Docs**: https://apicenter.commerce.naver.com/docs/commerce-api/current
@@ -148,11 +148,8 @@ class SmartstoreTestAPI(SmartstoreApi):
         if params is not None: message["params"] = params
         if data is not None: message["data"] = data
         if json is not None: message["json"] = json
-        if isinstance(headers, dict):
-            if isinstance(message["headers"], dict):
-                message["headers"].update(headers)
-            else:
-                message["headers"] = headers
+        if headers is not None:
+            message["headers"] = (message["headers"] or dict()) | headers
 
         with self.get_session().request(**message) as response:
             return response.json()

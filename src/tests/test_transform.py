@@ -22,6 +22,81 @@ pytestmark = pytest.mark.transform
 
 
 ###################################################################
+############################## Cafe24 #############################
+###################################################################
+
+@pytest.mark.cafe24
+class TestCafe24:
+    """카페24 API 데이터 추출 테스트.
+    - cafe24.api.product.Product
+    - cafe24.api.product.Variant
+    - cafe24.api.product.Category
+    - cafe24.api.order.Order
+    - cafe24.api.order.OrderTime
+    - cafe24.api.order.OrderDetail
+    - cafe24.api.order.OrderChange
+    """
+
+    def mall_id(self, reader: YamlReader) -> str:
+        return reader("cafe24.api.0")["mall_id"]
+
+    def test_product(self, transformer_harness: Harness, credentials: YamlReader):
+        """카페24 상품 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.cafe24.api.product.transform import Product
+        transformer_harness(Product).transform(
+            mall_id = self.mall_id(credentials),
+        )
+
+    def test_product_variant(self, transformer_harness: Harness, configs: YamlReader, credentials: YamlReader):
+        """카페24 상품 품목 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.cafe24.api.product.transform import Variant
+        transformer_harness(Variant).transform(
+            mall_id = self.mall_id(credentials),
+            product_no = configs("cafe24.api.product_variant")["product_no"],
+        )
+
+    def test_category(self, transformer_harness: Harness, credentials: YamlReader):
+        """카페24 상품분류 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.cafe24.api.product.transform import Category
+        transformer_harness(Category).transform(
+            mall_id = self.mall_id(credentials),
+        )
+
+    def test_order(self, transformer_harness: Harness, credentials: YamlReader):
+        """카페24 주문 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.cafe24.api.order.transform import Order
+        transformer_harness(Order).transform(
+            mall_id = self.mall_id(credentials),
+        )
+
+    def test_order_time(self, transformer_harness: Harness, credentials: YamlReader):
+        """카페24 주문 품목별 상태 변경 일시를 변환하는 테스트."""
+        from linkmerce.core.cafe24.api.order.transform import OrderTime
+        transformer_harness(OrderTime).transform(
+            mall_id = self.mall_id(credentials),
+        )
+
+    def test_order_detail(self, transformer_harness: Harness, credentials: YamlReader):
+        """카페24 주문 상세 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.cafe24.api.order.transform import OrderDetail
+        transformer_harness(OrderDetail).transform(
+            mall_id = self.mall_id(credentials),
+        )
+
+    def test_order_change(self, transformer_harness: Harness, credentials: YamlReader, options: YamlReader, yesterday: dt.date):
+        """카페24 품목별 상태 변경 주문 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.cafe24.api.order.transform import OrderChange
+        from linkmerce.utils.date import strptime as _strptime
+        _configs = options("cafe24.api.order_change")
+        strptime = lambda datetime: _strptime(datetime, "%Y-%m-%dT%H:%M:%S%z", astimezone="Asia/Seoul")
+        transformer_harness(OrderChange).transform(
+            mall_id = self.mall_id(credentials),
+            start_datetime = strptime(_configs.get("start_datetime", f"{yesterday}T00:00:00+09:00")),
+            end_datetime = strptime(_configs.get("end_datetime", f"{yesterday}T23:59:59+09:00")),
+        )
+
+
+###################################################################
 ################################ CJ ###############################
 ###################################################################
 
@@ -33,12 +108,12 @@ class TestCjLogistics:
     - cj.eflexs.stock.Stock
     """
 
-    def test_invoice(self, transformer_harness: Harness, configs: YamlReader):
+    def test_invoice(self, transformer_harness: Harness):
         """CJ대한통운 eFLEXs 고객매출확인 메뉴의 운송장 상세 내역을 변환하는 테스트."""
         from linkmerce.core.cj.eflexs.invoice.transform import Invoice
         transformer_harness(Invoice).transform()
 
-    def test_invoice_order(self, transformer_harness: Harness, configs: YamlReader):
+    def test_invoice_order(self, transformer_harness: Harness):
         """CJ대한통운 eFLEXs 운송장 상세 내역에서 주문별 정산 내역을 변환하는 테스트."""
         from linkmerce.core.cj.eflexs.invoice.transform import InvoiceOrder
         transformer_harness(InvoiceOrder).transform()
@@ -988,46 +1063,46 @@ class TestSmartstoreApi:
         from linkmerce.core.smartstore.api.product.transform import Category
         transformer_harness(Category).transform()
 
-    # @pytest.mark.smartstore_api
-    # def test_product(self, transformer_harness: Harness, credentials: YamlReader):
-    #     """스마트스토어 상품 목록 조회 결과를 변환하는 테스트."""
-    #     from linkmerce.core.smartstore.api.product.transform import Product
-    #     transformer_harness(Product).transform(
-    #         channel_seq = self.channel_seq(credentials),
-    #     )
+    @pytest.mark.smartstore_api
+    def test_product(self, transformer_harness: Harness, credentials: YamlReader):
+        """스마트스토어 상품 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.smartstore.api.product.transform import Product
+        transformer_harness(Product).transform(
+            channel_seq = self.channel_seq(credentials),
+        )
 
-    # @pytest.mark.smartstore_api
-    # def test_option(self, transformer_harness: Harness, configs: YamlReader, credentials: YamlReader):
-    #     """스마트스토어 채널 상품 조회 결과를 변환하는 테스트."""
-    #     from linkmerce.core.smartstore.api.product.transform import Option
-    #     _configs = configs("smartstore.api.option")
-    #     transformer_harness(Option).transform(
-    #         product_id = _configs["product_id"],
-    #         channel_seq = self.channel_seq(credentials),
-    #         map_index = _configs["product_id"],
-    #     )
+    @pytest.mark.smartstore_api
+    def test_option(self, transformer_harness: Harness, configs: YamlReader, credentials: YamlReader):
+        """스마트스토어 채널 상품 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.smartstore.api.product.transform import Option
+        _configs = configs("smartstore.api.option")
+        transformer_harness(Option).transform(
+            product_id = _configs["product_id"],
+            channel_seq = self.channel_seq(credentials),
+            map_index = _configs["product_id"],
+        )
 
-    # @pytest.mark.smartstore_api
-    # def test_order(self, transformer_harness: Harness):
-    #     """스마트스토어 상품 주문 내역 조회 결과를 변환하는 테스트."""
-    #     from linkmerce.core.smartstore.api.order.transform import Order
-    #     transformer_harness(Order).transform()
+    @pytest.mark.smartstore_api
+    def test_order(self, transformer_harness: Harness):
+        """스마트스토어 상품 주문 내역 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.smartstore.api.order.transform import Order
+        transformer_harness(Order).transform()
 
-    # @pytest.mark.smartstore_api
-    # def test_order_time(self, transformer_harness: Harness, credentials: YamlReader):
-    #     """스마트스토어 상품 주문 내역 조회 결과를 변환하는 테스트."""
-    #     from linkmerce.core.smartstore.api.order.transform import OrderTime
-    #     transformer_harness(OrderTime).transform(
-    #         channel_seq = self.channel_seq(credentials),
-    #     )
+    @pytest.mark.smartstore_api
+    def test_order_time(self, transformer_harness: Harness, credentials: YamlReader):
+        """스마트스토어 상품 주문 내역 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.smartstore.api.order.transform import OrderTime
+        transformer_harness(OrderTime).transform(
+            channel_seq = self.channel_seq(credentials),
+        )
 
-    # @pytest.mark.smartstore_api
-    # def test_order_status(self, transformer_harness: Harness, credentials: YamlReader):
-    #     """스마트스토어 변경 상품 주문 내역 조회 결과를 변환하는 테스트."""
-    #     from linkmerce.core.smartstore.api.order.transform import OrderStatus
-    #     transformer_harness(OrderStatus).transform(
-    #         channel_seq = self.channel_seq(credentials),
-    #     )
+    @pytest.mark.smartstore_api
+    def test_order_status(self, transformer_harness: Harness, credentials: YamlReader):
+        """스마트스토어 변경 상품 주문 내역 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.smartstore.api.order.transform import OrderStatus
+        transformer_harness(OrderStatus).transform(
+            channel_seq = self.channel_seq(credentials),
+        )
 
     def test_settlement(self, transformer_harness: Harness, credentials: YamlReader):
         """스마트스토어 건별 정산 내역 조회 결과를 변환하는 테스트."""

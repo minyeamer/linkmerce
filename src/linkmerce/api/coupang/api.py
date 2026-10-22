@@ -296,14 +296,17 @@ def product_option(
     product_table = get_table(transform_options[PRODUCT], default="coupang_product_item")
     option_table = get_table(transform_options[OPTION], default="coupang_product_detail")
 
+    extractor = Product(**prepare_duckdb_extract(
+        T1, connection, extract_options[PRODUCT], transform_options[PRODUCT], return_type,
+        configs = _get_api_configs(access_key, secret_key, vendor_id),
+        options = {"CursorAll": {"request_delay": request_delay}},
+    ))
+
     products = list()
     for business_type in business_types:
         for status in statuses:
-            products += Product(**prepare_duckdb_extract(
-                T1, connection, extract_options[PRODUCT], transform_options[PRODUCT], return_type,
-                configs = _get_api_configs(access_key, secret_key, vendor_id),
-                options = {"CursorAll": {"request_delay": request_delay}},
-            )).extract(business_type, seller_product_id, seller_product_name, status, manufacture, created_at, max_retries)
+            products += extractor.extract(
+                business_type, seller_product_id, seller_product_name, status, manufacture, created_at, max_retries)
 
     from linkmerce.core.coupang.api.product.extract import ProductDetail
     from linkmerce.core.coupang.api.product.transform import ProductDetail as T2

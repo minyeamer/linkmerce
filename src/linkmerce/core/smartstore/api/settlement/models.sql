@@ -25,14 +25,14 @@ SELECT
   , $channel_seq AS channel_seq
   , TRY_CAST(productId AS BIGINT) AS product_id
   , productOrderType AS product_order_type
-  , (CASE
-        WHEN settleType = 'NORMAL_SETTLE_ORIGINAL' THEN 0
-        WHEN settleType = 'NORMAL_SETTLE_AFTER_CANCEL' THEN 1
-        WHEN settleType = 'NORMAL_SETTLE_BEFORE_CANCEL' THEN 2
-        WHEN settleType = 'QUICK_SETTLE_ORIGINAL' THEN 3
-        WHEN settleType = 'QUICK_SETTLE_CANCEL' THEN 4
-        WHEN settleType = 'QUANTITY_CANCEL_DEDUCTION' THEN 5
-        WHEN settleType = 'QUANTITY_CANCEL_RESTORE' THEN 6
+  , (CASE settleType
+        WHEN 'NORMAL_SETTLE_ORIGINAL' THEN 0
+        WHEN 'NORMAL_SETTLE_AFTER_CANCEL' THEN 1
+        WHEN 'NORMAL_SETTLE_BEFORE_CANCEL' THEN 2
+        WHEN 'QUICK_SETTLE_ORIGINAL' THEN 3
+        WHEN 'QUICK_SETTLE_CANCEL' THEN 4
+        WHEN 'QUANTITY_CANCEL_DEDUCTION' THEN 5
+        WHEN 'QUANTITY_CANCEL_RESTORE' THEN 6
       ELSE NULL END) AS settle_type
   , paySettleAmount AS payment_amount
   , totalPayCommissionAmount AS pay_commision_amount

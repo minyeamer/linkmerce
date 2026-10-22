@@ -144,9 +144,12 @@ def service_account() -> dict:
 
 
 def _read_path(value: Any, dirs: dict = dict()) -> tuple[str, Any]:
-    if isinstance(value, str) and value.startswith("Path(") and value.endswith(")"):
-        with open(value[5:-1].format(**(DIRS | dirs)), 'r', encoding="utf-8") as file:
-            return file.read()
+    if isinstance(value, str):
+        if value.startswith("Path(") and value.endswith(")"):
+            with open(value[5:-1].format(**(DIRS | dirs)), 'r', encoding="utf-8") as file:
+                return file.read()
+        elif any(('{'+key+'}' in value) for key in dirs.keys()):
+            return value.format(**dirs)
     return value
 
 

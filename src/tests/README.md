@@ -78,6 +78,37 @@
     2. `html`: `HtmlTransformer`
     3. `excel`: `ExcelTransformer`
 
+### Cafe24
+
+```bash
+cafe24/
+└── api/
+    ├─x Cafe24Api(Extractor)::common
+    ├─x Cafe24TestApi(Cafe24Api)::common
+    ├─x Cafe24ApiTokenManager(Extractor)::common
+    ├── product/
+    │   ├── Product(Cafe24Api)::extract
+    │   │   └── Product(DuckDBTransformer)::transform >> json
+    │   ├── Variant(Cafe24Api)::extract
+    │   │   └── Variant(DuckDBTransformer)::transform
+    │   │       └── VariantParser(JsonTransformer)::transform
+    │   └── Category(Cafe24Api)::extract
+    │       └── Category(DuckDBTransformer)::transform >> json
+    └── order/
+        ├── Order(Cafe24Api)::extract
+        │   ├── Order(DuckDBTransformer)::transform
+        │   │   ├── OrderParser(JsonTransformer)::transform
+        │   │   └── OrderItemParser(OrderParser)::transform
+        │   └── OrderTime(DuckDBTransformer)::transform
+        │       └── OrderItemParser(OrderParser)::transform
+        ├── OrderDetail(Order)::extract
+        │   └── OrderDetail(Order)::transform
+        │       ├── OrderParser(JsonTransformer)::transform
+        │       └── OrderItemParser(OrderParser)::transform
+        └── OrderChange(Cafe24Api)::extract
+            └── OrderChange(DuckDBTransformer)::transform >> json
+```
+
 ### CJ
 
 ```bash

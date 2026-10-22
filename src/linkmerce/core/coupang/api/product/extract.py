@@ -15,6 +15,7 @@ class Product(CoupangApi):
     - **Menu**: 상품 API > 상품 목록 페이징 조회
     - **API**: https://api-gateway.coupang.com/v2/providers/seller_api/apis/api/v1/marketplace/seller-products
     - **Docs**: https://developers.coupang.com/ko/api/products/product-list-paging-query
+    - **Referer**: https://wing.coupang.com/vendor-inventory/list
 
     ### 로켓그로스 API
     - **Menu**: Rocket Growth > 상품 목록 페이징 조회 (로켓그로스 및 로켓그로스/마켓플레이스 동시 운영 상품)
@@ -136,6 +137,7 @@ class ProductDetail(CoupangApi):
     - **Menu**: 상품 API > 상품 조회
     - **API**: https://api-gateway.coupang.com/v2/providers/seller_api/apis/api/v1/marketplace/seller-products/{seller_product_id}
     - **Docs**: https://developers.coupang.com/ko/api/products/querying-product
+    - **Referer**: https://wing.coupang.com/tenants/seller-web/vendor-inventory/modify?vendorInventoryId={seller_product_id}
 
     ### 로켓그로스 API
     - **Menu**: Rocket Growth > 상품 조회 (로켓그로스 또는 마켓플레이스/로켓그로스 동시 운영 상품)
@@ -206,6 +208,7 @@ class Inventory(CoupangApi):
     - **Menu**: 상품 API > 상품 아이템별 수량/가격/상태 조회
     - **API**: https://api-gateway.coupang.com/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/{vendor_item_id}/inventories
     - **Docs**: https://developers.coupang.com/ko/api/products/query-quantitypricestatus-by-product-items
+    - **Referer**: https://wing.coupang.com/tenants/seller-web/vendor-inventory/modify?vendorInventoryId={seller_product_id}
 
     Attributes
     ----------

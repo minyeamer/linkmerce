@@ -21,7 +21,7 @@ DuckDB 기반 변환을 거쳐 BigQuery, PostgreSQL, Google Sheets 같은 외부
 ## 한눈에 보기
 
 - **패키지명**: `linkmerce`
-- **버전**: `1.0.20`
+- **버전**: `1.0.21`
 - **Python**: `>=3.12`
 - **핵심 의존성**: `aiohttp`, `requests`, `duckdb`, `bs4`, `openpyxl`, `ruamel-yaml`, `tqdm`
 
@@ -43,6 +43,7 @@ src/linkmerce/
 ```bash
 src/linkmerce/
 ├── api/
+│   ├── cafe24/
 │   ├── cj/
 │   ├── coupang/
 │   ├── ebay/
@@ -63,6 +64,7 @@ src/linkmerce/
 │   ├── tasks.py
 │   └── transform.py
 ├── core/
+│   ├── cafe24/
 │   ├── cj/
 │   ├── coupang/
 │   ├── dable/
@@ -250,9 +252,10 @@ core/{platform}/{hostname}/{category}/
 
 | 플랫폼 | 호스트명 | 카테고리 | 플랫폼 구분 | 수집 범위 |
 | --- | --- | --- | --- | --- |
+| `cafe24` | `api` | `order`, `product` | 카페24 API | 주문, 상품 |
 | `cj` | `eflexs` | `invoice`, `stock` | CJ대한통운 eFLEXs | 운송장, 재고 |
 | `coupang` | `advertising` | `management`, `report` | 쿠팡 광고센터 | 광고 |
-| `coupang` | `api` | `product`, `order`, `rocket_growth` | 쿠팡 Open API | 주문, 상품, 재고 |
+| `coupang` | `api` | `order`, `product`, `rocket_growth` | 쿠팡 Open API | 주문, 상품, 재고 |
 | `coupang` | `wing` | `product`, `settlement` | 쿠팡 판매자센터 | 상품, 매출 |
 | `dable` | `api` | `report` | 데이블 API | 광고 |
 | `ebay` | `ad` | `report` | AUCTION 광고센터 | 광고 |

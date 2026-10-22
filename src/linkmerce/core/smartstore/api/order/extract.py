@@ -49,7 +49,7 @@ class Order(SmartstoreApi):
 
     - **Menu**: 판매관리 > 주문통합검색 (조건형 상품 주문 상세 내역 조회)
     - **API**: https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders
-    - **Docs**: https://apicenter.commerce.naver.com/ko/basic/commerce-api
+    - **Docs**: https://apicenter.commerce.naver.com/docs/commerce-api/current/seller-get-product-orders-with-conditions-pay-order-seller
     - **Referer**: https://sell.smartstore.naver.com/#/naverpay/manage/order
 
     Attributes
@@ -159,7 +159,7 @@ class Order(SmartstoreApi):
             **kwargs
         ) -> dict:
         return {
-            "from": start_datetime.isoformat(timespec="milliseconds"),
+            "from": _strftime(start_datetime),
             **({"to": _strftime(end_datetime)} if end_datetime is not None else {}),
             "rangeType": range_type,
             "productOrderStatuses": ','.join(product_order_status),
@@ -312,7 +312,7 @@ class OrderStatus(SmartstoreApi):
             **kwargs
         ) -> dict:
         return {
-            "lastChangedFrom": next_cursor.get("moreFrom") or start_datetime.isoformat(timespec="milliseconds"),
+            "lastChangedFrom": next_cursor.get("moreFrom") or _strftime(start_datetime),
             **({"lastChangedTo": _strftime(end_datetime)} if end_datetime is not None else {}),
             **({"lastChangedType": last_changed_type} if last_changed_type is not None else dict()),
             **({"moreSequence": next_cursor["moreSequence"]} if "moreSequence" in next_cursor else dict()),

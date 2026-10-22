@@ -65,7 +65,7 @@ Do not skip a layer silently. Mark it not applicable with evidence in the final 
 - Treat Korean terminology, capitalization, spacing, code spans, list indentation, and punctuation as exact data.
 - Do not append `이다.`, replace a noun phrase with a sentence, or add `.` to a label-like description.
 - Put only the Extractor class name in a Transformer `Extractor` section. Put input/output types only in `Parser` or `Parsers`.
-- Apply the multiline `=` rule from `references/style-contract.md` only to multiline function calls and `dict(...)` constructors. Keep keyword arguments in compact one-line calls in standard Python form without spaces around `=`.
+- Apply the multiline `=` rule from `references/style-contract.md` only to multiline function calls and `dict(...)` constructors. Keep compact one-line calls and the outer `key=value` of a sole keyword argument on the call's opening line with a multiline value without spaces around `=`; apply the multiline rule inside that value.
 
 ## Validate before handoff
 

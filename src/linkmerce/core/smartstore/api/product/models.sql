@@ -52,19 +52,19 @@ SELECT
   , salePrice AS price
   , discountedPrice AS sales_price
   -- , stockQuantity AS stock_quantity
-  , (CASE
-      WHEN deliveryAttributeType = 'NORMAL' THEN 0
-      WHEN deliveryAttributeType = 'TODAY' THEN 1
-      WHEN deliveryAttributeType = 'OPTION_TODAY' THEN 2
-      WHEN deliveryAttributeType = 'HOPE' THEN 3
-      WHEN deliveryAttributeType = 'TODAY_ARRIVAL' THEN 4
-      WHEN deliveryAttributeType = 'DAWN_ARRIVAL' THEN 5
-      WHEN deliveryAttributeType = 'PRE_ORDER' THEN 6
-      WHEN deliveryAttributeType = 'ARRIVAL_GUARANTEE' THEN 7
-      WHEN deliveryAttributeType = 'SELLER_GUARANTEE' THEN 8
-      WHEN deliveryAttributeType = 'HOPE_SELLER_GUARANTEE' THEN 9
-      WHEN deliveryAttributeType = 'PICKUP' THEN 10
-      WHEN deliveryAttributeType = 'QUICK' THEN 11
+  , (CASE deliveryAttributeType
+      WHEN 'NORMAL' THEN 0
+      WHEN 'TODAY' THEN 1
+      WHEN 'OPTION_TODAY' THEN 2
+      WHEN 'HOPE' THEN 3
+      WHEN 'TODAY_ARRIVAL' THEN 4
+      WHEN 'DAWN_ARRIVAL' THEN 5
+      WHEN 'PRE_ORDER' THEN 6
+      WHEN 'ARRIVAL_GUARANTEE' THEN 7
+      WHEN 'SELLER_GUARANTEE' THEN 8
+      WHEN 'HOPE_SELLER_GUARANTEE' THEN 9
+      WHEN 'PICKUP' THEN 10
+      WHEN 'QUICK' THEN 11
       ELSE NULL END) AS delivery_type
   , deliveryFee AS delivery_fee
   -- , returnFee AS return_fee

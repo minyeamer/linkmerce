@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS {{ delivery }} (
   , zip_code VARCHAR
   , latitude VARCHAR
   , longitude VARCHAR
-  , pickup_dt TIMESTAMP
+  -- , pickup_dt TIMESTAMP
   , send_dt TIMESTAMP
   , payment_dt TIMESTAMP NOT NULL
   , PRIMARY KEY (product_order_id)
@@ -71,9 +71,9 @@ SELECT
     CAST(content.order.orderId AS BIGINT) AS order_id
   , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , TRY_CAST(content.order.ordererNo AS BIGINT) AS orderer_no
-  , (CASE
-      WHEN content.order.payLocationType == 'PC' THEN 0
-      WHEN content.order.payLocationType == 'MOBILE' THEN 1
+  , (CASE content.order.payLocationType
+      WHEN 'PC' THEN 0
+      WHEN 'MOBILE' THEN 1
       ELSE NULL END) AS payment_location
   , TRY_STRPTIME(SUBSTR(content.order.orderDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS order_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
@@ -88,32 +88,33 @@ SELECT
   , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , CAST(content.productOrder.productId AS BIGINT) AS product_id
   , CAST(content.productOrder.itemNo AS BIGINT) AS option_id
-  , (CASE
-      WHEN content.productOrder.productClass = '단일상품' THEN 0
-      WHEN content.productOrder.productClass IN ('옵션상품','조합형옵션상품') THEN 1
-      WHEN content.productOrder.productClass = '추가구성상품' THEN 2
+  , (CASE content.productOrder.productClass
+      WHEN '단일상품' THEN 0
+      WHEN '옵션상품' THEN 1
+      WHEN '조합형옵션상품' THEN 1
+      WHEN '추가구성상품' THEN 2
       ELSE NULL END) AS product_type
-  , (CASE
-      WHEN content.productOrder.deliveryAttributeType = 'NORMAL' THEN 0
-      WHEN content.productOrder.deliveryAttributeType = 'TODAY' THEN 1
-      WHEN content.productOrder.deliveryAttributeType = 'OPTION_TODAY' THEN 2
-      WHEN content.productOrder.deliveryAttributeType = 'HOPE' THEN 3
-      WHEN content.productOrder.deliveryAttributeType = 'TODAY_ARRIVAL' THEN 4
-      WHEN content.productOrder.deliveryAttributeType = 'DAWN_ARRIVAL' THEN 5
-      WHEN content.productOrder.deliveryAttributeType = 'PRE_ORDER' THEN 6
-      WHEN content.productOrder.deliveryAttributeType = 'ARRIVAL_GUARANTEE' THEN 7
-      WHEN content.productOrder.deliveryAttributeType = 'SELLER_GUARANTEE' THEN 8
-      WHEN content.productOrder.deliveryAttributeType = 'HOPE_SELLER_GUARANTEE' THEN 9
-      WHEN content.productOrder.deliveryAttributeType = 'PICKUP' THEN 10
-      WHEN content.productOrder.deliveryAttributeType = 'QUICK' THEN 11
+  , (CASE content.productOrder.deliveryAttributeType
+      WHEN 'NORMAL' THEN 0
+      WHEN 'TODAY' THEN 1
+      WHEN 'OPTION_TODAY' THEN 2
+      WHEN 'HOPE' THEN 3
+      WHEN 'TODAY_ARRIVAL' THEN 4
+      WHEN 'DAWN_ARRIVAL' THEN 5
+      WHEN 'PRE_ORDER' THEN 6
+      WHEN 'ARRIVAL_GUARANTEE' THEN 7
+      WHEN 'SELLER_GUARANTEE' THEN 8
+      WHEN 'HOPE_SELLER_GUARANTEE' THEN 9
+      WHEN 'PICKUP' THEN 10
+      WHEN 'QUICK' THEN 11
       ELSE NULL END) AS delivery_type
-  , (CASE
-      WHEN content.productOrder.deliveryTagType = 'TODAY' THEN 0
-      WHEN content.productOrder.deliveryTagType = 'TOMORROW' THEN 1
-      WHEN content.productOrder.deliveryTagType = 'DAWN' THEN 2
-      WHEN content.productOrder.deliveryTagType = 'SUNDAY' THEN 3
-      WHEN content.productOrder.deliveryTagType = 'STANDARD' THEN 4
-      WHEN content.productOrder.deliveryTagType = 'HOPE' THEN 5
+  , (CASE content.productOrder.deliveryTagType
+      WHEN 'TODAY' THEN 0
+      WHEN 'TOMORROW' THEN 1
+      WHEN 'DAWN' THEN 2
+      WHEN 'SUNDAY' THEN 3
+      WHEN 'STANDARD' THEN 4
+      WHEN 'HOPE' THEN 5
       ELSE NULL END) AS delivery_tag_type
   , content.productOrder.inflowPath AS inflow_path
   , IF(content.productOrder.inflowPathAdd IN ('null','undefined')
@@ -130,6 +131,7 @@ SELECT
   -- , content.productOrder.totalPaymentAmount AS payment_amount = product_amount * order_quantity - discount_amount
   , content.productOrder.expectedSettlementAmount AS supply_amount
   , content.productOrder.deliveryFeeAmount AS delivery_fee
+  -- , TRY_STRPTIME(SUBSTR(content.productOrder.decisionDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS decision_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
 FROM {{ rows }}
 WHERE TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') IS NOT NULL
@@ -142,24 +144,24 @@ SELECT
   , CAST(content.productOrder.merchantChannelId AS BIGINT) AS channel_seq
   , content.delivery.trackingNumber AS invoice_no
   , content.delivery.deliveryCompany AS delivery_company
-  , (CASE
-      WHEN content.delivery.deliveryMethod = 'DELIVERY' THEN 0
-      WHEN content.delivery.deliveryMethod = 'GDFW_ISSUE_SVC' THEN 1
-      WHEN content.delivery.deliveryMethod = 'VISIT_RECEIPT' THEN 2
-      WHEN content.delivery.deliveryMethod = 'DIRECT_DELIVERY' THEN 3
-      WHEN content.delivery.deliveryMethod = 'QUICK_SVC' THEN 4
-      WHEN content.delivery.deliveryMethod = 'NOTHING' THEN 5
-      WHEN content.delivery.deliveryMethod = 'RETURN_DESIGNATED' THEN 6
-      WHEN content.delivery.deliveryMethod = 'RETURN_DELIVERY' THEN 7
-      WHEN content.delivery.deliveryMethod = 'RETURN_INDIVIDUAL' THEN 8
-      WHEN content.delivery.deliveryMethod = 'RETURN_MERCHANT' THEN 9
-      WHEN content.delivery.deliveryMethod = 'UNKNOWN' THEN 10
+  , (CASE content.delivery.deliveryMethod
+      WHEN 'DELIVERY' THEN 0
+      WHEN 'GDFW_ISSUE_SVC' THEN 1
+      WHEN 'VISIT_RECEIPT' THEN 2
+      WHEN 'DIRECT_DELIVERY' THEN 3
+      WHEN 'QUICK_SVC' THEN 4
+      WHEN 'NOTHING' THEN 5
+      WHEN 'RETURN_DESIGNATED' THEN 6
+      WHEN 'RETURN_DELIVERY' THEN 7
+      WHEN 'RETURN_INDIVIDUAL' THEN 8
+      WHEN 'RETURN_MERCHANT' THEN 9
+      WHEN 'UNKNOWN' THEN 10
       ELSE NULL END) AS delivery_method
   , content.productOrder.shippingAddress.zipCode AS zip_code
   , content.productOrder.shippingAddress.latitude AS latitude
   , content.productOrder.shippingAddress.longitude AS longitude
-  , TRY_STRPTIME(SUBSTR(content.delivery.pickupDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS pickup_dt
   , TRY_STRPTIME(SUBSTR(content.delivery.sendDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS send_dt
+  -- , TRY_STRPTIME(SUBSTR(content.delivery.pickupDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS pickup_dt
   , TRY_STRPTIME(SUBSTR(content.order.paymentDate, 1, 19), '%Y-%m-%dT%H:%M:%S') AS payment_dt
 FROM {{ rows }}
 WHERE (content.delivery.trackingNumber IS NOT NULL)

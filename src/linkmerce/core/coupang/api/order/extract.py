@@ -15,6 +15,7 @@ class Order(CoupangApi):
     - **Menu**: 배송 / 주문 API > 발주서 목록 조회(분단위 전체)
     - **API**: https://api-gateway.coupang.com/v2/providers/openapi/apis/api/v5/vendors/{vendor_id}/ordersheets
     - **Docs**: https://developers.coupang.com/ko/api/shipments/po-list-query-by-minute
+    - **Referer**: https://wing.coupang.com/tenants/sfl-portal/delivery/management
 
     Attributes
     ----------
@@ -120,6 +121,7 @@ class OrderDetail(CoupangApi):
     - **Menu**: 배송 / 주문 API > 발주서 단건 조회(orderId)
     - **API**: https://api-gateway.coupang.com/v2/providers/openapi/apis/api/v5/vendors/{vendor_id}/{order_id}/ordersheets
     - **Docs**: https://developers.coupang.com/ko/api/shipments/single-po-query-using-orderid
+    - **Referer**: https://wing.coupang.com/tenants/sfl-portal/order/info
 
     ### 배송번호 API
     - **Menu**: 배송 / 주문 API > 발주서 단건 조회(shipmentBoxId)
