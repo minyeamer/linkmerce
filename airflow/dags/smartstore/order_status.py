@@ -8,7 +8,7 @@
 
 ## 추출(Extract)
 각 채널별 직전에 성공한 Task Instance 반환 값의 'params.end_datetime'부터
-현재 실행 시점('data_interval_end')보다 1ms 앞선 시점까지를 조회 기간으로 하여
+현재 실행 시점('data_interval_end')보다 1밀리초 앞선 시점까지를 조회 기간으로 하여
 변경 상품 주문 내역을 수집한다.
 
 Airflow UI에서 Dag을 트리거하면서 Configuration JSON에 ISO 8601 형식의

@@ -13,10 +13,10 @@
 
 Airflow UI에서 Dag을 트리거하면서 Configuration JSON에 ISO 8601 형식의
 'start_datetime', 'end_datetime'을 'vendor_id' 각각에 지정하면
-해당 값을 기본 수집 기간 대신 적용한다. 모든 채널에 동일한 조회 기간을 적용하고 싶다면
+해당 값을 기본 수집 기간 대신 적용한다. 모든 업체에 동일한 조회 기간을 적용하고 싶다면
 'vendor_id' 키를 '*'로 대체할 수 있다.
 
-채널별 설정에서 'skip'을 True로 지정하면 ETL Task가 Skipped 처리된다.
+업체별 설정에서 'skip'을 True로 지정하면 ETL Task가 Skipped 처리된다.
 
 ```json
 {

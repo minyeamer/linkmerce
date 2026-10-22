@@ -16,6 +16,13 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__stock_time_batch
 
+  # Airflow Dags - cafe24
+  - name: cafe24_order_summary
+    description: "'cafe24_order' Dag 실행 후 10분 단위로 카페24 주문 내역 변동을 매출 요약에 반영"
+    definition:
+      method: fqn
+      value: intermediate.sales.cafe24.cafe24__sales_summary
+
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
     description: "'cj_loisparcel_invoice' Dag 실행 후 CJ 송장번호 변동을 매출에 반영"

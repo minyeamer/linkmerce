@@ -127,6 +127,11 @@ models:
   - name: "core__sales_daily"
     description: "각종 플랫폼에서 요약된 매출, 광고, 비용 데이터를 결합하고 SKU 및 쇼핑몰별로 집계한 일별 파티션 모델"
 
+  # intermediate > sales > cafe24
+
+  - name: "cafe24__sales_summary"
+    description: "카페24 주문내역에서 쇼핑몰별 결제금액 합계를 요약한 일별 파티션 모델"
+
   # intermediate > sales > coupang
 
   - name: "coupang__sales_summary"

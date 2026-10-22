@@ -203,8 +203,10 @@ fact 테이블 및 view 테이블을 생성한다. 현재는 네이버 채널의
 
 ```bash
 dbt_postgres/models/intermediate/sales/
+├── cafe24/
+│   └── cafe24__sales_summary
 ├── coupang/
-│   ├── coupang__sales_summary
+│   └── coupang__sales_summary
 ├── coupang_rfm/
 │   ├── coupang_rfm__order_count
 │   └── coupang_rfm__sales_daily
@@ -541,6 +543,8 @@ airflow/dags/
 │   ├── google_ads.py (google_ads)
 │   ├── meta_ads.py (meta_ads)
 │   └── tiktok_ads.py (tiktok_ads)
+├── cafe24/
+│   └── order.py (cafe24_order)
 ├── cj/
 │   ├── eflexs_stock.py (cj_eflexs_stock)
 │   └── loisparcel_invoice.py (cj_loisparcel_invoice)

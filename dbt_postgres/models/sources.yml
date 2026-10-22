@@ -14,6 +14,18 @@ sources:
       - name: opex
       - name: order_status
 
+  - name: cafe24
+    schema: cafe24
+    tables:
+      - name: mall
+      - name: product
+      - name: product_variant
+      - name: order
+      - name: order_delivery
+      - name: order_detail
+      - name: order_option
+      - name: order_change
+
   - name: cj_eflexs
     schema: cj_eflexs
     tables:

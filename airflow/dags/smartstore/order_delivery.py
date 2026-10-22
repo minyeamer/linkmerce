@@ -8,8 +8,8 @@
 
 ## 추출(Extract)
 각 채널별 직전에 성공한 Task Instance 반환 값의 'params.end_datetime'부터
-현재 실행 시점('data_interval_end')보다 1ms 앞선 시점까지를 조회 기간으로 하여
-주문 배송 내역을 수집한다.
+현재 실행 시점('data_interval_end')보다 1밀리초 앞선 시점까지를 조회 기간으로 하여
+발송 처리 일시('DISPATCHED_DATETIME') 기준의 주문 배송 내역을 수집한다.
 
 Airflow UI에서 Dag을 트리거하면서 Configuration JSON에 ISO 8601 형식의
 'start_datetime', 'end_datetime'을 'channel_seq' 각각에 지정하면

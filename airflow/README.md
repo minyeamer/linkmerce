@@ -40,8 +40,9 @@ airflow/
 │   └── airflow.cfg
 ├── dags/
 │   ├── _deprecated/
-│   ├── cj/
 │   ├── ads/
+│   ├── cafe24/
+│   ├── cj/
 │   ├── coupang/
 │   ├── ebay/
 │   ├── ecount/
@@ -221,6 +222,15 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | `meta_ads` | 매일 `07:40` | 메타 광고 ETL |
 | `tiktok_ads` | 트리거 전용 | 틱톡 광고 보고서 ETL 후 광고 dbt 모델 실행 |
 
+### 카페24 (cafe24)
+
+| Dag ID | 스케줄 | 역할 |
+| --- | --- | --- |
+| `cafe24_order` | 영업시간 10분 간격, 그 외 1시간 간격 | 주문, 상품주문, 옵션 목록 적재 |
+| `cafe24_order_delivery` | 트리거 전용 | 주문 배송 내역 적재 |
+| `cafe24_order_change` | 트리거 전용 | 품목별 상태 변경 주문 목록 적재 |
+| `cafe24_product` | 평일 `22:50` | 카페24 상품 옵션 ETL |
+
 ### CJ대한통운 (cj)
 
 | Dag ID | 스케줄 | 역할 |
@@ -363,7 +373,7 @@ objective: [
     product, rank, sales, search, statistics, stock
 ]
 platform: [
-    cj-eflexs, cj-loisparcel, coupang-ads, coupang-api, coupang-wing, dable,
+    cafe24, cj-eflexs, cj-loisparcel, coupang-ads, coupang-api, coupang-wing, dable,
     auction-ad, gmarket-adc, esmplus, ecount, google-ads, gsheets,
     meta-ads, naver-hcenter, naver-main, naver-shop, postgres,
     sabangnet, searchad, smartstore

@@ -15,6 +15,22 @@
 
 WITH{#
 
+#} cafe24_sales_summary AS (
+  SELECT
+      '카페24' AS shop_name
+    , mall.mall_id AS account_no
+    , mall.mall_name AS account_name
+    , mall.corp_name
+    , mall.team_name
+    , summary.payment_amount
+    , summary.max_order_dt
+    , summary.order_date
+  FROM {{ ref('cafe24__sales_summary') }} AS summary
+  LEFT JOIN {{ source('cafe24', 'mall') }} AS mall
+    ON summary.mall_id = mall.mall_id
+  WHERE summary.order_date BETWEEN DS_START_DATE AND DS_END_DATE
+),{#
+
 #} coupang_sales_summary AS (
   SELECT
       '쿠팡' AS shop_name
@@ -49,6 +65,8 @@ WITH{#
 
 #} SELECT *
 FROM (
+  SELECT * FROM cafe24_sales_summary
+  UNION ALL
   SELECT * FROM coupang_sales_summary
   UNION ALL
   SELECT * FROM smartstore_sales_summary

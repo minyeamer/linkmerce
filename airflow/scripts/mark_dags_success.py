@@ -69,6 +69,7 @@ SCHEDULED_DAGS = {
     "coupang": last_cron_utc("0 9,23 * * *"), # 09시, 23시 정각
     # 평일(월-금)만 ───────────────────────────────────────────────────────────
     "sabangnet_account": last_cron_utc("20 22 * * 1-5"), # 22:20 KST
+    "cafe24_product": last_cron_utc("50 22 * * 1-5"), # 22:50 KST
     "coupang_product": last_cron_utc("0 23 * * 1-5"), # 23:00 KST
     "sabangnet_product": last_cron_utc("20 23 * * 1-5"), # 23:20 KST
     "smartstore_product": last_cron_utc("30 23 * * 1-5"), # 23:30 KST
@@ -84,6 +85,8 @@ SCHEDULED_DAGS = {
     # ㄴ 평일 10:50 / 17:20
     "sabangnet_invoice": last_multi_cron_utc(["30 10 * * 1-5", "30 14 * * 1-5", "50 23 * * 1-5"]),
     # ㄴ 평일 10:30 / 14:30 / 23:50
+    "cafe24_order": last_multi_cron_utc(["*/10 9-19 * * 1-5", "0 0-8,20-23 * * 1-5", "0 * * * 0,6"]),
+    "coupang_order": last_multi_cron_utc(["*/10 9-19 * * 1-5", "0 0-8,20-23 * * 1-5", "0 * * * 0,6"]),
     "smartstore_order": last_multi_cron_utc(["*/10 9-19 * * 1-5", "0 0-8,20-23 * * 1-5", "0 * * * 0,6"]),
     # ㄴ 영업시간 10분 간격 / 그 외 1시간 간격
     "stock_report": last_cron_utc(["0 11 * * 1-5", "30 17 * * 1-5"]),
