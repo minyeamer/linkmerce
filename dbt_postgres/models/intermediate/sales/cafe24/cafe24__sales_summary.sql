@@ -11,23 +11,36 @@
   )
 }}
 
-SELECT
-    mall_id
-  , SUM(payment_amount) AS payment_amount
-  , MAX(order_dt) AS max_order_dt
-  , order_date
-FROM (
+WITH{#
+
+#} order_status AS (
   SELECT
       mall_id
-    , (COALESCE(order_quantity, 0) * (COALESCE(product_price, 0) + COALESCE(option_price, 0))
-      - COALESCE(additional_discount_price, 0)
-      - COALESCE(coupon_discount_price, 0)
-      - COALESCE(app_item_discount_amount, 0)
+    , order_item_code
+    , MAX(order_status_type) AS order_status_type
+  FROM {{ source('cafe24', 'order_change') }}
+  WHERE order_date BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
+  GROUP BY mall_id, order_item_code
+),{#
+
+#} sales_summary AS (
+  SELECT
+      ord.mall_id
+    , SUM(
+        COALESCE(ord.order_quantity, 0) * (COALESCE(ord.product_price, 0) + COALESCE(ord.option_price, 0))
+        - COALESCE(ord.additional_discount_price, 0)
+        - COALESCE(ord.coupon_discount_price, 0)
+        - COALESCE(ord.app_item_discount_amount, 0)
       ) AS payment_amount
-    , order_dt
-    , order_dt::date AS order_date
-  FROM {{ source('cafe24', 'order_detail') }}
-  WHERE order_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
-    AND order_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone
-)
-GROUP BY order_date, mall_id
+    , MAX(ord.order_dt) AS max_order_dt
+    , ord.order_dt::date AS order_date
+  FROM {{ source('cafe24', 'order_detail') }} AS ord
+  LEFT JOIN order_status AS status
+    ON (ord.mall_id = status.mall_id) AND (ord.order_item_code = status.order_item_code)
+  WHERE ord.order_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
+    AND ord.order_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone
+    AND ((status.order_status_type = 0) OR (status.order_status_type IS NULL))
+  GROUP BY ord.order_dt::date, ord.mall_id
+){#
+
+#} SELECT * FROM sales_summary
