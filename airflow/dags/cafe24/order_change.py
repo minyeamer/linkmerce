@@ -34,7 +34,7 @@ Airflow UI에서 Dag을 트리거하면서 Configuration JSON에 ISO 8601 형식
 JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
 
 ## 적재(Load)
-데이터를 BigQuery/Postgres 테이블 끝에 추가한다.
+데이터를 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
 """
 
 from airflow.sdk import DAG, task
@@ -54,7 +54,7 @@ with DAG(
     tags = [
         "priority:high", "platform:cafe24", "objective:sales", "credentials:api-key",
         "schedule:none", "time:morning", "time:afternoon", "time:night",
-        "write:append", "upstream:dagrun"
+        "write:merge", "upstream:dagrun"
     ],
 ) as dag:
 
@@ -97,11 +97,12 @@ with DAG(
             start_datetime: str,
             end_datetime: str,
             tables: dict[str, str],
+            merge: dict[str, dict],
             **kwargs
         ) -> dict:
         from linkmerce.common.load import DuckDBConnection
         from linkmerce.api.cafe24.api import order_change
-        from dual_load import load_table_from_duckdb
+        from dual_load import merge_table_from_duckdb
         source = "cafe24_order_change"
 
         with DuckDBConnection(tzinfo="Asia/Seoul") as conn:
@@ -116,19 +117,24 @@ with DAG(
                 return_type = "none",
             )
 
+            partitions = conn.unique(source, "order_date")
+
             return {
                 "context": {
-                    "partitions": sorted(map(str, conn.unique(source, "order_date"))),
+                    "partitions": sorted(map(str, partitions)),
                 },
                 "params": {
                     "mall_id": mall_id,
                     "start_datetime": start_datetime,
                     "end_datetime": end_datetime,
                 },
-                "result": load_table_from_duckdb(
+                "result": merge_table_from_duckdb(
                     connection = conn,
                     source_table = source,
                     target_table = tables["table"],
+                    **merge["table"],
+                    where_clause = conn.expr_date_range("T.order_date", partitions),
+                    execute = bool(partitions),
                 )
             }
 
