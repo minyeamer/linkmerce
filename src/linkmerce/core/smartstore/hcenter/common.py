@@ -74,7 +74,7 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
         self.login_init(login_info["redirectUrl"])
         self.celogin(pincode=regexp_extract(r"\?pincode=(.*)$", login_info["redirectUrl"]))
         self.fetch_embrace_token(subject="main", login=False)
-        self.fetch_adbridge()
+        # self.fetch_adbridge()
         self.fetch_embrace_token(subject="brand-analytics.product", login=True)
         return login_info
 
@@ -249,14 +249,14 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
 
     ############################ Ad Bridge ############################
 
-    def fetch_adbridge(self) -> str:
-        """쇼핑파트너센터 홈페이지 이동 후 광고 대시보드를 불러온다."""
-        self.fetch_adcenter()
+    # def fetch_adbridge(self) -> str:
+    #     """쇼핑파트너센터 홈페이지 이동 후 광고 대시보드를 불러온다."""
+    #     self.fetch_adcenter()
 
-        url = self._center_url("ad") + "/adbridge/home"
-        referer = self._center_url('a') + "/iframe/main.nhn"
-        headers = self.build_headers(url, https=True, referer=referer)
-        self.request("GET", url, headers=headers)
+    #     url = self._center_url("ad") + "/adbridge/home"
+    #     referer = self._center_url('a') + "/iframe/main.nhn"
+    #     headers = self.build_headers(url, https=True, referer=referer)
+    #     self.request("GET", url, headers=headers)
 
     def fetch_adcenter(self):
         from bs4 import BeautifulSoup
