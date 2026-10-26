@@ -21,7 +21,7 @@ DuckDB 기반 변환을 거쳐 BigQuery, PostgreSQL, Google Sheets 같은 외부
 ## 한눈에 보기
 
 - **패키지명**: `linkmerce`
-- **버전**: `1.0.21`
+- **버전**: `1.0.22`
 - **Python**: `>=3.12`
 - **핵심 의존성**: `aiohttp`, `requests`, `duckdb`, `bs4`, `openpyxl`, `ruamel-yaml`, `tqdm`
 
@@ -260,7 +260,7 @@ core/{platform}/{hostname}/{category}/
 | `dable` | `api` | `report` | 데이블 API | 광고 |
 | `ebay` | `ad` | `report` | AUCTION 광고센터 | 광고 |
 | `ebay` | `adcenter` | `management`, `report` | Gmarket 광고센터 | 광고 |
-| `ebay` | `esmplus` | `item` | ESM PLUS | 상품 |
+| `ebay` | `esmplus` | `order`, `item` | ESM PLUS | 주문, 상품 |
 | `ecount` | `api` | `inventory`, `product` | 이카운트 API | 상품, 재고 |
 | `google` | `api` | `ads` | 구글 API | 광고 |
 | `meta` | `api` | `ads` | 메타 API | 광고 |

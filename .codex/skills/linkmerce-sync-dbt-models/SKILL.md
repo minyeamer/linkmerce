@@ -35,6 +35,10 @@ When implementation is part of a complete ETL integration, also follow `../linkm
 4. Treat a missing counterpart as a finding unless implementation was explicitly requested.
 5. Preserve user-authored SQL, Korean documentation, ordering, naming, and unrelated changes.
 
+### Intentional PostgreSQL-only sales summaries
+
+Models whose filename ends in `_summary.sql` are intentionally PostgreSQL-only, including their downstream PostgreSQL sales-summary models. Selectors named `sales_summary` or ending in `_summary` may also be PostgreSQL-only. Treat these missing BigQuery counterparts as expected and do not stop a review or report a parity error for them. Continue validating each model and selector within the project where it exists, including parsing and compiling the PostgreSQL selector. Do not apply this exception to unrelated models or selectors.
+
 ## Implement only in an authorized mode
 
 1. Keep the BigQuery model as the behavioral source of truth.

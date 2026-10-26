@@ -746,9 +746,23 @@ CREATE TABLE IF NOT EXISTS ecount.schedule (
 -- ============================================================
 
 -- [ESM PLUS 상품]
+CREATE TABLE IF NOT EXISTS ebay.seller (
+    site_type SMALLINT NOT NULL -- 사이트구분
+  , seller_id TEXT NOT NULL -- 아이디
+  , seller_name TEXT -- 상호명
+  , seller_seq BIGINT -- 스토어순번
+  , master_login_id TEXT -- 마스터아이디
+  , corp_name TEXT -- 운영사업자
+  , team_name TEXT -- 영업팀
+  , bundle_brand_ids TEXT -- 연결브랜드ID
+  , payment_start_date DATE -- 결제집계시작일
+  , PRIMARY KEY (site_type, seller_id)
+);
+
+-- [ESM PLUS 상품]
 CREATE TABLE IF NOT EXISTS ebay.item (
     item_id BIGINT NOT NULL -- 마스터상품번호
-  , site_type SMALLINT NOT NULL -- 사이트유형
+  , site_type SMALLINT NOT NULL -- 사이트구분
   , site_item_id TEXT NOT NULL -- 상품번호
   , item_name TEXT -- 상품명
   , option_name TEXT -- 옵션명(프로모션 문구)
@@ -763,6 +777,39 @@ CREATE TABLE IF NOT EXISTS ebay.item (
   , created_at TIMESTAMP -- 최초 등록일
   , updated_at TIMESTAMP -- 최종 변경일
   , PRIMARY KEY (item_id, site_type)
+);
+
+-- [ESM PLUS 주문]
+CREATE TABLE IF NOT EXISTS ebay.order (
+    order_no BIGINT NOT NULL -- 마스터주문번호
+  , site_order_no BIGINT NOT NULL -- 주문번호
+  , site_item_id TEXT NOT NULL -- 상품번호
+  , site_type SMALLINT NOT NULL -- 사이트구분
+  , seller_id TEXT -- 아이디
+  , customer_no BIGINT -- 구매자번호
+  , order_status TEXT -- 주문상태
+  , order_status_code INTEGER -- 주문상태코드
+  , claim_type TEXT -- 클레임구분
+  , order_quantity INTEGER -- 수량
+  , payment_amount INTEGER -- 구매금액
+  , payment_dt TIMESTAMP -- 결제일시
+  , delivered_dt TIMESTAMP -- 배송완료일시
+  , decision_dt TIMESTAMP -- 구매결정일시
+  , claim_dt TIMESTAMP -- 클레임일시
+  , settlement_date DATE -- 송금완료일
+  , PRIMARY KEY (payment_dt, site_order_no)
+) PARTITION BY RANGE (payment_dt);
+
+-- [ESM PLUS 주문 상품]
+CREATE TABLE IF NOT EXISTS ebay.order_item (
+    site_item_id TEXT NOT NULL -- 상품번호
+  , site_type SMALLINT NOT NULL -- 사이트구분
+  , item_name TEXT -- 상품명
+  , seller_id TEXT -- 아이디
+  , image_url TEXT -- 이미지 주소
+  , first_payment_dt TIMESTAMP -- 최초결제일시
+  , last_payment_dt TIMESTAMP -- 최종결제일시
+  , PRIMARY KEY (site_item_id)
 );
 
 -- ============================================================
@@ -1925,6 +1972,7 @@ SELECT public.bootstrap_daily_partitions('coupang_rfm.order',			        'payment
 SELECT public.bootstrap_daily_partitions('coupang_rfm.sales',			        'sales_date',			    '2023-08-07',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.shipping',		      'sales_date',			    '2023-08-04',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('dable.report',			            'ymd',      			    '2026-06-11',         	'1 day',  35);
+SELECT public.bootstrap_daily_partitions('ebay.order',			              'payment_dt',         '2025-10-26',	          '1 day',  35);
 SELECT public.bootstrap_daily_partitions('ebay_ads.report_ai',			      'ymd',			          '2026-04-01',	          '1 day',  35);
 SELECT public.bootstrap_daily_partitions('ebay_ads.report_cpc',			      'ymd',			          '2026-07-01',	          '1 day',  35);
 SELECT public.bootstrap_daily_partitions('ebay_ads.report_gmkt',			    'ymd',			          '2026-08-05',	          '1 day',  35);

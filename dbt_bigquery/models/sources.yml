@@ -78,7 +78,10 @@ sources:
   - name: ebay
     schema: ebay
     tables:
+      - name: seller
       - name: item
+      - name: order
+      - name: order_item
 
   - name: ebay_ads
     schema: ebay_ads

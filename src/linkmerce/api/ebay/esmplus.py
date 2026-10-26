@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from typing import Sequence, Literal
     from linkmerce.api.common import DuckDBResult
     from linkmerce.common.load import DuckDBConnection
+    import datetime as dt
 
 
 @with_duckdb_connection(table="esmplus_item")
@@ -79,3 +80,81 @@ def item(
             }
         },
     )).extract(product_id, keyword, sell_status)
+
+
+@with_duckdb_connection(tables={"order": "esmplus_order", "item": "esmplus_order_item"})
+def order(
+        cookies: str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        search_key: Literal["ON", "GN", "BN", "BI", "RN", "SON", "SGN"] = "ON",
+        search_value: str = str(),
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int | tuple[int, int] = 1,
+        progress: bool = True,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> DuckDBResult | list[dict] | None:
+    """ESM PLUS 상품목록을 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    - **Tables** ( *table_key: table_name (description)* ):
+        1. `order: esmplus_order` (주문 정보)
+        2. `item: esmplus_order_item` (주문 상품 정보)
+
+    Parameters
+    ----------
+    cookies: str
+        ESM PLUS 로그인 쿠키 문자열
+    start_date: dt.date | str
+        검색 시작일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+    end_date: dt.date | str
+        검색 종료일. `dt.date` 객체 또는 `"YYYY-MM-DD"` 형식의 문자열을 입력한다.
+            - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+    search_key: str
+        검색조건
+            - `"ON"`: 주문번호
+            - `"GN"`: 상품번호
+            - `"BN"`: 구매자명
+            - `"BI"`: 구매자아이디
+            - `"RN"`: 수령인명
+            - `"SON"`: SSG 원주문번호
+            - `"SGN"`: SSG 상품번호
+    search_value: str
+        검색어
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    request_delay: float | int | tuple[int, int]
+        페이지 요청 간 대기 시간(초). 기본값은 `1`
+    progress: bool
+        페이지 순회 작업의 진행도 출력 여부. 기본값은 `True`
+    return_type: str
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션
+
+    Returns
+    -------
+    DuckDBResult | list[dict] | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 테이블 조회 결과를 CSV 형식의 `list[tuple]`로 반환한다.
+            - `"json"`: 테이블 조회 결과를 JSON 형식의 `list[dict]`로 반환한다. (기본값)
+            - `"parquet"`: 테이블 조회 결과를 Parquet 바이너리로 반환한다.
+            - `"raw"`: 데이터 수집 후 페이지별 원본 응답 `list[dict]`를 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.ebay.esmplus.order.extract import Order
+    from linkmerce.core.ebay.esmplus.order.transform import Order as T
+    return Order(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        cookies = cookies,
+        options = {
+            "PaginateAll": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(start_date, end_date, search_key, search_value)

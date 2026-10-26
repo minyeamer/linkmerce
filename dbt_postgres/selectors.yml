@@ -96,6 +96,13 @@ selectors:
           value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - ebay
+  - name: ebay_order_summary
+    description: "'ebay_order' Dag 실행 후 1시간 단위로 G마켓/옥션 주문 내역 변동을 매출 요약에 반영"
+    definition:
+      method: fqn
+      value: intermediate.sales.ebay.ebay__sales_summary
+
+  # Airflow Dags - ebay_ads
   - name: ebay_auction_ads
     description: "'ebay_auction_ads' Dag 실행 후 옥션 AI매출업/파워클릭 광고 실적 변동을 매출에 반영"
     definition:

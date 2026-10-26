@@ -210,6 +210,8 @@ dbt_postgres/models/intermediate/sales/
 ├── coupang_rfm/
 │   ├── coupang_rfm__order_count
 │   └── coupang_rfm__sales_daily
+├── ebay/
+│   └── ebay__sales_summary
 ├── sabangnet/
 │   ├── sabangnet__order_count
 │   └── sabangnet__sales_daily

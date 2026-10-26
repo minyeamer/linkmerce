@@ -549,9 +549,21 @@
     {"name": "ymd", "type": "DATE", "description": "날짜", "mode": "REQUIRED"},
     "PARTITION BY ymd"
   ],
+  "ebay.seller": [
+    {"name": "site_type", "type": "INTEGER", "description": "사이트구분", "mode": "REQUIRED"},
+    {"name": "seller_id", "type": "STRING", "description": "아이디"},
+    {"name": "seller_name", "type": "STRING", "description": "상호명"},
+    {"name": "seller_seq", "type": "INTEGER", "description": "스토어순번"},
+    {"name": "master_login_id", "type": "STRING", "description": "마스터아이디"},
+    {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
+    {"name": "team_name", "type": "STRING", "description": "영업팀"},
+    {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"},
+    {"name": "payment_start_date", "type": "DATE", "description": "결제집계시작일"},
+    "CLUSTER BY site_type"
+  ],
   "ebay.item": [
     {"name": "item_id", "type": "INTEGER", "description": "마스터상품번호", "mode": "REQUIRED"},
-    {"name": "site_type", "type": "INTEGER", "description": "사이트유형", "mode": "REQUIRED"},
+    {"name": "site_type", "type": "INTEGER", "description": "사이트구분", "mode": "REQUIRED"},
     {"name": "site_item_id", "type": "STRING", "description": "상품번호", "mode": "REQUIRED"},
     {"name": "item_name", "type": "STRING", "description": "상품명"},
     {"name": "option_name", "type": "STRING", "description": "옵션명"},
@@ -565,6 +577,36 @@
     {"name": "price", "type": "INTEGER", "description": "판매가"},
     {"name": "created_at", "type": "DATETIME", "description": "최초 등록일"},
     {"name": "updated_at", "type": "DATETIME", "description": "최종 변경일"},
+    "CLUSTER BY site_type"
+  ],
+  "ebay.order": [
+    {"name": "order_no", "type": "INTEGER", "description": "마스터주문번호", "mode": "REQUIRED"},
+    {"name": "site_order_no", "type": "INTEGER", "description": "주문번호", "mode": "REQUIRED"},
+    {"name": "site_item_id", "type": "STRING", "description": "상품번호", "mode": "REQUIRED"},
+    {"name": "site_type", "type": "INTEGER", "description": "사이트구분", "mode": "REQUIRED"},
+    {"name": "seller_id", "type": "STRING", "description": "아이디"},
+    {"name": "customer_no", "type": "INTEGER", "description": "구매자번호"},
+    {"name": "order_status", "type": "STRING", "description": "주문상태"},
+    {"name": "order_status_code", "type": "INTEGER", "description": "주문상태코드"},
+    {"name": "claim_type", "type": "STRING", "description": "클레임구분"},
+    {"name": "order_quantity", "type": "INTEGER", "description": "수량"},
+    {"name": "payment_amount", "type": "INTEGER", "description": "구매금액"},
+    {"name": "payment_dt", "type": "DATETIME", "description": "결제일시", "mode": "REQUIRED"},
+    {"name": "delivered_dt", "type": "DATETIME", "description": "배송완료일시"},
+    {"name": "decision_dt", "type": "DATETIME", "description": "구매결정일시"},
+    {"name": "claim_dt", "type": "DATETIME", "description": "클레임일시"},
+    {"name": "settlement_date", "type": "DATE", "description": "송금완료일"},
+    "PARTITION BY DATE(payment_dt)",
+    "CLUSTER BY site_type"
+  ],
+  "ebay.order_item": [
+    {"name": "site_item_id", "type": "STRING", "description": "상품번호", "mode": "REQUIRED"},
+    {"name": "site_type", "type": "INTEGER", "description": "사이트구분", "mode": "REQUIRED"},
+    {"name": "item_name", "type": "STRING", "description": "상품명"},
+    {"name": "seller_id", "type": "STRING", "description": "아이디"},
+    {"name": "image_url", "type": "STRING", "description": "이미지 주소"},
+    {"name": "first_payment_dt", "type": "DATETIME", "description": "최초결제일시"},
+    {"name": "last_payment_dt", "type": "DATETIME", "description": "최종결제일시"},
     "CLUSTER BY site_type"
   ],
   "ebay_ads.campaign_group": [

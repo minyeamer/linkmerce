@@ -249,9 +249,12 @@ ebay/
 │           └── ReportDownload(Report)::transform >> excel
 └── esmplus/
     ├─x EsmPlus(Extractor)::common
-    └── item/
-        └── Item(EsmPlus)::extract
-            └── Item(DuckDBTransformer)::transform >> json
+    ├── item/
+    │   └── Item(EsmPlus)::extract
+    │       └── Item(DuckDBTransformer)::transform >> json
+    └── order/
+        └── Order(EsmPlus)::extract
+            └── Order(DuckDBTransformer)::transform >> json
 ```
 
 ### Ecount

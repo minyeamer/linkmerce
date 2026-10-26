@@ -259,6 +259,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | `ebay_auction_ads` | 매일 `08:20` | AUCTION AI매출업/파워클릭 리포트 ETL |
 | `ebay_gmarket_ads` | 매일 `08:40` | Gmarket 캠페인 그룹/캠페인/리포트 ETL |
 | `ebay_item` | 매일 `23:10` | ESM PLUS 상품 ETL |
+| `ebay_order` | 매일 1시간 간격 | ESM PLUS 주문 ETL |
 
 ### 이카운트 (ecount)
 

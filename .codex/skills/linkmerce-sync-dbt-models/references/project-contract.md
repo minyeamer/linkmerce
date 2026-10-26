@@ -13,6 +13,12 @@
 - Keep model names, configured `schema`, configured `alias`, source and ref dependencies, output column names, output order, and business meaning aligned.
 - Permit materialization and physical types to differ only when required by the warehouse.
 
+### Intentional PostgreSQL-only sales summaries
+
+- Models with filenames ending in `_summary.sql`, including downstream PostgreSQL sales-summary models, are an intentional PostgreSQL-only exception. Their absence from `dbt_bigquery` is not a parity finding.
+- Selectors named `sales_summary` or ending in `_summary` may likewise exist only in `dbt_postgres`; do not report those missing BigQuery selectors as errors.
+- Keep project-local checks active: validate the PostgreSQL model's metadata, source declarations, README inventory, parsing, and selector compilation. This exception does not waive unrelated parity checks.
+
 ## Metadata and sources
 
 - Add every implemented model to both `models/models.yml` files in the same logical section.

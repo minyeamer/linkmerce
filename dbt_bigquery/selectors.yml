@@ -83,7 +83,7 @@ selectors:
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
-  # Airflow Dags - ebay
+  # Airflow Dags - ebay_ads
   - name: ebay_auction_ads
     description: "'ebay_auction_ads' Dag 실행 후 옥션 AI매출업/파워클릭 광고 실적 변동을 매출에 반영"
     definition:

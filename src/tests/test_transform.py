@@ -409,12 +409,18 @@ class TestGmarketAdc:
 class TestEsmPlus:
     """ESM PLUS 데이터 변환 테스트.
     - ebay.esmplus.item.Item
+    - ebay.esmplus.order.Order
     """
 
     def test_item(self, transformer_harness: Harness):
         """ESM PLUS 상품 목록을 변환하는 테스트."""
         from linkmerce.core.ebay.esmplus.item.transform import Item
         transformer_harness(Item).transform()
+
+    def test_order(self, transformer_harness: Harness):
+        """ESM PLUS 주문 내역을 변환하는 테스트."""
+        from linkmerce.core.ebay.esmplus.order.transform import Order
+        transformer_harness(Order).transform()
 
 
 ###################################################################

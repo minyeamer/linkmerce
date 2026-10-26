@@ -63,6 +63,7 @@ SCHEDULED_DAGS = {
     "searchad_report_gfa": last_cron_utc("20 5 * * *"), # 05:20 KST
     "searchad_report_sad": last_cron_utc("40 5 * * *"), # 05:40 KST
     # 매일 n회 ───────────────────────────────────────────────────────────────
+    "ebay_order": last_multi_cron_utc("0 */1 * * *"), # 매일 1시간 간격
     "naver_shop_rank": last_cron_utc("0 6-18 * * *"), # 06~18시 정각
     "naver_cafe_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     "naver_main_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격

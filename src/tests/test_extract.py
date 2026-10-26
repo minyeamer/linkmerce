@@ -637,6 +637,7 @@ class TestGmarketAdc:
 class TestEsmPlus:
     """ESM PLUS 데이터 추출 테스트.
     - ebay.esmplus.item.Item
+    - ebay.esmplus.order.Order
     """
 
     def cookies(self, reader: YamlReader) -> str:
@@ -653,6 +654,20 @@ class TestEsmPlus:
             product_id = _configs.get("product_id", str()),
             keyword = _configs.get("keyword", str()),
             sell_status = _configs.get("sell_status", list()),
+        )
+
+    def test_order(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """ESM PLUS 주문 내역을 조회하는 테스트."""
+        from linkmerce.core.ebay.esmplus.order.extract import Order
+        _configs = options("ebay.esmplus.order")
+        Order(
+            cookies = self.cookies(credentials),
+            parser = dump_extract(Order, format="json"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+            search_key = _configs.get("search_key", "ON"),
+            search_value = _configs.get("search_value", str()),
         )
 
 

@@ -11,6 +11,8 @@ import sys
 REPO_ROOT = Path(__file__).resolve().parents[4]
 PROJECTS = ("dbt_bigquery", "dbt_postgres")
 MODEL_PREFIX = {project: f"{project}/models/" for project in PROJECTS}
+POSTGRES_ONLY_MODEL = re.compile(r"(?:^|/)[^/]*_summary\.sql$")
+POSTGRES_ONLY_SELECTOR = re.compile(r"(?:sales_summary|[^/]*_summary)")
 
 
 def run_git(*args: str) -> str:
@@ -135,7 +137,10 @@ def manifest_columns(project: str) -> dict[str, list[str]]:
 
 def audit_environment_commands(errors: list[str]) -> None:
     skill_root = REPO_ROOT / ".codex" / "skills" / "linkmerce-sync-dbt-models"
-    wrong_env = re.compile(r"conda\s+run\s+-n\s+main\s+dbt\b", re.IGNORECASE)
+    wrong_env = re.compile(
+        r"^\s*conda\s+run\s+-n\s+main\s+dbt\b",
+        re.IGNORECASE | re.MULTILINE,
+    )
     bare_dbt = re.compile(
         r"^\s*dbt\s+(?:build|compile|docs|parse|run|seed|snapshot|test)\b",
         re.IGNORECASE | re.MULTILINE,
@@ -175,6 +180,8 @@ def main() -> int:
     for path in sorted(bigquery_paths - postgres_paths):
         errors.append(f"Missing PostgreSQL model pair: {path}")
     for path in sorted(postgres_paths - bigquery_paths):
+        if POSTGRES_ONLY_MODEL.search(path):
+            continue
         errors.append(f"Missing BigQuery model pair: {path}")
 
     paired_paths = sorted(bigquery_paths & postgres_paths)
@@ -226,7 +233,11 @@ def main() -> int:
     selectors = {project: declared_selectors(project) for project in PROJECTS}
     if selectors["dbt_bigquery"] != selectors["dbt_postgres"]:
         missing_pg = sorted(selectors["dbt_bigquery"] - selectors["dbt_postgres"])
-        missing_bq = sorted(selectors["dbt_postgres"] - selectors["dbt_bigquery"])
+        missing_bq = sorted(
+            name
+            for name in selectors["dbt_postgres"] - selectors["dbt_bigquery"]
+            if not POSTGRES_ONLY_SELECTOR.fullmatch(name)
+        )
         if missing_pg:
             errors.append(f"dbt_postgres/selectors.yml: missing selectors {missing_pg}")
         if missing_bq:

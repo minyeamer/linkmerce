@@ -145,6 +145,11 @@ models:
   - name: "coupang_rfm__sales_daily"
     description: "쿠팡 로켓정산 내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
 
+  # intermediate > sales > ebay
+
+  - name: "ebay__sales_summary"
+    description: "G마켓/옥션 주문내역에서 스토어별 결제금액 합계를 요약한 일별 파티션 모델"
+
   # intermediate > sales > sabangnet
 
   - name: "sabangnet__order_count"
