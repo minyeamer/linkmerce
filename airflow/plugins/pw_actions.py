@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import os
 
 if TYPE_CHECKING:
-    from typing import Iterable, Literal, Sequence
+    from typing import Callable, Iterable, Literal, Sequence
     from playwright.sync_api import Browser, BrowserContext, Page
     from pathlib import Path
 
@@ -126,6 +126,7 @@ def login_coupang(
         return get_browser_cookies(
             context,
             urls = ["https://advertising.coupang.com"],
+            requires = ["aid"],
             err_msg = "Failed to login in to Coupang Ads.",
         )
 
@@ -267,6 +268,61 @@ def login_ebay(
             return cookies
         finally:
             browser.close()
+
+
+def login_ebay_bulk(
+        credentials: list[dict],
+        where: Literal["esmplus", "ad", "adcenter"] = "esmplus",
+        timeout: float = 60,
+    ) -> list[dict]:
+    """Playwright 브라우저로 ESM PLUS 또는 광고센터에 여러 계정을 로그인하고 로그인 정보를 반환한다.
+
+    ESM PLUS 로그인 화면은 `face.js`로 브라우저 지문을 수집하므로,
+    안정적인 세션을 만들기 위해 브라우저를 활용해야 한다.
+
+    쿠키의 유효성을 우선 검증하고 유효하다면 그대로 반환, 유효하지 않다면 로그인을 수행한다.
+    로그인이 실패해도 오류를 무시하고 빈 `cookies` 값을 추가한다.
+
+    Returns:
+        `credentials` 리스트 각각에 최신화된 `cookies` 값을 추가한 새로운 리스트
+    """
+    from linkmerce.utils.regex import regexp_extract
+    from linkmerce.common.exceptions import AuthenticationError
+    from playwright.sync_api import Error as PlaywrightError
+    from importlib import import_module
+    from pathlib import Path
+    import logging
+
+    has_cookies: Callable[[str], bool] = getattr(
+        import_module(f"linkmerce.api.ebay.{where}"), "has_cookies")
+    logger = logging.getLogger(__name__)
+
+    results = list()
+    for creds in credentials:
+        cookies = None
+        save_to = regexp_extract(r"Path\(([^)]+)\)", creds.get("cookies", str()))
+        if save_to and (file_path := Path(save_to)).is_file():
+            cookies, save_to = file_path.read_text(encoding="utf-8-sig").strip(), file_path
+
+        if not (cookies and has_cookies(cookies)):
+            try:
+                cookies = login_ebay(
+                    userid = creds["userid"],
+                    passwd = creds["passwd"],
+                    site_type = creds.get("site_type", "esmplus"),
+                    where = where,
+                    timeout = timeout,
+                )
+            except (AuthenticationError, PlaywrightError) as error:
+                logger.warning("Ebay login failed for '%s' (%s).",
+                    creds["userid"], type(error).__name__)
+
+            if cookies and save_to:
+                save_browser_cookies(cookies, save_to)
+
+        results.append(creds | {"cookies": cookies})
+
+    return results
 
 
 ###################################################################

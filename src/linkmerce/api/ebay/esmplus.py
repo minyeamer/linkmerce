@@ -11,6 +11,24 @@ if TYPE_CHECKING:
     import datetime as dt
 
 
+def has_cookies(cookies: str) -> bool:
+    """ESM PLUS 로그인 쿠키가 유효한지 확인한다.
+
+    Parameters
+    ----------
+    cookies: str
+        ESM PLUS 로그인 쿠키 문자열
+
+    Returns
+    -------
+    bool
+        로그인 쿠키로 인증된 화면 또는 정보에 접근할 수 있으면 `True`, 없으면 `False`를 반환한다.
+    """
+    from linkmerce.core.ebay.esmplus.common import has_cookies
+    from linkmerce.common.extract import use_cookies
+    return use_cookies(has_cookies, cookies)
+
+
 @with_duckdb_connection(table="esmplus_item")
 def item(
         cookies: str,

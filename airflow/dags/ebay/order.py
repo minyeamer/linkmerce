@@ -2,9 +2,11 @@
 # ESM PLUS 주문 내역 ETL 파이프라인
 
 ## 인증(Credentials)
-1. ESM PLUS 로그인 정보(아이디, 비밀번호, 도메인)를 읽는다.
-2. Playwright 브라우저를 통해 로그인하고 쿠키를 발급받는다.
-3. 쿠키에 'ESM_REQUEST_AUTH_PC' 값이 있다면 로그인된 것으로 인식하고 지정된 파일에 덮어쓴다.
+1. ESM PLUS 로그인 정보(아이디, 비밀번호, 도메인) 목록을 읽는다.
+2. 로그인 정보 내 선택적으로 존재하는 쿠키 파일의 유효성을 검사하여 유효하면 로그인을 스킵한다.
+3. 쿠키가 없거나 유효하지 않다면 Playwright 브라우저를 통해 계정별로 순차 로그인하고 쿠키를 발급받는다.
+4. 로그인 시 쿠키에 'ESM_REQUEST_AUTH_PC' 값이 있다면 로그인된 것으로 인식하고 지정된 파일에 덮어쓴다.
+5. 모든 계정의 로그인이 끝나면 계정별 쿠키를 사용해 ETL Task를 동적으로 매핑한다.
 
 ## 추출(Extract)
 실행 시점(data_interval_end)에서 30일 전부터 현재까지의 검색 기간에 대해
@@ -44,37 +46,29 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials=True, tables=True, skip_subpath=True)
+        return read_config(PATH, tables=True)
+
+    @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
+    def read_credentials() -> list:
+        from airflow_utils import read_config
+        from pw_actions import login_ebay_bulk
+        credentials = read_config(PATH, credentials=True, skip_subpath=True)["credentials"]
+        return login_ebay_bulk(credentials, where="esmplus")
+
+    def validate_cookies(credentials: dict):
+        from linkmerce.common.exceptions import AuthenticationError
+        if not credentials.get("cookies"):
+            raise AuthenticationError("ESM PLUS authentication cookies are missing")
 
 
-    @task(task_id="login_esmplus", retries=2, retry_delay=timedelta(minutes=1))
-    def login_esmplus(configs: dict) -> str:
-        from pw_actions import login_ebay
-        from linkmerce.utils.regex import regexp_extract
-
-        credentials: dict = configs["credentials"]
-        cookies = login_ebay(
-            userid = credentials["userid"],
-            passwd = credentials["passwd"],
-            site_type = credentials.get("site_type", "esmplus"),
-            where = "esmplus",
-        )
-
-        if (save_to := regexp_extract(r"Path\(([^)]+)\)", credentials.get("cookies", str()))):
-            from pw_actions import save_browser_cookies
-            save_browser_cookies(cookies, save_to)
-
-        return cookies
-
-
-    @task(task_id="etl_ebay_order")
-    def etl_ebay_order(configs: dict, cookies: str, **kwargs) -> dict:
+    @task(task_id="etl_ebay_order", map_index_template="{{ credentials['userid'] }}")
+    def etl_ebay_order(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import format_datetime
-        return main(**(configs | {
-            "cookies": cookies,
-            "start_date": format_datetime(kwargs, subdays=30),
-            "end_date": format_datetime(kwargs, subdays=0),
-        }))
+        validate_cookies(credentials)
+        return main(**credentials, **configs,
+            start_date = format_datetime(kwargs, subdays=30),
+            end_date = format_datetime(kwargs, subdays=0),
+        )
 
     def main(
             cookies: str,
@@ -167,11 +161,11 @@ with DAG(
         )
 
 
-    configs = read_configs()
-    cookies = login_esmplus(configs)
-    etl_result = etl_ebay_order(configs, cookies)
+    etl_results = (etl_ebay_order
+        .partial(configs=read_configs())
+        .expand(credentials=read_credentials()))
 
-    dbt_date_range = generate_dbt_date_range(etl_result)
+    dbt_date_range = generate_dbt_date_range(etl_results)
     # dbt_run = [dbt_bigquery_ebay_order_group(), dbt_postgres_ebay_order_group()]
     dbt_run = dbt_postgres_ebay_order_summary_group()
 

@@ -20,12 +20,8 @@ def has_accounts(cookies: str) -> bool:
         판매자 정보가 조회되면 `True`, 아니면 `False`를 반환한다.
     """
     from linkmerce.core.smartstore.sscenter.common import has_accounts
-    import requests
-
-    with requests.Session() as session:
-        cookies_map = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ") if '=' in kv])
-        session.cookies.update(cookies_map)
-        return has_accounts(session)
+    from linkmerce.common.extract import use_cookies
+    return use_cookies(has_accounts, cookies)
 
 
 def login(

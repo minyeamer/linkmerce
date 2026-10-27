@@ -641,7 +641,7 @@ class TestEsmPlus:
     """
 
     def cookies(self, reader: YamlReader) -> str:
-        return reader("ebay.esmplus")["cookies"]
+        return reader("ebay.esmplus.0")["cookies"]
 
     def test_item(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable):
         """ESM PLUS 상품 목록을 조회하는 테스트."""

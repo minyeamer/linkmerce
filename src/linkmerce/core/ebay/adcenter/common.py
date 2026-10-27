@@ -7,7 +7,20 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal
+    from requests import Session
     import datetime as dt
+
+
+def has_cookies(session: Session) -> bool:
+    """Gmarket 광고센터 로그인 세션이 광고 관리 화면에 접근할 수 있는지 검증한다."""
+    from linkmerce.utils.headers import build_headers
+    url = "https://adcenter.esmplus.com/ad/management"
+    headers = build_headers(referer="https://adcenter.esmplus.com/", metadata="navigate", https=True)
+    with session.get(url, headers=headers, allow_redirects=False, timeout=10) as response:
+        if response.status_code in (401, 403) or (300 <= response.status_code < 400):
+            return False
+        response.raise_for_status()
+        return response.status_code == 200
 
 
 class GmarketAdCenter(Extractor):

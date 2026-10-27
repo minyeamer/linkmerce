@@ -1030,3 +1030,16 @@ class LoginHandler(Extractor):
                 finally:
                     self.set_cookies(self.get_cookies())
         return wrapper
+
+
+def use_cookies(func: Callable[[Session], bool], cookies: str) -> bool:
+    """새로운 세션을 열면서 쿠키를 설정하고 함수에 넘겨준다."""
+    import requests
+
+    cookies_map = dict([kv.split('=', maxsplit=1) for kv in cookies.split("; ") if '=' in kv])
+    if not cookies_map:
+        return False
+
+    with requests.Session() as session:
+        session.cookies.update(cookies_map)
+        return func(session)

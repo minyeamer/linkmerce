@@ -2,9 +2,11 @@
 # AUCTION 광고센터 ETL 파이프라인
 
 ## 인증(Credentials)
-1. AUCTION 광고센터 로그인 정보(아이디, 비밀번호, 도메인)를 읽는다.
-2. Playwright 브라우저를 통해 로그인하고 쿠키를 발급받는다.
-3. 쿠키에 'AD_AUTH' 값이 있다면 로그인된 것으로 인식하고 지정된 파일에 덮어쓴다.
+1. AUCTION 광고센터 로그인 정보(아이디, 비밀번호, 도메인) 목록을 읽는다.
+2. 로그인 정보 내 선택적으로 존재하는 쿠키 파일의 유효성을 검사하여 유효하면 로그인을 스킵한다.
+3. 쿠키가 없거나 유효하지 않다면 Playwright 브라우저를 통해 계정별로 순차 로그인하고 쿠키를 발급받는다.
+4. 로그인 시 쿠키에 'AD_AUTH' 값이 있다면 로그인된 것으로 인식하고 지정된 파일에 덮어쓴다.
+5. 모든 계정의 로그인이 끝나면 계정별 쿠키를 사용해 ETL Task를 동적으로 매핑한다.
 
 ## 추출(Extract)
 실행 시점(data_interval_end)에서 1일 전을 기준으로 AI매출업 및 파워클릭 상품별 리포트를 가져온다.
@@ -42,45 +44,37 @@ with DAG(
     @task(task_id="read_configs", retries=3, retry_delay=timedelta(minutes=1))
     def read_configs() -> dict:
         from airflow_utils import read_config
-        return read_config(PATH, credentials=True, tables=True, skip_subpath=True)
+        return read_config(PATH, tables=True)
+
+    @task(task_id="read_credentials", retries=3, retry_delay=timedelta(minutes=1))
+    def read_credentials() -> list:
+        from airflow_utils import read_config
+        from pw_actions import login_ebay_bulk
+        credentials = read_config(PATH, credentials=True, skip_subpath=True)["credentials"]
+        return login_ebay_bulk(credentials, where="ad")
+
+    def validate_cookies(credentials: dict):
+        from linkmerce.common.exceptions import AuthenticationError
+        if not credentials.get("cookies"):
+            raise AuthenticationError("AUCTION Adcenter authentication cookies are missing")
 
 
-    @task(task_id="login_auction_adcenter", retries=2, retry_delay=timedelta(minutes=1))
-    def login_auction_adcenter(configs: dict) -> str:
-        from pw_actions import login_ebay
-        from linkmerce.utils.regex import regexp_extract
-
-        credentials: dict = configs["credentials"]
-        cookies = login_ebay(
-            userid = credentials["userid"],
-            passwd = credentials["passwd"],
-            site_type = credentials.get("site_type", "esmplus"),
-            where = "ad",
-        )
-
-        if (save_to := regexp_extract(r"Path\(([^)]+)\)", credentials.get("cookies", str()))):
-            from pw_actions import save_browser_cookies
-            save_browser_cookies(cookies, save_to)
-
-        return cookies
-
-
-    @task(task_id="etl_auction_report_ai")
-    def etl_auction_report_ai(configs: dict, cookies: str, **kwargs) -> dict:
+    @task(task_id="etl_auction_report_ai", map_index_template="{{ credentials['userid'] }}")
+    def etl_auction_report_ai(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import format_datetime
-        return main(
+        validate_cookies(credentials)
+        return main(**credentials, **configs,
             report_type = "ai",
             date = format_datetime(kwargs, subdays=1),
-            **(configs | {"cookies": cookies})
         )
 
-    @task(task_id="etl_auction_report_cpc")
-    def etl_auction_report_cpc(configs: dict, cookies: str, **kwargs) -> dict:
+    @task(task_id="etl_auction_report_cpc", map_index_template="{{ credentials['userid'] }}")
+    def etl_auction_report_cpc(credentials: dict, configs: dict, **kwargs) -> dict:
         from airflow_utils import format_datetime
-        return main(
+        validate_cookies(credentials)
+        return main(**credentials, **configs,
             report_type = "cpc",
             date = format_datetime(kwargs, subdays=1),
-            **(configs | {"cookies": cookies})
         )
 
     def main(
@@ -125,9 +119,9 @@ with DAG(
 
 
     @task(task_id="generate_dbt_date_range")
-    def generate_dbt_date_range(results: list[dict]) -> dict:
+    def generate_dbt_date_range(ai_results: list[dict], cpc_results: list[dict]) -> dict:
         from dbt_cosmos import generate_dbt_date_range as generate
-        return generate(results, "context.partitions")
+        return generate(ai_results + cpc_results, "context.partitions")
 
 
     @task.short_circuit(task_id="prepare_dbt_run")
@@ -156,14 +150,17 @@ with DAG(
 
 
     configs = read_configs()
-    cookies = login_auction_adcenter(configs)
+    credentials = read_credentials()
 
-    etl_results = [
-        etl_auction_report_ai(configs, cookies),
-        etl_auction_report_cpc(configs, cookies),
-    ]
+    etl_ai_results = (etl_auction_report_ai
+        .partial(configs=configs)
+        .expand(credentials=credentials))
 
-    dbt_date_range = generate_dbt_date_range(etl_results)
+    etl_cpc_results = (etl_auction_report_cpc
+        .partial(configs=configs)
+        .expand(credentials=credentials))
+
+    dbt_date_range = generate_dbt_date_range(etl_ai_results, etl_cpc_results)
     dbt_run = [dbt_bigquery_ebay_auction_ads_group(), dbt_postgres_ebay_auction_ads_group()]
 
     dbt_date_range >> prepare_dbt_run() >> dbt_run
