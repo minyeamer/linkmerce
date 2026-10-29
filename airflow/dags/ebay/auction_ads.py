@@ -121,7 +121,7 @@ with DAG(
     @task(task_id="generate_dbt_date_range")
     def generate_dbt_date_range(ai_results: list[dict], cpc_results: list[dict]) -> dict:
         from dbt_cosmos import generate_dbt_date_range as generate
-        return generate(ai_results + cpc_results, "context.partitions")
+        return generate(list(ai_results) + list(cpc_results), "context.partitions")
 
 
     @task.short_circuit(task_id="prepare_dbt_run")
