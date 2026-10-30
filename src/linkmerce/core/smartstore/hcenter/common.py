@@ -69,66 +69,111 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
         dict
             접속된 스토어(채널) 정보
         """
-        from linkmerce.utils.regex import regexp_extract
-        login_info = super().login(userid, passwd, channel_seq, cookies)
-        self.login_init(login_info["redirectUrl"])
-        self.celogin(pincode=regexp_extract(r"\?pincode=(.*)$", login_info["redirectUrl"]))
+        smartstore_login_info = super().login(userid, passwd, channel_seq, cookies)
+        # self.login_init(smartstore_login_info["redirectUrl"])
+        hcenter_login_info = self.change_channel(channel_seq or smartstore_login_info["channelNo"])
+        self.celogin(hcenter_login_info)
         self.fetch_embrace_token(subject="main", login=False)
         # self.fetch_adbridge()
         self.fetch_embrace_token(subject="brand-analytics.product", login=True)
-        return login_info
+        return hcenter_login_info
 
     def _center_url(self, _: str) -> str:
         return f"https://{_}center.shopping.naver.com"
 
     ############################ Login Init ###########################
 
-    def login_init(self, redirect_url: str):
-        """스마트스토어센터 로그인 후 쇼핑파트너센터로 전환되는 동작을 수행한다."""
-        self.redirect_begin(redirect_url)
+    # def login_init(self, redirect_url: str):
+    #     """스마트스토어센터 로그인 후 쇼핑파트너센터로 전환되는 동작을 수행한다."""
+    #     self.redirect_begin(redirect_url)
 
-        url = self.main_url + "/api/login/init"
-        params = {"needLoginInfoForAngular": "true", "stateName": "home"}
-        headers = self.get_login_header()
-        self.request("GET", url, params=params, headers=headers)
+    #     url = self.main_url + "/api/login/init"
+    #     params = {"needLoginInfoForAngular": "true", "stateName": "home"}
+    #     headers = self.get_login_header()
+    #     self.request("GET", url, params=params, headers=headers)
 
-        self.click_to_center()
+    #     self.click_to_center()
 
     def redirect_begin(self, redirect_url: str):
         headers = self.build_headers(redirect_url, referer=self.main_url)
         self.request("GET", redirect_url, headers=headers)
 
-    def get_login_header(self) -> dict[str, str]:
-        headers = self.build_headers(self.main_url, referer=self.main_url)
-        headers["x-current-state"] = self.main_url + "/#/home/dashboard"
-        headers["x-current-statename"] = "work.channel-select"
-        headers["x-to-statename"] = "work.channel-select"
-        return headers
+    # def get_login_header(self) -> dict[str, str]:
+    #     headers = self.build_headers(self.main_url, referer=self.main_url)
+    #     headers["x-current-state"] = self.main_url + "/#/home/dashboard"
+    #     headers["x-current-statename"] = "work.channel-select"
+    #     headers["x-to-statename"] = "work.channel-select"
+    #     return headers
 
-    def click_to_center(self):
-        url = self.main_url + "/api/sell/center/front-history/click"
-        body = {
-            "actionId": "gnb.link",
-            "actionLocationId": "shoppingPartner",
-            "groupStateCode": "layout",
-            "stateCode": "main.dashboard-pay",
+    # def click_to_center(self):
+    #     url = self.main_url + "/api/sell/center/front-history/click"
+    #     body = {
+    #         "actionId": "gnb.link",
+    #         "actionLocationId": "shoppingPartner",
+    #         "groupStateCode": "layout",
+    #         "stateCode": "main.dashboard-pay",
+    #     }
+    #     headers = self.build_headers(url, origin=self.main_url, referer=self.main_url)
+    #     self.request("POST", url, json=body, headers=headers)
+
+    ########################## Change Channel #########################
+
+    def change_channel(self, channel_seq: int) -> dict:
+        """쇼핑파트너센터 로그인이 가능한 스마트스토어 채널로 로그인하고 로그인 정보를 반환한다."""
+        account = self.fetch_account_info(channel_seq)
+
+        url = self.main_url + "/api/login/change-channel"
+        headers = self.get_channel_header()
+        data = {
+            "channelNo": account["channelNo"],
+            "roleNo": account["roleNo"],
+            "url": self.center_url + "/",
         }
-        headers = self.build_headers(url, origin=self.main_url, referer=self.main_url)
-        self.request("POST", url, json=body, headers=headers)
+        with self.request("POST", url, data=data, params=data, headers=headers, allow_redirects=False) as response:
+            if response.status_code >= 400:
+                from linkmerce.common.exceptions import AuthenticationError
+                raise AuthenticationError("Smartstore could not switch to the Partner Center.")
+            return self.get_login_info(response.headers)
+
+
+    def fetch_account_info(self, channel_seq: int) -> dict:
+        """스마트스토어 채널이 쇼핑파트너센터 로그인이 가능한지 검증하고 로그인 정보를 반환한다."""
+        url = self.main_url + "/api/login/accountsForAdCenter"
+        with self.request("GET", url, headers=self.get_channel_header()) as response:
+            for account in response.json():
+                if account["channelNo"] == int(channel_seq):
+                    return account
+        from linkmerce.common.exceptions import AuthenticationError
+        raise AuthenticationError("The requested channel is not available for the Partner Center.")
 
     ########################### Center Login ##########################
 
-    def celogin(self, pincode: str):
+    def celogin(self, login_info: dict):
         """스마트스토어센터 로그인 정보를 가지고 쇼핑파트너센터 로그인 쿠키를 얻는다."""
-        login_info = self.authenticate(pincode)
+        self.redirect_begin(redirect_url := login_info["redirectUrl"])
+        pincode = self.get_pincode(redirect_url)
+
         link = self.fetch_link()
+        login_info = self.authenticate(pincode)
         pubkey = self.fetch_pubkey(link)
 
         url = self.center_url + "/oauth2/login"
         body = self.build_login_data(pincode, pubkey, login_info)
-        headers = self.build_headers(url, contents="form", https=True, referer=(self.center_url + "/v1/slogin2/login"), origin=self.center_url)
+        referer = self.center_url + "/v1/slogin2/login"
+        headers = self.build_headers(url, contents="form", https=True, referer=referer, origin=self.center_url)
         with self.request("POST", url, data=body, headers=headers, allow_redirects=False) as response:
+            from linkmerce.common.exceptions import AuthenticationError
+            if "location" not in response.headers:
+                raise AuthenticationError("Partner Center login did not return a redirect.")
             self.celogin_redirect(response.headers["location"])
+
+    def get_pincode(self, redirect_url: str) -> str:
+        import re
+        try:
+            return re.search(r"[?&]pincode=([^&]+)", redirect_url).group(1)
+        except AttributeError:
+            from linkmerce.common.exceptions import AuthenticationError
+            raise AuthenticationError("Smartstore channel switch response did not include a pincode.")
 
     def authenticate(self, pincode: str) -> dict:
         url = self.center_url + "/oauth2/authenticate"
@@ -157,13 +202,21 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
 
     def build_login_data(self, pincode: str, pubkey: str, login_info: dict) -> dict:
         from urllib.parse import urlencode
-        return_url = urlencode({"return-uri": f"{self.center_url}/v1/slogin2/redirect"})
+        from linkmerce.common.exceptions import AuthenticationError
+
+        response = login_info.get("response")
+        if not isinstance(response, dict) or not response.get("authentication"):
+            raise AuthenticationError("Smartstore authentication at the Partner Center failed.")
+
+        redirect_uri = response.get("redirectUri")
+        if not redirect_uri:
+            raise AuthenticationError("Smartstore authentication response did not include a redirect URI.")
 
         return {
             "pincode": pincode,
-            "username": self.JSEncrypt(login_info["response"]["alternateName"], pubkey),
+            "username": self.JSEncrypt(response.get("alternateName") or str(), pubkey),
             "client_id": "smartstore",
-            "redirect_uri": f"{self.center_url}/login/redirect?{return_url}",
+            "redirect_uri": "{}/login/redirect?{}".format(self.center_url, urlencode({"return-uri": redirect_uri})),
             "target_uri": "",
             "response_type": "code",
             "state": "xyz",
@@ -234,7 +287,7 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
                             {"additionalProperties": ["propertyID", "value"]}
                             ]
                         },
-                        {"termsOfSerivce": ["identifier"]},
+                        {"termsOfService": ["identifier"]},
                         "additionalType", "action", "potentialActions",
                         {"subOrganizations": ["sequence"]},
                         {"aggregateRatings": ["ratingValue", "additionalType", "potentialActions"]}
