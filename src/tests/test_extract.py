@@ -253,6 +253,10 @@ class TestCoupangApi:
     - coupang.api.product.Category
     - coupang.api.order.Order
     - coupang.api.order.OrderDetail
+    - coupang.api.claim.ReturnRequest
+    - coupang.api.claim.ReturnRequestDetail
+    - coupang.api.claim.ReturnWithdraw
+    - coupang.api.claim.ExchangeRequest
     - coupang.api.rocket_growth.Inventory
     - coupang.api.rocket_growth.Order
     - coupang.api.rocket_growth.OrderDetail
@@ -335,6 +339,61 @@ class TestCoupangApi:
         ).extract(
             query_id = _configs["query_id"],
             query_type = _configs.get("query_type", "order_id"),
+            max_retries = _configs.get("max_retries", 5),
+        )
+
+    def test_return_request(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """쿠팡 Open API로 마켓플레이스 반품 및 취소 요청 목록을 수집하는 테스트."""
+        from linkmerce.core.coupang.api.claim.extract import ReturnRequest
+        _configs = options("coupang.api.return_request")
+        ReturnRequest(
+            configs = self.credentials(credentials),
+            parser = dump_extract(ReturnRequest, format="json"),
+        ).extract(
+            start_datetime = _configs.get("start_datetime", f"{yesterday}T00:00"),
+            end_datetime = _configs.get("end_datetime", ":end_of_day:"),
+            cancel_type = _configs.get("cancel_type", "ALL"),
+            status = _configs.get("status", "ALL"),
+            max_retries = _configs.get("max_retries", 5),
+        )
+
+    def test_return_request_detail(self, configs: YamlReader, credentials: YamlReader, dump_extract: Callable):
+        """쿠팡 Open API로 마켓플레이스 반품 요청 단건을 수집하는 테스트."""
+        from linkmerce.core.coupang.api.claim.extract import ReturnRequestDetail
+        _configs = configs("coupang.api.return_request_detail")
+        ReturnRequestDetail(
+            configs = self.credentials(credentials),
+            parser = dump_extract(ReturnRequestDetail, format="json"),
+        ).extract(
+            receipt_id = _configs["receipt_id"],
+            max_retries = _configs.get("max_retries", 5),
+        )
+
+    def test_return_withdraw(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """쿠팡 Open API로 마켓플레이스 반품 철회 이력을 수집하는 테스트."""
+        from linkmerce.core.coupang.api.claim.extract import ReturnWithdraw
+        _configs = options("coupang.api.return_withdraw")
+        ReturnWithdraw(
+            configs = self.credentials(credentials),
+            parser = dump_extract(ReturnWithdraw, format="json"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
+            max_retries = _configs.get("max_retries", 5),
+        )
+
+    def test_exchange_request(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """쿠팡 Open API로 마켓플레이스 교환 요청 목록을 수집하는 테스트."""
+        from linkmerce.core.coupang.api.claim.extract import ExchangeRequest
+        _configs = options("coupang.api.exchange_request")
+        ExchangeRequest(
+            configs = self.credentials(credentials),
+            parser = dump_extract(ExchangeRequest, format="json"),
+        ).extract(
+            start_datetime = _configs.get("start_datetime", f"{yesterday}T00:00:00"),
+            end_datetime = _configs.get("end_datetime", ":end_of_day:"),
+            status = _configs.get("status", None),
+            order_id = _configs.get("order_id", None),
             max_retries = _configs.get("max_retries", 5),
         )
 

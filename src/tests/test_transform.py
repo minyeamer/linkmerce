@@ -185,6 +185,10 @@ class TestCoupangApi:
     - coupang.api.product.Category
     - coupang.api.order.Order
     - coupang.api.order.OrderDetail
+    - coupang.api.claim.ReturnRequest
+    - coupang.api.claim.ReturnRequestDetail
+    - coupang.api.claim.ReturnWithdraw
+    - coupang.api.claim.ExchangeRequest
     - coupang.api.rocket_growth.Inventory
     - coupang.api.rocket_growth.Order
     - coupang.api.rocket_growth.OrderDetail
@@ -227,6 +231,30 @@ class TestCoupangApi:
         from linkmerce.core.coupang.api.order.transform import OrderDetail
         transformer_harness(OrderDetail).transform()
 
+    def test_return_request(self, transformer_harness: Harness, credentials: YamlReader):
+        """쿠팡 마켓플레이스 반품 및 취소 요청 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.claim.transform import ReturnRequest
+        transformer_harness(ReturnRequest).transform(
+            vendor_id = credentials("coupang.api.0")["vendor_id"],
+        )
+
+    def test_return_request_detail(self, transformer_harness: Harness, credentials: YamlReader):
+        """쿠팡 마켓플레이스 반품 요청 단건 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.claim.transform import ReturnRequestDetail
+        transformer_harness(ReturnRequestDetail).transform(
+            vendor_id = credentials("coupang.api.0")["vendor_id"],
+        )
+
+    def test_return_withdraw(self, transformer_harness: Harness):
+        """쿠팡 마켓플레이스 반품 철회 이력 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.claim.transform import ReturnWithdraw
+        transformer_harness(ReturnWithdraw).transform()
+
+    def test_exchange_request(self, transformer_harness: Harness):
+        """쿠팡 마켓플레이스 교환 요청 목록 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.claim.transform import ExchangeRequest
+        transformer_harness(ExchangeRequest).transform()
+
     def test_rocket_inventory(self, transformer_harness: Harness):
         """쿠팡 로켓창고 재고 조회 결과를 변환하는 테스트."""
         from linkmerce.core.coupang.api.rocket_growth.transform import Inventory
@@ -241,7 +269,6 @@ class TestCoupangApi:
         """쿠팡 로켓그로스 주문 단건 조회 결과를 변환하는 테스트."""
         from linkmerce.core.coupang.api.rocket_growth.transform import OrderDetail
         transformer_harness(OrderDetail).transform()
-
 
 ###################################################################
 ########################## Coupang Wing ###########################

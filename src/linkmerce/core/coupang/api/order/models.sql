@@ -147,10 +147,10 @@ ON CONFLICT DO UPDATE SET
 -- Order: shipment_status
 SELECT *
 FROM UNNEST([
-    STRUCT(0 AS seq, 'ACCEPT' AS name)
-  , STRUCT(1 AS seq, 'INSTRUCT' AS name)
-  , STRUCT(2 AS seq, 'DEPARTURE' AS name)
-  , STRUCT(3 AS seq, 'DELIVERING' AS name)
-  , STRUCT(4 AS seq, 'FINAL_DELIVERY' AS name)
-  , STRUCT(5 AS seq, 'NONE_TRACKING' AS name)
+    STRUCT(0 AS seq, 'ACCEPT' AS code, '결제완료' AS name)
+  , STRUCT(1 AS seq, 'INSTRUCT' AS code, '상품준비중' AS name)
+  , STRUCT(2 AS seq, 'DEPARTURE' AS code, '배송지시' AS name)
+  , STRUCT(3 AS seq, 'DELIVERING' AS code, '배송중' AS name)
+  , STRUCT(4 AS seq, 'FINAL_DELIVERY' AS code, '배송완료' AS name)
+  , STRUCT(5 AS seq, 'NONE_TRACKING' AS code, '업체 직접 배송(배송 연동 미적용), 추적불가' AS name)
 ]);

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import datetime as dt
-    from typing import Iterable, Literal
+    from typing import Iterable, Literal, Sequence
     from linkmerce.api.common import DuckDBResult
     from linkmerce.common.load import DuckDBConnection
 
@@ -904,3 +904,321 @@ def rocket_order_detail(
             }
         },
     )).extract(order_id, max_retries)
+
+
+@with_duckdb_connection(tables={"receipt": "coupang_return_request", "item": "coupang_return_request_item"})
+def return_request(
+        access_key: str,
+        secret_key: str,
+        vendor_id: str,
+        start_datetime: dt.datetime | str,
+        end_datetime: dt.datetime | str | Literal[":end_of_day:"] = ":end_of_day:",
+        cancel_type: Literal["ALL", "RETURN", "CANCEL"] = "ALL",
+        status: Literal["ALL", "RU", "UC", "CC", "PR"] | Sequence[str] | None = "ALL",
+        max_retries: int = 5,
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int | tuple[int, int] = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> dict[str, DuckDBResult] | dict | list[dict] | None:
+    """쿠팡 반품 및 취소 요청 목록 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    **Tables** ( *table_key: table_name* ):
+        1. `receipt: coupang_return_request` (반품 및 취소 요청 정보)
+        2. `item: coupang_return_request_item` (반품 및 취소 요청 상품 정보)
+
+    Parameters
+    ----------
+    access_key: str
+        쿠팡 Open API 액세스 키
+    secret_key: str
+        쿠팡 Open API 시크릿 키
+    vendor_id: str
+        업체 코드
+    start_datetime: dt.datetime | str
+        검색 시작 일시. `dt.datetime` 객체 또는 "yyyy-MM-ddTHH:mm" 형식의 문자열을 입력한다.
+    end_datetime: dt.datetime | str
+        검색 종료 일시. `dt.datetime` 객체 또는 "yyyy-MM-ddTHH:mm" 형식의 문자열을 입력한다.
+            - `":end_of_day:"`: `start_datetime`의 하루 중 마지막 시점 (기본값)
+    cancel_type: str
+        조회 유형. `"ALL"`이면 반품과 취소 유형을 각각 조회한다.
+            - `"RETURN"`: 반품
+            - `"CANCEL"`: 취소
+    status: str | Sequence[str]
+        반품 상태. `"ALL"` 값으로 모든 상태를 조회하거나, 개별 상태 코드를 단일 값 또는 배열로 입력할 수 있다.
+            - `"RU"`: 출고중지요청
+            - `"UC"`: 반품접수
+            - `"CC"`: 반품완료
+            - `"PR"`: 쿠팡확인요청
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간(초). 기본값은 `0.3`
+    progress: bool
+        반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
+    return_type: Literal["csv", "json", "parquet", "raw", "none"]
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션
+
+    Returns
+    -------
+    dict[str, DuckDBResult] | dict | list[dict] | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 테이블 조회 결과를 CSV 형식의 `dict[str, list[tuple]]`로 반환한다.
+            - `"json"`: 테이블 조회 결과를 JSON 형식의 `dict[str, list[dict]]`로 반환한다. (기본값)
+            - `"parquet"`: 테이블 조회 결과를 `dict[str, bytes]` Parquet 바이너리로 반환한다.
+            - `"raw"`: 데이터 수집 후 `dict` 또는 `list[dict]` 형식의 원본 응답을 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.coupang.api.claim.extract import ReturnRequest
+    from linkmerce.core.coupang.api.claim.transform import ReturnRequest as T
+    return ReturnRequest(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(access_key, secret_key, vendor_id),
+        options = {
+            "RequestEach": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(start_datetime, end_datetime, cancel_type, status, max_retries)
+
+
+@with_duckdb_connection(tables={"receipt": "coupang_return_request", "item": "coupang_return_request_item"})
+def return_request_detail(
+        access_key: str,
+        secret_key: str,
+        vendor_id: str,
+        receipt_id: int | str | Sequence[int | str],
+        max_retries: int = 5,
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int | tuple[int, int] = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> dict[str, DuckDBResult] | dict | list[dict] | None:
+    """쿠팡 접수번호별 반품 요청 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    **Tables** ( *table_key: table_name* ):
+        1. `receipt: coupang_return_request` (반품 및 취소 요청 정보)
+        2. `item: coupang_return_request_item` (반품 및 취소 요청 상품 정보)
+
+    Parameters
+    ----------
+    access_key: str
+        쿠팡 Open API 액세스 키
+    secret_key: str
+        쿠팡 Open API 시크릿 키
+    vendor_id: str
+        업체 코드
+    receipt_id: int | str | Sequence[int | str]
+        반품 접수번호. 단일 값 또는 배열. 취소 접수번호는 조회할 수 없다.
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    request_delay: float | int | tuple[int, int]
+        요청 간 대기 시간(초). 기본값은 `0.3`
+    progress: bool
+        반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
+    return_type: Literal["csv", "json", "parquet", "raw", "none"]
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션
+
+    Returns
+    -------
+    dict[str, DuckDBResult] | dict | list[dict] | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 테이블 조회 결과를 CSV 형식의 `dict[str, list[tuple]]`로 반환한다.
+            - `"json"`: 테이블 조회 결과를 JSON 형식의 `dict[str, list[dict]]`로 반환한다. (기본값)
+            - `"parquet"`: 테이블 조회 결과를 `dict[str, bytes]` Parquet 바이너리로 반환한다.
+            - `"raw"`: 데이터 수집 후 `dict` 또는 `list[dict]` 형식의 원본 응답을 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.coupang.api.claim.extract import ReturnRequestDetail
+    from linkmerce.core.coupang.api.claim.transform import ReturnRequestDetail as T
+    return ReturnRequestDetail(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(access_key, secret_key, vendor_id),
+        options = {
+            "RequestEach": {
+                "request_delay": request_delay,
+                "tqdm_options": {"disable": (not progress)}
+            }
+        },
+    )).extract(receipt_id, max_retries)
+
+
+@with_duckdb_connection(table="coupang_return_withdraw")
+def return_withdraw(
+        access_key: str,
+        secret_key: str,
+        vendor_id: str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        max_retries: int = 5,
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int | tuple[int, int] = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> DuckDBResult | list[dict] | None:
+    """쿠팡 마켓플레이스 반품철회 이력를 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    **Table** ( *table_key: table_name* ):
+        `table: coupang_return_withdraw`
+
+    Parameters
+    ----------
+    access_key: str
+        쿠팡 Open API 액세스 키
+    secret_key: str
+        쿠팡 Open API 시크릿 키
+    vendor_id: str
+        업체 코드
+    start_date: dt.date | str
+        조회 시작일. `dt.date` 객체 또는 `"yyyy-MM-dd"` 형식의 문자열을 입력한다.
+    end_date: dt.date | str
+        조회 종료일. `dt.date` 객체 또는 `"yyyy-MM-dd"` 형식의 문자열을 입력한다.
+            - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    request_delay: float | int | tuple[int, int]
+        조회 기간 내 커서 요청 간 대기 시간(초). 기본값은 `0.3`
+    progress: bool
+        반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
+    return_type: Literal["csv", "json", "parquet", "raw", "none"]
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션
+
+    Returns
+    -------
+    DuckDBResult | list[dict] | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: CSV 형식의 `list[tuple]`로 반환한다.
+            - `"json"`: JSON 형식의 `list[dict]`로 반환한다. (기본값)
+            - `"parquet"`: Parquet 바이너리로 반환한다.
+            - `"raw"`: `list[dict]` 형식의 원본 응답을 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.coupang.api.claim.extract import ReturnWithdraw
+    from linkmerce.core.coupang.api.claim.transform import ReturnWithdraw as T
+    return ReturnWithdraw(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(access_key, secret_key, vendor_id),
+        options = {
+            "CursorAll": {
+                "request_delay": request_delay
+            },
+            "RequestEachCursor": {
+                "tqdm_options": {"disable": (not progress)}
+            },
+        },
+    )).extract(start_date, end_date, max_retries)
+
+
+@with_duckdb_connection(tables={"exchange": "coupang_exchange_request", "item": "coupang_exchange_request_item"})
+def exchange_request(
+        access_key: str,
+        secret_key: str,
+        vendor_id: str,
+        start_datetime: dt.datetime | str,
+        end_datetime: dt.datetime | str | Literal[":end_of_day:"] = ":end_of_day:",
+        status: Literal["RECEIPT", "PROGRESS", "SUCCESS", "REJECT", "CANCEL"] | Sequence[str] | None = None,
+        order_id: int | str | None = None,
+        max_retries: int = 5,
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int | tuple[int, int] = 0.3,
+        progress: bool = True,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> dict[str, DuckDBResult] | list[dict] | None:
+    """쿠팡 교환 요청 목록 데이터를 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    **Tables** ( *table_key: table_name* ):
+        1. `exchange: coupang_exchange_request` (교환 요청 정보)
+        2. `item: coupang_exchange_request_item` (교환 요청 상품 정보)
+
+    Parameters
+    ----------
+    access_key: str
+        쿠팡 Open API 액세스 키
+    secret_key: str
+        쿠팡 Open API 시크릿 키
+    vendor_id: str
+        업체 코드
+    start_datetime: dt.datetime | str
+        검색 시작 일시. `dt.datetime` 객체 또는 "yyyy-MM-ddTHH:mm:ss" 형식의 문자열을 입력한다.
+    end_datetime: dt.datetime | str
+        검색 종료 일시. `dt.datetime` 객체 또는 "yyyy-MM-ddTHH:mm:ss" 형식의 문자열을 입력한다.
+            - `":end_of_day:"`: `start_datetime`의 해당 날 마지막 시각 (기본값)
+    status: str | Sequence[str] | None
+        교환진행상태. 생략하여 모든 상태를 조회하거나, 개별 상태 코드를 단일 값 또는 배열로 입력할 수 있다.
+            - `"RECEIPT"`: 접수
+            - `"PROGRESS"`: 진행
+            - `"SUCCESS"`: 완료
+            - `"REJECT"`: 불가
+            - `"CANCEL"`: 철회
+    order_id: int | str | None
+        검색할 주문번호를 입력할 수 있다.
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    request_delay: float | int | tuple[int, int]
+        검색 기간, 상태 및 커서 요청 간 대기 시간(초). 기본값은 `0.3`
+    progress: bool
+        반복 요청 작업의 진행도 출력 여부. 기본값은 `True`
+    return_type: Literal["csv", "json", "parquet", "raw", "none"]
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션
+
+    Returns
+    -------
+    dict[str, DuckDBResult] | list[dict] | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 테이블별 CSV 형식의 `dict[str, list[tuple]]`로 반환한다.
+            - `"json"`: 테이블별 JSON 형식의 `dict[str, list[dict]]`로 반환한다. (기본값)
+            - `"parquet"`: 테이블별 `dict[str, bytes]` Parquet 바이너리로 반환한다.
+            - `"raw"`: `list[dict]` 형식의 원본 응답을 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.coupang.api.claim.extract import ExchangeRequest
+    from linkmerce.core.coupang.api.claim.transform import ExchangeRequest as T
+    return ExchangeRequest(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(access_key, secret_key, vendor_id),
+        options = {
+            "CursorAll": {
+                "request_delay": request_delay
+            },
+            "RequestEachCursor": {
+                "tqdm_options": {"disable": (not progress)}
+            },
+        },
+    )).extract(start_datetime, end_datetime, status, order_id, max_retries)

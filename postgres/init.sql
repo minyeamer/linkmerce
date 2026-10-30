@@ -521,6 +521,53 @@ CREATE TABLE IF NOT EXISTS coupang.order_option (
   , PRIMARY KEY (option_id)
 );
 
+-- [쿠팡 반품 및 취소 요청]
+CREATE TABLE IF NOT EXISTS coupang.return_request (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , receipt_id BIGINT NOT NULL -- 접수번호
+  , shipment_box_id BIGINT NOT NULL -- 배송번호
+  , order_id BIGINT NOT NULL -- 주문번호
+  , vendor_inventory_id BIGINT NOT NULL -- 등록상품ID
+  , option_id BIGINT NOT NULL -- 옵션코드
+  , receipt_type SMALLINT NOT NULL -- 접수유형
+  , receipt_status SMALLINT -- 진행상태
+  , return_delivery_id BIGINT -- 반품배송번호
+  , purchase_count INTEGER -- 주문수량
+  , cancel_count INTEGER -- 취소수량
+  , register_dt TIMESTAMP NOT NULL -- 접수일시
+  , modify_dt TIMESTAMP -- 최종변경일시
+  , confirm_dt TIMESTAMP -- 완료확인일시
+  , PRIMARY KEY (register_dt, vendor_id, receipt_id, shipment_box_id, option_id)
+) PARTITION BY RANGE (register_dt);
+
+-- [쿠팡 반품철회 이력]
+CREATE TABLE IF NOT EXISTS coupang.return_withdraw (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , receipt_id BIGINT NOT NULL -- 접수번호
+  , order_id BIGINT NOT NULL -- 주문번호
+  , option_id BIGINT NOT NULL -- 옵션코드
+  , refund_duty TEXT -- 반품귀책
+  , cancel_dt TIMESTAMP NOT NULL -- 철회일시
+  , PRIMARY KEY (cancel_dt, vendor_id, receipt_id, option_id)
+) PARTITION BY RANGE (cancel_dt);
+
+-- [쿠팡 교환 요청 및 요청]
+CREATE TABLE IF NOT EXISTS coupang.exchange_request (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , exchange_id BIGINT NOT NULL -- 교환ID
+  , shipment_box_id BIGINT NOT NULL -- 배송번호
+  , order_id BIGINT NOT NULL -- 주문번호
+  , order_option_id BIGINT NOT NULL -- 원주문 옵션코드
+  , target_option_id BIGINT NOT NULL -- 교환 옵션코드
+  , exchange_status SMALLINT NOT NULL -- 교환상태
+  , exchange_count INTEGER -- 교환수량
+  , order_option_price INTEGER -- 원주문 옵션단가
+  , target_option_price INTEGER -- 교환 옵션단가
+  , register_dt TIMESTAMP NOT NULL -- 등록일시
+  , modify_dt TIMESTAMP -- 수정일시
+  , PRIMARY KEY (register_dt, vendor_id, exchange_id, shipment_box_id, order_option_id)
+) PARTITION BY RANGE (register_dt);
+
 -- ============================================================
 -- coupang_ads (쿠팡 광고)
 -- ============================================================
@@ -1965,7 +2012,9 @@ SELECT public.bootstrap_daily_partitions('cj_loisparcel.invoice',		      'regist
 SELECT public.bootstrap_daily_partitions('coupang.order',		              'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.order_delivery',		    'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.order_detail',		      'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
-SELECT public.bootstrap_daily_partitions('coupang_ads.report_pa',		      'ymd',				        '2023-10-31',				    '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang.return_request',		    'register_dt',				'2021-10-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang.return_withdraw',		    'cancel_dt',				  '2021-10-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang.exchange_request',		  'register_dt',				'2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_ads.report_nca',		    'ymd',				        '2025-01-07',				    '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.inventory',		      'updated_at',			    '2026-05-27 00:00:00',	'1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang_rfm.order',			        'payment_dt',			    '2023-07-15 00:00:00',	'1 day',  35);

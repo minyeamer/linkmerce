@@ -50,6 +50,9 @@ sources:
       - name: order_delivery
       - name: order_detail
       - name: order_option
+      - name: return_request
+      - name: return_withdraw
+      - name: exchange_request
 
   - name: coupang_ads
     schema: coupang_ads

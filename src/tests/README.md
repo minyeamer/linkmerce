@@ -156,6 +156,22 @@ coupang/
 │   │       └── OrderDetail(Order)::transform
 │   │           ├── OrderParser(JsonTransformer)::transform
 │   │           └── OrderItemParser(OrderParser)::transform
+│   ├── claim/
+│   │   ├── ReturnRequest(CoupangApi)::extract
+│   │   │   └── ReturnRequest(DuckDBTransformer)::transform
+│   │   │       ├── ReceiptParser(JsonTransformer)::transform
+│   │   │       └── ReceiptItemParser(JsonTransformer)::transform
+│   │   ├── ReturnRequestDetail(CoupangApi)::extract
+│   │   │   └── ReturnRequestDetail(ReturnRequest)::transform
+│   │   │       ├── ReceiptParser(JsonTransformer)::transform
+│   │   │       └── ReceiptItemParser(JsonTransformer)::transform
+│   │   ├── ReturnWithdraw(CoupangApi)::extract
+│   │   │   └── ReturnWithdraw(DuckDBTransformer)::transform
+│   │   │       └── WithdrawItemParser(JsonTransformer)::transform
+│   │   └── ExchangeRequest(CoupangApi)::extract
+│   │       └── ExchangeRequest(DuckDBTransformer)::transform
+│   │           ├── ExchangeParser(JsonTransformer)::transform
+│   │           └── ExchangeItemParser(JsonTransformer)::transform
 │   ├── product/
 │   │   ├── Product(CoupangApi)::extract
 │   │   │   ├── Product(DuckDBTransformer)::transform >> json
