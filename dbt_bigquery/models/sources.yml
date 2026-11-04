@@ -50,6 +50,7 @@ sources:
       - name: order_delivery
       - name: order_detail
       - name: order_option
+      - name: order_claim
       - name: return_request
       - name: return_withdraw
       - name: exchange_request

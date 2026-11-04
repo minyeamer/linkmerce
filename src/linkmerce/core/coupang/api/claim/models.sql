@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS {{ table }} (
   , option_id BIGINT NOT NULL
   , refund_duty TINYINT -- {0: 'COMPANY', 1: 'CUSTOMER', 2: 'COUPANG'}
   , cancel_dt TIMESTAMP NOT NULL
-  , PRIMARY KEY (vendor_id, receipt_id, option_id)
+  , PRIMARY KEY (vendor_id, receipt_id, order_id, option_id)
 );
 
 -- ReturnWithdraw: bulk_insert

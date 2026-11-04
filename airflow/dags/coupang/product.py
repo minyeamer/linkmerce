@@ -146,6 +146,6 @@ with DAG(
             """).strip()
 
 
-    etl_results = (etl_coupang_product
-        .partial(configs=read_configs())
-        .expand(credentials=read_credentials()))
+    (etl_coupang_product
+    .partial(configs=read_configs())
+    .expand(credentials=read_credentials()))

@@ -34,8 +34,9 @@ class ReceiptItemParser(JsonTransformer):
         ]},
     ]
 
-    def parse(self, obj: list[dict], **kwargs) -> list[dict]:
-        return [(receipt | {"item": item}) for receipt in obj for item in receipt["returnItems"]]
+    def parse(self, obj: dict | list[dict], **kwargs) -> list[dict]:
+        receipts = [obj] if isinstance(obj, dict) else obj
+        return [(receipt | {"item": item}) for receipt in receipts for item in receipt["returnItems"]]
 
 
 class ReturnRequest(DuckDBTransformer):

@@ -389,6 +389,21 @@
     "PARTITION BY DATE(order_dt)",
     "CLUSTER BY vendor_id"
   ],
+  "coupang.order_claim": [
+    {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},
+    {"name": "claim_id", "type": "INTEGER", "description": "접수번호", "mode": "REQUIRED"},
+    {"name": "shipment_box_id", "type": "INTEGER", "description": "배송번호", "mode": "REQUIRED"},
+    {"name": "order_id", "type": "INTEGER", "description": "주문번호", "mode": "REQUIRED"},
+    {"name": "option_id", "type": "INTEGER", "description": "옵션코드", "mode": "REQUIRED"},
+    {"name": "claim_type", "type": "INTEGER", "description": "접수유형", "mode": "REQUIRED"},
+    {"name": "is_success", "type": "BOOLEAN", "description": "완료여부", "mode": "REQUIRED"},
+    {"name": "quantity", "type": "INTEGER", "description": "수량"},
+    {"name": "order_dt", "type": "DATETIME", "description": "주문일시", "mode": "REQUIRED"},
+    {"name": "register_dt", "type": "DATETIME", "description": "접수일시", "mode": "REQUIRED"},
+    {"name": "cancel_dt", "type": "DATETIME", "description": "철회일시"},
+    "PARTITION BY DATE(order_dt)",
+    "CLUSTER BY vendor_id"
+  ],
   "coupang.order_option": [
     {"name": "vendor_inventory_id", "type": "INTEGER", "description": "등록상품ID"},
     {"name": "product_id", "type": "INTEGER", "description": "상품코드"},
@@ -425,7 +440,7 @@
     {"name": "receipt_id", "type": "INTEGER", "description": "접수번호", "mode": "REQUIRED"},
     {"name": "order_id", "type": "INTEGER", "description": "주문번호", "mode": "REQUIRED"},
     {"name": "option_id", "type": "INTEGER", "description": "옵션코드", "mode": "REQUIRED"},
-    {"name": "refund_duty", "type": "STRING", "description": "반품귀책"},
+    {"name": "refund_duty", "type": "INTEGER", "description": "반품귀책"},
     {"name": "cancel_dt", "type": "DATETIME", "description": "철회일시", "mode": "REQUIRED"},
     "PARTITION BY DATE(cancel_dt)",
     "CLUSTER BY vendor_id"

@@ -35,8 +35,9 @@ class OrderItemParser(JsonTransformer):
         ]},
     ]
 
-    def parse(self, obj: list[dict], **kwargs) -> list[dict]:
-        return [(order | {"item": item}) for order in obj for item in order["orderItems"]]
+    def parse(self, obj: dict | list[dict], **kwargs) -> list[dict]:
+        orders = [obj] if isinstance(obj, dict) else obj
+        return [(order | {"item": item}) for order in orders for item in order["orderItems"]]
 
 
 class Order(DuckDBTransformer):

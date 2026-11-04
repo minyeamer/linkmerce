@@ -247,6 +247,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | `coupang_campaign` | 트리거 전용 | 쿠팡 광고 캠페인/광고그룹/소재 ETL |
 | `coupang_order` | 영업시간 10분 간격, 그 외 1시간 간격 | 주문, 상품주문, 옵션 목록 적재 |
 | `coupang_order_delivery` | 트리거 전용 | 주문 배송 내역 적재 |
+| `coupang_order_claim` | 매일 `00:30` | 반품/취소/교환 내역 적재 |
 | `coupang_product` | 평일 `23:00` | 쿠팡 상품 옵션 ETL |
 | `coupang_rocket_inventory` | 매일 `11:00`, `17:30`, `20:00` | 쿠팡 로켓그로스 재고현황 ETL |
 | `coupang_rocket_order` | 트리거 전용 | 쿠팡 로켓그로스 주문 ETL |

@@ -521,6 +521,23 @@ CREATE TABLE IF NOT EXISTS coupang.order_option (
   , PRIMARY KEY (option_id)
 );
 
+-- [쿠팡 마켓플레이스 발주서 반품/취소/교환]
+CREATE TABLE IF NOT EXISTS coupang.order_claim (
+    vendor_id TEXT NOT NULL -- 업체코드
+  , claim_id BIGINT NOT NULL -- 접수번호
+  , shipment_box_id BIGINT NOT NULL -- 배송번호
+  , order_id BIGINT NOT NULL -- 주문번호
+  , option_id BIGINT NOT NULL -- 옵션코드
+  , claim_type SMALLINT NOT NULL -- 접수유형
+  , is_success BOOLEAN NOT NULL -- 완료여부
+  , quantity INTEGER -- 수량
+  , order_dt TIMESTAMP NOT NULL -- 주문일시
+  , register_dt TIMESTAMP NOT NULL -- 접수일시
+  , cancel_dt TIMESTAMP -- 철회일시
+  , PRIMARY KEY (order_dt, vendor_id, shipment_box_id, option_id)
+) PARTITION BY RANGE (order_dt);
+CREATE INDEX IF NOT EXISTS cpg_order_claim__order_idx ON coupang.order_claim (vendor_id, order_id);
+
 -- [쿠팡 반품 및 취소 요청]
 CREATE TABLE IF NOT EXISTS coupang.return_request (
     vendor_id TEXT NOT NULL -- 업체코드
@@ -546,9 +563,9 @@ CREATE TABLE IF NOT EXISTS coupang.return_withdraw (
   , receipt_id BIGINT NOT NULL -- 접수번호
   , order_id BIGINT NOT NULL -- 주문번호
   , option_id BIGINT NOT NULL -- 옵션코드
-  , refund_duty TEXT -- 반품귀책
+  , refund_duty SMALLINT -- 반품귀책
   , cancel_dt TIMESTAMP NOT NULL -- 철회일시
-  , PRIMARY KEY (cancel_dt, vendor_id, receipt_id, option_id)
+  , PRIMARY KEY (cancel_dt, vendor_id, receipt_id, order_id, option_id)
 ) PARTITION BY RANGE (cancel_dt);
 
 -- [쿠팡 교환 요청 및 요청]
@@ -2012,6 +2029,7 @@ SELECT public.bootstrap_daily_partitions('cj_loisparcel.invoice',		      'regist
 SELECT public.bootstrap_daily_partitions('coupang.order',		              'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.order_delivery',		    'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.order_detail',		      'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang.order_claim',		        'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.return_request',		    'register_dt',				'2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.return_withdraw',		    'cancel_dt',				  '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.exchange_request',		  'register_dt',				'2021-10-15 00:00:00',  '1 day',  35);

@@ -45,6 +45,7 @@ def last_multi_cron_utc(cron_exprs: list[str]) -> str:
 # `schedule=None`인 DAG은 제외
 SCHEDULED_DAGS = {
     # 매일 1회 ───────────────────────────────────────────────────────────────
+    "coupang_order_claim": last_cron_utc("30 0 * * *"), # 00:30 KST
     "cj_loisparcel_invoice": last_cron_utc("0 2 * * *"), # 02:00 KST
     "dable_ads": last_cron_utc("30 7 * * *"), # 07:30 KST
     "google_ads": last_cron_utc("50 7 * * *"), # 07:50 KST
