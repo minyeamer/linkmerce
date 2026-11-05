@@ -22,7 +22,7 @@ class PartnerCenter(Extractor):
         return self.concat_path(self.origin, self.path)
 
     def post_init(self, **kwargs):
-        return self.require_cookies(key="koa:sess")
+        return self.require_cookies()
 
 
 ###################################################################
@@ -76,6 +76,7 @@ class PartnerCenterLogin(SmartstoreCenterLogin):
         self.fetch_embrace_token(subject="main", login=False)
         # self.fetch_adbridge()
         self.fetch_embrace_token(subject="brand-analytics.product", login=True)
+        self.fetch_embrace_token(subject="brand-management.versace.catalog", login=False)
         return hcenter_login_info
 
     def _center_url(self, _: str) -> str:
