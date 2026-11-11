@@ -339,6 +339,8 @@ dbt_bigquery/models/marts/sales/
 
 ```bash
 dbt_bigquery/models/marts/product/
+├── cafe24__product_master
+├── cafe24__variant_master
 ├── coupang__product_master
 ├── coupang__item_master
 ├── ebay_item_master
@@ -354,11 +356,6 @@ dbt_bigquery/models/marts/product/
 `product_master` 모델에는 유형 또는 상태 코드를 조합한 `sort_key`가 포함되며,
 `option_master` 모델은 상품코드를 기준으로 `product_master` 모델을 결합해
 `sort_key`를 참조한다.
-
-쿠팡의 `coupang__product_master`는 `coupang.product`에 카테고리와 상품상태 라벨을 연결한다.
-`coupang__item_master`는 `coupang.item`에 상품 마스터와 `coupang.order_option`의
-최초 및 최종 주문일시를 연결하고, 마지막 두 단계의 카테고리명과 이미지 주소를 제공한다.
-두 모델은 `coupang_master` selector로 실행한다.
 
 #### marts/stock
 

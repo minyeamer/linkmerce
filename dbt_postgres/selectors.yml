@@ -419,6 +419,14 @@ selectors:
       parents: true
 
   # Custom - product
+  - name: cafe24_master
+    description: "카페24 상품/옵션 목록 업데이트"
+    definition:
+      union:
+        - method: fqn
+          value: marts.product.cafe24__product_master
+        - method: fqn
+          value: marts.product.cafe24__variant_master
   - name: coupang_master
     description: "쿠팡 상품/옵션 목록 업데이트"
     definition:

@@ -206,6 +206,12 @@ models:
 
   # marts > product
 
+  - name: "cafe24__product_master"
+    description: "카페24 상품 테이블에 쇼핑몰 정보를 연결한 마스터 모델"
+
+  - name: "cafe24__variant_master"
+    description: "카페24 상품 품목 테이블과 상품 테이블을 결합한 마스터 모델"
+
   - name: "coupang__product_master"
     description: "쿠팡 상품 테이블에서 코드를 한글 라벨로 바꾸고 순번을 추가한 마스터 모델"
 

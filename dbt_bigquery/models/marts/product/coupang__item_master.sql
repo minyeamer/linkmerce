@@ -45,7 +45,6 @@ item_master AS (
     , itm.price
     , itm.sales_price
     , prd.delivery_fee
-    , prd.created_at
     , opt.first_order_dt
     , opt.last_order_dt
     -- Sort key

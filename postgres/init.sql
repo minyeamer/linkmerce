@@ -166,6 +166,7 @@ CREATE TABLE IF NOT EXISTS cafe24.mall (
     mall_id TEXT NOT NULL -- 쇼핑몰ID
   , mall_name TEXT -- 쇼핑몰명
   , mall_seq BIGINT -- 쇼핑몰순번
+  , mall_url TEXT -- 쇼핑몰주소
   , corp_name TEXT -- 운영사업자
   , team_name TEXT -- 영업팀
   , bundle_brand_ids TEXT -- 연결브랜드ID
@@ -1279,17 +1280,25 @@ CREATE TABLE IF NOT EXISTS relation.ad_id_to_sbn_ids (
   , PRIMARY KEY (platform_name, ad_level, ad_id)
 );
 
+-- [카페24 상품 품목 - 카페24 묶음상품 관계]
+CREATE TABLE IF NOT EXISTS relation.c24_var_to_sbn_ids (
+    mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , variant_code TEXT NOT NULL -- 품목코드
+  , bundle_product_ids TEXT NOT NULL -- 연결품번코드
+  , PRIMARY KEY (mall_id, variant_code)
+);
+
 -- [쿠팡 옵션 - 사방넷 묶음상품 관계]
 CREATE TABLE IF NOT EXISTS relation.cpg_opt_to_sbn_ids (
     option_id BIGINT NOT NULL -- 노출옵션ID
-  , bundle_product_ids TEXT -- 연결품번코드
+  , bundle_product_ids TEXT NOT NULL -- 연결품번코드
   , PRIMARY KEY (option_id)
 );
 
 -- [이베이 상품 - 사방넷 묶음상품 관계]
 CREATE TABLE IF NOT EXISTS relation.eby_itm_to_sbn_ids (
     item_id BIGINT NOT NULL -- 마스터상품번호
-  , bundle_product_ids TEXT -- 연결품번코드
+  , bundle_product_ids TEXT NOT NULL -- 연결품번코드
   , PRIMARY KEY (item_id)
 );
 
@@ -1311,14 +1320,14 @@ CREATE TABLE IF NOT EXISTS relation.nsh_prd_to_ctl_id (
 -- [스마트스토어 옵션 - 사방넷 묶음상품 관계]
 CREATE TABLE IF NOT EXISTS relation.smt_opt_to_sbn_ids (
     option_id BIGINT NOT NULL -- 옵션코드
-  , bundle_product_ids TEXT -- 연결품번코드
+  , bundle_product_ids TEXT NOT NULL -- 연결품번코드
   , PRIMARY KEY (option_id)
 );
 
 -- [스마트스토어 상품 - 사방넷 묶음품목 관계]
 CREATE TABLE IF NOT EXISTS relation.smt_prd_to_sbn_ids (
     product_id BIGINT NOT NULL -- 상품코드
-  , bundle_product_ids TEXT -- 연결품번코드
+  , bundle_product_ids TEXT NOT NULL -- 연결품번코드
   , PRIMARY KEY (product_id)
 );
 

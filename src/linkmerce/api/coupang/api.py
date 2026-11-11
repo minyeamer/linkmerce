@@ -311,7 +311,12 @@ def product_option(
     from linkmerce.core.coupang.api.product.extract import ProductDetail
     from linkmerce.core.coupang.api.product.transform import ProductDetail as T2
 
-    query = f"SELECT DISTINCT vendor_inventory_id FROM {product_table} WHERE vendor_id = '{vendor_id}'"
+    if return_type == "raw":
+        seller_product_ids = [response["data"]["sellerProductId"] for response in products if "data" in response]
+    else:
+        query = f"SELECT DISTINCT vendor_inventory_id FROM {product_table} WHERE vendor_id = '{vendor_id}'"
+        seller_product_ids = connection.fetch_values(query, axis=1)
+
     options = ProductDetail(**prepare_duckdb_extract(
         T2, connection, extract_options[OPTION], transform_options[OPTION], return_type,
         configs = _get_api_configs(access_key, secret_key, vendor_id),
@@ -321,7 +326,7 @@ def product_option(
                 "tqdm_options": {"disable": (not progress)}
             }
         },
-    )).extract(connection.fetch_values(query, axis=1), max_retries)
+    )).extract(seller_product_ids, max_retries)
 
     if return_type == "raw":
         return {"product": products, "option": options}

@@ -347,6 +347,8 @@ dbt_postgres/models/marts/sales/
 
 ```bash
 dbt_postgres/models/marts/product/
+├── cafe24__product_master
+├── cafe24__variant_master
 ├── coupang__product_master
 ├── coupang__item_master
 ├── ebay_item_master

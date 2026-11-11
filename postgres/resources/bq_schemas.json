@@ -95,6 +95,7 @@
     {"name": "mall_id", "type": "STRING", "description": "쇼핑몰ID", "mode": "REQUIRED"},
     {"name": "mall_name", "type": "STRING", "description": "쇼핑몰명"},
     {"name": "mall_seq", "type": "INTEGER", "description": "쇼핑몰순번"},
+    {"name": "mall_url", "type": "STRING", "description": "쇼핑몰주소"},
     {"name": "corp_name", "type": "STRING", "description": "운영사업자"},
     {"name": "team_name", "type": "STRING", "description": "영업팀"},
     {"name": "bundle_brand_ids", "type": "STRING", "description": "연결브랜드ID"},
@@ -1010,6 +1011,11 @@
     {"name": "bundle_product_ids", "type": "STRING", "description": "연결품번코드", "mode": "REQUIRED"},
     {"name": "platform_name", "type": "STRING", "description": "광고플랫폼", "mode": "REQUIRED"},
     "CLUSTER BY platform_name, ad_level"
+  ],
+  "relation.c24_var_to_sbn_ids": [
+    {"name": "mall_id", "type": "STRING", "description": "쇼핑몰ID", "mode": "REQUIRED"},
+    {"name": "variant_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
+    {"name": "bundle_product_ids", "type": "STRING", "description": "연결품번코드", "mode": "REQUIRED"}
   ],
   "relation.cpg_opt_to_sbn_ids": [
     {"name": "option_id", "type": "INTEGER", "description": "노출옵션ID", "mode": "REQUIRED"},

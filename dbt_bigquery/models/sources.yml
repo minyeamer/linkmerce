@@ -146,6 +146,7 @@ sources:
     schema: relation
     tables:
       - name: ad_id_to_sbn_ids
+      - name: c24_var_to_sbn_ids
       - name: cpg_opt_to_sbn_ids
       - name: eby_itm_to_sbn_ids
       - name: nsh_kwd_to_prd_id
