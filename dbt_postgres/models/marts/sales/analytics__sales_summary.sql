@@ -23,7 +23,7 @@ WITH{#
     , mall.corp_name
     , mall.team_name
     , summary.payment_amount
-    , summary.max_order_dt
+    , summary.last_order_dt
     , summary.order_date
   FROM {{ ref('cafe24__sales_summary') }} AS summary
   LEFT JOIN {{ source('cafe24', 'mall') }} AS mall
@@ -39,7 +39,7 @@ WITH{#
     , vendor.corp_name
     , vendor.team_name
     , summary.payment_amount
-    , summary.max_order_dt
+    , summary.last_order_dt
     , summary.order_date
   FROM {{ ref('coupang__sales_summary') }} AS summary
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vendor
@@ -55,7 +55,7 @@ WITH{#
     , seller.corp_name
     , seller.team_name
     , summary.payment_amount
-    , summary.max_order_dt
+    , summary.last_order_dt
     , summary.order_date
   FROM {{ ref('ebay__sales_summary') }} AS summary
   LEFT JOIN {{ source('ebay', 'seller') }} AS seller
@@ -71,7 +71,7 @@ WITH{#
     , channel.corp_name
     , channel.team_name
     , summary.payment_amount
-    , summary.max_order_dt
+    , summary.last_order_dt
     , summary.order_date
   FROM {{ ref('smartstore__sales_summary') }} AS summary
   LEFT JOIN {{ source('smartstore', 'channel') }} AS channel

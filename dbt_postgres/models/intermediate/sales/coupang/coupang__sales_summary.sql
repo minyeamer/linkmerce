@@ -56,7 +56,7 @@ WITH{#
 #} SELECT
     vendor_id
   , SUM(payment_amount) AS payment_amount
-  , MAX(order_dt) AS max_order_dt
+  , MAX(order_dt) AS last_order_dt
   , order_date
 FROM (
   (SELECT * FROM coupang_order)

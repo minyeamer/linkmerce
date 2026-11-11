@@ -32,7 +32,7 @@ WITH{#
         - COALESCE(ord.coupon_discount_price, 0)
         - COALESCE(ord.app_item_discount_amount, 0)
       ) AS payment_amount
-    , MAX(ord.order_dt) AS max_order_dt
+    , MAX(ord.order_dt) AS last_order_dt
     , ord.order_dt::date AS order_date
   FROM {{ source('cafe24', 'order_detail') }} AS ord
   LEFT JOIN order_status AS status

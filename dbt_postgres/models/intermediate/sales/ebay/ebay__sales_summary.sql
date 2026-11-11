@@ -15,7 +15,7 @@ SELECT
     site_type
   , seller_id
   , SUM(COALESCE(payment_amount, 0)) AS payment_amount
-  , MAX(payment_dt) AS max_order_dt
+  , MAX(payment_dt) AS last_order_dt
   , payment_dt::date AS order_date
 FROM {{ source('ebay', 'order') }}
 WHERE payment_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
