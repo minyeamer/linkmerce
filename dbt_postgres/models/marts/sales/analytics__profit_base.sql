@@ -19,8 +19,10 @@ WITH{#
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
-    , (CASE WHEN order_status = 0 THEN COALESCE(sku_quantity, 0) ELSE 0 END) AS sku_quantity
+    , (CASE WHEN order_status = 0 THEN COALESCE(order_quantity, 0) ELSE 0 END) AS order_quantity
+    , (CASE WHEN order_status = 0 THEN product_quantity * COALESCE(order_quantity, 0) ELSE 0 END) AS sku_quantity
     , (CASE
         -- Exclude payment_amount from extra_sales
         WHEN shop_id = 'adop9000' THEN 0
@@ -42,7 +44,9 @@ WITH{#
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
+    , order_quantity
     , sku_quantity
     , payment_amount
     , supply_amount
@@ -61,7 +65,9 @@ WITH{#
       shop_id
     , '0' AS account_no
     , product_id
+    , product_quantity
     , 0 AS order_status
+    , 0 AS order_quantity
     , 0 AS sku_quantity
     , 0 AS payment_amount
     , 0 AS supply_amount

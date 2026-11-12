@@ -67,7 +67,7 @@ order_detail AS (
   -- Filter orders
   WHERE ord.order_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND ord.order_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
-    AND acc.shop_id NOT IN ('shop0055', 'chop0022', 'chop0027', 'chop0028', 'chop0029')
+    AND acc.exclude_sales IS NOT TRUE
 ),
 
 -- Step 2: apply bundle product rules
@@ -99,6 +99,10 @@ exploded_product_order AS (
     , ord.shop_id
     , account_no
     , SPLIT(bundle_option, '-')[SAFE_OFFSET(0)] AS product_id
+    , COALESCE(
+          SAFE_CAST(SPLIT(bundle_option, ':')[SAFE_OFFSET(1)] AS INT64)
+        , 1
+      ) AS product_quantity
     , ord.order_status
     , ord.order_quantity
     , ord.order_date
@@ -114,6 +118,7 @@ order_count AS (
     , shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , SUM(order_quantity) AS order_quantity
     , order_date
@@ -124,7 +129,9 @@ order_count AS (
     UNION ALL
     (SELECT * FROM exploded_product_order)
   ) AS t_
-  GROUP BY order_id, product_order_id, order_date, shop_id, account_no, product_id, order_status
+  GROUP BY
+    order_id, product_order_id, order_date, shop_id, account_no,
+    product_id, product_quantity, order_status
 )
 
 SELECT * FROM order_count

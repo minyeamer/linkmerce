@@ -20,7 +20,7 @@ FROM (VALUES
 {% macro core__order_status_mapping() -%}
 SELECT *
 FROM (VALUES
-    (0, 0, '정상', 'sku_quantity, payment_amount, supply_amount, supply_cost, delivery_fee')
+    (0, 0, '정상', 'order_quantity, sku_quantity, payment_amount, supply_amount, supply_cost, delivery_fee')
   , (1, 1, '반품', 'delivery_fee')
   , (2, 2, '교환', 'supply_cost, delivery_fee')
   , (3, 3, '취소', '')

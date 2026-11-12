@@ -137,7 +137,7 @@ WITH{#
     -- Sales partition key
     , ord.sales_date AS order_date
   FROM rocket_sales_shipping AS ord
-  LEFT JOIN {{ source('relation', 'cpg_opt_to_sbn_ids') }} AS rel
+  LEFT JOIN {{ ref('relation__cpg_itm_to_sbn_ids') }} AS rel
     ON ord.option_id = rel.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON ord.vendor_id = vdr.vendor_id
@@ -158,15 +158,16 @@ WITH{#
         , (string_to_array(bundle_product, ':'))[1]
       ) AS product_id
     , (CASE
+        WHEN split_part(bundle_product, ':', 2) ~ '^[0-9]+$'
+          THEN split_part(bundle_product, ':', 2)::integer
+        ELSE 1
+      END) AS product_quantity
+    , (CASE
         WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
         ELSE ord.order_status
       END) AS order_status
     -- Sales metrics
-    , (CASE
-        WHEN split_part(bundle_product, ':', 2) ~ '^[0-9]+$'
-          THEN split_part(bundle_product, ':', 2)::integer
-        ELSE 1
-      END) * ord.order_quantity AS sku_quantity
+    , ord.order_quantity
     , ord.payment_amount
     , ord.supply_amount
     , COALESCE(prd.org_price, itm.org_price, 0) + COALESCE(itm.extra_cost, 0) AS org_price
@@ -200,25 +201,30 @@ WITH{#
     -- Sales dimensions
     , ord.vendor_id
     , ord.product_id
+    , ord.product_quantity
     , ord.order_status
     -- Sales metrics
-    , ord.sku_quantity
+    , ord.order_quantity
     , ord.payment_amount
     , ord.supply_amount
-    , ord.org_price * ord.sku_quantity AS supply_cost
+    , ord.org_price * ord.product_quantity * ord.order_quantity AS supply_cost
     , (COALESCE(MAX(dlv.extra_cost) OVER (PARTITION BY order_id, option_id), 0)
       + ord.delivery_fee) AS delivery_fee
     -- Sales partition key
     , ord.order_date
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY ord.order_id, ord.option_id) AS bundle_product_count
-    , (CASE WHEN ord.order_status = 6 THEN 0 ELSE ord.org_price * ord.sku_quantity END)::numeric AS cost_amount
+    , (CASE
+        WHEN ord.order_status = 6 THEN 0
+        ELSE ord.org_price * ord.product_quantity * ord.order_quantity
+      END)::numeric AS cost_amount
   FROM exploded_product_order AS ord
   LEFT JOIN product_delivery_unit AS unit
     ON ord.product_id = unit.product_id
   LEFT JOIN delivery_group AS dlv
     ON ord.delivery_group = dlv.delivery_group
-      AND (ord.sku_quantity * COALESCE(unit.unit, 1)) BETWEEN dlv.min_unit AND dlv.max_unit
+      AND (ord.product_quantity * ord.order_quantity * COALESCE(unit.unit, 1)
+        BETWEEN dlv.min_unit AND dlv.max_unit)
 ),{#
 
 -- Step 4: allocate amounts across bundle products by cost weight
@@ -231,9 +237,10 @@ WITH{#
     -- Sales dimensions
     , vendor_id
     , product_id
+    , product_quantity
     , order_status
     -- Sales metrics
-    , sku_quantity
+    , order_quantity
     , (CASE
         WHEN order_option_offset = 1
           THEN payment_amount - SUM(payment_amount_split) OVER (PARTITION BY order_id, option_id)
@@ -280,8 +287,9 @@ WITH{#
   SELECT
       vendor_id
     , product_id
+    , product_quantity
     , order_status
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(order_quantity) AS order_quantity
     , SUM(payment_amount) AS payment_amount
     , SUM(supply_amount) AS supply_amount
     , SUM(supply_cost) AS supply_cost
@@ -292,7 +300,7 @@ WITH{#
     UNION ALL
     (SELECT * FROM product_order_with_split_amount)
   ) AS t_
-  GROUP BY order_date, vendor_id, product_id, order_status
+  GROUP BY order_date, vendor_id, product_id, product_quantity, order_status
 ){#
 
 #} SELECT * FROM sales_daily

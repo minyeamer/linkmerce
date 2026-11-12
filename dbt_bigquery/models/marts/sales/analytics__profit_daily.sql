@@ -28,6 +28,7 @@ SELECT
   , COALESCE(account.corp_name, '사업자 없음') AS corp_name
   -- Item attributes
   , fact.product_id
+  , fact.product_quantity
   , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
   , COALESCE(item.item_seq, 99999999) AS item_seq
   , COALESCE(item.team_name, '담당팀 없음') AS team_name
@@ -47,6 +48,7 @@ SELECT
   -- Sales attributes
   , COALESCE(order_status.label, '알 수 없음') AS order_status
   , COALESCE(fact.sku_quantity * COALESCE(item.unit_scale, 1), 0) AS unit_quantity
+  , fact.order_quantity
   , fact.sku_quantity
   , fact.payment_amount
   , fact.supply_amount

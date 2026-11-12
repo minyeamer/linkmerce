@@ -137,6 +137,9 @@ models:
   - name: "coupang__sales_summary"
     description: "쿠팡 주문내역에서 업체별 결제금액 합계를 요약한 일별 파티션 모델"
 
+  - name: "relation__cpg_itm_to_sbn_ids"
+    description: "쿠팡 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 상품번호와 옵션명으로 자동 매칭한 모델"
+
   # intermediate > sales > coupang_rfm
 
   - name: "coupang_rfm__order_count"
@@ -173,9 +176,6 @@ models:
     description: "스마트스토어 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 사방넷 매핑 규칙에 따라 자동 매칭한 모델"
 
   # intermediate > stock
-
-  - name: "core__sold_qty_30d_daily"
-    description: "각종 플랫폼에서 요약된 최근 30일 판매수량을 SKU별 피벗 테이블로 가공한 일별 파티션 모델"
 
   - name: "core__sold_qty_60d_daily"
     description: "각종 플랫폼에서 요약된 최근 60일 판매수량을 SKU별 피벗 테이블로 가공한 일별 파티션 모델"

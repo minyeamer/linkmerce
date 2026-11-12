@@ -31,7 +31,7 @@ WITH{#
   SELECT
       product_id
     , 0 AS group_id
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(product_quantity * order_quantity) AS sold_qty
     , order_date
   FROM {{ ref('sabangnet__sales_daily') }}
   WHERE (order_date
@@ -45,13 +45,13 @@ WITH{#
   SELECT
       product_id
     , group_id
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(sold_qty) AS sold_qty
     , order_date
   FROM (
     SELECT
         COALESCE(map.delivery_product_id, sales.product_id) AS product_id
       , (CASE WHEN sales.delivery_type = 7 THEN 1 ELSE 0 END) AS group_id
-      , sales.sku_quantity
+      , sales.product_quantity * sales.order_quantity AS sold_qty
       , sales.order_date
     FROM {{ ref('smartstore__sales_daily') }} AS sales
     LEFT JOIN delivery_product_mapping AS map
@@ -69,7 +69,7 @@ WITH{#
   SELECT
       product_id
     , 2 AS group_id
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(product_quantity * order_quantity) AS sold_qty
     , order_date
   FROM {{ ref('coupang_rfm__sales_daily') }}
   WHERE (order_date
@@ -85,10 +85,10 @@ WITH{#
   SELECT
       order_date
     , product_id
-    , SUM(sku_quantity) AS sold_qty
-    , SUM((CASE WHEN group_id = 0 THEN sku_quantity ELSE NULL END)) AS sabangnet__sold_qty
-    , SUM((CASE WHEN group_id = 1 THEN sku_quantity ELSE NULL END)) AS cj_eflexs__sold_qty
-    , SUM((CASE WHEN group_id = 2 THEN sku_quantity ELSE NULL END)) AS coupang_rfm__sold_qty
+    , SUM(sold_qty) AS sold_qty
+    , SUM((CASE WHEN group_id = 0 THEN sold_qty ELSE NULL END)) AS sabangnet__sold_qty
+    , SUM((CASE WHEN group_id = 1 THEN sold_qty ELSE NULL END)) AS cj_eflexs__sold_qty
+    , SUM((CASE WHEN group_id = 2 THEN sold_qty ELSE NULL END)) AS coupang_rfm__sold_qty
   FROM (
     (SELECT * FROM sabangnet_sold_qty_daily)
     UNION ALL

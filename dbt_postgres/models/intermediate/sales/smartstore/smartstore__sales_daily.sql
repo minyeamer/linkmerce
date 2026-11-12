@@ -134,7 +134,7 @@ WITH{#
       *
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY product_order_id) AS bundle_product_count
-    , (CASE WHEN order_status = 6 THEN 0 ELSE org_price * sku_quantity END)::numeric AS cost_amount
+    , (CASE WHEN order_status = 6 THEN 0 ELSE org_price * product_quantity * order_quantity END)::numeric AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -146,17 +146,18 @@ WITH{#
             renewal.product_id_old
           , (string_to_array(bundle_product, ':'))[1]
         ) AS product_id
+      , (CASE
+          WHEN split_part(bundle_product, ':', 2) ~ '^[0-9]+$'
+            THEN split_part(bundle_product, ':', 2)::integer
+          ELSE 1
+        END) AS product_quantity
       , ord.delivery_type
       , (CASE
           WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
           ELSE ord.order_status
         END) AS order_status
       -- Sales metrics
-      , (CASE
-          WHEN split_part(bundle_product, ':', 2) ~ '^[0-9]+$'
-            THEN split_part(bundle_product, ':', 2)::integer
-          ELSE 1
-        END) * ord.order_quantity AS sku_quantity
+      , ord.order_quantity
       , ord.payment_amount
       , ord.supply_amount
       -- Cost data
@@ -194,10 +195,11 @@ WITH{#
     -- Sales dimensions
     , channel_seq
     , product_id
+    , product_quantity
     , delivery_type
     , order_status
     -- Sales metrics
-    , sku_quantity
+    , order_quantity
     , (CASE
         WHEN product_order_offset = 1
           THEN payment_amount - SUM(payment_amount_split) OVER (PARTITION BY product_order_id)
@@ -244,17 +246,18 @@ WITH{#
     -- Sales dimensions
     , ord.channel_seq
     , ord.product_id
+    , ord.product_quantity
     , ord.delivery_type
     , ord.order_status
     -- Sales metrics
-    , ord.sku_quantity
+    , ord.order_quantity
     , ord.payment_amount
     , ord.supply_amount
-    , ord.org_price * ord.sku_quantity AS supply_cost
+    , ord.org_price * ord.product_quantity * ord.order_quantity AS supply_cost
     -- Delivery data
     , ord.org_price
     , ord.delivery_group
-    , (ord.sku_quantity * COALESCE(dlv.unit, 1)) AS delivery_quantity
+    , (ord.product_quantity * ord.order_quantity * COALESCE(dlv.unit, 1)) AS delivery_quantity
     , COALESCE(cj_inv.delivery_fee, cj_ord.delivery_fee, ord.delivery_fee, 0) AS delivery_fee
     , COALESCE(cj_inv.box_cost, cj_ord.box_cost, 0) AS box_cost
     -- Sales partition key
@@ -329,10 +332,11 @@ WITH{#
     -- Sales dimensions
     , ord.channel_seq
     , ord.product_id
+    , ord.product_quantity
     , ord.delivery_type
     , ord.order_status
     -- Sales metrics
-    , ord.sku_quantity
+    , ord.order_quantity
     , ord.payment_amount
     , ord.supply_amount
     , ord.supply_cost
@@ -359,10 +363,11 @@ WITH{#
     -- Sales dimensions
     , channel_seq
     , product_id
+    , product_quantity
     , delivery_type
     , order_status
     -- Sales metrics
-    , sku_quantity
+    , order_quantity
     , payment_amount
     , supply_amount
     , supply_cost
@@ -400,9 +405,10 @@ WITH{#
   SELECT
       channel_seq
     , product_id
+    , product_quantity
     , delivery_type
     , order_status
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(order_quantity) AS order_quantity
     , SUM(payment_amount) AS payment_amount
     , SUM(supply_amount) AS supply_amount
     , SUM(supply_cost) AS supply_cost
@@ -413,7 +419,7 @@ WITH{#
     UNION ALL
     (SELECT * FROM product_order_with_split_delivery)
   ) AS t_
-  GROUP BY order_date, channel_seq, product_id, delivery_type, order_status
+  GROUP BY order_date, channel_seq, product_id, product_quantity, delivery_type, order_status
 ){#
 
 #} SELECT * FROM sales_daily

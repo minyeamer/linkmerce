@@ -19,8 +19,10 @@ sales_daily AS (
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
-    , IF(order_status = 0, COALESCE(sku_quantity, 0), 0) AS sku_quantity
+    , IF(order_status = 0, COALESCE(order_quantity, 0), 0) AS order_quantity
+    , IF(order_status = 0, product_quantity * COALESCE(order_quantity, 0), 0) AS sku_quantity
     , (CASE
         -- Exclude payment_amount from extra_sales
         WHEN shop_id = 'adop9000' THEN 0
@@ -42,7 +44,9 @@ profit_daily AS (
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
+    , order_quantity
     , sku_quantity
     , payment_amount
     , supply_amount
@@ -61,7 +65,9 @@ extra_profit_daily AS (
       shop_id
     , '0' AS account_no
     , product_id
+    , product_quantity
     , 0 AS order_status
+    , 0 AS order_quantity
     , 0 AS sku_quantity
     , 0 AS payment_amount
     , 0 AS supply_amount

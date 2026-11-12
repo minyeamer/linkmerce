@@ -1,4 +1,4 @@
-{{
+﻿{{
   config(
     materialized = 'incremental',
     schema = 'xfm_sales',
@@ -22,8 +22,9 @@ sabangnet_sales_daily AS (
       shop_id
     , CAST(account_no AS STRING) AS account_no
     , product_id
+    , product_quantity
     , order_status
-    , sku_quantity
+    , order_quantity
     , payment_amount
     , supply_amount
     , supply_cost
@@ -37,11 +38,12 @@ sabangnet_sales_daily AS (
 
 smartstore_sales_daily AS (
   SELECT
-      IF(delivery_type = 7, 'shop9000', 'shop0055') AS shop_id
+      IF(delivery_type = 7, 'chop0029', 'shop0055') AS shop_id
     , CAST(channel_seq AS STRING) AS account_no
     , product_id
+    , product_quantity
     , order_status
-    , sku_quantity
+    , order_quantity
     , payment_amount
     , supply_amount
     , supply_cost
@@ -55,11 +57,12 @@ smartstore_sales_daily AS (
 
 coupang_rfm_sales_daily AS (
   SELECT
-      'shop9001' AS shop_id
+      'chop0027' AS shop_id
     , vendor_id AS account_no
     , product_id
+    , product_quantity
     , order_status
-    , sku_quantity
+    , order_quantity
     , payment_amount
     , supply_amount
     , supply_cost
@@ -76,8 +79,9 @@ extra_sales_daily AS (
       shop_id
     , '0' AS account_no
     , product_id
+    , 1 AS product_quantity
     , 0 AS order_status
-    , NULL AS sku_quantity
+    , NULL AS order_quantity
     , sales_amount AS payment_amount
     , supply_amount
     , NULL AS supply_cost
@@ -117,7 +121,7 @@ searchad_contract_daily AS (
 
 coupang_ads_insight_daily AS (
   SELECT
-      'shop9001' AS shop_id
+      'chop0027' AS shop_id
     , vendor_id AS account_no
     , product_id
     , SUM(ad_cost) AS ad_cost
@@ -130,7 +134,7 @@ coupang_ads_insight_daily AS (
 ebay_ads_insight_daily AS (
   SELECT
       IF(site_type = 1, 'shop0067', 'shop0068') AS shop_id
-    , seller_id AS account_no
+    , COALESCE(CAST(seller_id AS STRING), '-') AS account_no
     , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
@@ -293,6 +297,8 @@ coupang_product_daily AS (
     FROM (
       (SELECT * FROM coupang_rfm_sales_daily)
       UNION ALL
+      (SELECT * FROM coupang_sales_daily)
+      UNION ALL
       (SELECT * FROM sabangnet_sales_daily WHERE shop_id = 'shop0075')
     ) AS t_
     GROUP BY order_date, product_id, shop_id
@@ -317,6 +323,8 @@ coupang_brand_daily AS (
       , SUM(cpg.payment_amount) AS payment_amount
     FROM (
       (SELECT * FROM coupang_rfm_sales_daily)
+      UNION ALL
+      (SELECT * FROM coupang_sales_daily)
       UNION ALL
       (SELECT * FROM sabangnet_sales_daily WHERE shop_id = 'shop0075')
     ) AS cpg
@@ -379,8 +387,9 @@ insight_daily AS (
       shop_id
     , account_no
     , product_id
+    , 1 AS product_quantity
     , 8 AS order_status
-    , NULL AS sku_quantity
+    , NULL AS order_quantity
     , NULL AS payment_amount
     , NULL AS supply_amount
     , NULL AS supply_cost
@@ -414,8 +423,9 @@ cost_daily AS (
       shop_id
     , '0' AS account_no
     , product_id
+    , 1 AS product_quantity
     , 9 AS order_status
-    , NULL AS sku_quantity
+    , NULL AS order_quantity
     , NULL AS payment_amount
     , NULL AS supply_amount
     , NULL AS supply_cost
@@ -435,8 +445,9 @@ sales_daily AS (
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(order_quantity) AS order_quantity
     , SUM(payment_amount) AS payment_amount
     , SUM(supply_amount) AS supply_amount
     , SUM(supply_cost) AS supply_cost
@@ -457,7 +468,7 @@ sales_daily AS (
     UNION ALL
     (SELECT * FROM cost_daily)
   )
-  GROUP BY order_date, shop_id, account_no, product_id, order_status
+  GROUP BY order_date, shop_id, account_no, product_id, product_quantity, order_status
 )
 
 SELECT * FROM sales_daily

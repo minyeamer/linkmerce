@@ -50,7 +50,7 @@ bundle_product_order AS (
     , ord.order_quantity
     , ord.sales_date AS order_date
   FROM rocket_sales AS ord
-  LEFT JOIN {{ source('relation', 'cpg_opt_to_sbn_ids') }} AS rel
+  LEFT JOIN {{ ref('relation__cpg_itm_to_sbn_ids') }} AS rel
     ON ord.option_id = rel.option_id
   LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
     ON ord.vendor_id = vdr.vendor_id
@@ -66,6 +66,10 @@ exploded_product_order AS (
           renewal.product_id_old
         , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
       ) AS product_id
+    , COALESCE(
+          SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64)
+        , 1
+      ) AS product_quantity
     , (CASE
         WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
         ELSE LEAST(ord.order_status, 3)
@@ -84,11 +88,12 @@ order_count AS (
       order_id
     , vendor_id
     , product_id
+    , product_quantity
     , order_status
     , SUM(order_quantity) AS order_quantity
     , order_date
   FROM exploded_product_order
-  GROUP BY order_id, order_date, vendor_id, product_id, order_status
+  GROUP BY order_id, order_date, vendor_id, product_id, product_quantity, order_status
 )
 
 SELECT * FROM order_count

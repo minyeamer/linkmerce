@@ -57,7 +57,7 @@ WITH{#
     ON itm.vendor_inventory_id = prd.vendor_inventory_id
   LEFT JOIN {{ source('coupang', 'order_option') }} AS opt
     ON itm.option_id = opt.option_id
-  LEFT JOIN {{ source('relation', 'cpg_opt_to_sbn_ids') }} AS rel
+  LEFT JOIN {{ source('relation', 'cpg_itm_to_sbn_ids') }} AS rel
     ON itm.option_id = rel.option_id
   LEFT JOIN {{ ref('core__product_master') }} AS brd
     ON LEFT(rel.bundle_product_ids, 6) = brd.product_id

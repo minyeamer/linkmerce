@@ -8,8 +8,6 @@ selectors:
         - method: fqn
           value: intermediate.stock.sources.cj_eflexs__stock_qty_batch
         - method: fqn
-          value: intermediate.stock.core__sold_qty_30d_daily
-        - method: fqn
           value: intermediate.stock.core__sold_qty_60d_daily
         - method: fqn
           value: intermediate.stock.core__stock_qty_batch
@@ -63,8 +61,6 @@ selectors:
       union:
         - method: fqn
           value: intermediate.stock.sources.coupang_rfm__stock_qty_batch
-        - method: fqn
-          value: intermediate.stock.core__sold_qty_30d_daily
         - method: fqn
           value: intermediate.stock.core__sold_qty_60d_daily
         - method: fqn
@@ -127,8 +123,6 @@ selectors:
       union:
         - method: fqn
           value: intermediate.stock.sources.ecount__stock_qty_batch
-        - method: fqn
-          value: intermediate.stock.core__sold_qty_30d_daily
         - method: fqn
           value: intermediate.stock.core__sold_qty_60d_daily
         - method: fqn
@@ -488,8 +482,6 @@ selectors:
     description: "재고수량 및 기간 판매량 업데이트"
     definition:
       union:
-        - method: fqn
-          value: intermediate.stock.core__sold_qty_30d_daily
         - method: fqn
           value: intermediate.stock.core__sold_qty_60d_daily
         - method: fqn

@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS cafe24.mall (
   , mall_url TEXT -- 쇼핑몰주소
   , corp_name TEXT -- 운영사업자
   , team_name TEXT -- 영업팀
-  , bundle_brand_ids TEXT -- 연결브랜드ID
+  , brand_id TEXT -- 연결브랜드ID
   , order_start_date DATE -- 주문집계시작일
   , PRIMARY KEY (mall_id)
 );
@@ -1283,13 +1283,14 @@ CREATE TABLE IF NOT EXISTS relation.ad_id_to_sbn_ids (
 -- [카페24 상품 품목 - 카페24 묶음상품 관계]
 CREATE TABLE IF NOT EXISTS relation.c24_var_to_sbn_ids (
     mall_id TEXT NOT NULL -- 쇼핑몰ID
+  , product_no BIGINT NOT NULL -- 상품번호
   , variant_code TEXT NOT NULL -- 품목코드
   , bundle_product_ids TEXT NOT NULL -- 연결품번코드
   , PRIMARY KEY (mall_id, variant_code)
 );
 
 -- [쿠팡 옵션 - 사방넷 묶음상품 관계]
-CREATE TABLE IF NOT EXISTS relation.cpg_opt_to_sbn_ids (
+CREATE TABLE IF NOT EXISTS relation.cpg_itm_to_sbn_ids (
     option_id BIGINT NOT NULL -- 노출옵션ID
   , bundle_product_ids TEXT NOT NULL -- 연결품번코드
   , PRIMARY KEY (option_id)
@@ -1358,6 +1359,7 @@ CREATE TABLE IF NOT EXISTS sabangnet.account (
   , userid TEXT -- 쇼핑몰ID
   , corp_name TEXT -- 운영사업자
   , status BOOLEAN -- 상태
+  , exclude_sales BOOLEAN -- 매출집계제외
   , commission_rate FLOAT8 -- 수수료율
   , PRIMARY KEY (account_no)
 );

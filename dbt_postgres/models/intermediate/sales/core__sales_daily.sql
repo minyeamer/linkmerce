@@ -20,8 +20,9 @@ WITH{#
       shop_id
     , account_no::text AS account_no
     , product_id
+    , product_quantity
     , order_status
-    , sku_quantity
+    , order_quantity
     , payment_amount
     , supply_amount
     , supply_cost
@@ -35,11 +36,12 @@ WITH{#
 
 #} smartstore_sales_daily AS (
   SELECT
-      (CASE WHEN delivery_type = 7 THEN 'shop9000' ELSE 'shop0055' END) AS shop_id
+      (CASE WHEN delivery_type = 7 THEN 'chop0029' ELSE 'shop0055' END) AS shop_id
     , channel_seq::text AS account_no
     , product_id
+    , product_quantity
     , order_status
-    , sku_quantity
+    , order_quantity
     , payment_amount
     , supply_amount
     , supply_cost
@@ -53,11 +55,12 @@ WITH{#
 
 #} coupang_rfm_sales_daily AS (
   SELECT
-      'shop9001' AS shop_id
+      'chop0027' AS shop_id
     , vendor_id AS account_no
     , product_id
+    , product_quantity
     , order_status
-    , sku_quantity
+    , order_quantity
     , payment_amount
     , supply_amount
     , supply_cost
@@ -74,8 +77,9 @@ WITH{#
       shop_id
     , '0' AS account_no
     , product_id
+    , 1 AS product_quantity
     , 0 AS order_status
-    , NULL::integer AS sku_quantity
+    , NULL::integer AS order_quantity
     , sales_amount AS payment_amount
     , supply_amount
     , NULL::integer AS supply_cost
@@ -115,7 +119,7 @@ WITH{#
 
 #} coupang_ads_insight_daily AS (
   SELECT
-      'shop9001' AS shop_id
+      'chop0027' AS shop_id
     , vendor_id AS account_no
     , product_id
     , SUM(ad_cost) AS ad_cost
@@ -128,7 +132,7 @@ WITH{#
 #} ebay_ads_insight_daily AS (
   SELECT
       (CASE WHEN site_type = 1 THEN 'shop0067' ELSE 'shop0068' END) AS shop_id
-    , seller_id AS account_no
+    , COALESCE(seller_id::text, '-') AS account_no
     , product_id
     , SUM(ad_cost) AS ad_cost
     , ymd AS order_date
@@ -365,8 +369,9 @@ WITH{#
       shop_id
     , account_no
     , product_id
+    , 1 AS product_quantity
     , 8 AS order_status
-    , NULL::integer AS sku_quantity
+    , NULL::integer AS order_quantity
     , NULL::integer AS payment_amount
     , NULL::integer AS supply_amount
     , NULL::integer AS supply_cost
@@ -400,8 +405,9 @@ WITH{#
       shop_id
     , '0' AS account_no
     , product_id
+    , 1 AS product_quantity
     , 9 AS order_status
-    , NULL::integer AS sku_quantity
+    , NULL::integer AS order_quantity
     , NULL::integer AS payment_amount
     , NULL::integer AS supply_amount
     , NULL::integer AS supply_cost
@@ -421,8 +427,9 @@ WITH{#
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(order_quantity) AS order_quantity
     , SUM(payment_amount) AS payment_amount
     , SUM(supply_amount) AS supply_amount
     , SUM(supply_cost) AS supply_cost
@@ -443,7 +450,7 @@ WITH{#
     UNION ALL
     (SELECT * FROM cost_daily)
   )
-  GROUP BY order_date, shop_id, account_no, product_id, order_status
+  GROUP BY order_date, shop_id, account_no, product_id, product_quantity, order_status
 ){#
 
 #} SELECT * FROM sales_daily

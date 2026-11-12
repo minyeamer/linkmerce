@@ -65,7 +65,7 @@ WITH{#
   -- Filter orders
   WHERE ord.order_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
     AND ord.order_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone
-    AND acc.shop_id NOT IN ('shop0055', 'chop0022', 'chop0027', 'chop0028', 'chop0029')
+    AND acc.exclude_sales IS NOT TRUE
 ),{#
 
 -- Step 2: apply bundle product rules
@@ -79,6 +79,7 @@ WITH{#
       , ({{ sabangnet__shop_id_rules() }}) AS shop_id
       , account_no
       , product_id
+      , 1 AS product_quantity
       , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
       , ({{ sabangnet__order_status_rules() }}) AS order_status
       , order_quantity
@@ -97,6 +98,11 @@ WITH{#
     , ord.shop_id
     , ord.account_no
     , (string_to_array(bundle_option, '-'))[1] AS product_id
+    , (CASE
+        WHEN split_part(bundle_option, ':', 2) ~ '^[0-9]+$'
+          THEN split_part(bundle_option, ':', 2)::integer
+        ELSE 1
+      END) AS product_quantity
     , ord.bundle_option_ids
     , ord.order_status
     , ord.order_quantity
@@ -113,6 +119,7 @@ WITH{#
     , shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , SUM(order_quantity) AS order_quantity
     , order_date
@@ -121,7 +128,7 @@ WITH{#
     UNION ALL
     (SELECT * FROM exploded_product_order)
   ) AS t_
-  GROUP BY order_id, product_order_id, order_date, shop_id, account_no, product_id, order_status
+  GROUP BY order_id, product_order_id, order_date, shop_id, account_no, product_id, product_quantity, order_status
 ){#
 
 #} SELECT * FROM order_count

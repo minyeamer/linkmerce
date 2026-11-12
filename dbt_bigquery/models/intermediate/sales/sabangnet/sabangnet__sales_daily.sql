@@ -101,7 +101,7 @@ order_detail AS (
   -- Filter orders
   WHERE ord.order_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND ord.order_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
-    AND acc.shop_id NOT IN ('shop0055', 'chop0022', 'chop0027', 'chop0028', 'chop0029')
+    AND acc.exclude_sales IS NOT TRUE
 ),
 
 -- Step 2: apply bundle product rules
@@ -125,7 +125,6 @@ bundle_product_order AS (
       , ({{ sabangnet__order_status_rules() }}) AS order_status
       -- Sales metrics
       , order_quantity
-      , ({{ sabangnet__sku_quantity_rules() }}) AS sku_quantity
       , ({{ sabangnet__payment_amount_rules() }}) AS payment_amount
       , ({{ sabangnet__net_rate_rules() }}) AS net_rate
       -- Sales partition key
@@ -147,10 +146,13 @@ exploded_product_order AS (
     , ord.account_no
     , SPLIT(bundle_option, '-')[SAFE_OFFSET(0)] AS product_id
     , SPLIT(bundle_option, ':')[SAFE_OFFSET(0)] AS option_id
+    , COALESCE(
+          SAFE_CAST(SPLIT(bundle_option, ':')[SAFE_OFFSET(1)] AS INT64)
+        , 1
+      ) AS product_quantity
     , ord.order_status
     -- Sales metrics
-    , (COALESCE(SAFE_CAST(SPLIT(bundle_option, ':')[SAFE_OFFSET(1)] AS INT64), 1)
-      * ord.order_quantity) AS sku_quantity
+    , ord.order_quantity
     , IF(ROW_NUMBER() OVER (PARTITION BY ord.account_no, ord.order_id ORDER BY ord.order_seq) = 1
         , MAX(ord.payment_amount) OVER (PARTITION BY ord.account_no, ord.order_id)
         , 0
@@ -173,7 +175,7 @@ product_order_with_cost_data AS (
       *
     -- Allocation metrics
     , COUNT(*) OVER (PARTITION BY account_no, order_id) AS bundle_product_count
-    , CAST(org_price * sku_quantity AS NUMERIC) AS cost_amount
+    , CAST(org_price * product_quantity * order_quantity AS NUMERIC) AS cost_amount
   FROM (
     SELECT
         ord.order_id
@@ -182,9 +184,10 @@ product_order_with_cost_data AS (
       , ord.shop_id
       , ord.account_no
       , ord.product_id
+      , ord.product_quantity
       , ord.order_status
       -- Sales metrics
-      , ord.sku_quantity
+      , ord.order_quantity
       , ord.payment_amount
       , ord.supply_amount
       -- Cost data
@@ -218,9 +221,10 @@ product_order_with_split_amount AS (
     , shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     -- Sales metrics
-    , sku_quantity
+    , order_quantity
     , (CASE
         WHEN order_offset = 1
           THEN total_payment_amount - SUM(payment_amount_split) OVER (PARTITION BY account_no, order_id)
@@ -269,16 +273,17 @@ product_order_with_cj_delivery AS (
     , ord.shop_id
     , ord.account_no
     , ord.product_id
+    , ord.product_quantity
     , ord.order_status
     -- Sales metrics
-    , ord.sku_quantity
+    , ord.order_quantity
     , ord.payment_amount
     , ord.supply_amount
-    , ord.org_price * ord.sku_quantity AS supply_cost
+    , ord.org_price * ord.product_quantity * ord.order_quantity AS supply_cost
     -- Delivery data
     , ord.org_price
     , ord.delivery_group
-    , ord.sku_quantity * COALESCE(unit.unit, 1) AS delivery_quantity
+    , ord.product_quantity * ord.order_quantity * COALESCE(unit.unit, 1) AS delivery_quantity
     , COALESCE(cj_inv.delivery_fee, cj_ord.delivery_fee, ord.delivery_fee, 0) AS delivery_fee
     , COALESCE(cj_inv.box_cost, cj_ord.box_cost, 0) AS box_cost
     -- Sales partition key
@@ -353,9 +358,10 @@ product_order_with_max_delivery AS (
     , ord.shop_id
     , ord.account_no
     , ord.product_id
+    , ord.product_quantity
     , ord.order_status
     -- Sales metrics
-    , ord.sku_quantity
+    , ord.order_quantity
     , ord.payment_amount
     , ord.supply_amount
     , ord.supply_cost
@@ -383,9 +389,10 @@ product_order_with_split_delivery AS (
     , shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     -- Sales metrics
-    , sku_quantity
+    , order_quantity
     , payment_amount
     , supply_amount
     , supply_cost
@@ -419,8 +426,9 @@ sales_daily AS (
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
-    , SUM(sku_quantity) AS sku_quantity
+    , SUM(order_quantity) AS order_quantity
     , SUM(payment_amount) AS payment_amount
     , SUM(supply_amount) AS supply_amount
     , SUM(supply_cost) AS supply_cost
@@ -432,7 +440,7 @@ sales_daily AS (
     UNION ALL
     (SELECT * FROM product_order_with_split_delivery)
   ) AS t_
-  GROUP BY order_date, shop_id, account_no, product_id, order_status
+  GROUP BY order_date, shop_id, account_no, product_id, product_quantity, order_status
 )
 
 SELECT * FROM sales_daily

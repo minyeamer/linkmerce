@@ -19,25 +19,24 @@ SELECT
   , CAST(channel_seq AS STRING) AS account_no
   , corp_name
 FROM {{ source('smartstore', 'channel') }}
-CROSS JOIN UNNEST(['shop9000', 'shop0055']) AS shop_id
-
-UNION ALL
-
-SELECT
-    'shop9001' AS shop_id
-  , vendor_id AS account_no
-  , corp_name
-FROM {{ source('coupang', 'vendor') }}
+CROSS JOIN UNNEST(['chop0029', 'shop0055']) AS shop_id
 
 UNION ALL
 
 SELECT
     shop_id
-  , userid AS account_no
+  , vendor_id AS account_no
   , corp_name
-FROM {{ source('sabangnet', 'account') }}
-WHERE shop_id IN ('shop0067', 'shop0068')
-  AND userid IN (SELECT DISTINCT seller_id FROM {{ source('ebay', 'item') }})
+FROM {{ source('coupang', 'vendor') }}
+CROSS JOIN UNNEST(['shop0075', 'chop0027']) AS shop_id
+
+UNION ALL
+
+SELECT
+    IF(site_type = 1, 'shop0067', 'shop0068') AS shop_id
+  , seller_id AS account_no
+  , corp_name
+FROM {{ source('ebay', 'seller') }}
 
 UNION ALL
 
@@ -46,7 +45,7 @@ SELECT
   , CAST(customer_id AS STRING) AS account_no
   , corp_name
 FROM {{ source('searchad', 'account') }}
-CROSS JOIN UNNEST(['shop9000', 'shop0055']) AS shop_id
+CROSS JOIN UNNEST(['chop0029', 'shop0055']) AS shop_id
 
 UNION ALL
 

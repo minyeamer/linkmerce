@@ -7,37 +7,29 @@
 }}
 
 SELECT
-    shop_id
-  , account_no::text AS account_no
+    shop.shop_id
+  , channel_seq::text AS account_no
   , corp_name
-FROM {{ source('sabangnet', 'account') }}{#
+FROM {{ source('smartstore', 'channel') }}
+CROSS JOIN (VALUES ('chop0029'), ('shop0055')) AS shop(shop_id){#
 
 #} UNION ALL{#
 
 #} SELECT
     shop.shop_id
-  , channel_seq::text AS account_no
-  , corp_name
-FROM {{ source('smartstore', 'channel') }}
-CROSS JOIN (VALUES ('shop9000'), ('shop0055')) AS shop(shop_id){#
-
-#} UNION ALL{#
-
-#} SELECT
-    'shop9001' AS shop_id
   , vendor_id AS account_no
   , corp_name
 FROM {{ source('coupang', 'vendor') }}{#
 
+#} CROSS JOIN (VALUES ('shop0075'), ('chop0027')) AS shop(shop_id){#
+
 #} UNION ALL{#
 
 #} SELECT
-    shop_id
-  , userid AS account_no
+    IF(site_type = 1, 'shop0067', 'shop0068') AS shop_id
+  , seller_id AS account_no
   , corp_name
-FROM {{ source('sabangnet', 'account') }}
-WHERE shop_id IN ('shop0067', 'shop0068')
-  AND userid IN (SELECT DISTINCT seller_id FROM {{ source('ebay', 'item') }}){#
+FROM {{ source('ebay', 'seller') }}{#
 
 #} UNION ALL{#
 
@@ -46,7 +38,7 @@ WHERE shop_id IN ('shop0067', 'shop0068')
   , customer_id::text AS account_no
   , corp_name
 FROM {{ source('searchad', 'account') }}
-CROSS JOIN (VALUES ('shop9000'), ('shop0055')) AS shop(shop_id){#
+CROSS JOIN (VALUES ('chop0029'), ('shop0055')) AS shop(shop_id){#
 
 #} UNION ALL{#
 

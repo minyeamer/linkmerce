@@ -34,6 +34,7 @@ WITH{#
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -48,7 +49,7 @@ WITH{#
     , MAX(order_date) AS order_end_date
     , date_trunc('month', DS_END_DATE)::date AS order_ym
   FROM {{ ref('analytics__profit_base') }}(DS_START_DATE, DS_END_DATE)
-  GROUP BY shop_id, account_no, product_id, order_status
+  GROUP BY shop_id, account_no, product_id, product_quantity, order_status
 ),{#
 
 -- Step 2: aggregate monthly sales for dates before the DS_END_DATE month
@@ -58,6 +59,7 @@ WITH{#
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -75,7 +77,7 @@ WITH{#
       date_trunc('month', (DS_END_DATE) - (DS_INTERVAL_MONTH) * INTERVAL '1 month')::date
     , date_trunc('month', DS_END_DATE)::date - 1
   )
-  GROUP BY date_trunc('month', order_date)::date, shop_id, account_no, product_id, order_status
+  GROUP BY date_trunc('month', order_date)::date, shop_id, account_no, product_id, product_quantity, order_status
 ),{#
 
 -- Step 4: combine monthly sales and add custom metrics for reporting
@@ -85,6 +87,7 @@ WITH{#
       fact.shop_id
     , fact.account_no
     , fact.product_id
+    , fact.product_quantity
     , fact.order_status
     -- Primary metrics
     , fact.profit
@@ -97,8 +100,8 @@ WITH{#
     , fact.margin_amount
     -- Ad metrics
     , fact.ad_cost
-    , (CASE WHEN fact.shop_id IN ('shop0055', 'shop9000') THEN fact.ad_cost ELSE 0 END) AS ad_cost__searchad
-    , (CASE WHEN fact.shop_id IN ('shop0075', 'shop9001') THEN fact.ad_cost ELSE 0 END) AS ad_cost__coupang
+    , (CASE WHEN fact.shop_id IN ('shop0055', 'chop0029') THEN fact.ad_cost ELSE 0 END) AS ad_cost__searchad
+    , (CASE WHEN fact.shop_id IN ('shop0075', 'chop0027') THEN fact.ad_cost ELSE 0 END) AS ad_cost__coupang
     , (CASE WHEN fact.shop_id = 'adop0001' THEN fact.ad_cost ELSE 0 END) AS ad_cost__google
     , (CASE WHEN fact.shop_id = 'adop0002' THEN fact.ad_cost ELSE 0 END) AS ad_cost__meta
     , (CASE WHEN fact.shop_id = 'adop0006' THEN fact.ad_cost ELSE 0 END) AS ad_cost__tiktok
@@ -130,6 +133,7 @@ WITH{#
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , metric_name
     , metric_value
@@ -174,6 +178,7 @@ WITH{#
     , COALESCE(account.corp_name, '사업자 없음') AS corp_name
     -- Item attributes
     , fact.product_id
+    , fact.product_quantity
     , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
     , COALESCE(item.item_seq, 99999999) AS item_seq
     , COALESCE(item.team_name, '담당팀 없음') AS team_name

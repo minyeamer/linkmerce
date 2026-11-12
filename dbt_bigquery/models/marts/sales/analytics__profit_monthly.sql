@@ -23,7 +23,9 @@ sales_monthly AS (
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
+    , SUM(order_quantity) AS order_quantity
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
     , SUM(supply_amount) AS supply_amount
@@ -37,7 +39,7 @@ sales_monthly AS (
     , MAX(order_date) AS order_end_date
     , DATE_TRUNC(order_date, MONTH) AS order_ym
   FROM {{ ref('analytics__profit_base') }}(DS_START_DATE, DS_END_DATE)
-  GROUP BY DATE_TRUNC(order_date, MONTH), shop_id, account_no, product_id, order_status
+  GROUP BY DATE_TRUNC(order_date, MONTH), shop_id, account_no, product_id, product_quantity, order_status
 ),
 
 profit_monthly AS (
@@ -51,6 +53,7 @@ profit_monthly AS (
     , COALESCE(account.corp_name, '사업자 없음') AS corp_name
     -- Item attributes
     , fact.product_id
+    , fact.product_quantity
     , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
     , COALESCE(item.item_seq, 99999999) AS item_seq
     , COALESCE(item.team_name, '담당팀 없음') AS team_name
@@ -69,8 +72,9 @@ profit_monthly AS (
       ) AS category_unit_name
     -- Sales attributes
     , COALESCE(order_status.label, '알 수 없음') AS order_status
-    , COALESCE(fact.sku_quantity * COALESCE(item.unit_scale, 1), 0) AS unit_quantity
+    , fact.order_quantity
     , fact.sku_quantity
+    , COALESCE(fact.sku_quantity * COALESCE(item.unit_scale, 1), 0) AS unit_quantity
     , fact.payment_amount
     , fact.supply_amount
     , fact.supply_cost

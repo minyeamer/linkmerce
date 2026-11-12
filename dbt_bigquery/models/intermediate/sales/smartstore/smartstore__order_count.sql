@@ -52,6 +52,7 @@ bundle_product_order AS (
         , chl.brand_id
         , '200000'
       ) AS bundle_product_ids
+    , IF(ord.delivery_type = 7, 7, 0) AS delivery_type
     , (CASE
         WHEN status_cor.order_status IS NOT NULL THEN status_cor.order_status
         WHEN status_smt.order_status = 7 THEN 1
@@ -59,7 +60,6 @@ bundle_product_order AS (
         WHEN status_smt.order_status IN (6, 8) THEN 3
         ELSE 0
       END) AS order_status
-    , IF(ord.delivery_type = 7, 7, 0) AS delivery_type
     , COALESCE(ord.order_quantity, 0) AS order_quantity
     , DATE(ord.payment_dt) AS order_date
   FROM {{ source('smartstore', 'order_detail') }} AS ord
@@ -84,8 +84,15 @@ exploded_product_order AS (
           renewal.product_id_old
         , SPLIT(bundle_product, ':')[SAFE_OFFSET(0)]
       ) AS product_id
-    , IF((ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9'), 3, ord.order_status) AS order_status
+    , COALESCE(
+          SAFE_CAST(SPLIT(bundle_product, ':')[SAFE_OFFSET(1)] AS INT64)
+        , 1
+      ) AS product_quantity
     , ord.delivery_type
+    , (CASE
+        WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9') THEN 6
+        ELSE ord.order_status
+      END) AS order_status
     , ord.order_quantity
     , ord.order_date
   FROM bundle_product_order AS ord
@@ -101,12 +108,15 @@ order_count AS (
     , product_order_id
     , channel_seq
     , product_id
+    , product_quantity
     , delivery_type
     , order_status
     , SUM(order_quantity) AS order_quantity
     , order_date
   FROM exploded_product_order
-  GROUP BY order_id, product_order_id, order_date, channel_seq, product_id, delivery_type, order_status
+  GROUP BY
+    order_id, product_order_id, order_date, channel_seq,
+    product_id, product_quantity, delivery_type, order_status
 )
 
 SELECT * FROM order_count

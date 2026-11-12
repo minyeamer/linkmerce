@@ -34,7 +34,7 @@ FROM (
   LEFT JOIN {{ source('coupang_rfm', 'inventory_exp') }} AS exp
     ON inv.option_id = exp.option_id
       AND inv.updated_at BETWEEN exp.start_time AND exp.end_time
-  LEFT JOIN {{ source('relation', 'cpg_opt_to_sbn_ids') }} AS rel
+  LEFT JOIN {{ source('relation', 'cpg_itm_to_sbn_ids') }} AS rel
     ON exp.option_id = rel.option_id
   LEFT JOIN UNNEST(SPLIT(rel.bundle_product_ids, ',')) AS product
   WHERE inv.updated_at >= DATETIME('{{ var("ds_start_date") }}')

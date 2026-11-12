@@ -20,7 +20,7 @@
 - naver_shp__category
 - naver_shp__keyword
 - relation__ad_id_to_sbn_ids
-- relation__cpg_opt_to_sbn_ids
+- relation__cpg_itm_to_sbn_ids
 - relation__nsh_kwd_to_prd_id
 - relation__smt_opt_to_sbn_ids
 - relation__smt_prd_to_sbn_ids

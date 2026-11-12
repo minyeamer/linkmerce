@@ -34,6 +34,7 @@ order_count_ds_range AS (
     , corp_name
     -- Item attributes
     , product_id
+    , product_quantity
     , item_id
     , item_seq
     , team_name
@@ -70,6 +71,7 @@ order_count_monthly_lookback AS (
     , corp_name
     -- Item attributes
     , product_id
+    , product_quantity
     , item_id
     , item_seq
     , team_name
@@ -109,6 +111,7 @@ order_count_mom AS (
     , fact.corp_name
     -- Item attributes
     , fact.product_id
+    , fact.product_quantity
     , fact.item_id
     , fact.item_seq
     , fact.team_name

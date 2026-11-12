@@ -1,4 +1,4 @@
-# LinkMerce dbt BigQuery
+﻿# LinkMerce dbt BigQuery
 
 > BigQuery에서 분석 테이블과 테이블 함수를 생성하는 dbt 프로젝트
 
@@ -206,6 +206,8 @@ fact 테이블 및 view 테이블을 생성한다. 현재는 네이버 채널의
 
 ```bash
 dbt_bigquery/models/intermediate/sales/
+├── coupang/
+│   └── relation__cpg_itm_to_sbn_ids
 ├── coupang_rfm/
 │   ├── coupang_rfm__order_count
 │   └── coupang_rfm__sales_daily
@@ -255,7 +257,6 @@ dbt_bigquery/models/intermediate/stock/
 │   ├── cj_eflexs__stock_qty_batch
 │   ├── coupang_rfm__stock_qty_batch
 │   └── ecount__stock_qty_batch
-├── core__sold_qty_30d_daily
 ├── core__sold_qty_60d_daily
 ├── core__stock_qty_batch
 └── core__stock_time_batch
@@ -264,7 +265,7 @@ dbt_bigquery/models/intermediate/stock/
 이 계층에서는 채널마다 일별/차수별로 수집한 재고 내역을
 이카운트 상품 기준으로 매핑 및 집계하여 플랫폼별 재고수량 fact 테이블을 생성한다.
 
-`core__sold_qty_30d_daily`, `core__sold_qty_60d_daily` 모델은 `intermediate/sales/` 경로의
+`core__sold_qty_60d_daily` 모델은 `intermediate/sales/` 경로의
 `sales_daily` 모델을 참조하여 재고 플랫폼별 최근 판매량(출고량) fact 테이블을 생성한다.
 
 `core__stock_time_batch` 모델은 단일 날짜 및 차수를 지정하는

@@ -28,13 +28,6 @@ CASE
 END
 {%- endmacro %}
 
-{% macro sabangnet__sku_quantity_rules() -%}
-CASE
-  WHEN option_id IN ('100330-0001', '100742-0001', '101022-0001') THEN order_quantity
-  ELSE sku_quantity
-END
-{%- endmacro %}
-
 {% macro sabangnet__payment_amount_rules() -%}
 CASE
   WHEN (shop_id = 'shop0666') AND (SUM(payment_amount) OVER (PARTITION BY account_no, order_id) < 19800)

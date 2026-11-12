@@ -25,6 +25,7 @@ sabangnet_order_count AS (
     , shop_id
     , CAST(account_no AS STRING) AS account_no
     , product_id
+    , product_quantity
     , order_status
     , order_quantity
     , order_date
@@ -36,9 +37,10 @@ smartstore_order_count AS (
   SELECT
       CAST(order_id AS STRING) AS order_id
     , CAST(product_order_id AS STRING) AS product_order_id
-    , IF(delivery_type = 7, 'shop9000', 'shop0055') AS shop_id
+    , IF(delivery_type = 7, 'chop0029', 'shop0055') AS shop_id
     , CAST(channel_seq AS STRING) AS account_no
     , product_id
+    , product_quantity
     , order_status
     , order_quantity
     , order_date
@@ -50,9 +52,10 @@ coupang_rfm_order_count AS (
   SELECT
       CAST(order_id AS STRING) AS order_id
     , CAST(NULL AS STRING) AS product_order_id
-    , 'shop9001' AS shop_id
+    , 'chop0027' AS shop_id
     , vendor_id AS account_no
     , product_id
+    , product_quantity
     , order_status
     , order_quantity
     , order_date
@@ -67,6 +70,7 @@ order_count AS (
     , shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , order_quantity
     , order_date
@@ -92,6 +96,7 @@ SELECT
   , COALESCE(account.corp_name, '사업자 없음') AS corp_name
   -- Item attributes
   , fact.product_id
+  , fact.product_quantity
   , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
   , COALESCE(item.item_seq, 99999999) AS item_seq
   , COALESCE(item.team_name, '담당팀 없음') AS team_name

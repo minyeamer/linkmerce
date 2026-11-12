@@ -25,6 +25,7 @@ WITH{#
     , shop_id
     , account_no::text AS account_no
     , product_id
+    , product_quantity
     , order_status
     , order_quantity
     , order_date
@@ -36,9 +37,10 @@ WITH{#
   SELECT
       order_id::text AS order_id
     , product_order_id::text AS product_order_id
-    , (CASE WHEN delivery_type = 7 THEN 'shop9000' ELSE 'shop0055' END) AS shop_id
+    , (CASE WHEN delivery_type = 7 THEN 'chop0029' ELSE 'shop0055' END) AS shop_id
     , channel_seq::text AS account_no
     , product_id
+    , product_quantity
     , order_status
     , order_quantity
     , order_date
@@ -50,9 +52,10 @@ WITH{#
   SELECT
       order_id::text AS order_id
     , NULL::text AS product_order_id
-    , 'shop9001' AS shop_id
+    , 'chop0027' AS shop_id
     , vendor_id AS account_no
     , product_id
+    , product_quantity
     , order_status
     , order_quantity
     , order_date
@@ -67,6 +70,7 @@ WITH{#
     , shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , order_quantity
     , order_date
@@ -92,6 +96,7 @@ WITH{#
   , COALESCE(account.corp_name, '사업자 없음') AS corp_name
   -- Item attributes
   , fact.product_id
+  , fact.product_quantity
   , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
   , COALESCE(item.item_seq, 99999999) AS item_seq
   , COALESCE(item.team_name, '담당팀 없음') AS team_name

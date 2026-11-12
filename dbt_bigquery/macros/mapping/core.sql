@@ -20,7 +20,7 @@ FROM UNNEST([
 {% macro core__order_status_mapping() -%}
 SELECT *
 FROM UNNEST([
-    STRUCT(0 AS seq, 0 AS code, '정상' AS label, 'sku_quantity, payment_amount, supply_amount, supply_cost, delivery_fee' AS metrics)
+    STRUCT(0 AS seq, 0 AS code, '정상' AS label, 'order_quantity, sku_quantity, payment_amount, supply_amount, supply_cost, delivery_fee' AS metrics)
   , STRUCT(1 AS seq, 1 AS code, '반품' AS label, 'delivery_fee' AS metrics)
   , STRUCT(2 AS seq, 2 AS code, '교환' AS label, 'supply_cost, delivery_fee' AS metrics)
   , STRUCT(3 AS seq, 3 AS code, '취소' AS label, '' AS metrics)

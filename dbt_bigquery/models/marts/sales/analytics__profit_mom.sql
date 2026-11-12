@@ -34,6 +34,7 @@ sales_ds_range AS (
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -48,7 +49,7 @@ sales_ds_range AS (
     , MAX(order_date) AS order_end_date
     , DATE_TRUNC(DS_END_DATE, MONTH) AS order_ym
   FROM {{ ref('analytics__profit_base') }}(DS_START_DATE, DS_END_DATE)
-  GROUP BY shop_id, account_no, product_id, order_status
+  GROUP BY shop_id, account_no, product_id, product_quantity, order_status
 ),
 
 -- Step 2: aggregate monthly sales for dates before the DS_END_DATE month
@@ -58,6 +59,7 @@ sales_monthly_lookback AS (
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , SUM(sku_quantity) AS sku_quantity
     , SUM(payment_amount) AS payment_amount
@@ -75,7 +77,7 @@ sales_monthly_lookback AS (
       DATE_TRUNC(DATE_SUB(DS_END_DATE, INTERVAL DS_INTERVAL_MONTH MONTH), MONTH)
     , DATE_SUB(DATE_TRUNC(DS_END_DATE, MONTH), INTERVAL 1 DAY)
   )
-  GROUP BY DATE_TRUNC(order_date, MONTH), shop_id, account_no, product_id, order_status
+  GROUP BY DATE_TRUNC(order_date, MONTH), shop_id, account_no, product_id, product_quantity, order_status
 ),
 
 -- Step 4: combine monthly sales and add custom metrics for reporting
@@ -85,6 +87,7 @@ sales_monthly AS (
       fact.shop_id
     , fact.account_no
     , fact.product_id
+    , fact.product_quantity
     , fact.order_status
     -- Primary metrics
     , fact.profit
@@ -97,8 +100,8 @@ sales_monthly AS (
     , fact.margin_amount
     -- Ad metrics
     , fact.ad_cost
-    , IF(fact.shop_id IN ('shop0055', 'shop9000'), fact.ad_cost, 0) AS ad_cost__searchad
-    , IF(fact.shop_id IN ('shop0075', 'shop9001'), fact.ad_cost, 0) AS ad_cost__coupang
+    , IF(fact.shop_id IN ('shop0055', 'chop0029'), fact.ad_cost, 0) AS ad_cost__searchad
+    , IF(fact.shop_id IN ('shop0075', 'chop0027'), fact.ad_cost, 0) AS ad_cost__coupang
     , IF(fact.shop_id = 'adop0001', fact.ad_cost, 0) AS ad_cost__google
     , IF(fact.shop_id = 'adop0002', fact.ad_cost, 0) AS ad_cost__meta
     , IF(fact.shop_id = 'adop0006', fact.ad_cost, 0) AS ad_cost__tiktok
@@ -130,6 +133,7 @@ sales_monthly_unpivot AS (
       shop_id
     , account_no
     , product_id
+    , product_quantity
     , order_status
     , metric_name
     , metric_value
@@ -175,6 +179,7 @@ profit_mom AS (
     , COALESCE(account.corp_name, '사업자 없음') AS corp_name
     -- Item attributes
     , fact.product_id
+    , fact.product_quantity
     , COALESCE(item.item_id, 'NA-AAAAAA-00') AS item_id
     , COALESCE(item.item_seq, 99999999) AS item_seq
     , COALESCE(item.team_name, '담당팀 없음') AS team_name

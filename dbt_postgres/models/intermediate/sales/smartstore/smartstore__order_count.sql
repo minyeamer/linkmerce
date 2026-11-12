@@ -83,8 +83,13 @@ WITH{#
         , (string_to_array(bundle_product, ':'))[1]
       ) AS product_id
     , (CASE
+        WHEN split_part(bundle_product, ':', 2) ~ '^[0-9]+$'
+          THEN split_part(bundle_product, ':', 2)::integer
+        ELSE 1
+      END) AS product_quantity
+    , (CASE
         WHEN (ord.order_status = 0) AND (LEFT(bundle_product, 1) = '9')
-          THEN 3
+          THEN 6
         ELSE ord.order_status
       END) AS order_status
     , ord.delivery_type
@@ -103,12 +108,15 @@ WITH{#
     , product_order_id
     , channel_seq
     , product_id
+    , product_quantity
     , delivery_type
     , order_status
     , SUM(order_quantity) AS order_quantity
     , order_date
   FROM exploded_product_order
-  GROUP BY order_id, product_order_id, order_date, channel_seq, product_id, delivery_type, order_status
+  GROUP BY
+    order_id, product_order_id, order_date, channel_seq,
+    product_id, product_quantity, delivery_type, order_status
 ){#
 
 #} SELECT * FROM order_count

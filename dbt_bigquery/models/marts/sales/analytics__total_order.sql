@@ -113,7 +113,7 @@ LEFT JOIN sabangnet__order_status AS cor
   ON ord.order_id = cor.order_id
 {# -- Filter orders
 #}WHERE ord.order_dt >= DS_START_DATETIME AND ord.order_dt <= DS_END_DATETIME
-  AND acc.shop_id NOT IN ('shop0055', 'chop0022', 'chop0027', 'chop0028', 'chop0029')
+  AND NOT COALESCE(acc.exclude_sales, FALSE)
 ),{#
 
 -- Step 2: apply bundle product rules
@@ -138,7 +138,6 @@ FROM (
     , ({{ sabangnet__order_status_rules() }}) AS order_status
     {# -- Sales metrics
   #}, order_quantity
-    , ({{ sabangnet__sku_quantity_rules() }}) AS sku_quantity
     , ({{ sabangnet__payment_amount_rules() }}) AS payment_amount
     , ({{ sabangnet__net_rate_rules() }}) AS net_rate
     {# -- Sales partition key
@@ -793,7 +792,7 @@ FROM (
 SELECT
     CAST(order_id AS STRING) AS order_id
   , CAST(product_order_id AS STRING) AS product_order_id
-  , IF(delivery_type = 7, 'shop9000', 'shop0055') AS shop_id
+  , IF(delivery_type = 7, 'chop0029', 'shop0055') AS shop_id
   , CAST(channel_seq AS STRING) AS account_no
   , product_id
   , order_status
@@ -894,7 +893,7 @@ SELECT
   {# -- Sales partition key
 #}, DATETIME(ord.sales_date) AS order_dt
 FROM coupang_rfm__rocket_sales_shipping AS ord
-LEFT JOIN {{ source('relation', 'cpg_opt_to_sbn_ids') }} AS rel
+LEFT JOIN {{ source('relation', 'cpg_itm_to_sbn_ids') }} AS rel
   ON ord.option_id = rel.option_id
 LEFT JOIN {{ source('coupang', 'vendor') }} AS vdr
   ON ord.vendor_id = vdr.vendor_id
@@ -1018,7 +1017,7 @@ FROM (
 SELECT
     CAST(order_id AS STRING) AS product_order_id
   , CAST(NULL AS STRING) AS product_order_id
-  , 'shop9001' AS shop_id
+  , 'chop0027' AS shop_id
   , vendor_id AS account_no
   , product_id
   , order_status
