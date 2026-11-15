@@ -113,6 +113,7 @@ WITH{#
     , account_no
     , product_id
     , option_id
+    , 1 AS product_quantity
     , bundle_option_ids
     , order_status
     , order_quantity
@@ -177,7 +178,7 @@ WITH{#
     , ord.order_date
   FROM bundle_product_order AS ord
   CROSS JOIN LATERAL unnest(string_to_array(ord.bundle_option_ids, ',')) AS t(bundle_option)
-  WHERE ord.bundle_option_ids IS NULL
+  WHERE ord.bundle_option_ids IS NOT NULL
 ),{#
 
 -- Step 4: attach cost data

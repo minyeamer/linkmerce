@@ -121,6 +121,7 @@ bundle_product_order AS (
       , account_no
       , product_id
       , option_id
+      , 1 AS product_quantity
       , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
       , ({{ sabangnet__order_status_rules() }}) AS order_status
       -- Sales metrics
@@ -165,7 +166,7 @@ exploded_product_order AS (
     , ord.order_date
   FROM bundle_product_order AS ord
   CROSS JOIN UNNEST(SPLIT(ord.bundle_option_ids, ',')) AS bundle_option
-  WHERE ord.bundle_option_ids IS NULL
+  WHERE ord.bundle_option_ids IS NOT NULL
 ),
 
 -- Step 4: attach cost data
@@ -197,7 +198,7 @@ product_order_with_cost_data AS (
       -- Sales partition key
       , ord.order_date
     FROM (
-      (SELECT * EXCEPT (bundle_option_ids, order_quantity)
+      (SELECT * EXCEPT (bundle_option_ids)
       FROM bundle_product_order
       WHERE bundle_option_ids IS NULL)
       UNION ALL

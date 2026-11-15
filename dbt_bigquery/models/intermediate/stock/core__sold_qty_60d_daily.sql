@@ -55,7 +55,7 @@ smartstore_sold_qty_daily AS (
     SELECT
         COALESCE(map.delivery_product_id, sales.product_id) AS product_id
       , IF(sales.delivery_type = 7, 1, 0) AS group_id
-      , sales.sold_qty
+      , sales.product_quantity * sales.order_quantity AS sold_qty
       , sales.order_date
     FROM {{ ref('smartstore__sales_daily') }} AS sales
     LEFT JOIN delivery_product_mapping AS map
@@ -73,7 +73,7 @@ coupang_rfm_sold_qty_daily AS (
   SELECT
       product_id
     , 2 AS group_id
-    , SUM(sold_qty) AS sold_qty
+    , SUM(product_quantity * order_quantity) AS sold_qty
     , order_date
   FROM {{ ref('coupang_rfm__sales_daily') }}
   WHERE (order_date

@@ -81,6 +81,7 @@ bundle_product_order AS (
       , ({{ sabangnet__shop_id_rules() }}) AS shop_id
       , account_no
       , product_id
+      , 1 AS product_quantity
       , ({{ sabangnet__bundle_option_rules() }}) AS bundle_option_ids
       , ({{ sabangnet__order_status_rules() }}) AS order_status
       , order_quantity

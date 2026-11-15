@@ -1,4 +1,4 @@
-﻿{{
+{{
   config(
     materialized = 'incremental',
     schema = 'xfm_sales',
@@ -297,8 +297,6 @@ coupang_product_daily AS (
     FROM (
       (SELECT * FROM coupang_rfm_sales_daily)
       UNION ALL
-      (SELECT * FROM coupang_sales_daily)
-      UNION ALL
       (SELECT * FROM sabangnet_sales_daily WHERE shop_id = 'shop0075')
     ) AS t_
     GROUP BY order_date, product_id, shop_id
@@ -323,8 +321,6 @@ coupang_brand_daily AS (
       , SUM(cpg.payment_amount) AS payment_amount
     FROM (
       (SELECT * FROM coupang_rfm_sales_daily)
-      UNION ALL
-      (SELECT * FROM coupang_sales_daily)
       UNION ALL
       (SELECT * FROM sabangnet_sales_daily WHERE shop_id = 'shop0075')
     ) AS cpg

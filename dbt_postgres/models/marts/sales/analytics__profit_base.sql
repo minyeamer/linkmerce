@@ -65,7 +65,7 @@ WITH{#
       shop_id
     , '0' AS account_no
     , product_id
-    , product_quantity
+    , 1 AS product_quantity
     , 0 AS order_status
     , 0 AS order_quantity
     , 0 AS sku_quantity

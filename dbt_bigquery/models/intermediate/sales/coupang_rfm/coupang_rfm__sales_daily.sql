@@ -184,36 +184,32 @@ exploded_product_order AS (
 
 product_order_with_delivery_extra AS (
   SELECT
-      *
+      ord.order_id
+    , ord.option_id
+    -- Sales dimensions
+    , ord.vendor_id
+    , ord.product_id
+    , ord.product_quantity
+    , ord.order_status
+    -- Sales metrics
+    , ord.order_quantity
+    , ord.payment_amount
+    , ord.supply_amount
+    , ord.org_price * ord.product_quantity * ord.order_quantity AS supply_cost
+    , (COALESCE(MAX(dlv.extra_cost) OVER (PARTITION BY order_id, option_id), 0)
+      + ord.delivery_fee) AS delivery_fee
+    -- Sales partition key
+    , ord.order_date
     -- Allocation metrics
-    , COUNT(*) OVER (PARTITION BY order_id, option_id) AS bundle_product_count
-    , CAST(IF(order_status = 6, 0, org_price * product_quantity * order_quantity) AS NUMERIC) AS cost_amount
-  FROM (
-    SELECT
-        ord.order_id
-      , ord.option_id
-      -- Sales dimensions
-      , ord.vendor_id
-      , ord.product_id
-      , ord.product_quantity
-      , ord.order_status
-      -- Sales metrics
-      , ord.order_quantity
-      , ord.payment_amount
-      , ord.supply_amount
-      , ord.org_price * ord.product_quantity * ord.order_quantity AS supply_cost
-      , (COALESCE(MAX(dlv.extra_cost) OVER (PARTITION BY order_id, option_id), 0)
-        + ord.delivery_fee) AS delivery_fee
-      -- Sales partition key
-      , ord.order_date
-    FROM exploded_product_order AS ord
-    LEFT JOIN product_delivery_unit AS unit
-      ON ord.product_id = unit.product_id
-    LEFT JOIN delivery_group AS dlv
-      ON ord.delivery_group = dlv.delivery_group
-        AND (ord.product_quantity * ord.order_quantity * COALESCE(unit.unit, 1)
-          BETWEEN dlv.min_unit AND dlv.max_unit)
-  ) AS t_
+    , COUNT(*) OVER (PARTITION BY ord.order_id, ord.option_id) AS bundle_product_count
+    , CAST(IF(order_status = 6, 0, ord.org_price * ord.product_quantity * ord.order_quantity) AS NUMERIC) AS cost_amount
+  FROM exploded_product_order AS ord
+  LEFT JOIN product_delivery_unit AS unit
+    ON ord.product_id = unit.product_id
+  LEFT JOIN delivery_group AS dlv
+    ON ord.delivery_group = dlv.delivery_group
+      AND (ord.product_quantity * ord.order_quantity * COALESCE(unit.unit, 1)
+        BETWEEN dlv.min_unit AND dlv.max_unit)
 ),
 
 -- Step 4: allocate amounts across bundle products by cost weight

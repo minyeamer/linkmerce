@@ -26,7 +26,7 @@ FROM {{ source('coupang', 'vendor') }}{#
 #} UNION ALL{#
 
 #} SELECT
-    IF(site_type = 1, 'shop0067', 'shop0068') AS shop_id
+    (CASE WHEN site_type = 1 THEN 'shop0067' ELSE 'shop0068' END) AS shop_id
   , seller_id AS account_no
   , corp_name
 FROM {{ source('ebay', 'seller') }}{#
