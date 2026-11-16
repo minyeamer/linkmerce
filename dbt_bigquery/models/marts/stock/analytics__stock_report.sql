@@ -200,6 +200,7 @@ stock_report_with_remain_days AS (
     , report.expiration_date
     -- Stock metrics (total)
     , report.stock_qty
+    , report.sold_qty_60d
     , COALESCE(
         CAST(ROUND(report.avg_sold_qty_60d, 0) AS INT64)
       , 0) AS avg_sold_qty_60d
