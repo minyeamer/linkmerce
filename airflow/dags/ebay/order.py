@@ -67,7 +67,7 @@ with DAG(
         validate_cookies(credentials)
         return main(**credentials, **configs,
             start_date = format_datetime(kwargs, subdays=30),
-            end_date = format_datetime(kwargs, subdays=0),
+            end_date = format_datetime(kwargs, subdays=-1),
         )
 
     def main(
