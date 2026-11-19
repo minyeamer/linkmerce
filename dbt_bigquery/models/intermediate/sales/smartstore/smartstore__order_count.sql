@@ -15,11 +15,11 @@
 
 WITH
 
+-- order_status IN (0, 1, 2, 3, 5, 6)
+
 product_renewal_mapping AS (
   {{ core__product_renewal_mapping() }}
 ),
-
--- order_status IN (0, 1, 2, 3, 5, 6)
 
 order_status_smt AS (
   SELECT
@@ -42,7 +42,7 @@ order_status_cor AS (
   GROUP BY cor.order_id
 ),
 
-bundle_product_order AS (
+order_detail AS (
   SELECT
       ord.order_id
     , ord.product_order_id
@@ -95,7 +95,7 @@ exploded_product_order AS (
       END) AS order_status
     , ord.order_quantity
     , ord.order_date
-  FROM bundle_product_order AS ord
+  FROM order_detail AS ord
   CROSS JOIN UNNEST(SPLIT(ord.bundle_product_ids, ',')) AS bundle_product
   LEFT JOIN product_renewal_mapping AS renewal
     ON SPLIT(bundle_product, ':')[SAFE_OFFSET(0)] = renewal.product_id_new

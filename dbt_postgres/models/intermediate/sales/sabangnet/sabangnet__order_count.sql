@@ -35,8 +35,6 @@ WITH{#
   GROUP BY cor.order_id
 ),{#
 
--- Step 1: prepare orders
-
 #} order_detail AS (
   SELECT
       ord.order_id
@@ -68,9 +66,7 @@ WITH{#
     AND acc.exclude_sales IS NOT TRUE
 ),{#
 
--- Step 2: apply bundle product rules
-
-#} bundle_product_order AS (
+#} bundle_option_order AS (
   SELECT *
   FROM (
     SELECT
@@ -89,8 +85,6 @@ WITH{#
   WHERE shop_id != 'chop9022'
 ),{#
 
--- Step 3: explode orders with bundle options
-
 #} exploded_product_order AS (
   SELECT
       ord.order_id
@@ -107,7 +101,7 @@ WITH{#
     , ord.order_status
     , ord.order_quantity
     , ord.order_date
-  FROM bundle_product_order AS ord
+  FROM bundle_option_order AS ord
   CROSS JOIN LATERAL unnest(string_to_array(ord.bundle_option_ids, ',')) AS t(bundle_option)
   WHERE ord.bundle_option_ids IS NOT NULL
 ),{#
@@ -124,7 +118,7 @@ WITH{#
     , SUM(order_quantity) AS order_quantity
     , order_date
   FROM (
-    (SELECT * FROM bundle_product_order WHERE bundle_option_ids IS NULL)
+    (SELECT * FROM bundle_option_order WHERE bundle_option_ids IS NULL)
     UNION ALL
     (SELECT * FROM exploded_product_order)
   ) AS t_

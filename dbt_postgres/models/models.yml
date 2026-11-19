@@ -114,14 +114,6 @@ models:
   - name: "relation__nsh_prd_to_grp_id"
     description: "네이버 판매처별 상품코드와 카테고리 그룹을 4단계로 매칭한 모델"
 
-  # intermediate > delivery
-
-  - name: "cj__invoice"
-    description: "CJ 로이스파셀/eFLEXs 송장 데이터를 매출에 붙이기 위해 송장번호 단위로 운임과 부자재금액을 집계한 모델"
-
-  - name: "cj__invoice_order"
-    description: "CJ 로이스파셀/eFLEXs 송장 데이터를 매출에 붙이기 위해 주문번호 단위로 운임과 부자재금액을 집계한 모델"
-
   # intermediate > sales
 
   - name: "core__sales_daily"
@@ -273,12 +265,6 @@ models:
 
   - name: "analytics__sales_summary"
     description: "지정된 기간에 대한 특정 쇼핑몰의 계정별 결제금액을 일별로 조회하는 테이블 함수"
-
-  - name: "analytics__sales_target"
-    description: "브랜드와 채널별로 전월 매출, 당월 매출, 당월 목표매출을 비교하기 위한 뷰 테이블"
-
-  - name: "analytics__total_order"
-    description: "사방넷, 스마트스토어, 쿠팡 로켓 주문내역을 주문일시를 포함해 가공하고 상품/쇼핑몰 마스터 테이블을 결합한 테이블 함수"
 
   # marts > stock
 

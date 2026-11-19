@@ -232,19 +232,19 @@
 {%- endmacro %}
 
 {% macro pg_batch_start_date() -%}
-  {% if var('batch_size') | int > 0 %}
+  {%- if var('batch_size') | int > 0 -%}
     __dbt_batch_start_date__
-  {% else %}
+  {%- else -%}
     DATE {{ dbt.string_literal(var('ds_start_date')) }}
-  {% endif %}
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro pg_batch_end_date() -%}
-  {% if var('batch_size') | int > 0 %}
+  {%- if var('batch_size') | int > 0 -%}
     __dbt_batch_end_date__
-  {% else %}
+  {%- else -%}
     DATE {{ dbt.string_literal(var('ds_end_date')) }}
-  {% endif %}
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro pg_partition_date_array(partition_dates) -%}
