@@ -1,6 +1,7 @@
 {% macro split_sales_amounts(
   input_dimensions,
   order_partitions,
+  agg_func = 'max',
   input_cte_name = 'exploded_product_order',
   output_cte_name = 'adjusted_product_order'
 ) %}
@@ -14,7 +15,13 @@
 -- It retains the input dimensions and sales metrics,
 -- adjusts payment_amount and supply_amount across bundled products,
 -- and carries supply_cost and cost_amount forward.
+
+-- agg_func: 'max' for repeated totals; 'sum' for amounts stored once.
 -#}
+
+{%- if agg_func not in ['sum', 'max'] -%}
+  {{ exceptions.raise_compiler_error("agg_func must be 'sum' or 'max'.") }}
+{%- endif -%}
 
 {%- if not order_partitions -%}
   {{ exceptions.raise_compiler_error("order_partitions must contain at least one column.") }}
@@ -76,8 +83,8 @@ product_order_with_bundle_count AS (
       -- Step 1: calculate cost weights within each order
       SELECT
           *
-        , SUM(payment_amount) OVER (PARTITION BY {{ order_partitions | join(', ') }}) AS total_payment_amount
-        , SUM(supply_amount) OVER (PARTITION BY {{ order_partitions | join(', ') }}) AS total_supply_amount
+        , {{ agg_func }}(payment_amount) OVER (PARTITION BY {{ order_partitions | join(', ') }}) AS total_payment_amount
+        , {{ agg_func }}(supply_amount) OVER (PARTITION BY {{ order_partitions | join(', ') }}) AS total_supply_amount
         , cost_amount / NULLIF(SUM(cost_amount) OVER (PARTITION BY {{ order_partitions | join(', ') }}), 0) AS cost_weight
         , ROW_NUMBER() OVER (
             PARTITION BY {{ order_partitions | join(', ') }}

@@ -26,7 +26,7 @@ WITH{#
 #} order_invoice AS (
   SELECT
       order_seq
-    , ANY_VALUE(invoice_no) AS invoice_no
+    , MAX(invoice_no) AS invoice_no
     , MAX(order_status) AS order_status
   FROM {{ source('sabangnet', 'order_invoice') }}
   WHERE order_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
@@ -47,8 +47,8 @@ WITH{#
 #} order_detail AS (
   SELECT
       ord.order_seq
-    , COALESCE(ord.order_id, '-') AS order_id
-    , COALESCE(sbn.invoice_no, '-') AS invoice_no
+    , ord.order_id
+    , sbn.invoice_no
     -- Sales dimensions
     , acc.shop_id
     , ord.account_no
@@ -196,7 +196,8 @@ WITH{#
 
 {{ split_sales_amounts(
     input_dimensions = input_dimensions,
-    order_partitions = ['account_no', 'order_id']
+    order_partitions = ['account_no', 'order_id'],
+    agg_func = 'sum'
 ) }},{#
 
 #} {{ split_delivery_fee(

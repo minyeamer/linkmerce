@@ -20,7 +20,7 @@ WITH
 order_delivery AS (
   SELECT
       product_order_id
-    , ANY_VALUE(invoice_no) AS invoice_no
+    , MAX(invoice_no) AS invoice_no
   FROM {{ source('smartstore', 'order_delivery') }}
   WHERE payment_dt >= DATETIME('{{ var("ds_start_date") }}')
     AND payment_dt < DATETIME(DATE_ADD(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
@@ -54,7 +54,7 @@ order_detail AS (
     -- Split partitions
     , ord.order_id
     , ord.product_order_id
-    , COALESCE(dlv.invoice_no, '-') AS invoice_no
+    , dlv.invoice_no
     -- Sales dimensions
     , ord.channel_seq
     , COALESCE(

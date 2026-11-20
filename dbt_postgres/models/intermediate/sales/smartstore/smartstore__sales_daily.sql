@@ -18,7 +18,7 @@ WITH{#
 #} order_delivery AS (
   SELECT
       product_order_id
-    , ANY_VALUE(invoice_no) AS invoice_no
+    , MAX(invoice_no) AS invoice_no
   FROM {{ source('smartstore', 'order_delivery') }}
   WHERE payment_dt >= {{ pg_batch_start_date() }}::timestamp without time zone
     AND payment_dt < ({{ pg_batch_end_date() }} + 1)::timestamp without time zone
@@ -52,7 +52,7 @@ WITH{#
     -- Split partitions
     , ord.order_id
     , ord.product_order_id
-    , COALESCE(dlv.invoice_no, '-') AS invoice_no
+    , dlv.invoice_no
     -- Sales dimensions
     , ord.channel_seq
     , COALESCE(
