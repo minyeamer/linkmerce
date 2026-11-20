@@ -185,6 +185,7 @@ class TestCoupangApi:
     - coupang.api.product.Category
     - coupang.api.order.Order
     - coupang.api.order.OrderDetail
+    - coupang.api.settlement.RevenueHistory
     - coupang.api.claim.ReturnRequest
     - coupang.api.claim.ReturnRequestDetail
     - coupang.api.claim.ReturnWithdraw
@@ -254,6 +255,13 @@ class TestCoupangApi:
         """쿠팡 마켓플레이스 교환 요청 목록 조회 결과를 변환하는 테스트."""
         from linkmerce.core.coupang.api.claim.transform import ExchangeRequest
         transformer_harness(ExchangeRequest).transform()
+
+    def test_revenue_history(self, transformer_harness: Harness, credentials: YamlReader):
+        """쿠팡 매출내역 조회 결과를 변환하는 테스트."""
+        from linkmerce.core.coupang.api.settlement.transform import RevenueHistory
+        transformer_harness(RevenueHistory).transform(
+            vendor_id = credentials("coupang.api.0")["vendor_id"],
+        )
 
     def test_rocket_inventory(self, transformer_harness: Harness):
         """쿠팡 로켓창고 재고 조회 결과를 변환하는 테스트."""

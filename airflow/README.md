@@ -252,6 +252,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 | `coupang_rocket_inventory` | 매일 `11:00`, `17:30`, `20:00` | 쿠팡 로켓그로스 재고현황 ETL |
 | `coupang_rocket_order` | 트리거 전용 | 쿠팡 로켓그로스 주문 ETL |
 | `coupang_rocket_sales` | 트리거 전용 | 쿠팡 로켓그로스 정산 리포트 ETL |
+| `coupang_settlement` | 매일 `08:50` | 쿠팡 매출 정산 현황 ETL |
 
 ### 이베이 (ebay)
 

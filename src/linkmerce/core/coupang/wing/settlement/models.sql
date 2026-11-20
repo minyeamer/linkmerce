@@ -136,8 +136,8 @@ SELECT
   -- , "옵션명" AS option_name
   , TRY_CAST("카테고리ID" AS INTEGER) AS category_id
   -- , "카테고리명" AS category_name
-  , (CASE WHEN "거래유형" = '주문 정산' THEN 0 WHEN "거래유형" = '주문 정산취소' THEN 1 ELSE 99 END) AS settlement_type
-  , (CASE WHEN "정산유형" = '주정산' THEN 0 WHEN "정산유형" = '월정산' THEN 1 ELSE 99 END) AS period_type
+  , (CASE "거래유형" WHEN '주문 정산' THEN 0 WHEN '주문 정산취소' THEN 1 ELSE 9 END) AS settlement_type
+  , (CASE "정산유형" WHEN '주정산' THEN 0 WHEN '월정산' THEN 1 ELSE 9 END) AS period_type
   , TRY_CAST("판매가(A)" AS INTEGER) AS unit_price
   , TRY_CAST("판매수량(B)" AS INTEGER) AS order_quantity
   -- , TRY_CAST("판매액(A*B)" AS INTEGER) AS order_amount
@@ -175,7 +175,7 @@ SELECT
       WHEN "거래유형" = '배송비 정산' THEN 4
       WHEN "거래유형" = '배송비 정산취소' THEN 5
       ELSE 99 END) AS settlement_type
-  , (CASE WHEN "정산유형" = '주정산' THEN 0 WHEN "정산유형" = '월정산' THEN 1 ELSE 99 END) AS period_type
+  , (CASE "정산유형" WHEN '주정산' THEN 0 WHEN '월정산' THEN 1 ELSE 9 END) AS period_type
   -- , TRY_CAST("단품 판매가" AS INTEGER) AS unit_price
   -- , TRY_CAST("단품 기준 구매 수량" AS INTEGER) AS unit_quantity
   -- , TRY_CAST("판매수량" AS INTEGER) AS order_quantity

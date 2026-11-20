@@ -253,6 +253,7 @@ class TestCoupangApi:
     - coupang.api.product.Category
     - coupang.api.order.Order
     - coupang.api.order.OrderDetail
+    - coupang.api.settlement.RevenueHistory
     - coupang.api.claim.ReturnRequest
     - coupang.api.claim.ReturnRequestDetail
     - coupang.api.claim.ReturnWithdraw
@@ -394,6 +395,19 @@ class TestCoupangApi:
             end_datetime = _configs.get("end_datetime", ":end_of_day:"),
             status = _configs.get("status", None),
             order_id = _configs.get("order_id", None),
+            max_retries = _configs.get("max_retries", 5),
+        )
+
+    def test_revenue_history(self, options: YamlReader, credentials: YamlReader, dump_extract: Callable, yesterday: dt.date):
+        """쿠팡 Open API로 매출내역을 수집하는 테스트."""
+        from linkmerce.core.coupang.api.settlement.extract import RevenueHistory
+        _configs = options("coupang.api.revenue_history")
+        RevenueHistory(
+            configs = self.credentials(credentials),
+            parser = dump_extract(RevenueHistory, format="json"),
+        ).extract(
+            start_date = _configs.get("start_date", yesterday),
+            end_date = _configs.get("end_date", ":start_date:"),
             max_retries = _configs.get("max_retries", 5),
         )
 

@@ -531,6 +531,27 @@ CREATE TABLE IF NOT EXISTS coupang.order_claim (
 ) PARTITION BY RANGE (order_dt);
 CREATE INDEX IF NOT EXISTS cpg_order_claim__order_idx ON coupang.order_claim (vendor_id, order_id);
 
+-- [쿠팡 매출 정산 현황]
+CREATE TABLE IF NOT EXISTS coupang.settlement (
+    vendor_id VARCHAR NOT NULL -- 업체코드
+  , order_id BIGINT NOT NULL -- 주문번호
+  , product_id BIGINT NOT NULL -- 상품코드
+  , option_id BIGINT NOT NULL -- 옵션코드
+  , settlement_type SMALLINT NOT NULL -- 매출유형
+  , order_quantity INTEGER -- 주문수량
+  , sales_price INTEGER -- 판매가
+  , sales_amount INTEGER -- 매출금액
+  , coupang_discount INTEGER -- 쿠팡지원할인금액
+  , seller_discount INTEGER -- 판매자할인쿠폰
+  , download_coupon_discount INTEGER -- 다운로드쿠폰
+  , service_fee INTEGER -- 서비스이용료
+  , settlement_amount INTEGER -- 정산금액
+  , paid_date DATE NOT NULL -- 결제완료일
+  , sales_date DATE -- 매출인식일
+  , settlement_date DATE -- 지급예정일
+  , PRIMARY KEY (paid_date, vendor_id, order_id, option_id, settlement_type)
+) PARTITION BY RANGE (paid_date);
+
 -- [쿠팡 반품 및 취소 요청]
 CREATE TABLE IF NOT EXISTS coupang.return_request (
     vendor_id TEXT NOT NULL -- 업체코드
@@ -2033,6 +2054,7 @@ SELECT public.bootstrap_daily_partitions('coupang.order',		              'order_
 SELECT public.bootstrap_daily_partitions('coupang.order_delivery',		    'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.order_detail',		      'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.order_claim',		        'order_dt',				    '2021-10-15 00:00:00',  '1 day',  35);
+SELECT public.bootstrap_daily_partitions('coupang.settlement',		        'paid_date',				  '2021-10-06',           '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.return_request',		    'register_dt',				'2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.return_withdraw',		    'cancel_dt',				  '2021-10-15 00:00:00',  '1 day',  35);
 SELECT public.bootstrap_daily_partitions('coupang.exchange_request',		  'register_dt',				'2021-10-15 00:00:00',  '1 day',  35);

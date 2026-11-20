@@ -1,5 +1,4 @@
 from __future__ import annotations
-import datetime as dt
 
 from linkmerce.core.coupang.api import CoupangApi
 
@@ -7,6 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Literal, Iterable
+    import datetime as dt
 
 
 class Order(CoupangApi):

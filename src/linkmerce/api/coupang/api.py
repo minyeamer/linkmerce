@@ -714,6 +714,72 @@ def order_detail(
     )).extract(query_id, query_type, max_retries)
 
 
+@with_duckdb_connection(table="coupang_revenue_history")
+def revenue_history(
+        access_key: str,
+        secret_key: str,
+        vendor_id: str,
+        start_date: dt.date | str,
+        end_date: dt.date | str | Literal[":start_date:"] = ":start_date:",
+        max_retries: int = 5,
+        *,
+        connection: DuckDBConnection | None = None,
+        request_delay: float | int | tuple[int, int] = 0.3,
+        return_type: Literal["csv", "json", "parquet", "raw", "none"] = "json",
+        extract_options: dict | None = None,
+        transform_options: dict | None = None,
+    ) -> DuckDBResult | list[dict] | None:
+    """쿠팡 마켓플레이스 매출내역을 수집해 DuckDB 테이블에 변환 및 적재한다.
+
+    **Table** ( *table_key: table_name* ):
+        `table: coupang_revenue_history`
+
+    Parameters
+    ----------
+    access_key: str
+        쿠팡 Open API 액세스 키
+    secret_key: str
+        쿠팡 Open API 시크릿 키
+    vendor_id: str
+        업체 코드
+    start_date: dt.date | str
+        매출인식 시작일. `dt.date` 객체 또는 `"yyyy-MM-dd"` 형식의 문자열을 입력한다.
+    end_date: dt.date | str
+        매출인식 종료일. `dt.date` 객체 또는 `"yyyy-MM-dd"` 형식의 문자열을 입력한다.
+        판매와 반품을 포함한 기간을 함께 조회해야 하며, 동일 키는 이번 조회 기간의 순정산금액으로 갱신한다.
+            - `":start_date:"`: `start_date`와 동일한 날짜 (기본값)
+    max_retries: int
+        동시 요청 제한이 발생할 경우 최대 재시도 횟수. 기본값은 `5`
+    connection: DuckDBConnection | None
+        사용할 DuckDB 연결. 생략하면 실행 중 임시 연결을 생성하고 실행 종료 후 닫는다.
+    request_delay: float | int | tuple[int, int]
+        커서 요청 간 대기 시간(초). 기본값은 `0.3`
+    return_type: Literal["csv", "json", "parquet", "raw", "none"]
+        반환 형식. **Returns** 문단을 참고한다.
+    extract_options: dict | None
+        `Extractor` 초기화 옵션
+    transform_options: dict | None
+        `Transformer` 초기화 옵션
+
+    Returns
+    -------
+    DuckDBResult | list[dict] | None
+        `return_type`에 따라 다음 형식 중 하나로 결과를 반환한다.
+            - `"csv"`: 테이블 조회 결과를 CSV 형식의 `list[tuple]`로 반환한다.
+            - `"json"`: 테이블 조회 결과를 JSON 형식의 `list[dict]`로 반환한다. (기본값)
+            - `"parquet"`: 테이블 조회 결과를 Parquet 바이너리로 반환한다.
+            - `"raw"`: 데이터 수집 후 `dict` 또는 `list[dict]` 형식의 원본 응답을 반환한다.
+            - `"none"`: 모든 과정을 수행한 후 `None`을 반환한다.
+    """
+    from linkmerce.core.coupang.api.settlement.extract import RevenueHistory
+    from linkmerce.core.coupang.api.settlement.transform import RevenueHistory as T
+    return RevenueHistory(**prepare_duckdb_extract(
+        T, connection, extract_options, transform_options, return_type,
+        configs = _get_api_configs(access_key, secret_key, vendor_id),
+        options = {"CursorAll": {"request_delay": request_delay}},
+    )).extract(start_date, end_date, max_retries)
+
+
 @with_duckdb_connection(table="coupang_rocket_inventory")
 def rocket_inventory(
         access_key: str,

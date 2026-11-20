@@ -185,6 +185,10 @@ coupang/
 │   │   └── Category(CoupangApi)::extract
 │   │       └── Category(DuckDBTransformer)::transform
 │   │           └── CategoryParser(JsonTransformer)::transform
+│   ├── settlement/
+│   │   └── RevenueHistory(CoupangApi)::extract
+│   │       └── RevenueHistory(DuckDBTransformer)::transform
+│   │           └── RevenueHistoryParser(JsonTransformer)::transform
 │   └── rocket_growth/
 │       ├── Inventory(CoupangApi)::extract
 │       │   └── Inventory(DuckDBTransformer)::transform >> json

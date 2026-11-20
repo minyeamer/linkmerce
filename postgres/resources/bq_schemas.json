@@ -413,6 +413,25 @@
     {"name": "last_order_dt", "type": "DATETIME", "description": "최종주문일시"},
     "CLUSTER BY vendor_id"
   ],
+  "coupang.settlement": [
+    {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},
+    {"name": "order_id", "type": "INTEGER", "description": "주문번호", "mode": "REQUIRED"},
+    {"name": "product_id", "type": "INTEGER", "description": "상품코드", "mode": "REQUIRED"},
+    {"name": "option_id", "type": "INTEGER", "description": "옵션코드", "mode": "REQUIRED"},
+    {"name": "settlement_type", "type": "INTEGER", "description": "매출유형", "mode": "REQUIRED"},
+    {"name": "order_quantity", "type": "INTEGER", "description": "주문수량"},
+    {"name": "sales_price", "type": "INTEGER", "description": "판매가"},
+    {"name": "sales_amount", "type": "INTEGER", "description": "매출금액"},
+    {"name": "coupang_discount", "type": "INTEGER", "description": "쿠팡지원할인금액"},
+    {"name": "seller_discount", "type": "INTEGER", "description": "판매자할인쿠폰"},
+    {"name": "download_coupon_discount", "type": "INTEGER", "description": "다운로드쿠폰"},
+    {"name": "service_fee", "type": "INTEGER", "description": "서비스이용료"},
+    {"name": "settlement_amount", "type": "INTEGER", "description": "정산금액"},
+    {"name": "paid_date", "type": "DATE", "description": "결제완료일", "mode": "REQUIRED"},
+    {"name": "sales_date", "type": "DATE", "description": "매출인식일"},
+    {"name": "settlement_date", "type": "DATE", "description": "지급예정일"},
+    "CLUSTER BY vendor_id"
+  ],
   "coupang.return_request": [
     {"name": "vendor_id", "type": "STRING", "description": "업체코드", "mode": "REQUIRED"},
     {"name": "receipt_id", "type": "INTEGER", "description": "접수번호", "mode": "REQUIRED"},
