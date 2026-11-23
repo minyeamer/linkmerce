@@ -242,17 +242,15 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
-| `coupang` | 매일 `09:00`, `23:00` | 판매자별 로그인 후 시간대별 downstream Dag을 트리거하는 통합 오케스트레이터 |
-| `coupang_adreport` | 트리거 전용 | 쿠팡 광고 보고서 ETL |
-| `coupang_campaign` | 트리거 전용 | 쿠팡 광고 캠페인/광고그룹/소재 ETL |
+| `coupang_ads` | 매일 `09:05` | 쿠팡 광고 ETL |
 | `coupang_order` | 영업시간 10분 간격, 그 외 1시간 간격 | 주문, 상품주문, 옵션 목록 적재 |
 | `coupang_order_delivery` | 트리거 전용 | 주문 배송 내역 적재 |
 | `coupang_order_claim` | 매일 `00:30` | 반품/취소/교환 내역 적재 |
 | `coupang_product` | 평일 `23:00` | 쿠팡 상품 옵션 ETL |
 | `coupang_rocket_inventory` | 매일 `11:00`, `17:30`, `20:00` | 쿠팡 로켓그로스 재고현황 ETL |
 | `coupang_rocket_order` | 트리거 전용 | 쿠팡 로켓그로스 주문 ETL |
-| `coupang_rocket_sales` | 트리거 전용 | 쿠팡 로켓그로스 정산 리포트 ETL |
-| `coupang_settlement` | 매일 `08:50` | 쿠팡 매출 정산 현황 ETL |
+| `coupang_rocket_sales` | 매일 `09:00` | 쿠팡 로켓그로스 정산 리포트 ETL |
+| `coupang_settlement` | 매일 `08:30` | 쿠팡 매출 정산 현황 ETL |
 
 ### 이베이 (ebay)
 

@@ -133,3 +133,52 @@ def split_by_credentials(credentials: list[dict], shuffle: bool = False, **kwarg
     """각각의 인증 정보 목록에 키워드 인자의 값을 균등 분배한다."""
     from linkmerce.api.config import split_by_credentials
     return split_by_credentials(credentials, shuffle, **kwargs)
+
+
+def get_slack_file_text(
+        slack_conn_id: str,
+        channel_id: str,
+        file_name: str,
+        start_datetime: pendulum.DateTime,
+        end_datetime: pendulum.DateTime,
+        limit: int = 30,
+    ) -> str:
+    """Slack 채널에서 가장 최근에 전송된 `file_name` 명칭의 파일 내용을 가져온다."""
+    from airflow.providers.slack.hooks.slack import SlackHook
+    import requests
+
+    slack_hook = SlackHook(slack_conn_id=slack_conn_id)
+    token = slack_hook.get_conn().token
+
+    oldest, latest = start_datetime.timestamp(), end_datetime.timestamp()
+    cursor = None
+    while True:
+        params = {"channel": channel_id, "oldest": str(oldest), "latest": str(latest), "limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+        result = slack_hook.client.conversations_history(**params)
+        for message in result.get("messages") or list():
+            if not oldest <= float(message["ts"]) < latest:
+                continue
+            for file in (message.get("files") or list()):
+                if not isinstance(file, dict):
+                    continue
+                url = file.get("url_private_download") or file.get("url_private")
+                name = file.get("name") or file.get("title") or str()
+                if not oldest <= float(file.get("created", message["ts"])) < latest:
+                    continue
+
+                if url and (name == file_name):
+                    with requests.get(
+                        url,
+                        headers = {"Authorization": f"Bearer {token}"},
+                        timeout = 30,
+                    ) as response:
+                        response.raise_for_status()
+                        return response.text.strip()
+        cursor = (result.get("response_metadata") or dict()).get("next_cursor")
+        if not cursor:
+            break
+
+    from linkmerce.common.exceptions import AuthenticationError
+    raise AuthenticationError(f"No message found containing the filename {file_name}.")

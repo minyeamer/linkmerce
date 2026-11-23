@@ -126,7 +126,6 @@ def login_coupang(
         return get_browser_cookies(
             context,
             urls = ["https://advertising.coupang.com"],
-            requires = ["aid"],
             err_msg = "Failed to login in to Coupang Ads.",
         )
 

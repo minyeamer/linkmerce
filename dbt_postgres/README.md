@@ -531,12 +531,10 @@ airflow/dags/
 │   ├── eflexs_stock.py (cj_eflexs_stock)
 │   └── loisparcel_invoice.py (cj_loisparcel_invoice)
 ├── coupang/
-│   ├── downstream/
-│   │   ├── adreport.py (coupang_adreport)
-│   │   ├── campaign.py (coupang_campaign)
-│   │   └── rocket_sales.py (coupang_rocket_sales)
+│   ├── ads.py (coupang_ads)
 │   ├── order.py (coupang_order)
-│   └── rocket_inventory.py (coupang_rocket_inventory)
+│   ├── rocket_inventory.py (coupang_rocket_inventory)
+│   └── rocket_sales.py (coupang_rocket_sales)
 ├── ecount/
 │   ├── inventory.py (ecount_inventory)
 │   └── product.py (ecount_product)

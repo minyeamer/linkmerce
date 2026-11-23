@@ -21,7 +21,7 @@ import pendulum
 
 with DAG(
     dag_id = "coupang_settlement",
-    schedule = "50 8 * * *",
+    schedule = "30 8 * * *",
     start_date = pendulum.datetime(2026, 11, 21, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=10),
     catchup = False,

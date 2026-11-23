@@ -51,7 +51,10 @@ SCHEDULED_DAGS = {
     "google_ads": last_cron_utc("50 7 * * *"), # 07:50 KST
     "meta_ads": last_cron_utc("40 7 * * *"), # 07:40 KST
     "ebay_auction_ads": last_cron_utc("20 8 * * *"), # 08:20 KST
+    "coupang_settlement": last_cron_utc("30 8 * * *"), # 08:30 KST
     "ebay_gmarket_ads": last_cron_utc("40 8 * * *"), # 08:40 KST
+    "coupang_rocket_sales": last_cron_utc("0 9 * * *"), # 09:00 KST
+    "coupang_ads": last_cron_utc("5 9 * * *"), # 09:05 KST
     "ebay_item": last_cron_utc("10 23 * * *"), # 23:10 KST
     "naver_connect_sales": last_cron_utc("10 8 * * *"), # 08:10 KST
     "naver_hcenter_login": last_cron_utc("0 1 * * *"), # 01:00 KST
@@ -68,7 +71,6 @@ SCHEDULED_DAGS = {
     "naver_shop_rank": last_cron_utc("0 6-18 * * *"), # 06~18시 정각
     "naver_cafe_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     "naver_main_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
-    "coupang": last_cron_utc("0 9,23 * * *"), # 09시, 23시 정각
     # 평일(월-금)만 ───────────────────────────────────────────────────────────
     "sabangnet_account": last_cron_utc("20 22 * * 1-5"), # 22:20 KST
     "cafe24_product": last_cron_utc("50 22 * * 1-5"), # 22:50 KST

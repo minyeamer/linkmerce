@@ -1,14 +1,16 @@
 """
 # 쿠팡 로켓그로스 정산 리포트 ETL 파이프라인
 
-> 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+> 안내1) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+
+> 안내2) 미리 발급받은 쿠키를 사용하는 방식으로 변경하면서 기존 로그인 방식 사용 중지 (~ v1.0.24)
 
 ## 인증(Credentials)
 'coupang' Dag에서 Playwright 브라우저로 쿠팡 Wing 로그인 후 쿠키를 추출한다.
 쿠키(cookies)와 업체코드(vendor_id)를 딕셔너리로 묶어 'dag_run.conf'를 통해 전달받는다.
 
 ## 추출(Extract)
-실행 시점(data_interval_end)이 포함된 1주간 매출인식일 기준으로 집계된
+실행 시점(data_interval_end) 전일이 포함된 1주간 매출인식일 기준으로 집계된
 판매 수수료 리포트와 입출고비/배송비 리포트를 다운로드한다.
 (월요일부터 일요일까지를 한 주로 본다.)
 
@@ -37,7 +39,7 @@ with DAG(
     tags = [
         "priority:high", "platform:coupang-wing", "objective:sales", "credentials:cookies",
         "schedule:daily", "schedule:none", "time:morning", "write:merge",
-        "upstream:dagrun"
+        "upstream:dagrun", "status:deprecated"
     ],
 ) as dag:
 

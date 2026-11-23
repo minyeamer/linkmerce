@@ -32,9 +32,9 @@ with DAG(
     catchup = False,
     doc_md = __doc__,
     tags = [
-        "priority:high", "platform:naver-connect", "objective:ads", "credentials:cookie",
+        "priority:high", "platform:naver-connect", "objective:ads", "credentials:cookies",
         "schedule:daily", "time:morning", "write:append", "write:merge", "plugin:dbt",
-        "provider:slack"
+        "provider:slack", "upstream:extension"
     ],
 ) as dag:
 
@@ -53,15 +53,18 @@ with DAG(
 
     @task(task_id="etl_naver_connect_sales", map_index_template="{{ credentials['userid'] }}")
     def etl_naver_connect_sales(credentials: dict, configs: dict, **kwargs) -> dict:
-        from airflow_utils import format_datetime, get_datetime
+        from airflow_utils import format_datetime, get_slack_file_text
         from linkmerce.utils.regex import regexp_extract
+        today = pendulum.today("Asia/Seoul")
 
-        cookies = get_naver_cookies_from_slack(
+        cookies = get_slack_file_text(
             slack_conn_id = configs["slack_conn_id"],
             channel_id = configs["channel_id"],
-            userid = credentials["userid"],
-            datetime = get_datetime(kwargs),
+            file_name = "{}.txt".format(credentials["userid"]),
+            start_datetime = today.subtract(days=2),
+            end_datetime = today.add(days=1),
         )
+
         if (save_to := regexp_extract(r"Path\(([^)]+)\)", credentials["cookies"])):
             save_naver_cookies(cookies, save_to)
 
@@ -113,52 +116,6 @@ with DAG(
                     ),
                 },
             }
-
-
-    def fetch_slack_history(
-            slack_hook: SlackHook,
-            channel_id: str,
-            datetime: pendulum.DateTime,
-            limit: int = 30,
-        ) -> list:
-        """Slack 채널에서 전달된 날짜로부터 최근 3일간 전송된 메시지 목록을 가져온다."""
-        day_start = datetime.start_of("day")
-        oldest = str(day_start.subtract(days=2).timestamp())
-        latest = str(day_start.add(days=1).timestamp())
-
-        params = {"channel": channel_id, "oldest": oldest, "latest": latest, "limit": limit}
-        response = slack_hook.client.conversations_history(**params)
-        return response.get("messages") or list()
-
-
-    def get_naver_cookies_from_slack(
-            slack_conn_id: str,
-            channel_id: str,
-            userid: str,
-            datetime: pendulum.DateTime,
-            limit: int = 30,
-        ) -> str:
-        """Slack 채널에서 `{userid}.txt` 파일로 전송된 최신 네이버 쿠키를 가져온다."""
-        from linkmerce.common.exceptions import AuthenticationError
-        import requests
-
-        slack_hook = SlackHook(slack_conn_id=slack_conn_id)
-        messages: list[dict] = fetch_slack_history(slack_hook, channel_id, datetime, limit)
-        token = slack_hook.get_conn().token
-
-        for message in messages:
-            for file in (message.get("files") or list()):
-                if not isinstance(file, dict):
-                    continue
-                url = file.get("url_private_download") or file.get("url_private")
-                file_name = file.get("name") or file.get("title") or str()
-
-                if url and (file_name == f"{userid}.txt"):
-                    response = requests.get(url, headers={"Authorization": f"Bearer {token}"})
-                    response.raise_for_status()
-                    return response.text.strip()
-
-        raise AuthenticationError(f"No message found containing the filename {userid}.txt.")
 
 
     def save_naver_cookies(cookies: str, save_to: str | None = None, mkdir: bool = True):

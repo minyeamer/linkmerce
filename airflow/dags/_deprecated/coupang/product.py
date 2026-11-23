@@ -43,7 +43,7 @@ with DAG(
     tags = [
         "priority:medium", "platform:coupang-wing", "objective:product", "credentials:cookies",
         "schedule:daily", "schedule:none", "time:night", "write:merge",
-        "upstream:dagrun"
+        "upstream:dagrun", "status:deprecated"
     ],
 ) as dag:
 

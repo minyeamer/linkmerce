@@ -34,29 +34,25 @@ selectors:
           value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - coupang
-  - name: coupang_adreport
-    description: "'coupang' >> 'coupang_adreport' Dag 실행 후 쿠팡 광고 실적 변동을 매출에 반영"
+  - name: coupang_order_summary
+    description: "'coupang_order' Dag 실행 후 10분 단위로 쿠팡 주문 내역 변동을 매출 요약에 반영"
+    definition:
+      method: fqn
+      value: intermediate.sales.coupang.coupang__sales_summary
+
+  # Airflow Dags - coupang_ads
+  - name: coupang_ads
+    description: "'coupang_ads' Dag 실행 후 쿠팡 광고 목록 및 실적 변동을 매출에 반영"
     definition:
       union:
-        - method: fqn
-          value: intermediate.ads.coupang_ads.coupang_ads__insight_daily
+        - method: path
+          value: models/intermediate/ads/coupang_ads
         - method: fqn
           value: intermediate.sales.core__sales_daily
-  - name: coupang_campaign
-    description: "'coupang' >> 'coupang_campaign' Dag 실행 후 쿠팡 광고 목록 업데이트"
-    definition:
-      union:
-        - method: fqn
-          value: intermediate.ads.coupang_ads.coupang_ads__campaign_master
-        - method: fqn
-          value: intermediate.ads.coupang_ads.coupang_ads__adgroup_master
-        # `coupang_ads.creative` 테이블을 업데이트하는 경우 아래 후속 모델을 활성화한다.
-        # - method: fqn
-        #   value: intermediate.ads.coupang_ads.coupang_ads__insight_daily
-        # - method: fqn
-        #   value: intermediate.sales.core__sales_daily
+
+  # Airflow Dags - coupang_rfm
   - name: coupang_rocket_inventory
-    description: "'coupang' >> 'coupang_rocket_inventory' Dag 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
+    description: "'coupang_rocket_inventory' Dag 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
     definition:
       union:
         - method: fqn
@@ -68,18 +64,13 @@ selectors:
         - method: fqn
           value: intermediate.stock.core__stock_time_batch
   - name: coupang_rocket_sales
-    description: "'coupang' >> 'coupang_rocket_sales' Dag 실행 후 쿠팡 로켓정산 내역 변동을 매출에 반영"
+    description: "'coupang_rocket_sales' Dag 실행 후 쿠팡 로켓정산 내역 변동을 매출에 반영"
     definition:
       union:
         - method: path
           value: models/intermediate/sales/coupang_rfm
         - method: fqn
           value: intermediate.sales.core__sales_daily
-  - name: coupang_order_summary
-    description: "'coupang_order' Dag 실행 후 10분 단위로 쿠팡 주문 내역 변동을 매출 요약에 반영"
-    definition:
-      method: fqn
-      value: intermediate.sales.coupang.coupang__sales_summary
 
   # Airflow Dags - dable
   - name: dable_ads

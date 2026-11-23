@@ -1,6 +1,8 @@
 """
 # 쿠팡 Wing/광고 통합 ETL 파이프라인
 
+> 안내) 미리 발급받은 쿠키를 사용하는 방식으로 변경하면서 기존 로그인 방식 사용 중지 (~ v1.0.24)
+
 ## 동작 방식
 쿠팡 계정 목록을 순회하면서 한 번에 하나씩 [로그인 >> 5개의 SubDag 순차 실행] 사이클을 반복한다.
 (단, Dag ID가 'scheduled__'로 시작하는 Dag run은 실행 시간에 따라 일부 Dag만 선택적으로 실행된다.)
@@ -67,7 +69,7 @@ with DAG(
         "priority:high", "platform:coupang-wing", "platform:coupang-ads", "objective:login",
         "objective:ads", "objective:sales", "credentials:userid",
         "schedule:daily", "time:morning", "time:afternoon", "time:night",
-        "plugin:playwright", "plugin:rest-api", "plugin:dbt"
+        "plugin:playwright", "plugin:rest-api", "plugin:dbt", "status:deprecated"
     ],
 ) as dag:
 

@@ -1,7 +1,9 @@
 """
 # 쿠팡 광고 캠페인/광고그룹/소재 ETL 파이프라인
 
-> 안내) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+> 안내1) 쿠팡 통합 ETL을 제어하는 'coupang' Dag 실행 중 트리거된다.
+
+> 안내2) 미리 발급받은 쿠키를 사용하는 방식으로 변경하면서 기존 로그인 방식 사용 중지 (~ v1.0.24)
 
 ## 인증(Credentials)
 'coupang' Dag에서 Playwright 브라우저로 쿠팡 광고 로그인 후 쿠키를 추출한다.
@@ -37,7 +39,7 @@ with DAG(
     tags = [
         "priority:medium", "platform:coupang-ads", "objective:ads", "credentials:cookies",
         "schedule:daily", "schedule:none", "time:night", "write:merge",
-        "upstream:dagrun"
+        "upstream:dagrun", "status:deprecated"
     ],
 ) as dag:
 
