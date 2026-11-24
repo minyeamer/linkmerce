@@ -1,9 +1,11 @@
-FROM apache/airflow:3.3.0-python3.12
+FROM apache/airflow:3.4.0-python3.12
 
-# Set Korean locale to ensure proper handling of Korean text in HTTP responses
+# Install Playwright's Node driver runtime dependency.
 USER root
-RUN locale-gen ko_KR.UTF-8
-RUN localedef -f UTF-8 -i ko_KR ko_KR.UTF-8
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 USER airflow
 
 # Install uv (already included in the base image)
@@ -14,16 +16,16 @@ COPY pyproject.toml ./
 RUN uv pip compile pyproject.toml -o requirements.txt
 
 # Append extensions' dependencies to requirements.txt
-RUN echo "psycopg2-binary>=2.9.12" >> requirements.txt
-RUN echo "apache-airflow-providers-slack>=9.6.0" >> requirements.txt
+RUN echo "psycopg2-binary>=2.9.13" >> requirements.txt
+RUN echo "apache-airflow-providers-slack>=9.11.1" >> requirements.txt
 RUN echo "gspread>=6.2.1" >> requirements.txt
-RUN echo "google-cloud-bigquery>=3.35.0" >> requirements.txt
-RUN echo "pyarrow>=21.0.0" >> requirements.txt
-RUN echo "astronomer-cosmos==1.14.2" >> requirements.txt
-RUN echo "dbt-core==1.11.11" >> requirements.txt
-RUN echo "dbt-bigquery==1.11.1" >> requirements.txt
+RUN echo "google-cloud-bigquery>=3.47.0" >> requirements.txt
+RUN echo "pyarrow>=25.0.1" >> requirements.txt
+RUN echo "astronomer-cosmos==1.16.0" >> requirements.txt
+RUN echo "dbt-core==1.12.7" >> requirements.txt
+RUN echo "dbt-bigquery==1.12.4" >> requirements.txt
 RUN echo "dbt-postgres==1.11.0" >> requirements.txt
-RUN echo "playwright==1.63.0" >> requirements.txt
+RUN echo "playwright==1.65.1" >> requirements.txt
 
 # Install dependencies based on the requirements.txt file
 RUN pip install -r requirements.txt

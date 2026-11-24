@@ -28,8 +28,8 @@ Dag은 공통적으로 다음 흐름을 따른다.
 
 ## 한눈에 보기
 
-- **베이스 이미지**: `apache/airflow:3.3.0`
-- **핵심 의존성**: `linkmerce`, `gspread`, `google-cloud-bigquery`, `psycopg2-binary`, `playwright==1.63.0`, `astronomer-cosmos==1.14.2`, `dbt-bigquery==1.11.1`, `dbt-postgres==1.11.0`
+- **Airflow 이미지**: `linkmerce-airflow:3.4.0` (`apache/airflow:3.4.0-python3.12` 기반)
+- **핵심 의존성**: `linkmerce`, `gspread`, `google-cloud-bigquery`, `psycopg2-binary`, `playwright==1.65.1`, `astronomer-cosmos==1.16.0`, `dbt-bigquery==1.12.4`, `dbt-postgres==1.11.0`
 - **Providers**: `apache-airflow-providers-slack`
 
 ## 디렉터리 구조

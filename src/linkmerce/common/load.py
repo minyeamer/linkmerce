@@ -352,15 +352,22 @@ class DuckDBConnection(Connection):
 
     def execute_batch(self, query: str, params: object | None = None) -> list[DuckDBPyConnection]:
         """하나 이상의 SQL 쿼리를 실행한다."""
-        return [self.conn.execute(q, parameters=p) for q, p in self.split_queries(query, params)]
+        return [self.execute(q, params=p) for q, p in self.split_queries(query, params)]
 
     def sql(self, query: str, params: object | None = None) -> DuckDBPyRelation:
         """SQL 쿼리를 실행한다."""
+        self._complete()
         return self.conn.sql(query, params=params)
+
+    def _complete(self):
+        """미완료 실행 결과를 Python으로 가져오지 않고 실행을 종료한다."""
+        complete = getattr(self.conn, "complete", None)
+        if complete is not None:
+            complete()
 
     def sql_batch(self, query: str, params: object | None = None) -> list[DuckDBPyRelation]:
         """하나 이상의 SQL 쿼리를 실행한다."""
-        return [self.conn.sql(q, params=p) for q, p in self.split_queries(query, params)]
+        return [self.sql(q, params=p) for q, p in self.split_queries(query, params)]
 
     def split_queries(self, query: str, params: object | None = None) -> list[tuple[str, object | None]]:
         """여러 개의 SQL 쿼리를 단일 쿼리와 파라미터 조합으로 분리한다.
@@ -412,7 +419,7 @@ class DuckDBConnection(Connection):
         else:
             query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
             params = (params or dict()) | {"values": csv_to_json(values)}
-        return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+        return self.execute(concat_sql(prefix, query, suffix), params=params)
 
     def execute_with_json(
             self,
@@ -427,7 +434,7 @@ class DuckDBConnection(Connection):
         else:
             query = "SELECT values.* FROM (SELECT UNNEST($values) AS values)"
             params = (params or dict()) | {"values": values}
-        return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+        return self.execute(concat_sql(prefix, query, suffix), params=params)
 
     def execute_with_parquet(
             self,
@@ -439,26 +446,32 @@ class DuckDBConnection(Connection):
         """Parquet 파일 또는 Parquet 바이너리를 SELECT 쿼리로 조회하고 결과를 반환한다."""
         if isinstance(values, (str, Path)):
             query = f"SELECT * FROM read_parquet('{values}')"
-            return self.conn.execute(concat_sql(prefix, query, suffix), parameters=params)
+            return self.execute(concat_sql(prefix, query, suffix), params=params)
         else:
             def create_table(temp_file: str) -> DuckDBPyConnection:
                 query = concat_sql(prefix, f"SELECT * FROM read_parquet('{temp_file}')", suffix)
-                return self.conn.execute(query, parameters=params)
+                return self.execute(query, params=params)
             return run_with_tempfile(create_table, values, mode="w+b", suffix=".parquet")
 
     ############################## Fetch ##############################
 
     def fetch_one(self, query: str, index: int = 0, params: object | None = None) -> Any:
         """SQL 쿼리를 실행하여 값 하나를 가져온다. 결과 행이 없다면 `TypeError`가 발생한다."""
-        relation = self.conn.execute(query, parameters=params)
-        return relation.fetchone()[index]
+        relation = self.execute(query, params=params)
+        try:
+            return relation.fetchone()[index]
+        finally:
+            self._complete()
 
     def fetch_values(self, query: str, params: object | None = None, axis: int = 0) -> tuple[Any, ...]:
         """SQL 쿼리 실행 결과를 1차원 리스트로 반환한다. `axis=0`은 첫 번째 행, `axis=1`은 첫 번째 열을 반환한다."""
-        relation = self.conn.execute(query, parameters=params)
+        relation = self.execute(query, params=params)
         if axis == 1:
             return tuple(row[0] for row in relation.fetchall())
-        return relation.fetchone()
+        try:
+            return relation.fetchone()
+        finally:
+            self._complete()
 
     def fetch_all(
             self,
@@ -481,7 +494,7 @@ class DuckDBConnection(Connection):
             header: bool = True,
         ) -> list[tuple] | None:
         """SQL 쿼리를 실행하고, 결과를 CSV 형식의 튜플 리스트로 반환하거나 CSV 파일로 저장한다."""
-        relation = self.conn.execute(query, parameters=params)
+        relation = self.execute(query, params=params)
         headers = [tuple(self.get_columns(relation))] if header else list()
         results = headers + relation.fetchall()
         if save_to:
@@ -495,7 +508,7 @@ class DuckDBConnection(Connection):
             save_to: str | Path | None = None,
         ) -> list[dict] | None:
         """SQL 쿼리를 실행하고, 결과를 JSON 형식의 딕셔너리 리스트로 반환하거나 JSON 파일로 저장한다."""
-        relation = self.conn.execute(query, parameters=params)
+        relation = self.execute(query, params=params)
         columns = self.get_columns(relation)
         results = [dict(zip(columns, row)) for row in relation.fetchall()]
         if save_to:
@@ -509,7 +522,7 @@ class DuckDBConnection(Connection):
             save_to: str | Path | None = None,
         ) -> bytes | None:
         """SQL 쿼리를 실행하고, 결과를 Parquet 바이너리로 반환하거나 Parquet 파일로 저장한다."""
-        relation = self.conn.sql(query, params=params)
+        relation = self.sql(query, params=params)
         if save_to:
             return relation.to_parquet(save_to)
         else:
@@ -582,7 +595,7 @@ class DuckDBConnection(Connection):
             f"{self.expr_create(option, temp)} {target_table} AS SELECT {columns_} FROM {source_table}",
             (f"LIMIT {limit}" if isinstance(limit, int) else None),
         )
-        return self.conn.execute(query)
+        return self.execute(query)
 
     ############################## Insert #############################
 
@@ -650,7 +663,7 @@ class DuckDBConnection(Connection):
             where(" AND ".join([f"{col} IS NOT NULL" for col in by]) if dropna else None),
             "GROUP BY {}".format(", ".join(by))
         )
-        return self.conn.sql(query, params=params)
+        return self.sql(query, params=params)
 
     def agg(self, func: str | dict[str, Literal["count", "sum", "avg", "min", "max", "first", "last", "list"]]) -> str:
         """그룹 집계 표현식을 생성한다."""
@@ -671,28 +684,28 @@ class DuckDBConnection(Connection):
     def table_exists(self, table: str) -> bool:
         """테이블 존재 여부를 확인한다."""
         query = f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table}')"
-        return self.conn.execute(query).fetchone()[0]
+        return self.fetch_one(query)
 
     def table_has_rows(self, table: str, where_clause: str | None = None) -> bool:
         """테이블이 존재하고 데이터가 있는지 확인한다."""
         if self.table_exists(table):
             query = concat_sql(f"SELECT EXISTS (SELECT 1 FROM {table}", where(where_clause), "LIMIT 1)")
-            return self.conn.execute(query).fetchone()[0]
+            return self.fetch_one(query)
         return False
 
     def count_table(self, table: str, where_clause: str | None = None) -> int:
         """테이블의 데이터 행 수를 집계한다."""
         query = concat_sql(f"SELECT COUNT(*) FROM {table}", where(where_clause))
-        return self.conn.execute(query).fetchone()[0]
+        return self.fetch_one(query)
 
     def show_tables(self) -> list[str]:
         """현재 연결에 존재하는 모든 테이블 이름을 반환한다."""
-        return [table[NAME] for table in self.conn.execute("SHOW TABLES").fetchall()]
+        return list(self.fetch_values("SHOW TABLES", axis=1))
 
     def get_columns(self, obj: str | DuckDBPyConnection) -> list[str]:
         """테이블 또는 쿼리 결과의 칼럼 목록을 반환한다."""
         if isinstance(obj, str):
-            obj = self.conn.execute(f"DESCRIBE {obj}")
+            obj = self.execute(f"DESCRIBE {obj}")
             return [column[NAME] for column in obj.fetchall()]
         else:
             return [column[NAME] for column in obj.description]
@@ -708,7 +721,7 @@ class DuckDBConnection(Connection):
             where(where_clause),
             ("ORDER BY expr {}".format({True:"ASC", False:"DESC"}[ascending]) if isinstance(ascending, bool) else None),
         )
-        return [row[0] for row in self.conn.execute(query).fetchall()]
+        return list(self.fetch_values(query, axis=1))
 
 
 class DuckDBIterator(Task):
