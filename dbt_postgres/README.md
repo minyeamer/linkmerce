@@ -48,8 +48,9 @@ BigQuery 프로젝트와 달리, PostgreSQL 환경에 맞춰
 | `core` | 대표상품 테이블 및 공용 데이터 관리 |
 | `xfm_ads` | 광고 intermediate 모델 |
 | `xfm_benchmark` | 경쟁사 intermediate 모델 |
-| `xfm_sales` | 매출/배송 intermediate 모델 |
+| `xfm_sales` | 매출 intermediate 모델 |
 | `xfm_stock` | 재고 intermediate 모델 |
+| `xfm_summary` | 매출 요약 intermediate 모델 |
 | `analytics` | 통합 분석 mart 모델 |
 
 ## 프로젝트 구조
@@ -67,8 +68,8 @@ dbt_postgres/
 │   │   ├── ads/
 │   │   ├── benchmark/
 │   │   ├── sales/
-│   │   ├── sales_summary/
-│   │   └── stock/
+│   │   ├── stock/
+│   │   └── summary/
 │   ├── marts/
 │   │   ├── ads/
 │   │   ├── benchmark/
@@ -235,18 +236,6 @@ dbt_postgres/models/intermediate/sales/
 실행할 날짜 범위를 매주 월요일부터 일요일 단위로 확장한 후,
 요약된 결과를 요청 범위로 다시 제한한다.
 
-#### intermediate/sales_summary
-
-```bash
-dbt_postgres/models/intermediate/sales_summary/
-├── cafe24__sales_summary
-├── coupang__sales_summary
-├── ebay__sales_summary
-└── smartstore__sales_summary
-```
-
-각 판매 채널의 주문 내역에서 일별 결제금액을 요약하는 PostgreSQL 전용 모델을 둔다.
-
 #### intermediate/stock
 
 ```bash
@@ -270,6 +259,18 @@ dbt_postgres/models/intermediate/stock/
 대시보드에서 조회 범위 내 최종 재고 업데이트 시간을 표시하기 위한 목적을 가진다.
 
 `core` 수준의 통합된 모델은 재고 분석을 위한 mart 모델에서 사용된다.
+
+#### intermediate/summary
+
+```bash
+dbt_postgres/models/intermediate/summary/
+├── cafe24__sales_summary
+├── coupang__sales_summary
+├── ebay__sales_summary
+└── smartstore__sales_summary
+```
+
+각 판매 채널의 주문 내역에서 일별 결제금액을 요약하는 PostgreSQL 전용 모델을 둔다.
 
 ### marts 모델
 

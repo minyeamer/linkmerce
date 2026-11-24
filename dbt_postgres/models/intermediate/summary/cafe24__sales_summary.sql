@@ -1,7 +1,7 @@
 {{
   config(
     materialized = 'partitioned_table',
-    schema = 'xfm_sales',
+    schema = 'xfm_summary',
     partition_by = {
       "field": "order_date",
       "data_type": "date",

@@ -157,20 +157,6 @@ models:
   - name: "relation__smt_opt_to_sbn_ids"
     description: "스마트스토어 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 사방넷 매핑 규칙에 따라 자동 매칭한 모델"
 
-  # intermediate > sales_summary
-
-  - name: "cafe24__sales_summary"
-    description: "카페24 주문내역에서 쇼핑몰별 결제금액 합계를 요약한 일별 파티션 모델"
-
-  - name: "coupang__sales_summary"
-    description: "쿠팡 주문내역에서 업체별 결제금액 합계를 요약한 일별 파티션 모델"
-
-  - name: "ebay__sales_summary"
-    description: "G마켓/옥션 주문내역에서 스토어별 결제금액 합계를 요약한 일별 파티션 모델"
-
-  - name: "smartstore__sales_summary"
-    description: "스마트스토어 주문내역에서 채널별 결제금액 합계를 요약한 일별 파티션 모델"
-
   # intermediate > stock
 
   - name: "core__sold_qty_60d_daily"
@@ -192,6 +178,20 @@ models:
 
   - name: "ecount__stock_qty_batch"
     description: "이카운트 재고수량을 SKU 및 차수별로 집계한 일별 파티션 모델"
+
+  # intermediate > summary
+
+  - name: "cafe24__sales_summary"
+    description: "카페24 주문내역에서 쇼핑몰별 결제금액 합계를 요약한 일별 파티션 모델"
+
+  - name: "coupang__sales_summary"
+    description: "쿠팡 주문내역에서 업체별 결제금액 합계를 요약한 일별 파티션 모델"
+
+  - name: "ebay__sales_summary"
+    description: "G마켓/옥션 주문내역에서 스토어별 결제금액 합계를 요약한 일별 파티션 모델"
+
+  - name: "smartstore__sales_summary"
+    description: "스마트스토어 주문내역에서 채널별 결제금액 합계를 요약한 일별 파티션 모델"
 
   # marts > ads
 

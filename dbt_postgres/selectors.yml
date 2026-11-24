@@ -19,7 +19,7 @@ selectors:
     description: "'cafe24_order' Dag 실행 후 10분 단위로 카페24 주문 내역 변동을 매출 요약에 반영"
     definition:
       method: fqn
-      value: intermediate.sales_summary.cafe24__sales_summary
+      value: intermediate.summary.cafe24__sales_summary
 
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
@@ -56,7 +56,7 @@ selectors:
     description: "'coupang_order' Dag 실행 후 10분 단위로 쿠팡 주문 내역 변동을 매출 요약에 반영"
     definition:
       method: fqn
-      value: intermediate.sales_summary.coupang__sales_summary
+      value: intermediate.summary.coupang__sales_summary
   - name: coupang_rocket_inventory
     description: "'coupang_rocket_inventory' Dag 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
     definition:
@@ -93,7 +93,7 @@ selectors:
     description: "'ebay_order' Dag 실행 후 1시간 단위로 G마켓/옥션 주문 내역 변동을 매출 요약에 반영"
     definition:
       method: fqn
-      value: intermediate.sales_summary.ebay__sales_summary
+      value: intermediate.summary.ebay__sales_summary
 
   # Airflow Dags - ebay_ads
   - name: ebay_auction_ads
@@ -290,7 +290,7 @@ selectors:
     description: "'smartstore_order' Dag 실행 후 10분 단위로 스마트스토어 주문 내역 변동을 매출 요약에 반영"
     definition:
       method: fqn
-      value: intermediate.sales_summary.smartstore__sales_summary
+      value: intermediate.summary.smartstore__sales_summary
 
   # Airflow Dags - tiktok_ads
   - name: tiktok_ads
