@@ -277,20 +277,30 @@ with DAG(
             }
 
 
-    @task(task_id="generate_claim_date_range", trigger_rule="all_done")
-    def generate_claim_date_range(
+    @task(task_id="generate_return_claim_date_range", trigger_rule="all_done")
+    def generate_return_claim_date_range(
             return_results: list[dict],
             withdraw_results: list[dict],
-            exchange_results: list[dict],
         ) -> dict:
         from dbt_cosmos import generate_dbt_date_range as generate
-        etl_results = list(return_results or []) + list(withdraw_results or []) + list(exchange_results or [])
-        return generate(etl_results, "context.partitions")
+        return generate(list(return_results or []) + list(withdraw_results or []), "context.partitions")
+
+    @task.short_circuit(task_id="prepare_return_claim_run")
+    def prepare_return_claim_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_return_claim_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
 
 
-    @task.short_circuit(task_id="prepare_claim_run")
-    def prepare_claim_run(ti: TaskInstance, **kwargs) -> bool:
-        date_range = ti.xcom_pull(task_ids="generate_claim_date_range")
+    @task(task_id="generate_exchange_claim_date_range", trigger_rule="all_done")
+    def generate_exchange_claim_date_range(exchange_results: list[dict]) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(exchange_results or [], "context.partitions")
+
+    @task.short_circuit(task_id="prepare_exchange_claim_run")
+    def prepare_exchange_claim_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_exchange_claim_date_range")
         if isinstance(date_range, dict):
             return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
         return False
@@ -463,11 +473,13 @@ with DAG(
         .partial(configs=configs)
         .expand(credentials=credentials))
 
-    claim_date_range = generate_claim_date_range(etl_return_results, etl_withdraw_results, etl_exchange_results)
-    etl_return_claims = build_return_claim(claim_date_range, configs)
-    etl_exchange_claims = build_exchange_claim(claim_date_range, configs)
+    return_claim_date_range = generate_return_claim_date_range(etl_return_results, etl_withdraw_results)
+    etl_return_claims = build_return_claim(return_claim_date_range, configs)
+    return_claim_date_range >> prepare_return_claim_run() >> etl_return_claims
 
-    claim_date_range >> prepare_claim_run() >> [etl_return_claims, etl_exchange_claims]
+    exchange_claim_date_range = generate_exchange_claim_date_range(etl_exchange_results)
+    etl_exchange_claims = build_exchange_claim(exchange_claim_date_range, configs)
+    exchange_claim_date_range >> prepare_exchange_claim_run() >> etl_exchange_claims
 
     dbt_date_range = generate_dbt_date_range(etl_return_claims, etl_exchange_claims)
     dbt_run = [
