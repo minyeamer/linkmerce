@@ -31,7 +31,7 @@ import pendulum
 
 with DAG(
     dag_id = "sabangnet_order",
-    schedule = "30 23 * * *", # 담당자가 주문 확인 후 Streamlit UI에서 API 요청을 보내 트리거
+    schedule = "30 11,23 * * *", # 담당자가 주문 확인 후 Streamlit UI에서 API 요청을 보내 트리거
     start_date = pendulum.datetime(2025, 9, 11, tz="Asia/Seoul"),
     dagrun_timeout = timedelta(minutes=30),
     catchup = False,

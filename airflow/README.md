@@ -293,7 +293,7 @@ Dag 파일명과 Dag ID는 다를 수 있다.
 
 | Dag ID | 스케줄 | 역할 |
 | --- | --- | --- |
-| `sabangnet_order` | 매일 `23:30`, 트리거 지원 | 사방넷 발주 내역 ETL |
+| `sabangnet_order` | 매일 `11:30`, `23:30`, 트리거 지원 | 사방넷 발주 내역 ETL |
 | `sabangnet_invoice` | 평일 `10:30`, `14:30`, `23:50` | 사방넷 주문 ETL |
 | `sabangnet_product` | 평일 `23:20` | 사방넷 상품/옵션/매핑 ETL |
 

@@ -61,7 +61,6 @@ SCHEDULED_DAGS = {
     "naver_brand_price": last_cron_utc("1 0 * * *"), # 00:01 KST
     "naver_product_stock": last_cron_utc("0 3 * * *"), # 00:01 KST
     "postgres_partman_maintenance": last_cron_utc("0 0 * * *"), # 00:00 KST
-    "sabangnet_order": last_cron_utc("30 23 * * *"), # 23:30 KST
     "smartstore_bizdata": last_cron_utc("10 8 * * *"), # 08:10 KST
     "searchad_login_gfa": last_cron_utc("0 5 * * *"), # 05:00 KST
     "searchad_report_gfa": last_cron_utc("20 5 * * *"), # 05:20 KST
@@ -71,6 +70,7 @@ SCHEDULED_DAGS = {
     "naver_shop_rank": last_cron_utc("0 6-18 * * *"), # 06~18시 정각
     "naver_cafe_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
     "naver_main_search": last_cron_utc("0,10,20,30,40,50 8,9 * * *"), # 08~09시 10분 간격
+    "sabangnet_order": last_cron_utc("30 11,23 * * *"), # 매일 11:30 / 23:30
     # 평일(월-금)만 ───────────────────────────────────────────────────────────
     "sabangnet_account": last_cron_utc("20 22 * * 1-5"), # 22:20 KST
     "cafe24_product": last_cron_utc("50 22 * * 1-5"), # 22:50 KST
