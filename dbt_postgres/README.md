@@ -67,6 +67,7 @@ dbt_postgres/
 │   │   ├── ads/
 │   │   ├── benchmark/
 │   │   ├── sales/
+│   │   ├── sales_summary/
 │   │   └── stock/
 │   ├── marts/
 │   │   ├── ads/
@@ -202,16 +203,13 @@ fact 테이블 및 view 테이블을 생성한다. 현재는 네이버 채널의
 
 ```bash
 dbt_postgres/models/intermediate/sales/
-├── cafe24/
-│   └── cafe24__sales_summary
 ├── coupang/
-│   ├── coupang__sales_summary
+│   ├── coupang__order_count
+│   ├── coupang__sales_daily
 │   └── relation__cpg_itm_to_sbn_ids
 ├── coupang_rfm/
 │   ├── coupang_rfm__order_count
 │   └── coupang_rfm__sales_daily
-├── ebay/
-│   └── ebay__sales_summary
 ├── sabangnet/
 │   ├── sabangnet__order_count
 │   └── sabangnet__sales_daily
@@ -219,7 +217,6 @@ dbt_postgres/models/intermediate/sales/
 │   ├── relation__smt_opt_to_sbn_ids
 │   ├── smartstore__order_count
 │   ├── smartstore__sales_daily
-│   └── smartstore__sales_summary
 └── core__sales_daily
 ```
 
@@ -237,6 +234,18 @@ dbt_postgres/models/intermediate/sales/
 `coupang_rfm/` 경로의 모델들은 쿠팡 로켓정산의 주간 집계 특성을 고려해,
 실행할 날짜 범위를 매주 월요일부터 일요일 단위로 확장한 후,
 요약된 결과를 요청 범위로 다시 제한한다.
+
+#### intermediate/sales_summary
+
+```bash
+dbt_postgres/models/intermediate/sales_summary/
+├── cafe24__sales_summary
+├── coupang__sales_summary
+├── ebay__sales_summary
+└── smartstore__sales_summary
+```
+
+각 판매 채널의 주문 내역에서 일별 결제금액을 요약하는 PostgreSQL 전용 모델을 둔다.
 
 #### intermediate/stock
 
@@ -533,8 +542,10 @@ airflow/dags/
 ├── coupang/
 │   ├── ads.py (coupang_ads)
 │   ├── order.py (coupang_order)
+│   ├── order_claim.py (coupang_order)
 │   ├── rocket_inventory.py (coupang_rocket_inventory)
-│   └── rocket_sales.py (coupang_rocket_sales)
+│   ├── rocket_sales.py (coupang_rocket_sales)
+│   └── settlement.py (coupang_order)
 ├── ecount/
 │   ├── inventory.py (ecount_inventory)
 │   └── product.py (ecount_product)

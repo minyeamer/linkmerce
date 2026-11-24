@@ -207,6 +207,8 @@ fact 테이블 및 view 테이블을 생성한다. 현재는 네이버 채널의
 ```bash
 dbt_bigquery/models/intermediate/sales/
 ├── coupang/
+│   ├── coupang__order_count
+│   ├── coupang__sales_daily
 │   └── relation__cpg_itm_to_sbn_ids
 ├── coupang_rfm/
 │   ├── coupang_rfm__order_count
@@ -479,8 +481,10 @@ airflow/dags/
 ├── coupang/
 │   ├── ads.py (coupang_ads)
 │   ├── order.py (coupang_order)
+│   ├── order_claim.py (coupang_order)
 │   ├── rocket_inventory.py (coupang_rocket_inventory)
-│   └── rocket_sales.py (coupang_rocket_sales)
+│   ├── rocket_sales.py (coupang_rocket_sales)
+│   └── settlement.py (coupang_order)
 ├── ecount/
 │   ├── inventory.py (ecount_inventory)
 │   └── product.py (ecount_product)

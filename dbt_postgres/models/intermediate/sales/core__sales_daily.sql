@@ -53,6 +53,25 @@ WITH{#
   WHERE order_date BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
 ),{#
 
+#} coupang_sales_daily AS (
+  SELECT
+      'shop0075' AS shop_id
+    , vendor_id AS account_no
+    , product_id
+    , product_quantity
+    , order_status
+    , order_quantity
+    , payment_amount
+    , supply_amount
+    , supply_cost
+    , delivery_fee
+    , NULL::integer AS ad_cost
+    , NULL::integer AS extra_cost
+    , order_date
+  FROM {{ ref('coupang__sales_daily') }}
+  WHERE order_date BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
+),{#
+
 #} coupang_rfm_sales_daily AS (
   SELECT
       'chop0027' AS shop_id
@@ -287,9 +306,9 @@ WITH{#
       , shop_id
       , SUM(payment_amount) AS payment_amount
     FROM (
-      (SELECT * FROM coupang_rfm_sales_daily)
+      (SELECT * FROM coupang_sales_daily)
       UNION ALL
-      (SELECT * FROM sabangnet_sales_daily WHERE shop_id = 'shop0075')
+      (SELECT * FROM coupang_rfm_sales_daily)
     ) AS t_
     GROUP BY order_date, product_id, shop_id
   ) AS t_
@@ -309,9 +328,9 @@ WITH{#
       , cpg.shop_id
       , SUM(cpg.payment_amount) AS payment_amount
     FROM (
-      (SELECT * FROM coupang_rfm_sales_daily)
+      (SELECT * FROM coupang_sales_daily)
       UNION ALL
-      (SELECT * FROM sabangnet_sales_daily WHERE shop_id = 'shop0075')
+      (SELECT * FROM coupang_rfm_sales_daily)
     ) AS cpg
     INNER JOIN {{ ref('core__product_master') }} AS prd
       ON NULLIF(cpg.product_id, '200000') = prd.product_id
@@ -441,6 +460,8 @@ WITH{#
     (SELECT * FROM sabangnet_sales_daily)
     UNION ALL
     (SELECT * FROM smartstore_sales_daily)
+    UNION ALL
+    (SELECT * FROM coupang_sales_daily)
     UNION ALL
     (SELECT * FROM coupang_rfm_sales_daily)
     UNION ALL

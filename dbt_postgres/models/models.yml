@@ -119,15 +119,13 @@ models:
   - name: "core__sales_daily"
     description: "각종 플랫폼에서 요약된 매출, 광고, 비용 데이터를 결합하고 SKU 및 쇼핑몰별로 집계한 일별 파티션 모델"
 
-  # intermediate > sales > cafe24
-
-  - name: "cafe24__sales_summary"
-    description: "카페24 주문내역에서 쇼핑몰별 결제금액 합계를 요약한 일별 파티션 모델"
-
   # intermediate > sales > coupang
 
-  - name: "coupang__sales_summary"
-    description: "쿠팡 주문내역에서 업체별 결제금액 합계를 요약한 일별 파티션 모델"
+  - name: "coupang__order_count"
+    description: "쿠팡 마켓플레이스 주문내역에서 SKU별 주문건수를 집계하기 위해 주문번호 단위로 정리한 일별 파티션 모델"
+
+  - name: "coupang__sales_daily"
+    description: "쿠팡 마켓플레이스 주문내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
 
   - name: "relation__cpg_itm_to_sbn_ids"
     description: "쿠팡 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 상품번호와 옵션명으로 자동 매칭한 모델"
@@ -139,11 +137,6 @@ models:
 
   - name: "coupang_rfm__sales_daily"
     description: "쿠팡 로켓정산 내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
-
-  # intermediate > sales > ebay
-
-  - name: "ebay__sales_summary"
-    description: "G마켓/옥션 주문내역에서 스토어별 결제금액 합계를 요약한 일별 파티션 모델"
 
   # intermediate > sales > sabangnet
 
@@ -161,11 +154,22 @@ models:
   - name: "smartstore__sales_daily"
     description: "스마트스토어 주문내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
 
-  - name: "smartstore__sales_summary"
-    description: "스마트스토어 주문내역에서 채널별 결제금액 합계를 요약한 일별 파티션 모델"
-
   - name: "relation__smt_opt_to_sbn_ids"
     description: "스마트스토어 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 사방넷 매핑 규칙에 따라 자동 매칭한 모델"
+
+  # intermediate > sales_summary
+
+  - name: "cafe24__sales_summary"
+    description: "카페24 주문내역에서 쇼핑몰별 결제금액 합계를 요약한 일별 파티션 모델"
+
+  - name: "coupang__sales_summary"
+    description: "쿠팡 주문내역에서 업체별 결제금액 합계를 요약한 일별 파티션 모델"
+
+  - name: "ebay__sales_summary"
+    description: "G마켓/옥션 주문내역에서 스토어별 결제금액 합계를 요약한 일별 파티션 모델"
+
+  - name: "smartstore__sales_summary"
+    description: "스마트스토어 주문내역에서 채널별 결제금액 합계를 요약한 일별 파티션 모델"
 
   # intermediate > stock
 

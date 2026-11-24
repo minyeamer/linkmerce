@@ -36,6 +36,7 @@ Airflow UI에서 Dag을 트리거하면서 Configuration JSON에 ISO 8601 형식
 각각 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
 이후 Postgres에서 주문일시를 결합한 클레임 데이터를 생성하고,
 결과에 포함된 주문일 파티션만 BigQuery/Postgres의 'coupang.order_claim' 테이블에 병합한다.
+수집한 클레임의 주문일 파티션 범위를 바탕으로 후속 매출 및 요약 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
@@ -57,7 +58,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:coupang-api", "objective:sales", "credentials:api-key",
-        "schedule:daily", "time:night", "write:merge", "upstream:dagrun"
+        "schedule:daily", "time:night", "write:merge", "upstream:dagrun", "plugin:dbt"
     ],
 ) as dag:
 
@@ -416,6 +417,22 @@ with DAG(
         return False
 
 
+    def dbt_bigquery_coupang_order_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_coupang_order",
+            selector = "coupang_order",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+    def dbt_postgres_coupang_order_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_coupang_order",
+            selector = "coupang_order",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
     def dbt_postgres_coupang_order_summary_group() -> DbtTaskGroup:
         from dbt_cosmos import dynamic_mapping_dbt_postgres
         return dynamic_mapping_dbt_postgres(
@@ -453,6 +470,10 @@ with DAG(
     claim_date_range >> prepare_claim_run() >> [etl_return_claims, etl_exchange_claims]
 
     dbt_date_range = generate_dbt_date_range(etl_return_claims, etl_exchange_claims)
-    dbt_run = dbt_postgres_coupang_order_summary_group()
+    dbt_run = [
+        dbt_bigquery_coupang_order_group(),
+        dbt_postgres_coupang_order_group(),
+        dbt_postgres_coupang_order_summary_group(),
+    ]
 
     dbt_date_range >> prepare_dbt_run() >> dbt_run >> finalize_dag_run()

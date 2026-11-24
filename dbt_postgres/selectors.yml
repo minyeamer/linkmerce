@@ -19,7 +19,7 @@ selectors:
     description: "'cafe24_order' Dag 실행 후 10분 단위로 카페24 주문 내역 변동을 매출 요약에 반영"
     definition:
       method: fqn
-      value: intermediate.sales.cafe24.cafe24__sales_summary
+      value: intermediate.sales_summary.cafe24__sales_summary
 
   # Airflow Dags - cj_loisparcel
   - name: cj_loisparcel_invoice
@@ -31,16 +31,11 @@ selectors:
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
+          value: intermediate.sales.coupang.coupang__sales_daily
+        - method: fqn
           value: intermediate.sales.core__sales_daily
 
   # Airflow Dags - coupang
-  - name: coupang_order_summary
-    description: "'coupang_order' Dag 실행 후 10분 단위로 쿠팡 주문 내역 변동을 매출 요약에 반영"
-    definition:
-      method: fqn
-      value: intermediate.sales.coupang.coupang__sales_summary
-
-  # Airflow Dags - coupang_ads
   - name: coupang_ads
     description: "'coupang_ads' Dag 실행 후 쿠팡 광고 목록 및 실적 변동을 매출에 반영"
     definition:
@@ -49,8 +44,19 @@ selectors:
           value: models/intermediate/ads/coupang_ads
         - method: fqn
           value: intermediate.sales.core__sales_daily
-
-  # Airflow Dags - coupang_rfm
+  - name: coupang_order
+    description: "'coupang_order', 'coupang_order_claim', 'coupang_settlement' Dag 실행 후 쿠팡 주문/정산 내역 변동을 매출에 반영"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/sales/coupang
+        - method: fqn
+          value: intermediate.sales.core__sales_daily
+  - name: coupang_order_summary
+    description: "'coupang_order' Dag 실행 후 10분 단위로 쿠팡 주문 내역 변동을 매출 요약에 반영"
+    definition:
+      method: fqn
+      value: intermediate.sales_summary.coupang__sales_summary
   - name: coupang_rocket_inventory
     description: "'coupang_rocket_inventory' Dag 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
     definition:
@@ -87,7 +93,7 @@ selectors:
     description: "'ebay_order' Dag 실행 후 1시간 단위로 G마켓/옥션 주문 내역 변동을 매출 요약에 반영"
     definition:
       method: fqn
-      value: intermediate.sales.ebay.ebay__sales_summary
+      value: intermediate.sales_summary.ebay__sales_summary
 
   # Airflow Dags - ebay_ads
   - name: ebay_auction_ads
@@ -130,6 +136,8 @@ selectors:
           value: intermediate.sales.sabangnet.sabangnet__sales_daily
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__sales_daily
+        - method: fqn
+          value: intermediate.sales.coupang.coupang__sales_daily
         - method: fqn
           value: intermediate.sales.core__sales_daily
         - method: fqn
@@ -200,6 +208,8 @@ selectors:
           value: models/intermediate/sales/sabangnet
         - method: path
           value: models/intermediate/sales/smartstore
+        - method: path
+          value: models/intermediate/sales/coupang
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
@@ -272,19 +282,15 @@ selectors:
     description: "'smartstore_order' Dag 실행 후 1시간 단위로 스마트스토어 주문 내역 변동을 매출에 반영"
     definition:
       union:
-        - method: fqn
-          value: intermediate.sales.smartstore.smartstore__sales_daily
-          parents: true
-        - method: fqn
-          value: intermediate.sales.smartstore.smartstore__order_count
-          parents: true
+        - method: path
+          value: models/intermediate/sales/smartstore
         - method: fqn
           value: intermediate.sales.core__sales_daily
   - name: smartstore_order_summary
     description: "'smartstore_order' Dag 실행 후 10분 단위로 스마트스토어 주문 내역 변동을 매출 요약에 반영"
     definition:
       method: fqn
-      value: intermediate.sales.smartstore.smartstore__sales_summary
+      value: intermediate.sales_summary.smartstore__sales_summary
 
   # Airflow Dags - tiktok_ads
   - name: tiktok_ads
@@ -324,14 +330,12 @@ selectors:
     description: "'sync_gsheets__order_status' Dag 실행 후 주문상태 변동을 매출에 반영"
     definition:
       union:
-        - method: fqn
-          value: intermediate.sales.sabangnet.sabangnet__sales_daily
-        - method: fqn
-          value: intermediate.sales.sabangnet.sabangnet__order_count
-        - method: fqn
-          value: intermediate.sales.smartstore.smartstore__sales_daily
-        - method: fqn
-          value: intermediate.sales.smartstore.smartstore__order_count
+        - method: path
+          value: models/intermediate/sales/sabangnet
+        - method: path
+          value: models/intermediate/sales/smartstore
+        - method: path
+          value: models/intermediate/sales/coupang
         - method: fqn
           value: intermediate.sales.core__sales_daily
 

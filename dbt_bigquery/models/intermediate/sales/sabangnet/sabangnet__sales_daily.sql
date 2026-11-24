@@ -34,7 +34,7 @@ order_status AS (
     , MAX(cor.order_status) AS order_status
   FROM {{ source('core', 'order_status') }} AS cor
   WHERE cor.order_date BETWEEN DATE('{{ var("ds_start_date") }}') AND DATE('{{ var("ds_end_date") }}')
-    AND cor.shop_name != '스마트스토어'
+    AND cor.shop_name NOT IN ('스마트스토어', '쿠팡')
   GROUP BY cor.order_id
 ),
 

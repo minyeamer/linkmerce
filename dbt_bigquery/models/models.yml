@@ -121,6 +121,12 @@ models:
 
   # intermediate > sales > coupang
 
+  - name: "coupang__order_count"
+    description: "쿠팡 마켓플레이스 주문내역에서 SKU별 주문건수를 집계하기 위해 주문번호 단위로 정리한 일별 파티션 모델"
+
+  - name: "coupang__sales_daily"
+    description: "쿠팡 마켓플레이스 주문내역에서 SKU별 판매수량, 결제금액, 비용을 집계하기 위해 품번코드 단위로 정리한 일별 파티션 모델"
+
   - name: "relation__cpg_itm_to_sbn_ids"
     description: "쿠팡 옵션코드와 사방넷 품번코드 매핑 테이블에서 누락된 신규 옵션을 상품번호와 옵션명으로 자동 매칭한 모델"
 

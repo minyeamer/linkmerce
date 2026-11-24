@@ -11,10 +11,13 @@
 JSON 형식의 응답 본문을 파싱하여 DuckDB 테이블에 적재한다.
 
 ## 적재(Load)
-데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
+- 데이터를 BigQuery/Postgres 테이블의 끝에 추가한다.
+- 수집한 매출내역의 결제일 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 """
 
 from airflow.sdk import DAG, task
+from airflow.models.taskinstance import TaskInstance
+from cosmos import DbtTaskGroup
 from datetime import timedelta
 import pendulum
 
@@ -28,7 +31,7 @@ with DAG(
     doc_md = __doc__,
     tags = [
         "priority:high", "platform:coupang-api", "objective:sales", "credentials:api-key",
-        "schedule:daily", "time:morning", "write:append"
+        "schedule:daily", "time:morning", "write:append", "plugin:dbt"
     ],
 ) as dag:
 
@@ -74,9 +77,13 @@ with DAG(
                 return_type = "none",
             )
 
+            partitions = conn.unique(source, "paid_date")
+            if partitions:
+                partitions.append(conn.fetch_one(f"SELECT MIN(paid_date)-1 FROM {source}"))
+
             return {
                 "context": {
-                    "partitions": sorted(map(str, conn.unique(source, "paid_date"))),
+                    "partitions": sorted(map(str, partitions)),
                 },
                 "params": {
                     "vendor_id": vendor_id,
@@ -90,6 +97,47 @@ with DAG(
             }
 
 
-    (etl_coupang_settlement
-    .partial(configs=read_configs())
-    .expand(credentials=read_credentials()))
+    @task(task_id="generate_dbt_date_range", trigger_rule="all_done")
+    def generate_dbt_date_range(results: list[dict]) -> dict:
+        from dbt_cosmos import generate_dbt_date_range as generate
+        return generate(results, "context.partitions")
+
+
+    @task.short_circuit(task_id="prepare_dbt_run", ignore_downstream_trigger_rules=False)
+    def prepare_dbt_run(ti: TaskInstance, **kwargs) -> bool:
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(date_range.get("ds_start_date") and date_range.get("ds_end_date"))
+        return False
+
+
+    def dbt_bigquery_coupang_order_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_coupang_order",
+            selector = "coupang_order",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+    def dbt_postgres_coupang_order_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_coupang_order",
+            selector = "coupang_order",
+            ds_task_id = "generate_dbt_date_range",
+        )
+
+    @task(task_id="finalize_dag_run", trigger_rule="all_done")
+    def finalize_dag_run(ti: TaskInstance):
+        from dbt_cosmos import raise_on_failure
+        raise_on_failure(ti)
+
+
+    etl_results = (etl_coupang_settlement
+        .partial(configs=read_configs())
+        .expand(credentials=read_credentials()))
+
+    dbt_date_range = generate_dbt_date_range(etl_results)
+    dbt_run = [dbt_bigquery_coupang_order_group(), dbt_postgres_coupang_order_group()]
+
+    dbt_date_range >> prepare_dbt_run() >> dbt_run >> finalize_dag_run()

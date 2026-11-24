@@ -24,9 +24,11 @@ selectors:
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
+          value: intermediate.sales.coupang.coupang__sales_daily
+        - method: fqn
           value: intermediate.sales.core__sales_daily
 
-  # Airflow Dags - coupang_ads
+  # Airflow Dags - coupang
   - name: coupang_ads
     description: "'coupang_ads' Dag 실행 후 쿠팡 광고 목록 및 실적 변동을 매출에 반영"
     definition:
@@ -35,8 +37,14 @@ selectors:
           value: models/intermediate/ads/coupang_ads
         - method: fqn
           value: intermediate.sales.core__sales_daily
-
-  # Airflow Dags - coupang_rfm
+  - name: coupang_order
+    description: "'coupang_order', 'coupang_order_claim', 'coupang_settlement' Dag 실행 후 쿠팡 주문/정산 내역 변동을 매출에 반영"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/sales/coupang
+        - method: fqn
+          value: intermediate.sales.core__sales_daily
   - name: coupang_rocket_inventory
     description: "'coupang_rocket_inventory' Dag 실행 후 쿠팡 로켓 재고수량 변동을 업데이트"
     definition:
@@ -110,6 +118,8 @@ selectors:
         - method: fqn
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
+          value: intermediate.sales.coupang.coupang__sales_daily
+        - method: fqn
           value: intermediate.sales.core__sales_daily
         - method: fqn
           value: intermediate.stock.core__stock_qty_batch
@@ -179,6 +189,8 @@ selectors:
           value: models/intermediate/sales/sabangnet
         - method: path
           value: models/intermediate/sales/smartstore
+        - method: path
+          value: models/intermediate/sales/coupang
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
@@ -248,7 +260,7 @@ selectors:
 
   # Airflow Dags - smartstore
   - name: smartstore_order
-    description: "'smartstore_order' Dag 실행 후 스마트스토어 주문 내역 변동을 매출에 반영"
+    description: "'smartstore_order' Dag 실행 후 1시간 단위로 스마트스토어 주문 내역 변동을 매출에 반영"
     definition:
       union:
         - method: path
@@ -294,14 +306,12 @@ selectors:
     description: "'sync_gsheets__order_status' Dag 실행 후 주문상태 변동을 매출에 반영"
     definition:
       union:
-        - method: fqn
-          value: intermediate.sales.sabangnet.sabangnet__sales_daily
-        - method: fqn
-          value: intermediate.sales.sabangnet.sabangnet__order_count
-        - method: fqn
-          value: intermediate.sales.smartstore.smartstore__sales_daily
-        - method: fqn
-          value: intermediate.sales.smartstore.smartstore__order_count
+        - method: path
+          value: models/intermediate/sales/sabangnet
+        - method: path
+          value: models/intermediate/sales/smartstore
+        - method: path
+          value: models/intermediate/sales/coupang
         - method: fqn
           value: intermediate.sales.core__sales_daily
 

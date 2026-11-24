@@ -48,6 +48,21 @@ WITH{#
   WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
 ),{#
 
+#} coupang_order_count AS (
+  SELECT
+      order_id::text AS order_id
+    , shipment_box_id::text AS product_order_id
+    , 'shop0075' AS shop_id
+    , vendor_id AS account_no
+    , product_id
+    , product_quantity
+    , order_status
+    , order_quantity
+    , order_date
+  FROM {{ ref('coupang__order_count') }}
+  WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
+),{#
+
 #} coupang_rfm_order_count AS (
   SELECT
       order_id::text AS order_id
@@ -78,6 +93,8 @@ WITH{#
     (SELECT * FROM sabangnet_order_count)
     UNION ALL
     (SELECT * FROM smartstore_order_count)
+    UNION ALL
+    (SELECT * FROM coupang_order_count)
     UNION ALL
     (SELECT * FROM coupang_rfm_order_count)
   ) AS t_
