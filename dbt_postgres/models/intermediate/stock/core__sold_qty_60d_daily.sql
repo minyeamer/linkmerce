@@ -34,9 +34,7 @@ WITH{#
     , SUM(product_quantity * order_quantity) AS sold_qty
     , order_date
   FROM {{ ref('sabangnet__sales_daily') }}
-  WHERE (order_date
-      BETWEEN {{ pg_batch_start_date() }} - 60
-      AND {{ pg_batch_end_date() }} - 1)
+  WHERE (order_date BETWEEN {{ pg_batch_start_date() }} - 60 AND {{ pg_batch_end_date() }} - 1)
     AND (order_status = 0)
   GROUP BY order_date, product_id
 ),{#
@@ -57,12 +55,22 @@ WITH{#
     LEFT JOIN delivery_product_mapping AS map
       ON sales.delivery_type = map.delivery_type
         AND sales.product_id = map.original_product_id
-    WHERE (sales.order_date
-        BETWEEN {{ pg_batch_start_date() }} - 60
-        AND {{ pg_batch_end_date() }} - 1)
+    WHERE (sales.order_date BETWEEN {{ pg_batch_start_date() }} - 60 AND {{ pg_batch_end_date() }} - 1)
       AND (sales.order_status = 0)
   ) AS t_
   GROUP BY order_date, product_id, group_id
+),{#
+
+#} coupang_sold_qty_daily AS (
+  SELECT
+      product_id
+    , 0 AS group_id
+    , SUM(product_quantity * order_quantity) AS sold_qty
+    , order_date
+  FROM {{ ref('coupang__sales_daily') }}
+  WHERE (order_date BETWEEN {{ pg_batch_start_date() }} - 60 AND {{ pg_batch_end_date() }} - 1)
+    AND (order_status = 0)
+  GROUP BY order_date, product_id
 ),{#
 
 #} coupang_rfm_sold_qty_daily AS (
@@ -72,9 +80,19 @@ WITH{#
     , SUM(product_quantity * order_quantity) AS sold_qty
     , order_date
   FROM {{ ref('coupang_rfm__sales_daily') }}
-  WHERE (order_date
-      BETWEEN {{ pg_batch_start_date() }} - 60
-      AND {{ pg_batch_end_date() }} - 1)
+  WHERE (order_date BETWEEN {{ pg_batch_start_date() }} - 60 AND {{ pg_batch_end_date() }} - 1)
+    AND (order_status = 0)
+  GROUP BY order_date, product_id
+),{#
+
+#} cafe24_sold_qty_daily AS (
+  SELECT
+      product_id
+    , 0 AS group_id
+    , SUM(product_quantity * order_quantity) AS sold_qty
+    , order_date
+  FROM {{ ref('cafe24__sales_daily') }}
+  WHERE (order_date BETWEEN {{ pg_batch_start_date() }} - 60 AND {{ pg_batch_end_date() }} - 1)
     AND (order_status = 0)
   GROUP BY order_date, product_id
 ),{#
@@ -94,7 +112,11 @@ WITH{#
     UNION ALL
     (SELECT * FROM smartstore_sold_qty_daily)
     UNION ALL
+    (SELECT * FROM coupang_sold_qty_daily)
+    UNION ALL
     (SELECT * FROM coupang_rfm_sold_qty_daily)
+    UNION ALL
+    (SELECT * FROM cafe24_sold_qty_daily)
   ) AS t_
   GROUP BY order_date, product_id
 ),{#

@@ -11,7 +11,7 @@ SELECT
   , channel_seq::text AS account_no
   , corp_name
 FROM {{ source('smartstore', 'channel') }}
-CROSS JOIN (VALUES ('chop0029'), ('shop0055')) AS shop(shop_id){#
+CROSS JOIN (VALUES ('shop0055'), ('chop0029')) AS shop(shop_id){#
 
 #} UNION ALL{#
 
@@ -19,9 +19,16 @@ CROSS JOIN (VALUES ('chop0029'), ('shop0055')) AS shop(shop_id){#
     shop.shop_id
   , vendor_id AS account_no
   , corp_name
-FROM {{ source('coupang', 'vendor') }}{#
+FROM {{ source('coupang', 'vendor') }}
+CROSS JOIN (VALUES ('shop0075'), ('chop0027')) AS shop(shop_id){#
 
-#} CROSS JOIN (VALUES ('shop0075'), ('chop0027')) AS shop(shop_id){#
+#} UNION ALL{#
+
+#} SELECT
+    'shop0298' AS shop_id
+  , mall_id AS account_no
+  , corp_name
+FROM {{ source('cafe24', 'mall') }}{#
 
 #} UNION ALL{#
 

@@ -91,6 +91,25 @@ WITH{#
   WHERE order_date BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
 ),{#
 
+#} cafe24_sales_daily AS (
+  SELECT
+      'shop0298' AS shop_id
+    , mall_id AS account_no
+    , product_id
+    , product_quantity
+    , order_status
+    , order_quantity
+    , payment_amount
+    , supply_amount
+    , supply_cost
+    , delivery_fee
+    , NULL::integer AS ad_cost
+    , NULL::integer AS extra_cost
+    , order_date
+  FROM {{ ref('cafe24__sales_daily') }}
+  WHERE order_date BETWEEN {{ pg_batch_start_date() }} AND {{ pg_batch_end_date() }}
+),{#
+
 #} extra_sales_daily AS (
   SELECT
       shop_id
@@ -464,6 +483,8 @@ WITH{#
     (SELECT * FROM coupang_sales_daily)
     UNION ALL
     (SELECT * FROM coupang_rfm_sales_daily)
+    UNION ALL
+    (SELECT * FROM cafe24_sales_daily)
     UNION ALL
     (SELECT * FROM extra_sales_daily)
     UNION ALL

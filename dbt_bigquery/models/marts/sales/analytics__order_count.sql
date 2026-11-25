@@ -78,6 +78,21 @@ coupang_rfm_order_count AS (
   WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
 ),
 
+cafe24_order_count AS (
+  SELECT
+      CAST(order_id AS STRING) AS order_id
+    , CAST(order_item_code AS STRING) AS product_order_id
+    , 'shop0298' AS shop_id
+    , CAST(mall_id AS STRING) AS account_no
+    , product_id
+    , product_quantity
+    , order_status
+    , order_quantity
+    , order_date
+  FROM {{ ref('cafe24__order_count') }}
+  WHERE order_date BETWEEN DS_START_DATE AND DS_END_DATE
+),
+
 order_count AS (
   SELECT
       order_id
@@ -97,6 +112,8 @@ order_count AS (
     (SELECT * FROM coupang_order_count)
     UNION ALL
     (SELECT * FROM coupang_rfm_order_count)
+    UNION ALL
+    (SELECT * FROM cafe24_order_count)
   ) AS t_
   WHERE order_status = 0 AND order_quantity != 0
 )

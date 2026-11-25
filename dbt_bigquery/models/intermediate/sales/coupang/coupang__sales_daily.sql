@@ -68,7 +68,7 @@ settlement AS (
 ),
 
 settlement_rate AS (
-  SELECT 1 - commission_rate AS rate
+  SELECT 1.0 - commission_rate AS rate
   FROM {{ source('sabangnet', 'shop') }}
   WHERE shop_id = 'shop0075'
   LIMIT 1
@@ -80,7 +80,8 @@ order_detail AS (
     , (unit_price * order_quantity) AS payment_amount
     , COALESCE(
           settlement_amount
-        , CAST(ROUND(unit_price * order_quantity * COALESCE((SELECT rate FROM settlement_rate), 1)) AS INTEGER)
+        , CAST(ROUND(unit_price * order_quantity
+            * COALESCE((SELECT rate FROM settlement_rate), 1.0)) AS INTEGER)
       ) AS supply_amount
   FROM (
     SELECT

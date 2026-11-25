@@ -19,7 +19,7 @@ SELECT
   , CAST(channel_seq AS STRING) AS account_no
   , corp_name
 FROM {{ source('smartstore', 'channel') }}
-CROSS JOIN UNNEST(['chop0029', 'shop0055']) AS shop_id
+CROSS JOIN UNNEST(['shop0055', 'chop0029']) AS shop_id
 
 UNION ALL
 
@@ -29,6 +29,14 @@ SELECT
   , corp_name
 FROM {{ source('coupang', 'vendor') }}
 CROSS JOIN UNNEST(['shop0075', 'chop0027']) AS shop_id
+
+UNION ALL
+
+SELECT
+    'shop0298' AS shop_id
+  , mall_id AS account_no
+  , corp_name
+FROM {{ source('cafe24', 'mall') }}
 
 UNION ALL
 

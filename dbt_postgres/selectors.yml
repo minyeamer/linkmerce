@@ -1,5 +1,15 @@
 selectors:
 
+  # Airflow Dags - cafe24
+  - name: cafe24_order
+    description: "'cafe24_order' Dag 실행 후 1시간 단위로 카페24 주문 내역 변동을 매출에 반영"
+    definition:
+      union:
+        - method: path
+          value: models/intermediate/sales/cafe24
+        - method: fqn
+          value: intermediate.sales.core__sales_daily
+
   # Airflow Dags - cj_eflexs
   - name: cj_eflexs_stock
     description: "'cj_eflexs_stock' Dag 실행 후 CJ 풀필먼트 재고수량 변동을 업데이트"
@@ -32,6 +42,8 @@ selectors:
           value: intermediate.sales.smartstore.smartstore__sales_daily
         - method: fqn
           value: intermediate.sales.coupang.coupang__sales_daily
+        - method: fqn
+          value: intermediate.sales.cafe24.cafe24__sales_daily
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
@@ -139,6 +151,8 @@ selectors:
         - method: fqn
           value: intermediate.sales.coupang.coupang__sales_daily
         - method: fqn
+          value: intermediate.sales.cafe24.cafe24__sales_daily
+        - method: fqn
           value: intermediate.sales.core__sales_daily
         - method: fqn
           value: intermediate.stock.core__stock_qty_batch
@@ -210,6 +224,8 @@ selectors:
           value: models/intermediate/sales/smartstore
         - method: path
           value: models/intermediate/sales/coupang
+        - method: path
+          value: models/intermediate/sales/cafe24
         - method: fqn
           value: intermediate.sales.core__sales_daily
 
@@ -336,6 +352,8 @@ selectors:
           value: models/intermediate/sales/smartstore
         - method: path
           value: models/intermediate/sales/coupang
+        - method: path
+          value: models/intermediate/sales/cafe24
         - method: fqn
           value: intermediate.sales.core__sales_daily
 

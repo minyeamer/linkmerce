@@ -206,6 +206,10 @@ fact 테이블 및 view 테이블을 생성한다. 현재는 네이버 채널의
 
 ```bash
 dbt_bigquery/models/intermediate/sales/
+├── cafe24/
+│   ├── cafe24__order_count
+│   ├── cafe24__sales_daily
+│   └── relation__c24_var_to_sbn_ids
 ├── coupang/
 │   ├── coupang__order_count
 │   ├── coupang__sales_daily
@@ -475,6 +479,8 @@ airflow/dags/
 │   ├── google_ads.py (google_ads)
 │   ├── meta_ads.py (meta_ads)
 │   └── tiktok_ads.py (tiktok_ads)
+├── cafe24/
+│   └── order.py (cafe24_order)
 ├── cj/
 │   ├── eflexs_stock.py (cj_eflexs_stock)
 │   └── loisparcel_invoice.py (cj_loisparcel_invoice)
@@ -520,6 +526,7 @@ airflow/dags/
 | selector | 역할 |
 | --- | --- |
 | `adreport` | 종합 광고 보고서 업데이트 |
+| `cafe24_master` | 카페24 상품/옵션 목록 업데이트 |
 | `coupang_master` | 쿠팡 상품/옵션 목록 업데이트 |
 | `ebay_master` | G마켓/옥션 상품 목록 업데이트 |
 | `sabangnet_master` | 사방넷 상품/옵션 목록 업데이트 |

@@ -35,13 +35,11 @@ sabangnet_sold_qty_daily AS (
     , 0 AS group_id
     , SUM(product_quantity * order_quantity) AS sold_qty
     , order_date
-  FROM (
-    SELECT product_id, product_quantity, order_quantity, order_date
-    FROM {{ ref('sabangnet__sales_daily') }}
-    WHERE order_date BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 60 DAY)
-      AND DATE_SUB(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY)
-      AND order_status = 0
-  )
+  FROM {{ ref('sabangnet__sales_daily') }}
+  WHERE (order_date
+    BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 60 DAY)
+      AND DATE_SUB(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
+    AND (order_status = 0)
   GROUP BY order_date, product_id
 ),
 
@@ -59,14 +57,28 @@ smartstore_sold_qty_daily AS (
       , sales.order_date
     FROM {{ ref('smartstore__sales_daily') }} AS sales
     LEFT JOIN delivery_product_mapping AS map
-      ON sales.delivery_type = map.delivery_type
-        AND sales.product_id = map.original_product_id
+      ON (sales.delivery_type = map.delivery_type)
+        AND (sales.product_id = map.original_product_id)
     WHERE (sales.order_date
         BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 60 DAY)
         AND DATE_SUB(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
       AND (sales.order_status = 0)
   ) AS t_
   GROUP BY order_date, product_id, group_id
+),
+
+coupang_sold_qty_daily AS (
+  SELECT
+      product_id
+    , 0 AS group_id
+    , SUM(product_quantity * order_quantity) AS sold_qty
+    , order_date
+  FROM {{ ref('coupang__sales_daily') }}
+  WHERE (order_date
+    BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 60 DAY)
+      AND DATE_SUB(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
+    AND (order_status = 0)
+  GROUP BY order_date, product_id
 ),
 
 coupang_rfm_sold_qty_daily AS (
@@ -78,8 +90,22 @@ coupang_rfm_sold_qty_daily AS (
   FROM {{ ref('coupang_rfm__sales_daily') }}
   WHERE (order_date
       BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 60 DAY)
-      AND DATE_SUB(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
-    AND (order_status = 0)
+        AND DATE_SUB(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY))
+      AND (order_status = 0)
+  GROUP BY order_date, product_id
+),
+
+cafe24_sold_qty_daily AS (
+  SELECT
+      product_id
+    , 0 AS group_id
+    , SUM(product_quantity * order_quantity) AS sold_qty
+    , order_date
+  FROM {{ ref('cafe24__sales_daily') }}
+  WHERE order_date
+    BETWEEN DATE_SUB(DATE('{{ var("ds_start_date") }}'), INTERVAL 60 DAY)
+      AND DATE_SUB(DATE('{{ var("ds_end_date") }}'), INTERVAL 1 DAY)
+    AND order_status = 0
   GROUP BY order_date, product_id
 ),
 
@@ -98,7 +124,11 @@ sold_qty_daily AS (
     UNION ALL
     (SELECT * FROM smartstore_sold_qty_daily)
     UNION ALL
+    (SELECT * FROM coupang_sold_qty_daily)
+    UNION ALL
     (SELECT * FROM coupang_rfm_sold_qty_daily)
+    UNION ALL
+    (SELECT * FROM cafe24_sold_qty_daily)
   ) AS t_
   GROUP BY order_date, product_id
 ),

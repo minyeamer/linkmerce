@@ -38,6 +38,7 @@ JSON 형식의 주문 내역으로부터 주문 정보, 주문 결제 정보, �
 ## 적재(Load)
 - 주문 정보, 주문 결제 정보 테이블은 BigQuery/Postgres 테이블 끝에 추가한다.
 - 주문 품목 정보 테이블은 대응되는 BigQuery/Postgres 테이블과 MERGE 문으로 병합해 최신 데이터를 덮어쓴다.
+- 'dbt_run: true'가 지정되거나 매시 0분의 실행에서, 수집한 주문일 파티션 범위를 바탕으로 후속 dbt 모델을 실행한다.
 - 'dbt_run: false'가 지정되지 않은 모든 실행에서, 수집한 주문일 파티션 범위를 바탕으로 Postgres 요약 dbt 모델을 실행한다.
 """
 
@@ -210,36 +211,36 @@ with DAG(
         return generate(etl_results, "context.partitions")
 
 
-    # @task.short_circuit(task_id="prepare_dbt_run_1h", ignore_downstream_trigger_rules=False)
-    # def prepare_dbt_run_1h(ti: TaskInstance, dag_run: DagRun, **kwargs) -> bool:
-    #     from airflow_utils import get_datetime
+    @task.short_circuit(task_id="prepare_dbt_run_1h", ignore_downstream_trigger_rules=False)
+    def prepare_dbt_run_1h(ti: TaskInstance, dag_run: DagRun, **kwargs) -> bool:
+        from airflow_utils import get_datetime
 
-    #     date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
-    #     if isinstance(date_range, dict):
-    #         return bool(
-    #                 date_range.get("ds_start_date")
-    #             and date_range.get("ds_end_date")
-    #             and (((dag_run.conf or dict()).get("dbt_run") is True)
-    #                 or (dag_run.run_id.startswith("scheduled__") and (get_datetime(kwargs).minute == 0)))
-    #         )
-    #     return False
+        date_range = ti.xcom_pull(task_ids="generate_dbt_date_range")
+        if isinstance(date_range, dict):
+            return bool(
+                    date_range.get("ds_start_date")
+                and date_range.get("ds_end_date")
+                and (((dag_run.conf or dict()).get("dbt_run") is True)
+                    or (dag_run.run_id.startswith("scheduled__") and (get_datetime(kwargs).minute == 0)))
+            )
+        return False
 
 
-    # def dbt_bigquery_cafe24_order_group() -> DbtTaskGroup:
-    #     from dbt_cosmos import dynamic_mapping_dbt_bigquery
-    #     return dynamic_mapping_dbt_bigquery(
-    #         group_id = "dbt_bigquery_cafe24_order",
-    #         selector = "cafe24_order",
-    #         ds_task_id = "generate_dbt_date_range",
-    #     )
+    def dbt_bigquery_cafe24_order_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_bigquery
+        return dynamic_mapping_dbt_bigquery(
+            group_id = "dbt_bigquery_cafe24_order",
+            selector = "cafe24_order",
+            ds_task_id = "generate_dbt_date_range",
+        )
 
-    # def dbt_postgres_cafe24_order_1h_group() -> DbtTaskGroup:
-    #     from dbt_cosmos import dynamic_mapping_dbt_postgres
-    #     return dynamic_mapping_dbt_postgres(
-    #         group_id = "dbt_postgres_cafe24_order_1h",
-    #         selector = "cafe24_order",
-    #         ds_task_id = "generate_dbt_date_range",
-    #     )
+    def dbt_postgres_cafe24_order_1h_group() -> DbtTaskGroup:
+        from dbt_cosmos import dynamic_mapping_dbt_postgres
+        return dynamic_mapping_dbt_postgres(
+            group_id = "dbt_postgres_cafe24_order_1h",
+            selector = "cafe24_order",
+            ds_task_id = "generate_dbt_date_range",
+        )
 
 
     @task.short_circuit(task_id="prepare_dbt_run_10m", ignore_downstream_trigger_rules=False)
@@ -291,16 +292,15 @@ with DAG(
 
     dbt_date_range = generate_dbt_date_range(etl_results, delivery_dag_run, change_dag_run)
 
-    # prepare_1h = prepare_dbt_run_1h()
-    # dbt_run_1h = [dbt_bigquery_cafe24_order_group(), dbt_postgres_cafe24_order_1h_group()]
+    prepare_1h = prepare_dbt_run_1h()
+    dbt_run_1h = [dbt_bigquery_cafe24_order_group(), dbt_postgres_cafe24_order_1h_group()]
 
     prepare_10m = prepare_dbt_run_10m()
     dbt_run_10m = dbt_postgres_cafe24_order_10m_group()
 
-    # dbt_date_range >> [prepare_1h, prepare_10m]
-    # prepare_1h >> dbt_run_1h
-    # prepare_10m >> dbt_run_10m
+    dbt_date_range >> [prepare_1h, prepare_10m]
+    prepare_1h >> dbt_run_1h
+    prepare_10m >> dbt_run_10m
 
     finalize = finalize_dag_run(delivery_dag_run, change_dag_run)
-    # [*dbt_run_1h, dbt_run_10m] >> finalize
-    dbt_date_range >> prepare_10m >> dbt_run_10m >> finalize
+    [*dbt_run_1h, dbt_run_10m] >> finalize
