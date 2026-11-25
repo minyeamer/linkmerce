@@ -127,7 +127,8 @@ WITH{#
       ) AS product_seq
   FROM stock_report_with_stock_qty AS report
   LEFT JOIN {{ source('ecount', 'schedule') }} AS schedule
-    ON report.product_code = schedule.product_code
+    ON (report.product_id = schedule.product_id)
+      AND (report.expiration_date = schedule.expiration_date)
   WHERE report.stock_qty > 0
     OR (
       schedule.remarks IN ('리뉴얼-예정', '제조원-변경 예정')

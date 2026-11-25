@@ -811,12 +811,13 @@ CREATE TABLE IF NOT EXISTS ecount.product (
 
 -- [이카운트 재고-발주일정]
 CREATE TABLE IF NOT EXISTS ecount.schedule (
-    product_code TEXT NOT NULL -- 품목코드
+    product_id TEXT NOT NULL -- 품번코드
+  , expiration_date DATE NOT NULL -- 유통기한
   , order_date DATE -- 발주진행일
   , delivery_date DATE -- 입고예정일
   , expected_quantity INTEGER -- 입고예정수량
   , remarks TEXT -- 구분
-  , PRIMARY KEY (product_code)
+  , PRIMARY KEY (product_id, expiration_date)
 );
 
 -- ============================================================

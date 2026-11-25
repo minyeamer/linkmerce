@@ -757,7 +757,8 @@
     "CLUSTER BY brand_name"
   ],
   "ecount.schedule": [
-    {"name": "product_code", "type": "STRING", "description": "품목코드", "mode": "REQUIRED"},
+    {"name": "product_id", "type": "STRING", "description": "품번코드", "mode": "REQUIRED"},
+    {"name": "expiration_date", "type": "DATE", "description": "유통기한", "mode": "REQUIRED"},
     {"name": "order_date", "type": "DATE", "description": "발주진행일"},
     {"name": "delivery_date", "type": "DATE", "description": "입고예정일"},
     {"name": "expected_quantity", "type": "INTEGER", "description": "입고예정수량"},
